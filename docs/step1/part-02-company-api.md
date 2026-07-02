@@ -1,7 +1,7 @@
 # Step 1 Part 02 — 거래처 API + PartnerLedgerProjector
 
-> **완료일:** 2026-07-02  
-> **범위:** 거래처 등록·조회 REST API · `PartnerLedgerProjector` · React 등록/목록 화면  
+> **완료일:** 2026-07-02 (수정·삭제 보완 포함)  
+> **범위:** 거래처 CRUD REST API · `PartnerLedgerProjector` · React 등록/수정/삭제 화면  
 > **설계 SSOT:** [`docs/step0/d4-company.md`](../step0/d4-company.md) v0.3  
 > **다음 파트:** Part 03 — 품목 CRUD
 
@@ -11,13 +11,13 @@
 
 | 항목 | 결과 |
 |------|------|
-| API | `POST/GET /api/v1/basis/companies`, `GET /{id}` |
-| Projector | `PartnerLedgerProjector.ensureAccounts` — 당해 연도 `partner_ledger_account` |
-| 이벤트 | `CompanyRegistered` → `domain_event` |
+| API | `POST/GET/PUT/DELETE /api/v1/basis/companies` |
+| Projector | `PartnerLedgerProjector.ensureAccounts` — 등록·수정 시 당해 연도 원장 ensure |
+| 이벤트 | `CompanyRegistered` / `CompanyUpdated` / `CompanyDeleted` |
 | Gradle 빌드 | `BUILD SUCCESSFUL` (`-x test`) |
 | 앱 기동 | `Started SmartManagerApplication` |
 | 프론트 빌드 | `npm run build` 성공 |
-| E2E 검증 | SALES+PURCHASE 등록 → 원장 2행 · COST 단독 → 원장 0행 |
+| E2E 검증 | 등록·수정(역할 변경+원장) · 삭제(논리삭제+원장 비활성) |
 
 ---
 
@@ -45,14 +45,35 @@ X-Actor-User-Id: (선택, 기본 local-dev)
 
 **응답:** `201 Created` — `CompanyResponse` (id, roles, createdAt 등)
 
-### 2.2 거래처 목록 / 단건
+### 2.2 거래처 수정
+
+```
+PUT /api/v1/basis/companies/{id}
+```
+
+- `business_reg_no` **변경 불가** (요청 본문에 포함하지 않음)
+- `roles` 동기화 후 `PartnerLedgerProjector.ensureAccounts` 재실행
+- 이벤트: `CompanyUpdated`
+
+### 2.3 거래처 삭제 (논리삭제)
+
+```
+DELETE /api/v1/basis/companies/{id}
+```
+
+- `company.recording_state = 0`
+- 해당 거래처 `partner_ledger_account` 전부 `recording_state = 0`
+- 이벤트: `CompanyDeleted`
+- 응답: `204 No Content`
+
+### 2.4 거래처 목록 / 단건
 
 | 메서드 | 경로 | 설명 |
 |--------|------|------|
 | `GET` | `/api/v1/basis/companies` | 활성(`recording_state=1`) 거래처 목록 |
 | `GET` | `/api/v1/basis/companies/{id}` | 단건 조회 |
 
-### 2.3 역할 → 원장 매핑
+### 2.5 역할 → 원장 매핑
 
 | `company_role` | `partner_ledger_account.ledger_type` |
 |----------------|--------------------------------------|
@@ -110,7 +131,8 @@ CompanyController.create
 | 파일 | 설명 |
 |------|------|
 | `web/company/CompanyController.java` | REST 엔드포인트 |
-| `web/company/CreateCompanyRequest.java` | 요청 DTO |
+| `web/company/CreateCompanyRequest.java` | 등록 요청 DTO |
+| `web/company/UpdateCompanyRequest.java` | 수정 요청 DTO (사업자번호 제외) |
 | `web/company/CompanyResponse.java` | 응답 DTO |
 | `config/WebConfig.java` | CORS `http://localhost:5173` |
 | `web/ApiExceptionHandler.java` | 400/500 JSON 응답 |
@@ -121,8 +143,8 @@ CompanyController.create
 
 | 파일 | 설명 |
 |------|------|
-| `src/App.tsx` | 거래처 등록 폼 + 목록 테이블 |
-| `src/api/company.ts` | `fetchCompanies`, `createCompany` |
+| `src/App.tsx` | 거래처 등록·수정 폼 + 목록(수정/삭제 버튼) |
+| `src/api/company.ts` | `fetchCompanies`, `createCompany`, `updateCompany`, `deleteCompany` |
 | `vite.config.ts` | dev proxy `/api` → `localhost:8080` |
 
 ```powershell
@@ -172,14 +194,14 @@ SELECT event_type, aggregate_id FROM domain_event WHERE event_type = 'CompanyReg
 
 | 이슈 | 조치 |
 |------|------|
-| Hibernate `recording_state` TINYINT vs INTEGER | `CompanyJpaEntity`, `PartnerLedgerAccountJpaEntity`에 `columnDefinition = "TINYINT"` |
+| Hibernate `recording_state` TINYINT vs INTEGER | `columnDefinition = "TINYINT"` |
+| `company_role` 수정 시 UNIQUE 충돌 | `replaceRoles`에서 `delete` 후 `flush()` |
 | api 모듈에서 application 타입 미해결 | `smartmanager-api`에 `application`, `domain` 의존성 추가 |
 
 ---
 
 ## 8. Part 02 범위 밖 (후속)
 
-- `PUT` / `DELETE` 거래처 (수정·논리삭제)
 - `partner_ledger_monthly` 12행 Lazy 생성
 - 사업자번호 중복 UI 처리
 - B1 현업 D4 리뷰 — [`b1-business-d4-review-checklist.md`](../step0/b1-business-d4-review-checklist.md)

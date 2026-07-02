@@ -17,4 +17,8 @@ public interface CompanyRepository {
     List<CompanyView> findAllActive();
 
     Optional<CompanyView> findActiveById(long id);
+
+    void update(long id, CompanyUpdateCommand command, String actorUserId);
+
+    void softDelete(long id, String actorUserId);
 }

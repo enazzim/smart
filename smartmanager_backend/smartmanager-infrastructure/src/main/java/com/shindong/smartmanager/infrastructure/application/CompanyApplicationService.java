@@ -2,6 +2,7 @@ package com.shindong.smartmanager.infrastructure.application;
 
 import com.shindong.smartmanager.application.company.CompanyCommand;
 import com.shindong.smartmanager.application.company.CompanyService;
+import com.shindong.smartmanager.application.company.CompanyUpdateCommand;
 import com.shindong.smartmanager.application.company.CompanyView;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -29,5 +30,15 @@ public class CompanyApplicationService {
     @Transactional(readOnly = true)
     public CompanyView getActive(long id) {
         return companyService.getActive(id);
+    }
+
+    @Transactional
+    public CompanyView update(long id, CompanyUpdateCommand command, String actorUserId) {
+        return companyService.update(id, command, actorUserId);
+    }
+
+    @Transactional
+    public void delete(long id, String actorUserId) {
+        companyService.delete(id, actorUserId);
     }
 }

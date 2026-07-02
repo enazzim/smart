@@ -20,8 +20,14 @@ public class CompanyApplicationConfig {
     public CompanyService companyService(
             CompanyRepository companyRepository,
             PartnerLedgerProjector partnerLedgerProjector,
+            PartnerLedgerAccountRepository partnerLedgerAccountRepository,
             DomainEventStore domainEventStore
     ) {
-        return new CompanyService(companyRepository, partnerLedgerProjector, domainEventStore);
+        return new CompanyService(
+                companyRepository,
+                partnerLedgerProjector,
+                partnerLedgerAccountRepository,
+                domainEventStore
+        );
     }
 }

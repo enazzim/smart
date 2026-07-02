@@ -3,6 +3,7 @@ package com.shindong.smartmanager.infrastructure.persistence.company;
 import com.shindong.smartmanager.application.company.PartnerLedgerAccountRepository;
 import com.shindong.smartmanager.domain.company.PartnerLedgerType;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,5 +47,20 @@ public class JpaPartnerLedgerAccountRepository implements PartnerLedgerAccountRe
                             repository.save(entity);
                         }
                 );
+    }
+
+    @Override
+    @Transactional
+    public void deactivateByCompanyId(long companyId, String actorUserId) {
+        Instant now = Instant.now();
+        List<PartnerLedgerAccountJpaEntity> accounts =
+                repository.findByCompanyIdAndRecordingState(companyId, 1);
+        for (PartnerLedgerAccountJpaEntity account : accounts) {
+            account.setRecordingState(0);
+            account.setUpdatedBy(actorUserId);
+            account.setUpdatedById(actorUserId);
+            account.setUpdatedAt(now);
+        }
+        repository.saveAll(accounts);
     }
 }

@@ -12,20 +12,24 @@ public class CompanyService {
 
     private final CompanyRepository companyRepository;
     private final PartnerLedgerProjector partnerLedgerProjector;
+    private final PartnerLedgerAccountRepository partnerLedgerAccountRepository;
     private final DomainEventStore domainEventStore;
 
     public CompanyService(
             CompanyRepository companyRepository,
             PartnerLedgerProjector partnerLedgerProjector,
+            PartnerLedgerAccountRepository partnerLedgerAccountRepository,
             DomainEventStore domainEventStore
     ) {
         this.companyRepository = companyRepository;
         this.partnerLedgerProjector = partnerLedgerProjector;
+        this.partnerLedgerAccountRepository = partnerLedgerAccountRepository;
         this.domainEventStore = domainEventStore;
     }
 
     public CompanyView register(CompanyCommand command, String actorUserId) {
-        validateRegister(command);
+        validateRoles(command.roles());
+        validateRequiredFields(command.companyName(), command.presidentName(), command.businessRegNo(), command.businessAddress());
         if (companyRepository.existsActiveByBusinessRegNo(command.businessRegNo())) {
             throw new IllegalArgumentException("이미 등록된 사업자번호입니다: " + command.businessRegNo());
         }
@@ -49,6 +53,47 @@ public class CompanyService {
                 .orElseThrow(() -> new IllegalStateException("등록 직후 거래처를 조회할 수 없습니다."));
     }
 
+    public CompanyView update(long id, CompanyUpdateCommand command, String actorUserId) {
+        CompanyView existing = getActive(id);
+        validateRoles(command.roles());
+        validateRequiredFields(command.companyName(), command.presidentName(), existing.businessRegNo(), command.businessAddress());
+
+        companyRepository.update(id, command, actorUserId);
+        companyRepository.replaceRoles(id, command.roles());
+
+        int fiscalYear = Year.now().getValue();
+        partnerLedgerProjector.ensureAccounts(id, command.roles(), fiscalYear, actorUserId);
+
+        domainEventStore.append(DomainEvent.create(
+                EventTypes.COMPANY_UPDATED,
+                1,
+                AggregateTypes.COMPANY,
+                String.valueOf(id),
+                actorUserId,
+                buildUpdatedPayload(existing.businessRegNo(), command, id, fiscalYear)
+        ));
+
+        return getActive(id);
+    }
+
+    public void delete(long id, String actorUserId) {
+        CompanyView existing = getActive(id);
+
+        companyRepository.softDelete(id, actorUserId);
+        partnerLedgerAccountRepository.deactivateByCompanyId(id, actorUserId);
+
+        domainEventStore.append(DomainEvent.create(
+                EventTypes.COMPANY_DELETED,
+                1,
+                AggregateTypes.COMPANY,
+                String.valueOf(id),
+                actorUserId,
+                """
+                {"companyId":%d,"businessRegNo":"%s","companyName":"%s"}
+                """.formatted(id, escape(existing.businessRegNo()), escape(existing.companyName())).trim()
+        ));
+    }
+
     public List<CompanyView> listActive() {
         return companyRepository.findAllActive();
     }
@@ -58,32 +103,59 @@ public class CompanyService {
                 .orElseThrow(() -> new IllegalArgumentException("거래처를 찾을 수 없습니다: " + id));
     }
 
-    private void validateRegister(CompanyCommand command) {
-        if (command.roles() == null || command.roles().isEmpty()) {
+    private void validateRoles(List<CompanyRoleType> roles) {
+        if (roles == null || roles.isEmpty()) {
             throw new IllegalArgumentException("거래처 역할은 최소 1개 이상 선택해야 합니다.");
         }
-        if (command.companyName() == null || command.companyName().isBlank()) {
+    }
+
+    private void validateRequiredFields(
+            String companyName,
+            String presidentName,
+            String businessRegNo,
+            String businessAddress
+    ) {
+        if (companyName == null || companyName.isBlank()) {
             throw new IllegalArgumentException("상호는 필수입니다.");
         }
-        if (command.presidentName() == null || command.presidentName().isBlank()) {
+        if (presidentName == null || presidentName.isBlank()) {
             throw new IllegalArgumentException("대표자는 필수입니다.");
         }
-        if (command.businessRegNo() == null || command.businessRegNo().isBlank()) {
+        if (businessRegNo == null || businessRegNo.isBlank()) {
             throw new IllegalArgumentException("사업자번호는 필수입니다.");
         }
-        if (command.businessAddress() == null || command.businessAddress().isBlank()) {
+        if (businessAddress == null || businessAddress.isBlank()) {
             throw new IllegalArgumentException("사업장주소는 필수입니다.");
         }
     }
 
     private String buildRegisteredPayload(CompanyCommand command, long companyId, int fiscalYear) {
-        String roles = command.roles().stream()
+        return buildRolesPayload(command.roles(), companyId, command.businessRegNo(), command.companyName(), fiscalYear);
+    }
+
+    private String buildUpdatedPayload(
+            String businessRegNo,
+            CompanyUpdateCommand command,
+            long companyId,
+            int fiscalYear
+    ) {
+        return buildRolesPayload(command.roles(), companyId, businessRegNo, command.companyName(), fiscalYear);
+    }
+
+    private String buildRolesPayload(
+            List<CompanyRoleType> roles,
+            long companyId,
+            String businessRegNo,
+            String companyName,
+            int fiscalYear
+    ) {
+        String roleList = roles.stream()
                 .map(CompanyRoleType::name)
                 .reduce((a, b) -> a + "\",\"" + b)
                 .orElse("");
         return """
                 {"companyId":%d,"businessRegNo":"%s","companyName":"%s","roles":["%s"],"fiscalYear":%d}
-                """.formatted(companyId, escape(command.businessRegNo()), escape(command.companyName()), roles, fiscalYear)
+                """.formatted(companyId, escape(businessRegNo), escape(companyName), roleList, fiscalYear)
                 .trim();
     }
 

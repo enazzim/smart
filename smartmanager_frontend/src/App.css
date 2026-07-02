@@ -64,6 +64,46 @@ button[type='submit'] {
   cursor: pointer;
 }
 
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+button.secondary {
+  padding: 0.5rem 1.25rem;
+  background: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.form-grid input.readonly {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+td.actions {
+  white-space: nowrap;
+}
+
+button.link {
+  background: none;
+  border: none;
+  color: #1a56db;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  text-decoration: underline;
+}
+
+button.link.danger {
+  color: #b91c1c;
+}
+
+tr.row-editing {
+  background: #eff6ff;
+}
+
 button[disabled] {
   opacity: 0.6;
   cursor: not-allowed;

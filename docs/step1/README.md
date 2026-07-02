@@ -4,7 +4,7 @@
 |------|------|:----:|
 | 01 | [part-01-boilerplate.md](./part-01-boilerplate.md) | ✅ Gradle 보일러플레이트 |
 | 01b | [part-01b-folder-java.md](./part-01b-folder-java.md) | ✅ backend/frontend 분리 · Java 17+ |
-| 02 | [part-02-company-api.md](./part-02-company-api.md) | ✅ 거래처 등록·조회 + PartnerLedgerProjector |
+| 02 | [part-02-company-api.md](./part-02-company-api.md) | ✅ 거래처 CRUD + PartnerLedgerProjector |
 | 03 | (예정) 품목 11필드 CRUD | |
 | 04 | (예정) 공정 + WipBalanceProjector | |
 
