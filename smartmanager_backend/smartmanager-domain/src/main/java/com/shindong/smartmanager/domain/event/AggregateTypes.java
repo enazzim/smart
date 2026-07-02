@@ -6,6 +6,8 @@ package com.shindong.smartmanager.domain.event;
 public final class AggregateTypes {
 
     public static final String COMPANY = "Company";
+    public static final String ITEM = "Item";
+    public static final String PROCESS = "Process";
 
     private AggregateTypes() {
     }
