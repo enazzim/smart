@@ -1,0 +1,293 @@
+<%@ Page language="c#" Codebehind="OutsideRequest.aspx.cs" AutoEventWireup="false" Inherits="hanaro.ProductionManagement.OutsideRequest" codePage="949" %>
+<%@ Register TagPrefix="igcmbo" Namespace="Infragistics.WebUI.WebCombo" Assembly="Infragistics.WebUI.WebCombo.v3.1, Version=3.1.20042.26, Culture=neutral, PublicKeyToken=7dd5c3163f2cd0cb" %>
+<%@ Register TagPrefix="igsch" Namespace="Infragistics.WebUI.WebSchedule" Assembly="Infragistics.WebUI.WebDateChooser.v1.2, Version=1.2.20042.26, Culture=neutral, PublicKeyToken=7dd5c3163f2cd0cb" %>
+<%@ Register TagPrefix="igtbl" Namespace="Infragistics.WebUI.UltraWebGrid" Assembly="Infragistics.WebUI.UltraWebGrid.v3.1, Version=3.1.20042.26, Culture=neutral, PublicKeyToken=7dd5c3163f2cd0cb" %>
+<%@ Register TagPrefix="uc1" TagName="ItemSearchControl" Src="../Common/ItemSearchControl/ItemSearchControl.ascx" %>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" >
+<HTML>
+	<HEAD>
+		<title>OutsideRequest</title>
+		<META http-equiv="Content-Type" content="text/html; charset=ks_c_5601-1987">
+		<meta content="Microsoft Visual Studio .NET 7.1" name="GENERATOR">
+		<meta content="C#" name="CODE_LANGUAGE">
+		<meta content="JavaScript" name="vs_defaultClientScript">
+		<meta content="http://schemas.microsoft.com/intellisense/ie5" name="vs_targetSchema">
+		<LINK href="../StyleSheet2.css" type="text/css" rel="stylesheet">
+		<script language="javascript">
+			function OK(text)
+			{
+				if(confirm(text + "하시겠습니까?"))
+					return true;
+				else
+					return false;
+			}
+		var GridName;
+		
+		function AllCheck() // 전부 체크하기
+		{
+			var grid = igtbl_getGridById(GridName);
+			
+			for(var i=0; i<grid.Rows.length; i++)
+			{
+				var row = grid.Rows.getRow(i);
+				row.getCellFromKey("chk").setValue(true);
+			}
+			document.Form1.chkAll.value = "false";
+		}
+		function AllUncheck() // 전부체크 해제하기
+		{
+			var grid = igtbl_getGridById(GridName);
+			
+			for(var i=0; i<grid.Rows.length; i++)
+			{
+				var row = grid.Rows.getRow(i);
+				row.getCellFromKey("chk").setValue(false);
+			}
+			document.Form1.chkAll.value = "true";
+		}
+		function UltraWebGrid1_ColumnHeaderClickHandler(gridName, columnId, button){
+			//Add code to handle your event here.
+			GridName = gridName;
+    			if(document.Form1.chkAll.value == "true")
+    			{
+					AllCheck();
+				}
+				else
+				{
+					AllUncheck();
+				}
+		}
+		</script>
+	</HEAD>
+	<body MS_POSITIONING="GridLayout" BGCOLOR="#f7f6f6">
+		<form id="Form1" method="post" runat="server">
+			<TABLE style="PADDING-LEFT: 10px; Z-INDEX: 101; LEFT: 0px; WIDTH: 800px; PADDING-TOP: 10px; POSITION: absolute; TOP: 0px; HEIGHT: 550px"
+				cellSpacing="0" cellPadding="0" id="Table1" height="550" width="800" border="0">
+				<tr>
+					<td>
+						<FIELDSET style="BORDER-RIGHT: dimgray 2px solid; BORDER-TOP: dimgray 2px solid; FONT-SIZE: 9pt; BORDER-LEFT: dimgray 2px solid; WIDTH: 800px; BORDER-BOTTOM: dimgray 2px solid"><LEGEND align="top">[검색조건]</LEGEND>
+							<TABLE id="Table2" style="WIDTH: 800px; HEIGHT: 35px" height="35" cellSpacing="0" cellPadding="0"
+								width="800" border="0" DESIGNTIMEDRAGDROP="66">
+								<TR>
+									<TD vAlign="middle" align="left" colSpan="8" height="30">
+										<uc1:ItemSearchControl id="ItemSearchControl1" runat="server"></uc1:ItemSearchControl></TD>
+								</TR>
+								<TR>
+									<TD vAlign="middle" align="right" width="70" height="30">의뢰일&nbsp;
+									</TD>
+									<TD vAlign="middle" align="left" width="100" height="30">
+										<igsch:webdatechooser id="wdc_FromDate" runat="server" Width="100px" Height="18px" Text=" " Font-Size="10pt"
+											BackColor="#EEEEE9" BorderStyle="Solid" BorderColor="DimGray" NullDateLabel=" ">
+											<CalendarLayout DayNameFormat="FirstLetter" FooterFormat="Today: {0:d}" ShowNextPrevMonth="False"
+												ShowTitle="False" ShowFooter="False">
+												<SelectedDayStyle ForeColor="White" BackColor="#0A246A"></SelectedDayStyle>
+												<OtherMonthDayStyle ForeColor="White"></OtherMonthDayStyle>
+												<DropDownStyle BackColor="White"></DropDownStyle>
+												<DayHeaderStyle ForeColor="#D4D0C8" BackColor="Gray"></DayHeaderStyle>
+											</CalendarLayout>
+											<DropDownStyle BorderWidth="1px" BorderColor="DimGray" BorderStyle="Solid"></DropDownStyle>
+											<DropButton ImageUrl2="/ig_common/webschedule1/ig_cmboDown2.bmp" ImageUrl1="/ig_common/webschedule1/ig_cmboDown1.bmp"></DropButton>
+											<ExpandEffects ShadowColor="LightGray"></ExpandEffects>
+										</igsch:webdatechooser></TD>
+									<TD vAlign="middle" align="center" width="15" height="30">~</TD>
+									<TD vAlign="middle" align="left" width="100" height="30">
+										<igsch:webdatechooser id="wdc_ToDate" runat="server" Width="100px" Height="18px" Text=" " Font-Size="10pt"
+											BackColor="#EEEEE9" BorderStyle="Solid" BorderColor="DimGray" NullDateLabel=" ">
+											<EditStyle>
+												<BorderDetails ColorTop="DimGray" StyleBottom="Solid" ColorBottom="DimGray" ColorRight="DimGray"
+													StyleTop="Solid" StyleRight="Solid" StyleLeft="Solid" ColorLeft="DimGray"></BorderDetails>
+											</EditStyle>
+											<CalendarLayout DayNameFormat="FirstLetter" FooterFormat="Today: {0:d}" ShowNextPrevMonth="False"
+												ShowTitle="False" ShowFooter="False">
+												<SelectedDayStyle ForeColor="White" BackColor="#0A246A"></SelectedDayStyle>
+												<OtherMonthDayStyle ForeColor="White"></OtherMonthDayStyle>
+												<DropDownStyle BackColor="White"></DropDownStyle>
+												<DayHeaderStyle ForeColor="#D4D0C8" BackColor="Gray"></DayHeaderStyle>
+											</CalendarLayout>
+											<DropDownStyle BorderWidth="1px" BorderColor="DimGray" BorderStyle="Solid"></DropDownStyle>
+											<DropButton ImageUrl2="/ig_common/webschedule1/ig_cmboDown2.bmp" ImageUrl1="/ig_common/webschedule1/ig_cmboDown1.bmp"></DropButton>
+											<ExpandEffects ShadowColor="LightGray"></ExpandEffects>
+										</igsch:webdatechooser></TD>
+									<TD vAlign="middle" align="center" width="100" height="30"></TD>
+									<TD vAlign="middle" align="right" width="415" colSpan="3" height="30">
+										<asp:button id="bt_Clear" runat="server" Width="60px" Height="20px" Text="초기화" Font-Size="10pt"></asp:button>&nbsp;
+										<asp:button id="bt_Search" runat="server" Width="60px" Height="20px" Text="검   색" Font-Size="10pt"></asp:button>&nbsp;&nbsp;
+									</TD>
+								</TR>
+								<TR>
+									<TD vAlign="middle" align="right" width="70" colSpan="8" height="8"></TD>
+								</TR>
+							</TABLE>
+						</FIELDSET>
+					</td>
+				</tr>
+				<tr>
+					<td style="WIDTH: 800px">
+						<FIELDSET style="BORDER-RIGHT: dimgray 2px solid; BORDER-TOP: dimgray 2px solid; FONT-SIZE: 9pt; BORDER-LEFT: dimgray 2px solid; WIDTH: 100%; BORDER-BOTTOM: dimgray 2px solid"><LEGEND align="top">[검색결과]</LEGEND>
+							<TABLE id="Table3" cellSpacing="0" cellPadding="0" width="800" border="0">
+								<TR>
+									<TD style="FONT-SIZE: 0pt; HEIGHT: 363px" vAlign="top" align="center" colSpan="3">
+										<igtbl:ultrawebgrid id="UltraWebGrid1" runat="server" Height="410px" Width="100%">
+											<DisplayLayout StationaryMargins="Header" AutoGenerateColumns="False" AllowSortingDefault="OnClient"
+												RowHeightDefault="20px" Version="3.00" SelectTypeRowDefault="Single" AllowColumnMovingDefault="OnServer"
+												HeaderClickActionDefault="SortMulti" BorderCollapseDefault="Separate" AllowColSizingDefault="Free"
+												RowSelectorsDefault="No" Name="UltraWebGrid1" TableLayout="Fixed" CellClickActionDefault="RowSelect"
+												NoDataMessage="해당 데이타가 없습니다.">
+												<AddNewBox>
+													<Style BorderWidth="1px" BorderStyle="Solid" BackColor="LightGray">
+													</Style>
+												</AddNewBox>
+												<Pager PageSize="20" PagerAppearance="Both">
+													<Style VerticalAlign="Middle" BorderWidth="1px" BorderStyle="Solid" HorizontalAlign="Center"
+														BackColor="LightGray">
+													</Style>
+												</Pager>
+												<HeaderStyleDefault Cursor="Hand" BorderColor="Black" BorderStyle="Solid" ForeColor="Black" BackColor="LightGray"
+													Height="25px">
+													<BorderDetails ColorTop="White" WidthLeft="1px" WidthTop="1px" ColorLeft="White"></BorderDetails>
+												</HeaderStyleDefault>
+												<GroupByRowStyleDefault ForeColor="Black" BackColor="#95B9F0"></GroupByRowStyleDefault>
+												<RowSelectorStyleDefault BorderStyle="Solid"></RowSelectorStyleDefault>
+												<FrameStyle Width="100%" Cursor="Default" BorderWidth="1px" Font-Size="9pt" Font-Names="굴림"
+													BorderColor="DimGray" BorderStyle="Solid" BackColor="Silver" Height="410px"></FrameStyle>
+												<FooterStyleDefault BorderWidth="1px" BorderStyle="Solid" BackColor="LightGray">
+													<BorderDetails ColorTop="White" WidthLeft="1px" WidthTop="1px" ColorLeft="White"></BorderDetails>
+												</FooterStyleDefault>
+												<ClientSideEvents ColumnHeaderClickHandler="UltraWebGrid1_ColumnHeaderClickHandler"></ClientSideEvents>
+												<GroupByBox>
+													<Style BackColor="#B5CFF7">
+													</Style>
+													<BandLabelStyle ForeColor="White" BackColor="#6372D4"></BandLabelStyle>
+												</GroupByBox>
+												<EditCellStyleDefault BorderWidth="0px" BorderStyle="None"></EditCellStyleDefault>
+												<SelectedGroupByRowStyleDefault BorderColor="Yellow" BackColor="Yellow"></SelectedGroupByRowStyleDefault>
+												<SelectedRowStyleDefault Cursor="Hand" Font-Bold="True" ForeColor="White" BackColor="Navy"></SelectedRowStyleDefault>
+												<RowAlternateStyleDefault BackColor="LightSteelBlue"></RowAlternateStyleDefault>
+												<RowStyleDefault Cursor="Hand" BorderWidth="1px" Font-Names="굴림" BorderColor="Gray" BorderStyle="Solid"
+													ForeColor="Black" BackColor="#EBEFF6">
+													<Padding Left="3px"></Padding>
+													<BorderDetails ColorTop="Gray" WidthLeft="0px" WidthTop="0px" ColorLeft="Gray"></BorderDetails>
+												</RowStyleDefault>
+											</DisplayLayout>
+											<Bands>
+												<igtbl:UltraGridBand AllowUpdate="No">
+													<Columns>
+														<igtbl:UltraGridColumn HeaderText="선택" Key="chk" Width="30px" Type="CheckBox" HeaderClickAction="Select"
+															BaseColumnName="chk" AllowUpdate="Yes">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+															<HeaderStyle VerticalAlign="Middle" HorizontalAlign="Center" Height="25px"></HeaderStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="품목번호" Key="ItemNum" Width="170px" HeaderClickAction="SortMulti" BaseColumnName="ItemNum">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="도면번호" Key="ItemDrawNum" Width="165px" BaseColumnName="ItemDrawNum">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="품목명" Key="ItemName" Width="150px" BaseColumnName="ItemName">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="공정순서" Key="ProcessSequenceNum" Width="80px" BaseColumnName="ProcessSequenceNum">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="공정코드" Key="ProcessCode" Hidden="True" BaseColumnName="ProcessCode">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="공정명" Key="ProcessName" Width="100px" BaseColumnName="ProcessName">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="이전공정" Key="PreProcessName" Hidden="True" BaseColumnName="PreProcessName">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="제품번호" Key="ProductItemNum" Hidden="True" BaseColumnName="ProductItemNum">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="제품도면번호" Key="ProductDrawNum" Hidden="True" BaseColumnName="ProductDrawNum">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="제품명" Key="ProductName" Hidden="True" BaseColumnName="ProductName">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="모품목번호" Key="ParentItemNum" Hidden="True" BaseColumnName="ParentItemNum">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="모품목도면번호" Key="ParentDrawNum" Hidden="True" BaseColumnName="ParentDrawNum">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="모품목명" Key="ParentName" Hidden="True" BaseColumnName="ParentName">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="WC명" Key="WCName" Hidden="True" BaseColumnName="WCName">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="작업구분" Key="WorkDistinction" Hidden="True" BaseColumnName="WorkDistinction">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="작업계획수량" Key="WorkPlanQuantity" Format="###,###,###.##" BaseColumnName="WorkPlanQuantity">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Right">
+																<Margin Right="4px"></Margin>
+															</CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="작업완료수량" Key="WorkCompletionQuantity" Hidden="True" Format="###,###,###.##"
+															BaseColumnName="WorkCompletionQuantity">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Right"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="외주리드타임" Key="OrderLeadTime" Hidden="True" BaseColumnName="OrderLeadTime">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="작업일자" Key="WorkDate" Hidden="True" Format="yyyy-MM-dd" BaseColumnName="WorkDate">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="진행상태" Key="ProgressCondition" Hidden="True" BaseColumnName="ProgressCondition">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="등록자" Key="RegistrationPerson" Hidden="True" BaseColumnName="RegistrationPerson">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="등록자ID" Key="RegistrationPersonID" Hidden="True" BaseColumnName="RegistrationPersonID">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="등록일" Key="RegistrationDate" Hidden="True" Format="yyyy-MM-dd" BaseColumnName="RegistrationDate">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="수정자" Key="UpdatingPerson" Hidden="True" BaseColumnName="UpdatingPerson">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="수정자ID" Key="UpdatingPersonID" Hidden="True" BaseColumnName="UpdatingPersonID">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="수정일" Key="UpdatingDate" Hidden="True" Format="yyyy-MM-dd" BaseColumnName="UpdatingDate">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="생산계획번호" Key="ProductionPlanHistoryIndex" Hidden="True" BaseColumnName="ProductionPlanHistoryIndex">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="작업계획번호" Key="WorkPlanHistoryIndex" Hidden="True" BaseColumnName="WorkPlanHistoryIndex">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+														<igtbl:UltraGridColumn HeaderText="WC작업계획번호" Key="WCDailyWorkPlanHistoryIndex" Hidden="True" BaseColumnName="WCDailyWorkPlanHistoryIndex">
+															<CellStyle VerticalAlign="Middle" HorizontalAlign="Center"></CellStyle>
+														</igtbl:UltraGridColumn>
+													</Columns>
+													<RowTemplateStyle BorderColor="White" BorderStyle="Ridge" BackColor="White">
+														<BorderDetails WidthLeft="3px" WidthTop="3px" WidthRight="3px" WidthBottom="3px"></BorderDetails>
+													</RowTemplateStyle>
+													<RowEditTemplate>
+														<P align="center">&nbsp;</P>
+													</RowEditTemplate>
+												</igtbl:UltraGridBand>
+											</Bands>
+										</igtbl:ultrawebgrid></TD>
+								</TR>
+								<TR>
+									<TD align="right" vAlign="middle" colspan="3" height="30"><INPUT id="chkAll" style="WIDTH: 40px; HEIGHT: 22px" type="hidden" size="1" value="true"
+											name="Hidden1" runat="server">
+										<asp:button id="bt_Request" runat="server" Font-Size="10pt" Height="20px" Width="60px" Text="의   뢰"></asp:button>&nbsp;</TD>
+								</TR>
+							</TABLE>
+						</FIELDSET>
+					</td>
+				</tr>
+			</TABLE>
+		</form>
+	</body>
+</HTML>

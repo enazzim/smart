@@ -1,0 +1,48 @@
+<?xml version="1.0" standalone="yes"?>
+<xs:schema id="DataSet1" targetNamespace="http://www.tempuri.org/DataSet1.xsd" xmlns:mstns="http://www.tempuri.org/DataSet1.xsd" xmlns="http://www.tempuri.org/DataSet1.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" attributeFormDefault="qualified" elementFormDefault="qualified">
+  <xs:element name="DataSet1" msdata:IsDataSet="true" msdata:Locale="ko-KR">
+    <xs:complexType>
+      <xs:choice maxOccurs="unbounded">
+        <xs:element name="WDWP_HT">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="ItemNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ItemDrawNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ItemName" type="xs:string" minOccurs="0" />
+              <xs:element name="ProcessSequenceNum" type="xs:unsignedByte" minOccurs="0" />
+              <xs:element name="ProcessCode" type="xs:string" minOccurs="0" />
+              <xs:element name="ProcessName" type="xs:string" minOccurs="0" />
+              <xs:element name="PreProcessName" type="xs:string" minOccurs="0" />
+              <xs:element name="ProductItemNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ProductDrawNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ProductName" type="xs:string" minOccurs="0" />
+              <xs:element name="ParentItemNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ParentDrawNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ParentName" type="xs:string" minOccurs="0" />
+              <xs:element name="WCName" type="xs:string" minOccurs="0" />
+              <xs:element name="WorkDistinction" type="xs:string" minOccurs="0" />
+              <xs:element name="WorkPlanQuantity" type="xs:decimal" minOccurs="0" />
+              <xs:element name="WorkCompletionQuantity" type="xs:decimal" minOccurs="0" />
+              <xs:element name="OrderLeadTime" type="xs:decimal" minOccurs="0" />
+              <xs:element name="WorkDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="ProgressCondition" type="xs:string" minOccurs="0" />
+              <xs:element name="RegistrationPerson" type="xs:string" minOccurs="0" />
+              <xs:element name="RegistrationPersonID" type="xs:string" minOccurs="0" />
+              <xs:element name="RegistrationDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="UpdatingPerson" type="xs:string" minOccurs="0" />
+              <xs:element name="UpdatingPersonID" type="xs:string" minOccurs="0" />
+              <xs:element name="UpdatingDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="ProductionPlanHistoryIndex" type="xs:int" minOccurs="0" />
+              <xs:element name="WorkPlanHistoryIndex" type="xs:int" minOccurs="0" />
+              <xs:element name="WCDailyWorkPlanHistoryIndex" msdata:ReadOnly="true" msdata:AutoIncrement="true" type="xs:int" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+    <xs:unique name="Constraint1" msdata:PrimaryKey="true">
+      <xs:selector xpath=".//mstns:WDWP_HT" />
+      <xs:field xpath="mstns:WCDailyWorkPlanHistoryIndex" />
+    </xs:unique>
+  </xs:element>
+</xs:schema>

@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<definitions xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:i1="http://service.devpia.com/wsPostalCode/dsPostalCodeByDong.xsd" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:s0="http://service.devpia.com/wsPostalCode/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:i0="http://service.devpia.com/wsPostalCode/dsPostalCodeByCode.xsd" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" targetNamespace="http://service.devpia.com/wsPostalCode/" xmlns="http://schemas.xmlsoap.org/wsdl/">
+  <import namespace="http://service.devpia.com/wsPostalCode/dsPostalCodeByCode.xsd" location="http://service.devpia.com/wspostalcode/spostalcode.asmx?schema=dsPostalCodeByCode" />
+  <import namespace="http://service.devpia.com/wsPostalCode/dsPostalCodeByDong.xsd" location="http://service.devpia.com/wspostalcode/spostalcode.asmx?schema=dsPostalCodeByDong" />
+  <types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://service.devpia.com/wsPostalCode/">
+      <s:import namespace="http://service.devpia.com/wsPostalCode/dsPostalCodeByCode.xsd" />
+      <s:import namespace="http://service.devpia.com/wsPostalCode/dsPostalCodeByDong.xsd" />
+      <s:element name="GetPostalCodeByCode">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="sCode" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetPostalCodeByCodeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="GetPostalCodeByCodeResult">
+              <s:complexType>
+                <s:sequence>
+                  <s:any namespace="http://service.devpia.com/wsPostalCode/dsPostalCodeByCode.xsd" />
+                </s:sequence>
+              </s:complexType>
+            </s:element>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetPostalCodeByDong">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="sDong" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetPostalCodeByDongResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="GetPostalCodeByDongResult">
+              <s:complexType>
+                <s:sequence>
+                  <s:any namespace="http://service.devpia.com/wsPostalCode/dsPostalCodeByDong.xsd" />
+                </s:sequence>
+              </s:complexType>
+            </s:element>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+    </s:schema>
+  </types>
+  <message name="GetPostalCodeByCodeSoapIn">
+    <part name="parameters" element="s0:GetPostalCodeByCode" />
+  </message>
+  <message name="GetPostalCodeByCodeSoapOut">
+    <part name="parameters" element="s0:GetPostalCodeByCodeResponse" />
+  </message>
+  <message name="GetPostalCodeByDongSoapIn">
+    <part name="parameters" element="s0:GetPostalCodeByDong" />
+  </message>
+  <message name="GetPostalCodeByDongSoapOut">
+    <part name="parameters" element="s0:GetPostalCodeByDongResponse" />
+  </message>
+  <portType name="sPostalCodeSoap">
+    <operation name="GetPostalCodeByCode">
+      <documentation>Let's Search the Postal Code of Korea!</documentation>
+      <input message="s0:GetPostalCodeByCodeSoapIn" />
+      <output message="s0:GetPostalCodeByCodeSoapOut" />
+    </operation>
+    <operation name="GetPostalCodeByDong">
+      <documentation>Let's Search the Postal Code of Korea!</documentation>
+      <input message="s0:GetPostalCodeByDongSoapIn" />
+      <output message="s0:GetPostalCodeByDongSoapOut" />
+    </operation>
+  </portType>
+  <binding name="sPostalCodeSoap" type="s0:sPostalCodeSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document" />
+    <operation name="GetPostalCodeByCode">
+      <soap:operation soapAction="http://service.devpia.com/wsPostalCode/GetPostalCodeByCode" style="document" />
+      <input>
+        <soap:body use="literal" />
+      </input>
+      <output>
+        <soap:body use="literal" />
+      </output>
+    </operation>
+    <operation name="GetPostalCodeByDong">
+      <soap:operation soapAction="http://service.devpia.com/wsPostalCode/GetPostalCodeByDong" style="document" />
+      <input>
+        <soap:body use="literal" />
+      </input>
+      <output>
+        <soap:body use="literal" />
+      </output>
+    </operation>
+  </binding>
+  <service name="sPostalCode">
+    <documentation>&lt;img src='http://service.devpia.com/wsPostalCode/top_logo.gif' title='DEVPIA Co., Ltd.'&gt;&lt;br&gt;This service is for searching the Postal Code of Korea.</documentation>
+    <port name="sPostalCodeSoap" binding="s0:sPostalCodeSoap">
+      <soap:address location="http://service.devpia.com/wspostalcode/spostalcode.asmx" />
+    </port>
+  </service>
+</definitions>

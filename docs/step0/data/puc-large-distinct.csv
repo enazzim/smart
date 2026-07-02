@@ -1,0 +1,35 @@
+large_code,large_name,source,confidence,code_group_key,usage_type,note
+0110,거래처분류1,hypothesis,low,COMPANY_TRADE_CLASS_1,GENERIC,LargeClassificationName 조회 — DB 검증 필수
+0120,거래처분류2,hypothesis,low,COMPANY_TRADE_CLASS_2,GENERIC,동일
+0130,거래처분류3,hypothesis,low,COMPANY_TRADE_CLASS_3,GENERIC,동일
+0210,품목분류1,code-audit,high,ITEM_CLASSIFICATION_1,GENERIC,ItemInfo.aspx.cs
+0220,품목분류2,code-audit,high,ITEM_CLASSIFICATION_2,GENERIC,
+0230,품목분류3,code-audit,high,ITEM_CLASSIFICATION_3,GENERIC,
+0240,품목분류4,code-audit,high,ITEM_CLASSIFICATION_4,GENERIC,
+0330,구매의뢰원천,code-audit,high,,GENERIC,Phase2
+0400,단위,code-audit,high,UNIT_GENERAL,UNIT,
+0410,규격단위1,code-audit,high,UNIT_SPEC_1,UNIT,
+0420,규격단위2,code-audit,high,UNIT_SPEC_2,UNIT,
+0430,규격단위3,code-audit,high,UNIT_SPEC_3,UNIT,
+0440,규격단위4,code-audit,medium,,UNIT,ItemInfo 주석
+0510,재고단위,code-audit,high,UNIT_STOCK,UNIT,
+0520,BOM단위,code-audit,high,UNIT_BOM,UNIT,
+0530,구매단위,code-audit,high,UNIT_PURCHASE,UNIT,
+0540,판매단위,code-audit,high,UNIT_SALE,UNIT,
+0610,품목타입,code-audit,high,ITEM_TYPE,GENERIC,
+0620,재질,code-audit,high,ITEM_MATERIAL,GENERIC,
+0630,품목상태,code-audit,high,ITEM_STATE,GENERIC,exclude 06300010
+0640,조달구분,code-audit,high,BOM_SUPPLY_DIVISION,GENERIC,
+0720,설비분류,code-audit,high,EQUIPMENT_CLASS,GENERIC,exclude 07200010 07200020
+0800,설비위치,code-audit,high,EQUIPMENT_LOCATION,GENERIC,d4-equipment Drop
+0910,지급계획,code-audit,high,PAYMENT_PLAN_TYPE,GENERIC,
+0920,지급실적,code-audit,high,PAYMENT_RESULT_TYPE,GENERIC,
+1000,부적합현상,code-audit,medium,QC_DEFECT_PHENOMENON,NC_DETAIL,PageLoad_GetDataSource
+1010,부적합원인,code-audit,high,QC_DEFECT_CAUSE,NC_REASON,
+1210,비작업사유,code-audit,high,,GENERIC,Phase2
+1310,검사판정,code-audit,high,QC_INSPECTION_DECISION,GENERIC,
+1400,공정명,code-audit,high,PROCESS_CODE,PROCESS,exclude 14000000 14009999
+1500,입출고사유,code-audit,high,,GENERIC,Phase2
+1700,보용품입고사유,code-audit,high,,GENERIC,Phase2
+1800,기타구매,code-audit,high,,GENERIC,Phase2
+1900,업무일지그룹,to-be-new,high,WORK_DIARY_GROUP,WORK_DIARY_GROUP,레거시 UserInfo.aspx 00~16 그룹 Step1 시드

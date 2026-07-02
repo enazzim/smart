@@ -1,0 +1,60 @@
+<html>
+	<head>
+	<title>▒▒ 새해 福 많이 받으십시오 ▒▒</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=euc-kr">
+	<LINK href="StyleSheet1.css" type="text/css" rel="stylesheet">
+		<script language="JavaScript">
+		<!--
+			//설정한 날짜만큼 쿠키가 유지되게. expiredays가 1 이면 하루동안 유지
+			function setCookie(name, value, expiredays) 
+			{
+				var expire_date = new Date();
+				expire_date.setDate(expire_date.getDate() + expiredays );
+				document.cookie = name + "=" + escape( value ) + "; expires=" + expire_date.toGMTString() + "; path=/";
+			} 
+			//쿠키 소멸 함수
+			function clearCookie(name) 
+			{
+				var expire_date = new Date();
+				//어제 날짜를 쿠키 소멸 날짜로 설정한다.
+				expire_date.setDate(expire_date.getDate() - 1)
+				document.cookie = name + "= " + "; expires=" + expire_date.toGMTString() + "; path=/"
+			}
+
+			//체크 상태에 따라 쿠키 생성과 소멸을 제어하는 함수
+			function controlCookie() 
+			{
+				setCookie("op1","true", 1)
+				self.close();
+				return
+			}
+		//-->
+		</script>
+	</head>
+<body bgcolor="#FFFFFF" text="#000000" leftmargin="0" topmargin="0">
+<table border="0" cellspacing="0" cellpadding="0" style="font-size: 9pt; line-height: 140%;" align=center>
+	<tr>
+		<td bgcolor="#FFCC00" align=center>
+			<input type="image" src="Images/NewYear/1.jpg" width="497" height="269">
+		</td>
+	</tr>
+	<tr>
+		<td height="30" align=right>
+		새해 <font color=#FF3399>福</font> 많이 받으십시오.
+		</td>
+	</tr>
+	<tr>
+		<td align=right>
+		- KITC 임직원 일동 - 
+		</td>
+	</tr>
+	<tr>
+		<td align=right height=50>
+		<form name="form1" method="post" action=""><a href="#" onclick="controlCookie()">오늘 하루 이 창을 열지 않습니다!</a>&nbsp;&nbsp;<a href="#" onclick="self.close()">닫기</a>
+			</form> 
+		</td>
+	</tr>
+</table>
+
+</body>
+</html>

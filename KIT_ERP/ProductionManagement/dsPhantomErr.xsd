@@ -1,0 +1,27 @@
+<?xml version="1.0" standalone="yes"?>
+<xs:schema id="dsPhantomErr" targetNamespace="http://www.tempuri.org/dsPhantomErr.xsd" xmlns:mstns="http://www.tempuri.org/dsPhantomErr.xsd" xmlns="http://www.tempuri.org/dsPhantomErr.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" attributeFormDefault="qualified" elementFormDefault="qualified">
+  <xs:element name="dsPhantomErr" msdata:IsDataSet="true" msdata:Locale="ko-KR">
+    <xs:complexType>
+      <xs:choice maxOccurs="unbounded">
+        <xs:element name="ItemGroupErr_HT">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="ItemNum" type="xs:string" minOccurs="0" />
+              <xs:element name="CompanyName" type="xs:string" minOccurs="0" />
+              <xs:element name="BusinessRegistrationNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ReceivingOrderDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="DeliveryRequestDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="TotalReceiveingOrderQuantity" type="xs:decimal" minOccurs="0" />
+              <xs:element name="ErrRegion" type="xs:string" minOccurs="0" />
+              <xs:element name="ItemGroupErrIndex" msdata:ReadOnly="true" msdata:AutoIncrement="true" type="xs:int" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+    <xs:unique name="Constraint1" msdata:PrimaryKey="true">
+      <xs:selector xpath=".//mstns:ItemGroupErr_HT" />
+      <xs:field xpath="mstns:ItemGroupErrIndex" />
+    </xs:unique>
+  </xs:element>
+</xs:schema>

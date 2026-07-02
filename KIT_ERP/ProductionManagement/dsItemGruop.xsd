@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<xs:schema id="dsItemGruop" targetNamespace="http://tempuri.org/dsItemGruop.xsd" elementFormDefault="qualified"
+	attributeFormDefault="qualified" xmlns="http://tempuri.org/dsItemGruop.xsd" xmlns:mstns="http://tempuri.org/dsItemGruop.xsd"
+	xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+	<xs:element name="dsItemGruop" msdata:IsDataSet="true">
+		<xs:complexType>
+			<xs:choice maxOccurs="unbounded">
+				<xs:element name="Phantom">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="ItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ItemDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ItemName" type="xs:string" minOccurs="0" />
+							<xs:element name="DeliveryOrderRequestQuantity" type="xs:decimal" minOccurs="0" />
+							<xs:element name="RowMaterialQuantityReflection" type="xs:boolean" minOccurs="0" />
+							<xs:element name="OrderNonInStorehouseReflection" type="xs:boolean" minOccurs="0" />
+							<xs:element name="OrderRequestReadyQuantityReflection" type="xs:boolean" minOccurs="0" />
+							<xs:element name="SafyRowMaterialQuantityReflection" type="xs:boolean" minOccurs="0" />
+							<xs:element name="MinimumOrderQuantityReflection" type="xs:boolean" minOccurs="0" />
+							<xs:element name="OrderGapQuantityReflection" type="xs:boolean" minOccurs="0" />
+							<xs:element name="VolumNum" type="xs:int" minOccurs="0" />
+							<xs:element name="ProgressCondition" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationPerson" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationPersonID" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="UpdatingPerson" type="xs:string" minOccurs="0" />
+							<xs:element name="UpdatingPersonID" type="xs:string" minOccurs="0" />
+							<xs:element name="UpdatingDate" type="xs:dateTime" minOccurs="0" />
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:choice>
+		</xs:complexType>
+		<xs:unique name="dsRowMaterialKey1" msdata:PrimaryKey="true">
+			<xs:selector xpath=".//mstns:MRC_HT" />
+			<xs:field xpath="mstns:ItemNum" />
+		</xs:unique>
+	</xs:element>
+</xs:schema>

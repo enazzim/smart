@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:mstns="http://service.devpia.com/wsPostalCode/dsPostalCodeByCode.xsd" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" xmlns="http://service.devpia.com/wsPostalCode/dsPostalCodeByCode.xsd" attributeFormDefault="qualified" elementFormDefault="qualified" targetNamespace="http://service.devpia.com/wsPostalCode/dsPostalCodeByCode.xsd" id="dsPostalCodeByCode" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element msdata:IsDataSet="true" msdata:Locale="ko-KR" name="dsPostalCodeByCode">
+    <xs:complexType>
+      <xs:choice maxOccurs="unbounded">
+        <xs:element name="ZIPCODE">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element msdata:ReadOnly="true" msdata:AutoIncrement="true" name="inKey" type="xs:int" />
+              <xs:element minOccurs="0" name="ZIPCODE" type="xs:string" />
+              <xs:element minOccurs="0" name="SIDO" type="xs:string" />
+              <xs:element minOccurs="0" name="GUGUN" type="xs:string" />
+              <xs:element minOccurs="0" name="DONG" type="xs:string" />
+              <xs:element minOccurs="0" name="BUNJI" type="xs:string" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+    <xs:unique msdata:PrimaryKey="true" name="Constraint1">
+      <xs:selector xpath=".//mstns:ZIPCODE" />
+      <xs:field xpath="mstns:inKey" />
+    </xs:unique>
+  </xs:element>
+</xs:schema>

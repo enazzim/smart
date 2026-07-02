@@ -1,0 +1,393 @@
+<?xml version="1.0" standalone="yes" ?>
+<xs:schema id="dsWorkTable" targetNamespace="http://www.tempuri.org/dsWorkTable.xsd" xmlns:mstns="http://www.tempuri.org/dsWorkTable.xsd"
+	xmlns="http://www.tempuri.org/dsWorkTable.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" attributeFormDefault="qualified" elementFormDefault="qualified">
+	<xs:element name="dsWorkTable" msdata:IsDataSet="true">
+		<xs:complexType>
+			<xs:choice maxOccurs="unbounded">
+				<xs:element name="CalendarView">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="WCName" type="xs:string" />
+							<xs:element name="제1일" type="xs:string" minOccurs="0" />
+							<xs:element name="제2일" type="xs:string" minOccurs="0" />
+							<xs:element name="제3일" type="xs:string" minOccurs="0" />
+							<xs:element name="제4일" type="xs:string" minOccurs="0" />
+							<xs:element name="제5일" type="xs:string" minOccurs="0" />
+							<xs:element name="제6일" type="xs:string" minOccurs="0" />
+							<xs:element name="제7일" type="xs:string" minOccurs="0" />
+							<xs:element name="제8일" type="xs:string" minOccurs="0" />
+							<xs:element name="제9일" type="xs:string" minOccurs="0" />
+							<xs:element name="제10일" type="xs:string" minOccurs="0" />
+							<xs:element name="제11일" type="xs:string" minOccurs="0" />
+							<xs:element name="제12일" type="xs:string" minOccurs="0" />
+							<xs:element name="제13일" type="xs:string" minOccurs="0" />
+							<xs:element name="제14일" type="xs:string" minOccurs="0" />
+							<xs:element name="제15일" type="xs:string" minOccurs="0" />
+							<xs:element name="제16일" type="xs:string" minOccurs="0" />
+							<xs:element name="제17일" type="xs:string" minOccurs="0" />
+							<xs:element name="제18일" type="xs:string" minOccurs="0" />
+							<xs:element name="제19일" type="xs:string" minOccurs="0" />
+							<xs:element name="제20일" type="xs:string" minOccurs="0" />
+							<xs:element name="제21일" type="xs:string" minOccurs="0" />
+							<xs:element name="제22일" type="xs:string" minOccurs="0" />
+							<xs:element name="제23일" type="xs:string" minOccurs="0" />
+							<xs:element name="제24일" type="xs:string" minOccurs="0" />
+							<xs:element name="제25일" type="xs:string" minOccurs="0" />
+							<xs:element name="제26일" type="xs:string" minOccurs="0" />
+							<xs:element name="제27일" type="xs:string" minOccurs="0" />
+							<xs:element name="제28일" type="xs:string" minOccurs="0" />
+							<xs:element name="제29일" type="xs:string" minOccurs="0" />
+							<xs:element name="제30일" type="xs:string" minOccurs="0" />
+							<xs:element name="제31일" type="xs:string" minOccurs="0" />
+							<xs:element name="제32일" type="xs:string" minOccurs="0" />
+							<xs:element name="제33일" type="xs:string" minOccurs="0" />
+							<xs:element name="제34일" type="xs:string" minOccurs="0" />
+							<xs:element name="제35일" type="xs:string" minOccurs="0" />
+							<xs:element name="제36일" type="xs:string" minOccurs="0" />
+							<xs:element name="제37일" type="xs:string" minOccurs="0" />
+							<xs:element name="제38일" type="xs:string" minOccurs="0" />
+							<xs:element name="제39일" type="xs:string" minOccurs="0" />
+							<xs:element name="제40일" type="xs:string" minOccurs="0" />
+							<xs:element name="제41일" type="xs:string" minOccurs="0" />
+							<xs:element name="제42일" type="xs:string" minOccurs="0" />
+							<xs:element name="제43일" type="xs:string" minOccurs="0" />
+							<xs:element name="제44일" type="xs:string" minOccurs="0" />
+							<xs:element name="제45일" type="xs:string" minOccurs="0" />
+							<xs:element name="제46일" type="xs:string" minOccurs="0" />
+							<xs:element name="제47일" type="xs:string" minOccurs="0" />
+							<xs:element name="제48일" type="xs:string" minOccurs="0" />
+							<xs:element name="제49일" type="xs:string" minOccurs="0" />
+							<xs:element name="제50일" type="xs:string" minOccurs="0" />
+							<xs:element name="제51일" type="xs:string" minOccurs="0" />
+							<xs:element name="제52일" type="xs:string" minOccurs="0" />
+							<xs:element name="제53일" type="xs:string" minOccurs="0" />
+							<xs:element name="제54일" type="xs:string" minOccurs="0" />
+							<xs:element name="제55일" type="xs:string" minOccurs="0" />
+							<xs:element name="제56일" type="xs:string" minOccurs="0" />
+							<xs:element name="제57일" type="xs:string" minOccurs="0" />
+							<xs:element name="제58일" type="xs:string" minOccurs="0" />
+							<xs:element name="제59일" type="xs:string" minOccurs="0" />
+							<xs:element name="제60일" type="xs:string" minOccurs="0" />
+							<xs:element name="제61일" type="xs:string" minOccurs="0" />
+							<xs:element name="제62일" type="xs:string" minOccurs="0" />
+							<xs:element name="제63일" type="xs:string" minOccurs="0" />
+							<xs:element name="제64일" type="xs:string" minOccurs="0" />
+							<xs:element name="제65일" type="xs:string" minOccurs="0" />
+							<xs:element name="제66일" type="xs:string" minOccurs="0" />
+							<xs:element name="제67일" type="xs:string" minOccurs="0" />
+							<xs:element name="제68일" type="xs:string" minOccurs="0" />
+							<xs:element name="제69일" type="xs:string" minOccurs="0" />
+							<xs:element name="제70일" type="xs:string" minOccurs="0" />
+							<xs:element name="제71일" type="xs:string" minOccurs="0" />
+							<xs:element name="제72일" type="xs:string" minOccurs="0" />
+							<xs:element name="제73일" type="xs:string" minOccurs="0" />
+							<xs:element name="제74일" type="xs:string" minOccurs="0" />
+							<xs:element name="제75일" type="xs:string" minOccurs="0" />
+							<xs:element name="제76일" type="xs:string" minOccurs="0" />
+							<xs:element name="제77일" type="xs:string" minOccurs="0" />
+							<xs:element name="제78일" type="xs:string" minOccurs="0" />
+							<xs:element name="제79일" type="xs:string" minOccurs="0" />
+							<xs:element name="제80일" type="xs:string" minOccurs="0" />
+							<xs:element name="제81일" type="xs:string" minOccurs="0" />
+							<xs:element name="제82일" type="xs:string" minOccurs="0" />
+							<xs:element name="제83일" type="xs:string" minOccurs="0" />
+							<xs:element name="제84일" type="xs:string" minOccurs="0" />
+							<xs:element name="제85일" type="xs:string" minOccurs="0" />
+							<xs:element name="제86일" type="xs:string" minOccurs="0" />
+							<xs:element name="제87일" type="xs:string" minOccurs="0" />
+							<xs:element name="제88일" type="xs:string" minOccurs="0" />
+							<xs:element name="제89일" type="xs:string" minOccurs="0" />
+							<xs:element name="제90일" type="xs:string" minOccurs="0" />
+							<xs:element name="제91일" type="xs:string" minOccurs="0" />
+							<xs:element name="제92일" type="xs:string" minOccurs="0" />
+							<xs:element name="제93일" type="xs:string" minOccurs="0" />
+							<xs:element name="제94일" type="xs:string" minOccurs="0" />
+							<xs:element name="제95일" type="xs:string" minOccurs="0" />
+							<xs:element name="제96일" type="xs:string" minOccurs="0" />
+							<xs:element name="제97일" type="xs:string" minOccurs="0" />
+							<xs:element name="제98일" type="xs:string" minOccurs="0" />
+							<xs:element name="제99일" type="xs:string" minOccurs="0" />
+							<xs:element name="제100일" type="xs:string" minOccurs="0" />
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="WorkCalendar">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="WCName" type="xs:string" />
+							<xs:element name="제1일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제2일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제3일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제4일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제5일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제6일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제7일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제8일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제9일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제10일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제11일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제12일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제13일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제14일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제15일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제16일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제17일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제18일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제19일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제20일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제21일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제22일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제23일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제24일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제25일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제26일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제27일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제28일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제29일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제30일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제31일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제32일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제33일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제34일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제35일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제36일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제37일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제38일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제39일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제40일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제41일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제42일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제43일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제44일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제45일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제46일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제47일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제48일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제49일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제50일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제51일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제52일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제53일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제54일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제55일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제56일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제57일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제58일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제59일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제60일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제61일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제62일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제63일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제64일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제65일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제66일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제67일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제68일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제69일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제70일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제71일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제72일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제73일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제74일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제75일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제76일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제77일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제78일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제79일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제80일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제81일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제82일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제83일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제84일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제85일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제86일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제87일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제88일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제89일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제90일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제91일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제92일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제93일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제94일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제95일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제96일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제97일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제98일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제99일" type="xs:decimal" default="0" minOccurs="0" />
+							<xs:element name="제100일" type="xs:decimal" default="0" minOccurs="0" />
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="WDWPTable">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="ItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ItemDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ItemName" type="xs:string" minOccurs="0" />
+							<xs:element name="ProcessSequenceNum" type="xs:unsignedByte" minOccurs="0" />
+							<xs:element name="ProcessCode" type="xs:string" minOccurs="0" />
+							<xs:element name="ProcessName" type="xs:string" minOccurs="0" />
+							<xs:element name="PreProcessName" type="xs:string" minOccurs="0" />
+							<xs:element name="ProductItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ProductDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ProductName" type="xs:string" minOccurs="0" />
+							<xs:element name="ParentItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ParentDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ParentName" type="xs:string" minOccurs="0" />
+							<xs:element name="WCName" type="xs:string" minOccurs="0" />
+							<xs:element name="WorkDistinction" type="xs:string" minOccurs="0" />
+							<xs:element name="WorkPlanQuantity" type="xs:decimal" minOccurs="0" />
+							<xs:element name="WorkCompletionQuantity" type="xs:decimal" minOccurs="0" />
+							<xs:element name="OrderLeadTime" type="xs:decimal" minOccurs="0" />
+							<xs:element name="WorkDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="ProgressCondition" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationPerson" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationPersonID" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="UpdatingPerson" type="xs:string" minOccurs="0" />
+							<xs:element name="UpdatingPersonID" type="xs:string" minOccurs="0" />
+							<xs:element name="UpdatingDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="ProductionPlanHistoryIndex" type="xs:int" minOccurs="0" />
+							<xs:element name="WorkPlanHistoryIndex" type="xs:int" minOccurs="0" />
+							<xs:element name="WCDailyWorkPlanHistoryIndex" msdata:ReadOnly="true" msdata:AutoIncrement="true"
+								type="xs:int" />
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="StandbyTable">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="ItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ItemDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ItemName" type="xs:string" minOccurs="0" />
+							<xs:element name="ProcessSequenceNum" type="xs:unsignedByte" minOccurs="0" />
+							<xs:element name="ProcessCode" type="xs:string" minOccurs="0" />
+							<xs:element name="ProcessName" type="xs:string" minOccurs="0" />
+							<xs:element name="PreProcessName" type="xs:string" minOccurs="0" />
+							<xs:element name="ProductItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ProductDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ProductName" type="xs:string" minOccurs="0" />
+							<xs:element name="ParentItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ParentDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ParentName" type="xs:string" minOccurs="0" />
+							<xs:element name="WCName" type="xs:string" minOccurs="0" />
+							<xs:element name="WorkDistinction" type="xs:string" minOccurs="0" />
+							<xs:element name="WorkPlanQuantity" type="xs:decimal" minOccurs="0" />
+							<xs:element name="WorkCompletionQuantity" type="xs:decimal" minOccurs="0" />
+							<xs:element name="OrderLeadTime" type="xs:decimal" minOccurs="0" />
+							<xs:element name="WorkDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="Processing" type="xs:boolean" minOccurs="0" default="0" />
+							<xs:element name="ProgressCondition" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationPerson" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationPersonID" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="UpdatingPerson" type="xs:string" minOccurs="0" />
+							<xs:element name="UpdatingPersonID" type="xs:string" minOccurs="0" />
+							<xs:element name="UpdatingDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="ProductionPlanHistoryIndex" type="xs:int" minOccurs="0" />
+							<xs:element name="WorkPlanHistoryIndex" type="xs:int" minOccurs="0" />
+							<xs:element name="WCDailyWorkPlanHistoryIndex" type="xs:int" />
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="ProgressTable">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="ItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ItemDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ItemName" type="xs:string" minOccurs="0" />
+							<xs:element name="ProcessSequenceNum" type="xs:unsignedByte" minOccurs="0" />
+							<xs:element name="ProcessCode" type="xs:string" minOccurs="0" />
+							<xs:element name="ProcessName" type="xs:string" minOccurs="0" />
+							<xs:element name="PreProcessName" type="xs:string" minOccurs="0" />
+							<xs:element name="ProductItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ProductDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ProductName" type="xs:string" minOccurs="0" />
+							<xs:element name="ParentItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ParentDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ParentName" type="xs:string" minOccurs="0" />
+							<xs:element name="WCName" type="xs:string" minOccurs="0" />
+							<xs:element name="WorkDistinction" type="xs:string" minOccurs="0" />
+							<xs:element name="WorkPlanQuantity" type="xs:decimal" minOccurs="0" />
+							<xs:element name="WorkCompletionQuantity" type="xs:decimal" minOccurs="0" />
+							<xs:element name="OrderLeadTime" type="xs:decimal" minOccurs="0" />
+							<xs:element name="WorkDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="WorkEndDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="ProgressCondition" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationPerson" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationPersonID" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="UpdatingPerson" type="xs:string" minOccurs="0" />
+							<xs:element name="UpdatingPersonID" type="xs:string" minOccurs="0" />
+							<xs:element name="UpdatingDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="ProductionPlanHistoryIndex" type="xs:int" minOccurs="0" />
+							<xs:element name="WorkPlanHistoryIndex" type="xs:int" minOccurs="0" />
+							<xs:element name="WCDailyWorkPlanHistoryIndex" type="xs:int" />
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+				<xs:element name="WorkTable">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="ItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ItemDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ItemName" type="xs:string" minOccurs="0" />
+							<xs:element name="ProcessSequenceNum" type="xs:unsignedByte" minOccurs="0" />
+							<xs:element name="ProcessCode" type="xs:string" minOccurs="0" />
+							<xs:element name="ProcessName" type="xs:string" minOccurs="0" />
+							<xs:element name="PreProcessName" type="xs:string" minOccurs="0" />
+							<xs:element name="ProductItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ProductDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ProductName" type="xs:string" minOccurs="0" />
+							<xs:element name="ParentItemNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ParentDrawNum" type="xs:string" minOccurs="0" />
+							<xs:element name="ParentName" type="xs:string" minOccurs="0" />
+							<xs:element name="WCName" type="xs:string" minOccurs="0" />
+							<xs:element name="WorkDistinction" type="xs:string" minOccurs="0" />
+							<xs:element name="WorkPlanQuantity" type="xs:decimal" minOccurs="0" />
+							<xs:element name="WorkCompletionQuantity" type="xs:decimal" minOccurs="0" />
+							<xs:element name="OrderLeadTime" type="xs:decimal" minOccurs="0" />
+							<xs:element name="WorkDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="WorkEndDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="ProgressCondition" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationPerson" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationPersonID" type="xs:string" minOccurs="0" />
+							<xs:element name="RegistrationDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="UpdatingPerson" type="xs:string" minOccurs="0" />
+							<xs:element name="UpdatingPersonID" type="xs:string" minOccurs="0" />
+							<xs:element name="UpdatingDate" type="xs:dateTime" minOccurs="0" />
+							<xs:element name="ProductionPlanHistoryIndex" type="xs:int" minOccurs="0" />
+							<xs:element name="WorkPlanHistoryIndex" type="xs:int" minOccurs="0" />
+							<xs:element name="WCDailyWorkPlanHistoryIndex" type="xs:int" />
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:choice>
+		</xs:complexType>
+		<xs:unique name="CalendarView" msdata:PrimaryKey="true">
+			<xs:selector xpath=".//mstns:CalendarView" />
+			<xs:field xpath="mstns:WCName" />
+		</xs:unique>
+		<xs:unique name="WorkCalendar" msdata:PrimaryKey="true">
+			<xs:selector xpath=".//mstns:WorkCalendar" />
+			<xs:field xpath="mstns:WCName" />
+		</xs:unique>
+		<xs:unique name="WDWPTable" msdata:PrimaryKey="true">
+			<xs:selector xpath=".//mstns:WDWPTable" />
+			<xs:field xpath="mstns:WCDailyWorkPlanHistoryIndex" />
+		</xs:unique>
+		<xs:unique name="StandbyTable" msdata:PrimaryKey="true">
+			<xs:selector xpath=".//mstns:StandbyTable" />
+			<xs:field xpath="mstns:WCDailyWorkPlanHistoryIndex" />
+		</xs:unique>
+		<xs:unique name="ProgressTable" msdata:PrimaryKey="true">
+			<xs:selector xpath=".//mstns:ProgressTable" />
+			<xs:field xpath="mstns:WCDailyWorkPlanHistoryIndex" />
+		</xs:unique>
+		<xs:unique name="WorkTable" msdata:PrimaryKey="true">
+			<xs:selector xpath=".//mstns:WorkTable" />
+			<xs:field xpath="mstns:WCDailyWorkPlanHistoryIndex" />
+		</xs:unique>
+	</xs:element>
+</xs:schema>

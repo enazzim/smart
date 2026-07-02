@@ -1,0 +1,30 @@
+---
+description: Markdown 파일은 반드시 UTF-8(무 BOM)으로 저장
+globs: **/*.md
+alwaysApply: false
+---
+
+# Markdown UTF-8 인코딩
+
+`docs/**/*.md` 및 프로젝트 내 모든 `.md` 파일은 **UTF-8 (BOM 없음)** 으로 저장합니다.
+
+## 편집 시 필수
+
+- Cursor `Write` / `StrReplace` 도구로 한글 md를 직접 수정하지 않습니다 (Windows CP949로 저장될 수 있음).
+- 한글 md 생성·수정은 **PowerShell** 또는 **Node.js**로 UTF-8 저장합니다.
+
+```powershell
+$utf8 = [System.Text.UTF8Encoding]::new($false)
+[System.IO.File]::WriteAllText($path, $content, $utf8)
+```
+
+```javascript
+require('fs').writeFileSync(path, content, 'utf8');
+```
+
+## 검증
+
+```powershell
+$bytes = [System.IO.File]::ReadAllBytes($path)
+# UTF-8 한글은 0xED~0xEF 등 3바이트 시퀀스. BOM(EF BB BF) 없어야 함.
+```

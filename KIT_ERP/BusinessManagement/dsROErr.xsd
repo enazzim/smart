@@ -1,0 +1,38 @@
+<?xml version="1.0" standalone="yes"?>
+<xs:schema id="dsROErr" targetNamespace="http://www.tempuri.org/dsROErr.xsd" xmlns:mstns="http://www.tempuri.org/dsROErr.xsd" xmlns="http://www.tempuri.org/dsROErr.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" attributeFormDefault="qualified" elementFormDefault="qualified">
+  <xs:element name="dsROErr" msdata:IsDataSet="true" msdata:Locale="ko-KR">
+    <xs:complexType>
+      <xs:choice maxOccurs="unbounded">
+        <xs:element name="ROErr_HT">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="ItemNum" type="xs:string" minOccurs="0" />
+              <xs:element name="CompanyName" type="xs:string" minOccurs="0" />
+              <xs:element name="BusinessRegistrationNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ReceivingOrderDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="ApplyUnitCost" type="xs:decimal" minOccurs="0" />
+              <xs:element name="DeliveryRequestDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="TotalReceiveingOrderQuantity" type="xs:decimal" minOccurs="0" />
+              <xs:element name="OrderNum" type="xs:string" minOccurs="0" />
+              <xs:element name="DeliveryPlace" type="xs:string" minOccurs="0" />
+              <xs:element name="ErrorReason" type="xs:string" minOccurs="0" />
+              <xs:element name="ReceivingOrderErrorHistoryIndex" msdata:ReadOnly="true" msdata:AutoIncrement="true" type="xs:int" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="ListErr">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="ItemNum" type="xs:string" />
+              <xs:element name="ItemName" type="xs:string" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+    <xs:unique name="Constraint1" msdata:PrimaryKey="true">
+      <xs:selector xpath=".//mstns:ROErr_HT" />
+      <xs:field xpath="mstns:ReceivingOrderErrorHistoryIndex" />
+    </xs:unique>
+  </xs:element>
+</xs:schema>

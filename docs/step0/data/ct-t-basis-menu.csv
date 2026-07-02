@@ -1,0 +1,18 @@
+Num,Title,EngTitle,LegacyPage,source,note
+0,공용코드,B12_PublicUseCode,SystemInfoManagement/PublicUseCode.aspx,step0-plan-D2-draft,선행
+1,거래처,B01_CompanyInfo,BasisInformation/CompanyInfo.aspx,step0-plan-D2-draft,
+2,품목,B02_ItemInfo,BasisInformation/ItemInfo.aspx,step0-plan-D2-draft,
+3,품목구성,B03_ItemOrganizationInfo,BasisInformation/ItemOrganizationInfo.aspx,step0-plan-D2-draft,
+4,작업장,B04_WCInfo,BasisInformation/WCInfo.aspx,step0-plan-D2-draft,
+5,공정,B05_ProcessSequence,BasisInformation/ProcessSequenceInfo.aspx,step0-plan-D2-draft,
+6,설비,B06_EquipmentInfo,BasisInformation/EquipmentInfo.aspx,step0-plan-D2-draft,
+7,작업표준,B07_WorkStandardInfo,BasisInformation/WorkStandardInfo.aspx,step0-plan-D2-draft,
+8,판매단가,B08_SaleUnitCodeInfo,BasisInformation/SaleUnitCodeInfo.aspx,step0-plan-D2-draft,단가 8a
+9,구매단가,B10_BuyingUnitCodeInfo,BasisInformation/BuyingUnitCodeInfo.aspx,step0-plan-D2-draft,단가 8b
+10,외주단가,B09_OutSideOrderUnitCodeInfo,BasisInformation/OutSideOrderUnitCodeInfo.aspx,step0-plan-D2-draft,단가 8c
+11,기본생산달력,B13_StandardProductionCalendarInfo,BasisInformation/StandardProductionCalendarInfo.aspx,step0-plan-D2-draft,
+12,WC생산달력,B14_WCProductionCalendarInf0,BasisInformation/WCProductionCalendarInfo.aspx,step0-plan-D2-draft,Base.cs 오타 Inf0
+13,사용자,B11_UserInfo,BasisInformation/UserInfo.aspx,step0-plan-D2-draft,
+90,진품목구성,,BasisInformation/RealItemOrganizationInfo.aspx,step0-plan-D2-draft,Real Num TBD
+91,진공정,,BasisInformation/RealProcessSequenceInfo.aspx,step0-plan-D2-draft,Real Num TBD
+92,진작업표준,,BasisInformation/RealWorkStandardInfo.aspx,step0-plan-D2-draft,Real Num TBD

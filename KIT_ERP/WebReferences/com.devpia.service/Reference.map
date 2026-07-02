@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<DiscoveryClientResultsFile xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Results>
+    <DiscoveryClientResult referenceType="System.Web.Services.Discovery.SchemaReference" url="http://service.devpia.com/wspostalcode/spostalcode.asmx?schema=dsPostalCodeByDong" filename="dsPostalCodeByDong.xsd" />
+    <DiscoveryClientResult referenceType="System.Web.Services.Discovery.ContractReference" url="http://service.devpia.com/wspostalcode/spostalcode.asmx?WSDL" filename="spostalcode.wsdl" />
+    <DiscoveryClientResult referenceType="System.Web.Services.Discovery.SchemaReference" url="http://service.devpia.com/wspostalcode/spostalcode.asmx?schema=dsPostalCodeByCode" filename="dsPostalCodeByCode.xsd" />
+  </Results>
+</DiscoveryClientResultsFile>

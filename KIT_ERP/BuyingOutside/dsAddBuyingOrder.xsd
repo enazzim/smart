@@ -1,0 +1,107 @@
+<?xml version="1.0" standalone="yes"?>
+<xs:schema id="dsAddBuyingOrder" targetNamespace="http://www.tempuri.org/dsAddBuyingOrder.xsd" xmlns:mstns="http://www.tempuri.org/dsAddBuyingOrder.xsd" xmlns="http://www.tempuri.org/dsAddBuyingOrder.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" attributeFormDefault="qualified" elementFormDefault="qualified">
+  <xs:element name="dsAddBuyingOrder" msdata:IsDataSet="true" msdata:Locale="ko-KR">
+    <xs:complexType>
+      <xs:choice maxOccurs="unbounded">
+        <xs:element name="OOR_HT">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="ItemNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ItemDrawNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ItemName" type="xs:string" minOccurs="0" />
+              <xs:element name="UnitCostDistinction" type="xs:string" minOccurs="0" />
+              <xs:element name="BeginProcessCode" type="xs:string" minOccurs="0" />
+              <xs:element name="BeginProcess" type="xs:string" minOccurs="0" />
+              <xs:element name="EndProcessCode" type="xs:string" minOccurs="0" />
+              <xs:element name="EndProcess" type="xs:string" minOccurs="0" />
+              <xs:element name="ApplyUnitCost" type="xs:double" minOccurs="0" />
+              <xs:element name="FirstDeliveryDemandQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="FirstDeliveryDemandDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="SecondDeliveryDemandQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="SecondDeliveryDemandDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="ThirdDeliveryDemandQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="ThirdDeliveryDemandDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="FourthDeliveryDemandQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="FourthDeliveryDemandDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="FifthDeliveryDemandQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="FifthDeliveryDemandDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="TotalOutSideOrderRequestQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="TotalCost" type="xs:double" minOccurs="0" />
+              <xs:element name="ProgressCondition" type="xs:string" minOccurs="0" />
+              <xs:element name="RegistrationPerson" type="xs:string" minOccurs="0" />
+              <xs:element name="RegistrationPersonID" type="xs:string" minOccurs="0" />
+              <xs:element name="RegistrationDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="UpdatingPerson" type="xs:string" minOccurs="0" />
+              <xs:element name="UpdatingPersonID" type="xs:string" minOccurs="0" />
+              <xs:element name="UpdatingDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="WCDailyWorkPlanHistoryIndex" type="xs:int" minOccurs="0" />
+              <xs:element name="OutSideOrderRequestHistoryIndex" msdata:ReadOnly="true" msdata:AutoIncrement="true" type="xs:int" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="BO_HT">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="ItemNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ItemDrawNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ItemName" type="xs:string" minOccurs="0" />
+              <xs:element name="CompanyName" type="xs:string" minOccurs="0" />
+              <xs:element name="BusinessRegistrationNum" type="xs:string" minOccurs="0" />
+              <xs:element name="FirstDeliveryDemandQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="FirstDeliveryDemandDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="SecondDeliveryDemandQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="SecondDeliveryDemandDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="ThirdDeliveryDemandQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="ThirdDeliveryDemandDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="FourthDeliveryDemandQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="FourthDeliveryDemandDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="FifthDeliveryDemandQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="FifthDeliveryDemandDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="OrderQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="ApplyUnitCost" type="xs:double" minOccurs="0" />
+              <xs:element name="TotalCost" type="xs:double" minOccurs="0" />
+              <xs:element name="OrderRate" type="xs:double" minOccurs="0" />
+              <xs:element name="RemainQuantity" type="xs:double" minOccurs="0" />
+              <xs:element name="VolumNum" type="xs:int" minOccurs="0" />
+              <xs:element name="ProgressCondition" type="xs:string" minOccurs="0" />
+              <xs:element name="RegistrationPerson" type="xs:string" minOccurs="0" />
+              <xs:element name="RegistrationPersonID" type="xs:string" minOccurs="0" />
+              <xs:element name="RegistrationDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="UpdatingPerson" type="xs:string" minOccurs="0" />
+              <xs:element name="UpdatingPersonID" type="xs:string" minOccurs="0" />
+              <xs:element name="UpdatingDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="BuyingRequestHistoryIndex" type="xs:int" minOccurs="0" />
+              <xs:element name="BuyingOrderHistoryIndex" msdata:ReadOnly="true" msdata:AutoIncrement="true" type="xs:int" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="II_MT">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="ItemNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ItemDrawNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ItemName" type="xs:string" minOccurs="0" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="CI_MT">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="CompanyName" type="xs:string" minOccurs="0" />
+              <xs:element name="BusinessRegistrationNum" type="xs:string" minOccurs="0" />
+              <xs:element name="PresidentName" type="xs:string" minOccurs="0" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+    <xs:unique name="Constraint1" msdata:PrimaryKey="true">
+      <xs:selector xpath=".//mstns:OOR_HT" />
+      <xs:field xpath="mstns:OutSideOrderRequestHistoryIndex" />
+    </xs:unique>
+    <xs:unique name="BO_HT_Constraint1" msdata:ConstraintName="Constraint1" msdata:PrimaryKey="true">
+      <xs:selector xpath=".//mstns:BO_HT" />
+      <xs:field xpath="mstns:BuyingOrderHistoryIndex" />
+    </xs:unique>
+  </xs:element>
+</xs:schema>

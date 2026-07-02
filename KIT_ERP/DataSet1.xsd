@@ -1,0 +1,30 @@
+<?xml version="1.0" standalone="yes"?>
+<xs:schema id="DataSet1" targetNamespace="http://www.tempuri.org/DataSet1.xsd" xmlns:mstns="http://www.tempuri.org/DataSet1.xsd" xmlns="http://www.tempuri.org/DataSet1.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" attributeFormDefault="qualified" elementFormDefault="qualified">
+  <xs:element name="DataSet1" msdata:IsDataSet="true" msdata:Locale="ko-KR">
+    <xs:complexType>
+      <xs:choice maxOccurs="unbounded">
+        <xs:element name="SM_Table">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="SM_idx" msdata:ReadOnly="true" msdata:AutoIncrement="true" type="xs:int" />
+              <xs:element name="SM_StockClassify" type="xs:string" minOccurs="0" />
+              <xs:element name="SM_ItemNumber" type="xs:string" minOccurs="0" />
+              <xs:element name="SM_StockLocation" type="xs:string" minOccurs="0" />
+              <xs:element name="SM_ProcessName" type="xs:string" minOccurs="0" />
+              <xs:element name="SM_CarryOverQuantity1" type="xs:double" minOccurs="0" />
+              <xs:element name="SM_CarryOverCost1" type="xs:double" minOccurs="0" />
+              <xs:element name="SM_StorageQuantity1" type="xs:double" minOccurs="0" />
+              <xs:element name="SM_StorageCost1" type="xs:double" minOccurs="0" />
+              <xs:element name="SM_DeliveryQuantity1" type="xs:double" minOccurs="0" />
+              <xs:element name="SM_DeliveryCost1" type="xs:double" minOccurs="0" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+    <xs:unique name="Constraint1" msdata:PrimaryKey="true">
+      <xs:selector xpath=".//mstns:SM_Table" />
+      <xs:field xpath="mstns:SM_idx" />
+    </xs:unique>
+  </xs:element>
+</xs:schema>

@@ -1,0 +1,27 @@
+<?xml version="1.0" standalone="yes"?>
+<xs:schema id="dsCalendar" targetNamespace="http://www.tempuri.org/dsCalendar.xsd" xmlns:mstns="http://www.tempuri.org/dsCalendar.xsd" xmlns="http://www.tempuri.org/dsCalendar.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" attributeFormDefault="qualified" elementFormDefault="qualified">
+  <xs:element name="dsCalendar" msdata:IsDataSet="true" msdata:Locale="ko-KR">
+    <xs:complexType>
+      <xs:choice maxOccurs="unbounded">
+        <xs:element name="PCI_MT">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="WCName" type="xs:string" minOccurs="0" />
+              <xs:element name="WC_Year" type="xs:int" minOccurs="0" />
+              <xs:element name="WC_Month" type="xs:int" minOccurs="0" />
+              <xs:element name="WC_Day" type="xs:int" minOccurs="0" />
+              <xs:element name="WC_Time" type="xs:decimal" minOccurs="0" />
+              <xs:element name="Content" type="xs:string" minOccurs="0" />
+              <xs:element name="RecodingState" type="xs:boolean" minOccurs="0" />
+              <xs:element name="ProductionCalendarInfoIndex" msdata:ReadOnly="true" msdata:AutoIncrement="true" type="xs:int" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+    <xs:unique name="Constraint1" msdata:PrimaryKey="true">
+      <xs:selector xpath=".//mstns:PCI_MT" />
+      <xs:field xpath="mstns:ProductionCalendarInfoIndex" />
+    </xs:unique>
+  </xs:element>
+</xs:schema>

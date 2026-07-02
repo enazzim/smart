@@ -1,0 +1,1865 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Infragistics.UltraChart.Core.v4.1</name>
+    </assembly>
+    <members>
+        <member name="T:Infragistics.UltraChart.Core.ColorModel.CustomColorModel">
+            <summary>
+            Summary description for CustomColorModel.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.ColorModel.SimpleColorModel">
+            <summary>
+            Summary description for RandomColorModel.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.ColorModel.IColorModel">
+            <summary>
+            Summary description for IColorModel.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.ColorModel.LinearColorModel">
+            <summary>
+            The LinearColorModel implements ColorModels.LinearRange, which takes a start and end colo
+            and assigns colors to each item in a series in order, spaced equidistance along this line in the 3D color space
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.ColorModel.RandomColorModel">
+            <summary>
+            The RandomColorModel implements ColorModels.PureRandom and ColorModels.LinearRandom
+            LinearRandom takes a start and end color and chooses random colors from this range
+            PureRandom ignores the start and end color and picks all its colors at random
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.Area3DLayer">
+            <summary>
+            The 3-D Layer responsible for composing 3-D Area charts.
+            </summary>
+            <remarks>
+            <p class="body">The 3-D Area Chart is rendered similarly to the <see cref="T:Infragistics.UltraChart.Core.Layers.AreaLayer">AreaLayer</see>, except instead of flat translucent overlapping polygons, there are slabs.  The thickness of the slabs depends upon the number of rows of data being plotted (one slab per row, with there being a fixed depth; therefore the more rows, the thinner the slabs are.)</p>
+            </remarks>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.ChartLayer3D">
+            <summary>
+            Base class for all 3-D Chart compositional Layers.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.ChartLayer">
+            <summary>
+            Base class for all Chart-composing Layers.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.Layer">
+            <summary>
+            Summary description for Layer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.ILayer">
+            <summary>
+            Summary description for ILayer.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ILayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Call to render the drawing layer as primitives into the scene graph
+            </summary>
+            <param name="scene">Pass in the SceneGraph as a reference</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ILayer.GetInnerBounds">
+            <summary>
+            Returns a Rectangle object that represents the TopLeft and BottomRight
+            real world coordinates for the drawing layer to render in the scene graph
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.ILayer.ChartColorModel">
+            <summary>
+            Sets and gets the ColorModel
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.ILayer.ChartData">
+            <summary>
+            Sets and gets the IChartData
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.ILayer.ChartCore">
+            <summary>
+            Sets and gets the ChartCore
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.ILayer.ChartComponent">
+            <summary>
+            Sets and gets the ChartComponent
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.ILayer.LayerID">
+            <summary>
+            Sets and gets the ID to be used in the Hashtable
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Layers.Layer.volume">
+            <summary>
+            3D volume dimensions of the is layer. These will be used for rendering 3D primitives.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Layer.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            The base class for all the drawing layer objects
+            Title, Grid, Chart, and Adornment
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Layer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Call to render the drawing layer as primitives into the scene graph
+            </summary>
+            <param name="scene">Pass in the SceneGraph as a reference</param>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Layers.Layer.dataIsValid">
+            <summary>
+            Indicates whether chart data is valid for this chart type.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Layer.ValidateDataForChart">
+            <summary>
+            Validates data to meet chart data requirements.
+            </summary>
+            <remarks>
+            <p class="body">Override this method to check that the data meets the needs of each chart type, some chart types may have stringent requirements.</p>
+            <p class="body">The protected field, <see cref="F:Infragistics.UltraChart.Core.Layers.Layer.dataIsValid"/>, contains the outcome of all validation checks.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Layer.GetInnerBounds">
+            <summary>
+            Returns a Rectangle object that represents the TopLeft and BottomRight
+            real world coordinates for the drawing layer to render in the scene graph
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Layer.CalculateInnerBounds">
+            <summary>
+            Override in your drawing layer to do custom inner bounds calculations
+            The inner bounds is the drawing area available for any child layers
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.Layer.ChartData">
+            <summary>
+            Sets and gets the IChartData
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.Layer.ChartColorModel">
+            <summary>
+            Gets/Sets Color model fot this layer
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.Layer.LayerID">
+            <summary>
+            Sets and gets the ID to be used in the Hashtable
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.Layer.Grid">
+            <summary>
+            Gets and Sets the grid axes used by this layer.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer.InitAdvanceAxis(Infragistics.UltraChart.Shared.Styles.AxisNumber,System.Double,System.Double,System.Int32,System.Int32)">
+            <summary>
+            Creates and initializes a new IAdvanceAxis object.
+            </summary>
+            <param name="axisNum">The Axis identifier (X, Y, X2, Y2 or Z.)</param>
+            <param name="worldMax">Maximum data value at the upper end of the Axis' ruler that translates into <i>screenMax</i>.</param>
+            <param name="worldMin">Minimum data value at the lower end of the Axis' ruler that translates into <i>screenMin</i>.</param>
+            <param name="screenMax">Maximum pixel location within bounds on the screen.</param>
+            <param name="screenMin">Minimum pixel location within bounds on the screen.</param>
+            <returns>An IAdvanceAxis object with a numeric ruler for translating real-word values into screen coordinates.</returns>
+            <remarks>
+            <p class="body">The reference returned will be to an <see cref="T:Infragistics.UltraChart.Core.IAdvanceAxis"/> object belonging to the current Chart's grid and having those characteristics as were defined by the chart's <see cref="T:Infragistics.UltraChart.Resources.Appearance.AxisAppearance">AxisAppearance</see> object (axis type, logarithmic or linear base, range, etc.)</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer.CalculateZeroLine">
+            <summary>
+            Calculates the Zero-line data value for the floor or ground plane of the Chart.
+            </summary>
+            <remarks>
+            <p class="body">Function calculating the data value corresponding to the proverbial floor (or ground X-Y plane in 3-D charts) of the chart.  Developers' <see cref="T:Infragistics.UltraChart.Core.Layers.ChartLayer"/> subclasses should then map this to a corresponding pixel-value on whatever axis is appropriate to their chart type using that IAdvanceAxis' <see cref="!:Infragistics.UltraChart.Core.IAdvanceAxis.Map">Map</see> function.  An accurate zero-line prevents chart elements from floating above/below the floor or ground plane.</p>
+            <p class="body">Calculation of the zero line is with regard to:</p>
+            <li>
+            <ul>Data value 0.0, if zero lies in data within the range of data.</ul>
+            <ul>The maximum data value, if all data is less than zero (negative or -ve).</ul>
+            <ul>The minimum data value, if all data is greater than zero (positive or +ve).</ul>
+            </li>
+            </remarks>
+            <returns>The real world data value subclasses should map to screen coordinates representing the Chart's floor or ground plane.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            This member supports the charting internal infrastructure and is not intended to be used directly from your code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer.SetColorModel(Infragistics.UltraChart.Core.ColorModel.IColorModel)">
+            <summary>
+            Sets the Color Model of the layer.
+            </summary>
+            <param name="clrMdl">A Color Model implementation (pure random, linear interpolation, etc.)</param>
+            <remarks>
+            <p class="body">The color model set here is used throughout the layer for obtaining opacity (alpha), starting and ending color ranges.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer.GetColorModel">
+            <summary>
+            Retrieves the Color Model of the layer.
+            </summary>
+            <returns>This ChartLayer subclass' Color Model.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer.SetData(Infragistics.UltraChart.Data.IChartData)">
+            <summary>
+            Sets the chart data.
+            </summary>
+            <param name="data">An IChartData implementation.</param>
+            <remarks>
+            <p class="body">Most subclasses overriding this method should call the base implementation of <see cref="M:Infragistics.UltraChart.Core.Layers.Layer.SetData(Infragistics.UltraChart.Data.IChartData)">SetData</see> first, since <see cref="T:Infragistics.UltraChart.Core.Layers.ChartLayer"/> adds its support for using chart data filtering (including and excluding columns, data appearance functionality, etc.) through this override.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer.SetupDataFilter">
+            <summary>
+            This member supports the charting internal infrastructure and is not intended to be used directly from your code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Adds graphical chart elements onto the scene graph for rendering.
+            </summary>
+            <remarks>
+            <p class="body">Inheritors should call the base class implementation of this method and then provide any supplemental scene construction logic in their own Layer's overriden version of this method.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer.ValidateDataForChart">
+            <summary>
+            Validates data to meet chart data requirements.
+            </summary>
+            <remarks>
+            <p class="body">Override this method to check that the data meets the needs of each chart type, some chart types may have stringent requirements.</p>
+            <p class="body">The protected field, <see cref="!:dataIsValid"/>, contains the outcome of all validation checks.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer.IsDataValidForChart">
+            <summary>
+            Indicates whether data meets validation criteria for this Chart Type.
+            </summary>
+            <returns>True if the data is valid for this chart, False if it is not valid.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer.GetDataInvalidMessage">
+            <summary>
+            Gets the localized message to display to end users when chart data is invalid.
+            </summary>
+            <returns>An error message for the end user.</returns>
+            <remarks>
+            <p class="body">Inheritors should override this method to return the proper error message for any invalid state(s) of the chart's data in their custom <see cref="T:Infragistics.UltraChart.Core.Layers.ChartLayer"/> implementation.  This text message is then rendered on the chart face to the end user.</p>
+            </remarks>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.ChartLayer.Stacked">
+            <summary>
+            Indicates whether the chart type is in a stacked configuration.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer3D.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            This member supports the charting internal infrastructure and is not intended to be used directly from your code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer3D.InitAdvanceAxis(Infragistics.UltraChart.Shared.Styles.AxisNumber,System.Double,System.Double,System.Int32,System.Int32)">
+            <summary>
+            Creates and initializes a new IAdvanceAxis object.
+            </summary>
+            <param name="axisNum">The Axis identifier (X, Y, X2, Y2 or Z.)</param>
+            <param name="worldMax">Maximum data value at the upper end of the Axis' ruler that translates into <i>screenMax</i>.</param>
+            <param name="worldMin">Minimum data value at the lower end of the Axis' ruler that translates into <i>screenMin</i>.</param>
+            <param name="screenMax">Maximum pixel location within bounds on the screen.</param>
+            <param name="screenMin">Minimum pixel location within bounds on the screen.</param>
+            <returns>An IAdvanceAxis object with a numeric ruler for translating real-word values into screen coordinates.</returns>
+            <remarks>
+            <p class="body">The reference returned will be to an <see cref="T:Infragistics.UltraChart.Core.IAdvanceAxis"/> object belonging to the current Chart's grid and having those characteristics as were defined by the chart's <see cref="T:Infragistics.UltraChart.Resources.Appearance.AxisAppearance">AxisAppearance</see> object (axis type, logarithmic or linear base, range, etc.)</p>
+            <p class="body">In 3-D chart types, the <see cref="P:Infragistics.UltraChart.Resources.Appearance.AxisAppearance.RangeType">RangeType</see> is honored on continuous numeric axes only to the extent of the highest and lowest data values in the Chart's data source.  For example, if <see cref="P:Infragistics.UltraChart.Resources.Appearance.AxisAppearance.RangeMin">RangeMin</see> is greater than the minimum value in the entire data set, <i>worldMin</i>, then the IAdvanceAxis returned will only have a RangeMin equal to the lowest data value in the Chart's data source.</p>
+            </remarks>
+        </member>
+        <!-- Badly formed XML comment ignored for member "M:Infragistics.UltraChart.Core.Layers.ChartLayer3D.CalculateInnerBounds" -->
+        <member name="M:Infragistics.UltraChart.Core.Layers.ChartLayer3D.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Adds graphical chart elements onto the scene graph for rendering in 3-D.
+            </summary>
+            <remarks>
+            <p class="body">This method performs a commit of any preceding 2-dimensional Primitives onto the Chart bitmap, prior to the subsequent rendering of any 3-D objects over top of the bitmap.</p>
+            <p class="body">Inheritors should call the base class implementation of this method and then provide any supplemental scene construction logic in their own Layer's overriden version of this method.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Area3DLayer.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            Creates a 3-D Layer for rendering Area Chart for the specified IChartComponent.
+            </summary>
+            <param name="component">A reference to an IChartComponent-implementing charting component.</param>
+            <param name="core">A reference to the core.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Area3DLayer.GetAppearance">
+            <summary>
+            Get an appropriate ChartAppearance object for the current Chart Type.
+            </summary>
+            <returns>An AreaChartAppearance object.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Area3DLayer.GetDataInvalidMessage">
+            <summary>
+            Gets the text of a message for display when the data is invalid for a 3-D area chart.
+            </summary>
+            <returns>Error message text for invalid data.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Area3DLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Fills the scene graph with the faces of the 3-D slabs based on chart data.
+            </summary>
+            <param name="scene">A scene graph to compose 3-D elements onto.</param>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.Axis3D">
+            <summary>
+            Summary description for Axis3D.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.Bar3DLayer">
+            <summary>
+            Summary description for Bar3DLayer.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Bar3DLayer.ValidateDataForChart">
+            <summary>
+            Gets the text of a message for display when the data is invalid for a 3-D bar chart.
+            </summary>
+            <returns>Error message text for invalid data.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Bar3DLayer.GetDataInvalidMessage">
+            <summary>
+            Gets the text of a message for display when the data is invalid for a 3-D bar chart.
+            </summary>
+            <returns>Error message text for invalid data.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Bar3DLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Fills the scene graph with the faces of the 3-D bars based on chart data.
+            </summary>
+            <param name="scene">A scene graph to compose 3-D elements onto.</param>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.Column3DLayer">
+            <summary>
+            The 3-D Layer responsible for composing 3-D Column charts.
+            </summary>
+            <remarks>
+            <p class="body">The 3-D Column Chart is rendered with columns (vertically-oriented boxes) in a series progressing from along the horizontal axis, and with columns of separate series appearing at progressive depths.</p>
+            <seealso cref="T:Infragistics.UltraChart.Core.Layers.Bar3DLayer"/>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Column3DLayer.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            Creates a 3-D Layer for rendering Column Chart for the specified IChartComponent.
+            </summary>
+            <param name="component">A reference to an IChartComponent-implementing charting component.</param>
+            <param name="core">A reference to the core.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Column3DLayer.ValidateDataForChart">
+            <summary>
+            Validates data to meet chart data requirements.
+            </summary>
+            <remarks>
+            <p class="body">Adds the data requirement that stacked 3-D column charts can't have both positive and negative data values.</p>
+            <seealso cref="M:Infragistics.UltraChart.Core.Layers.ChartLayer.ValidateDataForChart"/>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Column3DLayer.GetAppearance">
+            <summary>
+            Get an appropriate ChartAppearance object for the current Chart Type.
+            </summary>
+            <returns>A ColumnChart3DAppearance object.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Column3DLayer.GetDataInvalidMessage">
+            <summary>
+            Gets the text of a message for display when the data is invalid for a 3-D column chart.
+            </summary>
+            <returns>Error message text for invalid data.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Column3DLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Fills the scene graph with the faces of the 3-D boxes based on chart data.
+            </summary>
+            <param name="scene">A scene graph to compose 3-D elements onto.</param>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.Heatmap3DLayer">
+            <summary>
+            The 3-D Layer responsible for composing 3-D Heat Map charts.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Heatmap3DLayer.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            Creates a 3-D Layer for rendering Heat Map for the specified IChartComponent.
+            </summary>
+            <param name="component">A reference to an IChartComponent-implementing charting component.</param>
+            <param name="core">A reference to the core.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Heatmap3DLayer.GetAppearance">
+            <summary>
+            Get an appropriate ChartAppearance object for the current Chart Type.
+            </summary>
+            <returns>A HeatMapChartAppearance object.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Heatmap3DLayer.GetDataInvalidMessage">
+            <summary>
+            Gets the text of a message for display when the data is invalid for a 3-D heat map chart.
+            </summary>
+            <returns>Error message text for invalid data.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Heatmap3DLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Fills the scene graph with the faces of the 3-D surface based on chart data and the values visible through the axes.
+            </summary>
+            <param name="scene">A scene graph to compose 3-D elements onto.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Heatmap3DLayer.GetAltitudeColor(System.Drawing.Color,System.Drawing.Color,System.Double)">
+            <summary>
+            Calculates the blended iso-color in the spectrum appropriate for any Y-data value (altitude or temperature) on the surface.
+            </summary>
+            <param name="startColor">The starting color of the linear spectrum.</param>
+            <param name="endColor">The ending color of the linear spectrum.</param>
+            <param name="val">The altitude or temperature (Y data value).</param>
+            <returns>A blended color.</returns>
+            <remarks>
+            <p class="body">The same blended iso-color is always returned for a given data value, as long as the Color Model has remained constant.</p>
+            <p class="body">Blending is performed through linear interpolation equally across the Red, Green and Blue portions of the spectrum.  It is not possible for the color returned to vary in fewer than all three primary colors unless the value of the primary color is identical in <i>startColor</i> and <i>endColor</i>.</p>
+            <p class="body">Any opacity (or alpha) value in the supplied colors is ignored.  Instead, the <see cref="P:Infragistics.UltraChart.Resources.Appearance.ColorAppearance.AlphaLevel">AlphaLevel</see> of the chart's <see cref="T:Infragistics.UltraChart.Resources.Appearance.ColorAppearance">ColorAppearance</see> is applied.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Heatmap3DLayer.ScaleColor(System.Drawing.Color,System.Drawing.Color)">
+            <summary>
+            Calculates a color halfway between two colors.
+            </summary>
+            <param name="color1">A color.</param>
+            <param name="color2">Another color.</param>
+            <returns>A color halfway between both colors.</returns>
+            <remarks>
+            <p class="body">The color returned shall have the opacity (or alpha) value of <i>color1</i>.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Heatmap3DLayer.ValidateDataForChart">
+            <summary>
+            Validates whether the data meets the validity requirements for a 3-D Heat Map chart.
+            </summary>
+            <remarks>
+            <p class="body">Implementers should override this method (being sure to call the base class implementation,
+            if any) and add additional validity constraints when the base class implementation indicates the data may
+            be valid.</p>
+            <p class="body">Heat Map chart types require at least 2 rows and 2 columns, since this is the minimum
+            amount of data necessary to plot a four-corner surface (with each corner affixed to the X- and/or Z- axes).</p>
+            </remarks>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.Line3DLayer">
+            <summary>
+            A line chart that represents each row of data as a polyline plotted across the X axis
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.NumericAxis3D">
+            <summary>
+            Summary description for NumericAxis3D.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.Pie3DLayer">
+            <summary>
+            Summary description for Pie3DLayer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.SetAxis3D">
+            <summary>
+            Summary description for SetAxis3D.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.ThreeDGridLayer">
+            <summary>
+            Summary description for ThreeDGridLayer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.AdornmentLayer">
+            <summary>
+            Summary description for AdornmentLayer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.AreaLayer">
+            <summary>
+            This layer renders the graphical elements of an Area Chart.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Layers.AreaLayer.splineTension">
+            <summary>
+            Specifies the line curvature.
+            </summary>
+            <remarks>
+            <p class="body">A spline tension of 0.0 produces straight lines.</p>
+            </remarks>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Layers.AreaLayer.flatBottom">
+            <summary>
+            Indicates whether Area Chart should have a flat bottom.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Layers.AreaLayer.nullHandler">
+            <summary>
+            Indicates how Null data points are handled.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.AreaLayer.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            Creates an Area Layer with the specified properties.
+            </summary>
+            <param name="component">An IChartComponent reference.</param>
+            <param name="core">A reference to the chart core.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.AreaLayer.GetAppearance">
+            <summary>
+            Retrieves the Appearance object describing how this chart should be displayed.
+            </summary>
+            <returns>An AreaChartAppearance object.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.AreaLayer.GetDataInvalidMessage">
+            <summary>
+            Retrieves the message displayed when data does not meet the requirements for an Area Chart.
+            </summary>
+            <returns>Returns a localized string.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.AreaLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Fills the Scene Graph with graphical elements associated with an Area Chart.
+            </summary>
+            <param name="scene">The scene graph to compose Primitives onto the foreground.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.Axis.ValidateDataForChart">
+            <summary>
+            Validate data for CHART. This must be called by child axis before fill scene graph. but after base fill scene graph is called.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.BarLayer">
+            <summary>
+            Layer responsible for drawing the Bar Chart (Stacked and non-Stacked).
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.BarLayer.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            Creates a Bar Layer with a reference to an IChartComponent object.
+            </summary>
+            <param name="component">The IChartComponent reference.</param>
+            <param name="core">A reference to core.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.BarLayer.GetAppearance">
+            <summary>
+            Gets an appropriately-typed ChartAppearance subclass for the currently active Chart type.
+            </summary>
+            <returns>A ChartAppearance object subclass.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.BarLayer.ValidateDataForChart">
+            <summary>
+            Confirms data is in an appropriate format for a Bar Chart.
+            </summary>
+            <remarks>
+            <p class="body">When a chart is a stacked bar chart, it cannot have both positive and negative data values.  All data values must share the same sign.  This does not apply to regular column charts, which can contain columns both left and right of the Y-Axis.</p>
+            <p class="body">Subclass implementations should call the base class implementation, before adding additional data checks, and set <see cref="!:Infragistics.UltraChart.Core.Layers.ChartLayer.dataIsValid">dataIsValid</see> appropriately if it hasn't already been set to False.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.BarLayer.GetDataInvalidMessage">
+            <summary>
+            Retrieves an appropriate message to display when data is invalid, based on the current Chart type.
+            </summary>
+            <returns>Text of an error message.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.BarLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Fills the Scene Graph with graphical chart elements for Bar charts.
+            </summary>
+            <param name="scene">A scene graph to compose chart elements onto.</param>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.BorderLayer">
+            <summary>
+            Summary description for BorderLayer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.BubbleLayer">
+            <summary>
+            Layer for rendering the BubbleChart.
+            </summary>
+            <remarks>
+            <p class="body">This layer is instantiated by the chart infrastructure to process data.  It adds <see cref="T:Infragistics.UltraChart.Core.Primitives.Ellipse">Ellipse</see> primitives to the scene graph.  These then appear as bubble chart elements to the user.</p>
+            </remarks>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.XYChartLayer">
+            <summary>
+            Summary description for XYChartLayer.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Layers.BubbleLayer.nullHandler">
+            <summary>
+            Specifies how any null data points should be rendered.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.BubbleLayer.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            Creates a BubbleLayer for this IChartComponent.
+            </summary>
+            <param name="component">The component that this layer belongs to.</param>
+            <param name="core">A core instance.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.BubbleLayer.GetAppearance">
+            <summary>
+            Retrieves a BubbleChartAppearance.
+            </summary>
+            <returns>Returns this component's BubbleChartAppearance object, or null (Nothing in Visual Basic) if it doesn't have one.</returns>
+            <remarks>
+            <p class="body">All layers override this method to provide their own Appearance object that will govern the scene's presentation.  When this method returns non-null, it is safe to cast the resulting <see cref="!:Infragistics.UltraChart.Resources.Appearances.ChartAppearance">ChartAppearance</see> object into a <see cref="!:Infragistics.UltraChart.Resources.Appearances.BubbleChartAppearance">BubbleChartAppearance</see>.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.BubbleLayer.SetupDataFilter">
+            <summary>
+            Sets up the data filter.
+            </summary>
+            <remarks>
+            <p class="body">This method encapsulates the default logic of assuming the first three numeric columns encountered are the <see cref="!:Infragistics.UltraChart.Resources.Appearances.BubbleChartAppearance.ColumnX">ColumnX</see>, <see cref="!:Infragistics.UltraChart.Resources.Appearances.BubbleChartAppearance.ColumnY">ColumnY</see> and <see cref="!:Infragistics.UltraChart.Resources.Appearances.BubbleChartAppearance.ColumnZ">ColumnZ</see> columns.  If a column containing string-typed data is found then it is used to populate the row labels.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.BubbleLayer.ValidateDataForChart">
+            <summary>
+            Validates that the data is appropriate for a Bubble Chart.
+            </summary>
+            <remarks>
+            <p class="body">Bubble Chart requires that there exist at least three numeric columns of data.  The first two columns specify the X- and Y-coordinates at which to plot the bubble, while the third column, Z, specifies the radius of the bubble.</p>
+            <p class="body">The effects of calling this method are internal to <see cref="T:Infragistics.UltraChart.Core.Layers.BubbleLayer"/>.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.BubbleLayer.GetDataInvalidMessage">
+            <summary>
+            Retrieves the message to display when data is invalid for this chart type.
+            </summary>
+            <returns>
+            A string with a localized error message to display to the user.
+            </returns>
+            <remarks>
+            <p class="body">Layers override this method to furnish the chart infrastructure with a localized text message to present the user when the data is invalid for this chart type.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.BubbleLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Adds Bubbles to the Scene Graph.
+            </summary>
+            <param name="scene">A scene graph passed in to which graphical primitives are added.</param>
+            <remarks>
+            <p class="body">All layers override this method to provide functionality specific to their presentation.  This method should call its base class' FillSceneGraph method, and should then add graphical <see cref="T:Infragistics.UltraChart.Core.Primitives.Primitive">Primitive</see> objects to the scene graph.</p>
+            <p class="body">The <see cref="T:Infragistics.UltraChart.Core.Layers.BubbleLayer"/> implementation of this method adds <see cref="T:Infragistics.UltraChart.Core.Primitives.Ellipse">Ellipse</see> objects to the scene graph corresponding the the rows of data bound to this layer's chart component.</p>
+            </remarks>
+            <exception cref="T:System.NullReferenceException">Thrown when the SceneGraph object supplied is null.</exception>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.CandleLayer">
+            <summary>
+            Draws the Bar chart layer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.CandleLegendLayer">
+            <summary>
+            Summary description for CandleLegendLayer.
+            Inherits from chart layer coz it needs Color model.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.LegendLayer">
+            <summary>
+            Summary description for LegendLayer.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.LegendLayer.CalculateInnerBounds">
+            <summary>
+            We return the size of the area to that is leftover after the legend
+            is docked to is LegendLocation and sized to its Width or Height percentage
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.LegendLayer.GetOuterDrawRect">
+            <summary>
+            Returns the bounds for the legend in the set location and taking into account the margins
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.ColumnLayer">
+            <summary>
+            Layer responsible for drawing the Column Chart (Stacked and non-Stacked).
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ColumnLayer.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            Creates a Column Layer with a reference to an IChartComponent object.
+            </summary>
+            <param name="component">The IChartComponent reference.</param>
+            <param name="core">A reference to core.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ColumnLayer.ValidateDataForChart">
+            <summary>
+            Confirms data is in an appropriate format for a Column Chart.
+            </summary>
+            <remarks>
+            <p class="body">When a chart is a stacked column chart, it cannot have both positive and negative data values.  All data values must share the same sign.  This does not apply to regular column charts, which can contain columns both above and below the X-Axis.</p>
+            <p class="body">Subclass implementations should call the base class implementation, before adding additional data checks, and set <see cref="!:Infragistics.UltraChart.Core.Layers.ChartLayer.dataIsValid">dataIsValid</see> appropriately if it hasn't already been set to False.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ColumnLayer.GetAppearance">
+            <summary>
+            Gets an appropriately-typed ChartAppearance subclass for the currently active Chart type.
+            </summary>
+            <returns>A ChartAppearance object subclass.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ColumnLayer.GetDataInvalidMessage">
+            <summary>
+            Retrieves an appropriate message to display when data is invalid, based on the current Chart type.
+            </summary>
+            <returns>Text of an error message.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.ColumnLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Fills the Scene Graph with graphical chart elements for Column charts.
+            </summary>
+            <param name="scene">A scene graph to compose chart elements onto.</param>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.CrossHairLayer">
+            <summary>
+            A line chart that represents each row of data as a polyline plotted across the X axis
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.DiscreteColorLegendLayer">
+            <summary>
+            Summary description for DiscreteColorLegendLayer.
+            Inherits from chart layer coz it needs Color model.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.DoughnutLayer">
+            <summary>
+            Summary description for DoughtnutLayer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.PieLayer">
+            <summary>
+            Summary description for PieLayer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.DrillLayer">
+            <summary>
+            This member supports the charting internal infrastructure and is not intended to be used directly from your code.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.GanttLayer">
+            <summary>
+            A line chart that represents each row of data as a polyline plotted across the X axis
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.GanttLayer.ValidateDataForChart">
+            <summary>
+            Confirms data is in an appropriate format for a Column Chart.
+            </summary>
+            <remarks>
+            <p class="body">When a chart is a stacked column chart, it cannot have both positive and negative data values.  All data values must share the same sign.  This does not apply to regular column charts, which can contain columns both above and below the X-Axis.</p>
+            <p class="body">Subclass implementations should call the base class implementation, before adding additional data checks, and set <see cref="!:Infragistics.UltraChart.Core.Layers.ChartLayer.dataIsValid">dataIsValid</see> appropriately if it hasn't already been set to False.</p>
+            </remarks>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.GridLayer">
+            <summary>
+            Summary description for Class1.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.HeatMapLayer">
+            <summary>
+            Draws the Bar chart layer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.IconLegendLayer">
+            <summary>
+            Layer that adds the Icons to the Legend.
+            </summary>
+            <remarks>
+            <p class="body">This <see cref="T:Infragistics.UltraChart.Core.Layers.Layer"/> adds the icons that appear to the left of labels within the Legend box.  This layer should only be composited onto the Scene Graph if the <see cref="T:Infragistics.UltraChart.Resources.Appearance.LegendAppearance">LegendAppearance</see> property <see cref="P:Infragistics.UltraChart.Resources.Appearance.LegendAppearance.Visible">Visible</see> is True.  If no Legend is being displayed on the chart, the results of compositing this layer are undefined.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.IconLegendLayer.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            Creates an IconLegendLayer object for the specified IChartComponent.
+            </summary>
+            <param name="component">A chart component implementation.</param>
+            <param name="core">A core instance.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.IconLegendLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Adds icons next to the Legend labels to the scene graph.
+            </summary>
+            <param name="scene">A scene graph to composite Primitives onto.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.IconLegendLayer.FillSceneGraphScatter(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Adds Legend Icons specific to Scatter charts.
+            </summary>
+            <param name="scene">A scene graph to composite Primitives onto.</param>
+            <remarks>
+            <p class="body">Scatter charts require special icon handling because they may plot series characters or special symbols to the chart that need corresponding entries in the Legend.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.IconLegendLayer.FillSceneGraphBubble(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Adds Legend Icons specific to Bubble charts.
+            </summary>
+            <param name="scene">A scene graph to composite Primitives onto.</param>
+            <remarks>
+            <p class="body">Bubble charts require icons that display a descending scale of bubbles (by radius value) in the Legend for visual comparison to the chart.</p>
+            <p class="body">Since estimating bubble radius by eye may not be optimal for all users, developers are encouraged to use an alternative means of conveying precise radius values to the user.  The <see cref="P:Infragistics.UltraChart.Resources.Appearance.ChartTextAppearance.ItemFormatString">ItemFormatString</see> property of chart text (and tool tips) can be assigned the built-in label keyword, &lt;DATA_VALUE_RADIUS&gt;, to provide this functionality.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.IconLegendLayer.FillSceneGraphHeatMap(Infragistics.UltraChart.Core.SceneGraph,System.Boolean)">
+            <summary>
+            Adds Legend Icons specific to Heat maps.
+            </summary>
+            <param name="scene">A scene graph to composite Primitives onto.</param>
+            <remarks>
+            <p class="body">Heat Map (or surface) charts require a scale be presented in the Legend that displays the colors used to represent temperatures (altitude, values) in descending order.  Users may then visually compare these readings to the chart.</p>
+            <p class="body">Since estimating precise color by eye may not be optimal for all users, developers are encouraged to use an alternative means of conveying precise data values to the user.  The <see cref="P:Infragistics.UltraChart.Resources.Appearance.ChartTextAppearance.ItemFormatString">ItemFormatString</see> property of chart text (and tool tips) can be assigned the built-in label keyword, &lt;DATA_VALUE&gt;, to provide this functionality.</p>
+            </remarks>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.LineLayer">
+            <summary>
+            A line chart that represents each row of data as a polyline plotted across the X axis
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.RadarLayer">
+            <summary>
+            Summary description for RadarLayer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.ScatterLayer">
+            <summary>
+            Summary description for ScatterLayer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.SetLabelAxisType">
+            <summary>
+            This type is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.SetLabelAxis">
+            <summary>
+            This class is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.SetLabelAxis.IntervalCountWindow(System.Int32)">
+            <summary>
+            This method is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.SetLabelAxis.IntervalCountTotal(System.Int32)">
+            <summary>
+            This method is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.SetLabelAxis.IntervalFit(System.Double,System.Double)">
+            <summary>
+            This method is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.SetLabelAxis.CorrectScrollScale">
+            <summary>
+            This method is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.SetLabelAxis.CorrectWindowMinMax">
+            <summary>
+            This method is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.SetLabelAxis.Map(System.Object)">
+            <summary>
+            This method is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.SetLabelAxis.MapInverse(System.Double)">
+            <summary>
+            This method is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.SetLabelAxis.ItemVisible(System.Object)">
+            <summary>
+            This method is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.SetLabelAxis.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore,Infragistics.UltraChart.Shared.Styles.AxisNumber,Infragistics.UltraChart.Core.Layers.SetLabelAxisType)">
+            <summary>
+            This method is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Layers.SetLabelAxis.zeroLineSpan">
+            <summary>
+            This field is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.SetLabelAxis.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            This method is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.SetLabelAxis.Minimum">
+            <summary>
+            This property is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.SetLabelAxis.Maximum">
+            <summary>
+            This property is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.SetLabelAxis.WindowMinimum">
+            <summary>
+            This property is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.SetLabelAxis.WindowMaximum">
+            <summary>
+            This property is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.SetLabelAxis.WindowInterval">
+            <summary>
+            This property is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.SetLabelAxis.WindowRange">
+            <summary>
+            This property is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.SetLabelAxis.TotalRange">
+            <summary>
+            This property is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.SetLabelAxis.IntervalPercentageWindow">
+            <summary>
+            This property is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.SetLabelAxis.IntervalPercentageTotal">
+            <summary>
+            This property is used by the charting infrastructure and is not intended to be called directly from application code.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.SkinLayer">
+            <summary>
+            This Layer is responsible for the application of motifs onto graphical chart elements.
+            </summary>
+            <remarks>
+            <p class="body">For a <see cref="!:Infragistics.Core.Primitives.PrimitiveShape">PrimitiveShape</see> object to be <i>skinnable</i>, it must be initialized to a row or column of data (as required by <see cref="P:Infragistics.UltraChart.Resources.Appearance.SkinAppearance.ApplyRowWise">ApplyRowWise</see>) and have its <see cref="!:Infragistics.UltraChart.Core.Primitive.Caps">Caps</see> property include PCaps.Skin.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.SkinLayer.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            Constructs a SkinLayer instance for the given IChartComponent.
+            </summary>
+            <param name="component">A reference to a charting component.</param>
+            <param name="core">A refernece to core.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.SkinLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph)">
+            <summary>
+            Modifies the elements in the scene graph.
+            </summary>
+            <param name="scene">A scene graph to scan for graphical elements.</param>
+            <remarks>
+            <p class="body">Updates graphical elements on the skin marked skin-capable with a PaintElement from the appropriate <see cref="T:Infragistics.UltraChart.Resources.Appearance.SkinAppearance">SkinAppearance</see>.</p>
+            </remarks>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.SplineAreaLayer">
+            <summary>
+            Summary description for SplineAreaLayer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.SplineLayer">
+            <summary>
+            Summary description for SplineLayer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.StepLineLayer">
+            <summary>
+            A line chart that represents each row of data as a polyline plotted across the X axis
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.StepLineLayer.ValidateDataForChart">
+            <summary>
+            Confirms data is in an appropriate format for a Column Chart.
+            </summary>
+            <remarks>
+            <p class="body">When a chart is a stacked column chart, it cannot have both positive and negative data values.  All data values must share the same sign.  This does not apply to regular column charts, which can contain columns both above and below the X-Axis.</p>
+            <p class="body">Subclass implementations should call the base class implementation, before adding additional data checks, and set <see cref="!:Infragistics.UltraChart.Core.Layers.ChartLayer.dataIsValid">dataIsValid</see> appropriately if it hasn't already been set to False.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.StepLineLayer.GetDataInvalidMessage">
+            <summary>
+            Gets the localized message to display to end users when chart data is invalid.
+            </summary>
+            <returns>An error message for the end user.</returns>
+            <remarks>
+            <p class="body">Inheritors should override this method to return the proper error message for any invalid state(s) of the chart's data in their custom <see cref="T:Infragistics.UltraChart.Core.Layers.ChartLayer"/> implementation.  This text message is then rendered on the chart face to the end user.</p>
+            </remarks>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.TimeAxis">
+            <summary>
+            Summary description for TimeAxis.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.TitleLayer">
+            <summary>
+            Summary description for TitleLayer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.TitlePanel">
+            <summary>
+            Internal class for each of the title panels - Top, Bottom, Left, and Right
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.TitlePanel.GetExtent">
+            <summary>
+            Retrieves the height of a horizontal panel or the width of a vertical one
+            This is the only size parameter the user can set at design or run tim
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.TooltipLayer">
+            <summary>
+            Layer responsible for rendering Windows tool tip text messages.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.TooltipLayer.#ctor(Infragistics.UltraChart.Resources.IChartComponent,Infragistics.UltraChart.Core.ChartCore)">
+            <summary>
+            Creates a TooltipLayer for the provided IChartComponent reference and core.
+            </summary>
+            <param name="component">A reference to an IChartComponent.</param>
+            <param name="core">A reference to a charting core.</param>
+            <exception cref="T:System.ArgumentNullException">Thrown when either argument is null (Nothing in Visual Basic).</exception>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.TooltipLayer.GetAppearance">
+            <summary>
+            Gets the Appearance object most closely associated with TooltipLayer.
+            </summary>
+            <returns>
+            Retrieves a WinTooltipChartAppearance object, or null if none is available.
+            </returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.TooltipLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph,System.String)">
+            <summary>
+            Composes Primitives from the Tooltip layer onto the Scene Graph.
+            </summary>
+            <param name="scene">A scene graph to render tool tips into.</param>
+            <param name="text">A text message to render within the tooltip box.</param>
+            <remarks>
+            <p class="body">The tool tip text is rendered in the font specified by the WinTooltipAppearance properties <see cref="P:Infragistics.UltraChart.Resources.Appearance.WinTooltipAppearance.Font">Font</see> and <see cref="P:Infragistics.UltraChart.Resources.Appearance.WinTooltipAppearance.FontColor">FontColor</see>.</p>
+            <p class="body">When a non-null <see cref="!:Infragistics.UltraChart.Resources.PaintElement">PaintElement</see> is specified on the <see cref="!:Infragistics.UltraChart.Resources.Appeaerance.WinTooltipAppearance.PE">PE</see> property of the WinTooltipAppearance object, it takes precedence over any other appearance settings.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.TooltipLayer.FillSceneGraph(Infragistics.UltraChart.Core.SceneGraph,Infragistics.UltraChart.Core.Primitives.Primitive)">
+            <summary>
+            Composes Primitives from the Tooltip layer onto the Scene Graph.
+            </summary>
+            <param name="scene">A scene graph to render tool tips into.</param>
+            <param name="primitiveUnderObservation">The graphical element with the attention of the mouse cursor.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Layers.TooltipLayer.GetOuterBounds">
+            <summary>
+            Gets the bounding rectangle for the Tooltip Layer.
+            </summary>
+            <returns>A bounding rectangle enclosing this Layer.</returns>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Layers.TooltipLayer.Text">
+            <summary>
+            Read-only access to the text message presently within the Windows Tooltip.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.TwoDGridLayer">
+            <summary>
+            Summary description for TwoDGridLayer.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Layers.ZeroAlignAxesLayer">
+            <summary>
+            Base class for all Chart-composing Layers.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Box3D">
+            <summary>
+            Summary description for Box3D.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.PrimitiveShape">
+            <summary>
+            The base class for all primitives that have fill color, thickness, and line style.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Primitive">
+            <summary>
+            Primitives are generic graphical objects representing a data point.  They are rendered to the scene graph of the chart by one or more Layers.
+            </summary>
+            <remarks>
+            <p class="body">The Primitive class is the base class of all other graphical chart elements.  They make up the axes, labels, on-chart text, bars, columns and other entities that are presented to the user.</p>
+            <p class="body">Each graphical chart is comprised of <see cref="T:Infragistics.UltraChart.Core.Layers.Layer">Layer</see> objects that compose one or more Primitives (and any of its many subclasses) onto the scene graph, which is then rendered into the chart.</p>
+            <p class="body">Developers have considerable flexibility in accessing and manipulating Primitives, particularly in custom Layer implementations, to add powerful new visual functionality to their chart applications.</p>
+            </remarks>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Primitive.AccumulatedElementsValue">
+            <summary>
+            Accumulated value of elements.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Primitive.drawColor">
+            <summary>
+            Color attributes to draw this Primitive with.
+            </summary>
+            <remarks>
+            <p class="body">The default color is Black.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Primitive.#ctor">
+            <summary>
+            Constructor for constructing a default Primitive.
+            </summary>
+            <remarks>
+            <p class="body">A Primitive created with this constructor belongs to no Layer.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Primitive.#ctor(System.Int32,System.Int32,Infragistics.UltraChart.Core.Layers.ILayer)">
+            <summary>
+            Constructor for constructing a Primitive corresponding to
+            a row and column in the chart data, and a specific layer
+            implementation.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Primitive.GetPrimitives">
+            <summary>
+            Retrieves other Primitives associated with this Primitive, if any.
+            </summary>
+            <returns>This method always returns null.</returns>
+            <remarks>
+            <p class="body">Primitives support being associated with other Primitives in arbitrary relationships.</p>
+            <p class="body">Subclasses must override this method and provide state management for storing a list of Primitives if any containment relationship or affiliation exists.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Primitive.HitTest(System.Drawing.Point)">
+            <summary>
+            Indicates whether a point location hits this Primitive.
+            </summary>
+            <param name="point">Point location (such as a mouse click location) to test for a hit.</param>
+            <returns>This method always returns False.</returns>
+            <remarks>
+            <p class="body">When implemented by a subclass, this method indicates that the specified point is within the confines of this Primitive.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Primitive.Highlight(Infragistics.UltraChart.Core.SceneGraph,System.Drawing.Color,System.Drawing.Color)">
+            <summary>
+            Adds highlighting onto the current Primitive.
+            </summary>
+            <param name="scene">A scene graph to add the highlighting Primitive to the foreground of.</param>
+            <param name="outlineColor">A color to use as the outline of the highlighting Primitive, passed in based on the applicable chart appearance.</param>
+            <param name="fillColor">A color to use in solid filling the highlighting Primitive, passed in based on the applicable chart appearance.</param>
+            <remarks>
+            <p class="body">Highlighting is performed by creating another Primitive object of the same shape and size as the current Primitive, and placing it in the foreground at the Primitive's current location.  The colors that should be used for the highlighting are set by the developer in the Properties Editor for the currently active chart appearance.</p>
+            <p class="body">When implemented by a subclass, this method allows the Primitive to create another Primitive of the same shape and size, and the specified color style configured by the developer, that highlights it.  The implementation should add the highlighting Primitive to the passed in SceneGraph object.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Primitive.InsideRectangle(System.Drawing.Rectangle,System.Drawing.Point)">
+            <summary>
+            Indicates whether a point is within a rectangle.
+            </summary>
+            <param name="rect">Specifies a rectangular region.</param>
+            <param name="point">Specifies a point location.</param>
+            <returns>Whether the point location is within the rectangular region.</returns>
+            <remarks>
+            <p class="body">This auxillary method can be used for hit and edge detection.</p>
+            </remarks>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Primitives.Primitive.DefaultPE">
+            <summary>
+            Gets the default Paint element.
+            </summary>
+            <returns>A <see cref="!:Infragistics.UltraChart.Resources.PaintElement">PaintElement</see> (or "brush") with default properties.</returns>
+            <remarks>
+            <p class="body">This class property is read-only.</p>
+            </remarks>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Primitives.Primitive.Layer">
+            <summary>
+            Layer responsible for this Primitive.
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Primitives.Primitive.PE">
+            <summary>
+            Paint element to paint this Primitive with.
+            </summary>
+            <remarks>
+            <p class="body">Primitives have varying degrees of support for the advanced painting features of the <see cref="T:Infragistics.UltraChart.Resources.Appearance.PaintElement">PaintElement</see> class.</p>
+            </remarks>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Primitives.Primitive.SE">
+            <summary>
+            Skin element to skin this Primitive with.
+            </summary>
+            <remarks>
+            <p class="body">Primitives have varying degrees of support for the advanced skinning feature.  Please consult the documentation for <see cref="!:Infragistics.UltraChart.Core.SkinElement">SkinElement</see>.</p>
+            </remarks>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Primitives.Primitive.Path">
+            <summary>
+            A hierarchical path identifying this Primitive within the scene.
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Primitives.Primitive.Row">
+            <summary>
+            Row from data model which represents this Primitive.
+            </summary>
+            <remarks>
+            <p class="body">Primitives are initialized to the Row and <see cref="P:Infragistics.UltraChart.Core.Primitives.Primitive.Column"/> of data elements that uniquely identify this graphical element in the chart.</p>
+            </remarks>
+        </member>
+        <!-- Badly formed XML comment ignored for member "P:Infragistics.UltraChart.Core.Primitives.Primitive.Column" -->
+        <member name="P:Infragistics.UltraChart.Core.Primitives.Primitive.Value">
+            <summary>
+            An object reference containing data pertinent to this Primitive.
+            </summary>
+            <remarks>
+            <p class="body">This property can contain any object reference designating the source, target, or purpose of this Primitive.
+            For example, the Value property can be used to hold an item being rendered.  It can hold the value that should be displayed
+            in a tooltip when a user hovers over the Primitive.  It can supplemental information to construct an image map of the non-data
+            elements of a chart.</p>
+            <p class="body">The intent behind any data objects referenced by this property are dependent upon the <see cref="P:Infragistics.UltraChart.Core.Primitives.Primitive.Layer"/> that
+            added this Primitive to the scene graph.  Developers are cautioned only to manipulate the values of Primitives their user-defined
+            layer implementation has assigned.  The effects of changing the Value property on a Primitive created by the charting infrastructure
+            are undefined.</p>
+            </remarks>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Primitives.Primitive.Chart">
+            <summary>
+            Retrieves the ChartType in which this Primitive was drawn.
+            </summary>
+            <returns>The ChartType this Primitive was drawn in.</returns>
+            <remarks>
+            <p class="body">Primitives may become invalidated if the <see cref="T:Infragistics.UltraChart.Shared.Styles.ChartType">ChartType</see> of the control has changed.
+            Always call the <see cref="M:Infragistics.UltraChart.Core.SceneGraph.Clear">Clear</see> method of the SceneGraph prior to
+            changing ChartType.</p>
+            </remarks>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.DataPoint3D">
+            <summary>
+            Primitive used to store data points that make up a more complex primitive like Polyline
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Epoch">
+            <summary>
+            Summary description for Epoch.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Face">
+            <summary>
+            class Face: your basic storage class for polygonal face information.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.IFGOFF">
+            <summary>
+            OOGL file format
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Line3D">
+            <summary>
+            Summary description for Line3D.
+            </summary>
+            <summary>
+            Primitive class line used in scene graph.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Line3D.p1">
+            <summary>
+            Data members to store point to draw line from p1 to p2.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Line3D.p2">
+            <summary>
+            Data members to store point to draw line from p1 to p2.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Line3D.#ctor">
+            <summary>
+            Default constructor to make line from (0,0) to (0,0);
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Line3D.#ctor(Infragistics.UltraChart.Core.Primitives.Vector3D,Infragistics.UltraChart.Core.Primitives.Vector3D)">
+            <summary>
+            Constructor to make data point from point p1 to point p2
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Line3D.#ctor(Infragistics.UltraChart.Core.Primitives.Vector3D,Infragistics.UltraChart.Core.Primitives.Vector3D,Infragistics.UltraChart.Shared.Styles.LineStyle)">
+            <summary>
+            Constructor to make data point from point p1 to point p2 with line style
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.PointSet3D">
+            <summary>
+            Public class for storing information of data point rendered as generic graphical object.
+            Can be used for Scatter chart as well as Bubble chart types
+            We are using a Font and single unicode character for the icon for each data point
+            As an alternative the user can supply a bitmap with a transparency color instead
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Symbol">
+            <summary>
+            Summary description for Icon.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.PointSet3D.#ctor(Infragistics.UltraChart.Core.Primitives.DataPoint3D[],System.Drawing.Font,System.Char)">
+            <summary>
+            Pass in the array of points plus a font and character to draw
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.PointSet3D.#ctor(Infragistics.UltraChart.Core.Primitives.DataPoint3D[],Infragistics.UltraChart.Shared.Styles.SymbolIcon,Infragistics.UltraChart.Shared.Styles.SymbolIconSize)">
+            <summary>
+            Pass in the array of points plus an icon enum value
+            </summary>
+            <param name="pos">Array of Points</param>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Polygon3D">
+            <summary>
+            Primitive polygon class used in scene graph, for drawing polygons.
+            The difference between the polyline and polygon is that polygon is closed.
+            also apart from Line style, it contains, fillstyle (TODO:Style)
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Polyline3D">
+            <summary>
+            Primitive polygon class used in scene graph, for drawing polygons.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Polyline3D.points">
+            <summary>
+            Data member to store points in the polygon.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Polyline3D.#ctor(Infragistics.UltraChart.Core.Primitives.DataPoint3D[])">
+            <summary>
+            Constructor to make data polygon out of given points.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Polyline3D.#ctor(Infragistics.UltraChart.Core.Primitives.DataPoint3D[],Infragistics.UltraChart.Shared.Styles.LineStyle)">
+            <summary>
+            Constructor to make data polygon out of given points.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.ScrollBar">
+            <summary>
+            Summary description for ScrollBar.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Sphere">
+            <summary>
+            Summary description for Sphere.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Symbol3D">
+            <summary>
+            Summary description for Icon.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Text3D">
+            <summary>
+            Public class for storing information of data point rendered as generic graphical object.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Text">
+            <summary>
+            Public class for storing information of data point rendered as generic graphical object.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Text.#ctor(System.Drawing.Point,System.String)">
+            <summary>
+            A quick and dirty constructor that places a label at a point location using the default font and style
+            </summary>
+            <param name="pos">The top left corner of the text box</param>
+            <param name="text">The text string to draw to the screen</param>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Transform3D">
+            <summary>
+            Summary description for Transform3D.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Vector3D">
+            <summary>
+            Summary description for Vector3D.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Wedge3D">
+            <summary>
+            Summary description for Wedge3D.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Arc">
+            <summary>
+            Public class for storing information of data point rendered as generic graphical object.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Arc.#ctor(System.Drawing.Point,System.Int32,System.Single,System.Single)">
+            <summary>
+            Creates new Arc with given parameters.
+            </summary>
+            <param name="location">Center of Arc</param>
+            <param name="radius">radius of Arc</param>
+            <param name="startAngle">Start angle</param>
+            <param name="angleSweep">Angle sweep. arc is drawn from startAngle to (startAngle+angleSweep)</param>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Box">
+            <summary>
+            Box shaped graphical element used to represent bars and columns.
+            </summary>
+            <remarks>
+            <p class="body">Box is a rectangularly-shaped, 2-dimensional Primitive that is used to render bars, columns, and other rectangular adornments (tooltips, etc.)</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Box.#ctor(System.Drawing.Point,System.Int32,System.Int32)">
+            <summary>
+            Constructor to make a Box at given position with (width, height) given.
+            </summary>
+            <param name="topLeft">Top, left corner of rectangle.</param>
+            <param name="width">Width of rectangle.</param>
+            <param name="height">Height of rectangle.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Box.#ctor(System.Drawing.Point,System.Int32,System.Int32,Infragistics.UltraChart.Shared.Styles.LineStyle)">
+            <summary>
+            Constructor to make a Box at given position with (width, height) given and outlined with line style.
+            </summary>
+            <param name="topLeft">Top, left corner of rectangle.</param>
+            <param name="width">Width of rectangle.</param>
+            <param name="height">Height of rectangle.</param>
+            <param name="style">Line style (solid, dashed, etc.) for the rectangle's border.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Box.#ctor(System.Drawing.Rectangle)">
+            <summary>
+            Constructor to make a Box at the position and of the size of Rectangle.
+            </summary>
+            <param name="rect">Rectangle defining the corners and edges of this Box.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Box.#ctor(System.Drawing.Rectangle,Infragistics.UltraChart.Shared.Styles.LineStyle)">
+            <summary>
+            Constructor to make a Box at the position and of the size of Rectangle and outlined with line style..
+            </summary>
+            <param name="rect">Rectangle defining the corners and edges of this Box.</param>
+            <param name="style">Line style (solid, dashed, etc.) for the rectangle's border.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Box.HitTest(System.Drawing.Point)">
+            <summary>
+            Indicates whether a point location hits inside of this Box.
+            </summary>
+            <param name="point">Point location (such as a mouse click location) to test for a hit.</param>
+            <returns>Whether <i>point</i> is inside of the Box, if the Box's <see cref="!:HitMe"/> property is set, otherwise False.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Box.Highlight(Infragistics.UltraChart.Core.SceneGraph,System.Drawing.Color,System.Drawing.Color)">
+            <summary>
+            Adds highlighting onto the current Box.
+            </summary>
+            <param name="scene">A scene graph to add the highlighting Primitive to the foreground of.</param>
+            <param name="outlineColor">A color to use as the outline of the highlighting Box, passed in based on the applicable chart appearance.</param>
+            <param name="fillColor">A color to use in solid filling the highlighting Box, passed in based on the applicable chart appearance.</param>
+            <remarks>
+            <p class="body">Highlights the current Box by overlaying another Box of identical size, shape and location.  The coloration parameters supplied to this method by the charting infrastructure correspond to the appropriate highlighting style established by the developer in the chart's appearance.</p>
+            <p class="body">The <i>fillColor</i> specified may include an alpha (or transparent) component, allowing the original Box (and any adornments it may have, such as chart text) to be partially visible through the highlighting.  When the <i>fillColor</i> is opaque, highlighting hides any adornments on the original graphical element.</p>
+            </remarks>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.ChartImage">
+            <summary>
+            Primitive polygon class used in scene graph, for drawing polygons.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.DataPoint">
+            <summary>
+            Primitive used to store data points that make up a more complex primitive like Polyline
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Ellipse">
+            <summary>
+            Primitive Cirle class used in scene graph, for drawing Cirles.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Ellipse.p1">
+            <summary>
+            Data member to store top left of the ellipse bounding box
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Ellipse.p2">
+            <summary>
+            Data member to store width and height of the ellipse.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Ellipse.#ctor">
+            <summary>
+            Default constructor to make empty polygon;
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Ellipse.#ctor(System.Drawing.Point,System.Drawing.Point)">
+            <summary>
+            Constructor to make Ellipse in bounding rectangle
+            </summary>
+            <param name="p1">Left top point of bounding rectangle</param>
+            <param name="p2">Contains Width and Height in Point</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Ellipse.#ctor(System.Drawing.Point,System.Drawing.Point,Infragistics.UltraChart.Shared.Styles.LineStyle)">
+            <summary>
+            Constructor to make Ellipse in bounding rectangle
+            </summary>
+            <param name="p1">Left top point of bounding rectangle</param>
+            <param name="p2">Contains Width and Height in Point</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Ellipse.#ctor(System.Drawing.Point,System.Int32)">
+            <summary>
+            Constructor to make Circle, given radius and center.
+            </summary>
+            <param name="p1">Center of circle</param>
+            <param name="radius">Radius of circle</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Ellipse.#ctor(System.Drawing.Point,System.Int32,Infragistics.UltraChart.Shared.Styles.LineStyle)">
+            <summary>
+            Constructor to make Circle, given radius and center along with LineStyle
+            </summary>
+            <param name="p1">Center of circle</param>
+            <param name="radius">Radius of circle</param>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.GraphicsContext">
+            <summary>
+            This class is used to set the properties of the graphics content while rendering
+            You can insert this primitive into the scene graph to change the current values
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Line">
+            <summary>
+            Primitive class line used in scene graph.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Line.p1">
+            <summary>
+            Data members to store point to draw line from p1 to p2.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Line.p2">
+            <summary>
+            Data members to store point to draw line from p1 to p2.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Line.#ctor">
+            <summary>
+            Default constructor to make line from (0,0) to (0,0);
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Line.#ctor(System.Drawing.Point,System.Drawing.Point)">
+            <summary>
+            Constructor to make data point from point p1 to point p2
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Line.#ctor(System.Drawing.Point,System.Drawing.Point,Infragistics.UltraChart.Shared.Styles.LineStyle)">
+            <summary>
+            Constructor to make data point from point p1 to point p2 with line style
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.PointSet">
+            <summary>
+            Public class for storing information of data point rendered as generic graphical object.
+            Can be used for Scatter chart as well as Bubble chart types
+            We are using a Font and single unicode character for the icon for each data point
+            As an alternative the user can supply a bitmap with a transparency color instead
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.PointSet.#ctor(Infragistics.UltraChart.Core.Primitives.DataPoint[],System.Drawing.Font,System.Char)">
+            <summary>
+            Pass in the array of points plus a font and character to draw
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.PointSet.#ctor(Infragistics.UltraChart.Core.Primitives.DataPoint[],Infragistics.UltraChart.Shared.Styles.SymbolIcon,Infragistics.UltraChart.Shared.Styles.SymbolIconSize)">
+            <summary>
+            Pass in the array of points plus an icon enum value
+            </summary>
+            <param name="pos">Array of Points</param>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Polygon">
+            <summary>
+            Primitive polygon class used in scene graph, for drawing polygons.
+            The difference between the polyline and polygon is that polygon is closed.
+            also apart from Line style, it contains, fillstyle (TODO:Style)
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Polygon.splineTension">
+            <summary>
+            Data member to be used internally in Ultra Chart
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Polygon.flatBottom">
+            <summary>
+            Data member to be used internally in Ultra Chart
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.PolygonSet">
+            <summary>
+            Summary description for PolygonSet.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Polyline">
+            <summary>
+            Primitive polygon class used in scene graph, for drawing polygons.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Polyline.splineTension">
+            <summary>
+            Data member to be used internally in Ultra Chart
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Polyline.points">
+            <summary>
+            Data member to store points in the polygon.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Polyline.highLightLine">
+            <summary>
+            Constructor to make data polygon out of given points.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Polyline.#ctor(Infragistics.UltraChart.Core.Primitives.DataPoint[],Infragistics.UltraChart.Shared.Styles.LineStyle)">
+            <summary>
+            Constructor to make data polygon out of given points.
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Primitives.Polyline.Chart">
+            <summary>
+            Retrieves the ChartType in which this Polyline was drawn.
+            </summary>
+            <returns>The ChartType this Polyline was drawn in.</returns>
+            <remarks>
+            <p class="body">The <see cref="T:Infragistics.UltraChart.Core.Primitives.Polyline"/> requires all of its constituent Primitives to have
+            the same <see cref="T:Infragistics.UltraChart.Shared.Styles.ChartType">ChartType</see> as itself,
+            therefore this method overrides the base behavior to update its child Primitives.</p>
+            <p class="body">Primitives may become invalidated if the ChartType of the control has changed.
+            Always call the <see cref="M:Infragistics.UltraChart.Core.SceneGraph.Clear">Clear</see> method of the SceneGraph prior to
+            changing ChartType.</p>
+            </remarks>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.PCaps">
+            <summary>
+            Identifies the primitive capablities.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.PCaps.None">
+            <summary>
+            Include this primitive in the Hit test.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.PCaps.HitTest">
+            <summary>
+            Indicates this Primitive is included in Hit Testing for mouse events.
+            </summary>
+            <remarks>
+            <p class="body">This Flag must be set to True if the Primitive is
+            to participate in receiving mouse movement and click events.</p>
+            <p class="body">Since events travel from the foreground of the scene
+            into the background, the first Primitive signaled by hit detection as
+            the recipient of an event is the only one to receive it.  Primitives
+            that were covered may not be notified of the event, even if their
+            HitMe Flag was set to True.</p>
+            </remarks>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.PCaps.Skin">
+            <summary>
+            Primitive can be skinned, with row and column specified.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.PCaps.Tooltip">
+            <summary>
+            Primitive can have tooltip.
+            </summary>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.PCaps.Special1">
+            <summary>
+            This is for internal use only.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Primitives.Wedge">
+            <summary>
+            Graphical object containing a description of a 2-dimensional wedge or sector.
+            </summary>
+            <remarks>
+            <p class="body">This <see cref="T:Infragistics.UltraChart.Core.Primitives.Primitive"/> extends <see cref="T:Infragistics.UltraChart.Core.Primitives.Arc"/> by connecting the endpoints of the arc subtending the <see cref="!:angleSweep"/> to a center point (in the case of a pure wedge) or a center point <see cref="P:Infragistics.UltraChart.Core.Primitives.Wedge.RadiusInner"/> out from the center (in the case of a sector).  This creates a closed figure that is fillable.</p>
+            <p class="body">Wedge objects are the representation of 2-dimensional pie slices (RadiusInner equals 0) or doughnut sections (RadiusInner greater than 0) in <see cref="F:Infragistics.UltraChart.Shared.Styles.ChartType.PieChart">PieChart</see> and <see cref="F:Infragistics.UltraChart.Shared.Styles.ChartType.DoughnutChart">DoughnutChart</see> chart types.</p>
+            </remarks>
+        </member>
+        <member name="F:Infragistics.UltraChart.Core.Primitives.Wedge.Percent">
+            <summary>
+            Percentage of an entire pie/doughnut that this slice constitutes.
+            </summary>
+            <remarks>
+            <p class="body">Developers should not modify this value when it has been calculated by the charting engine.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Wedge.#ctor(System.Drawing.Point,System.Int32,System.Single,System.Single)">
+            <summary>
+            Creates new Wedge with the given parameters.
+            </summary>
+            <param name="location">Center point of wege.</param>
+            <param name="radius">Radius of wedge.</param>
+            <param name="startAngle">Starting angle (in degrees).</param>
+            <param name="angleSweep">Sweep angle (in degrees).</param>
+            <remarks>
+            <p class="body">The arc is drawn from startingAngle to (startingAngle + sweepAngle).  The startingAngle is measured clockwise from a 3 o'clock position.</p>
+            <p class="body">To create a doughnut sector instead of a pie slice, set the <see cref="P:Infragistics.UltraChart.Core.Primitives.Wedge.RadiusInner"/> property.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Wedge.#ctor(System.Drawing.Point,System.Int32,System.Single,System.Single,Infragistics.UltraChart.Shared.Styles.LineStyle)">
+            <summary>
+            Creates new Wedge with the given parameters.
+            </summary>
+            <param name="location">Center point of wege.</param>
+            <param name="radius">Radius of wedge.</param>
+            <param name="startAngle">Starting angle (in degrees).</param>
+            <param name="angleSweep">Sweep angle (in degrees).</param>
+            <param name="style">Style of the wedge.</param>
+            <remarks>
+            <p class="body">The arc is drawn from startingAngle to (startingAngle + sweepAngle).  The startingAngle is measured clockwise from a 3 o'clock position.</p>
+            <p class="body">To create a doughnut sector instead of a pie slice, set the <see cref="P:Infragistics.UltraChart.Core.Primitives.Wedge.RadiusInner"/> property.</p>
+            </remarks>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Wedge.HitTest(System.Drawing.Point)">
+            <summary>
+            Tests whether a given point is inside this Wedge.
+            </summary>
+            <param name="point">The point to test for being within this Wedge.</param>
+            <returns>True if the point is within this Wedge, False otherwise.</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Wedge.Highlight(Infragistics.UltraChart.Core.SceneGraph,System.Drawing.Color,System.Drawing.Color)">
+            <summary>
+            Creates a highlight effect for the Wedge.
+            </summary>
+            <param name="scene">A scene graph to add the highlighting effect to.</param>
+            <param name="outlineColor">The outline color of the highlighted region of this Primitive.</param>
+            <param name="fillColor">The solid fill color used to highlight a region of the Primitive.</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Primitives.Wedge.GetBounds">
+            <summary>
+            Calculates a rectangle containing this Wedge.
+            </summary>
+            <returns>Returns a rectangle containing this Wedge.</returns>
+            <remarks>
+            <p class="body">The rectangle returned has pie-relative coordinates.  A control-relative rectangle will require translation.</p>
+            </remarks>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.Primitives.Wedge.RadiusInner">
+            <summary>
+            Inner radius of sector (in pixels).
+            </summary>
+            <remarks>
+            <p class="body">For a pie slice the InnerRadius should always be 0, while for a doughnut sector it should be greater than 0 but less than <see cref="!:Radius"/>.</p>
+            </remarks>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Util.LabelFormatter">
+            <summary>
+            Summary description for LabelFormatter.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Util.Matrix3D">
+            <summary>
+            A conventional 3D matrix object that can transform sets of
+            3D points and perform a variety of manipulations on the transform
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Util.Platform">
+            <summary>
+            This class contains static functions that are platform specific helpers
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.Util.Platform.GetStringArrayAverageSizePixels(System.String[],System.Drawing.Font,System.Int32)">
+            <summary>
+            Returns the width of the string that represents the percentile passed in when sorted low to high
+            For example you may want to find the width of the string that is wide enough
+            to hold 80 percent of the text string labels passed in - pass in 80 to this method
+            </summary>
+            <param name="strings">The array of string that you want to measure</param>
+            <param name="font">The font to measure against</param>
+            <param name="percentile">The percentile from 0-100 to return the width for</param>
+            <returns></returns>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.Util.Transform">
+            <summary>
+            Summary description for Transform.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.ChartCore">
+            <summary>
+            The main UltraChart Core class.
+            This object will hold the drawing layers and SceneGraph objects
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.ChartCore.CreateDemoData">
+             <summary>
+            we must set create demo data for the current chart type
+            it will be used if the DataSource is null or if it is set and we are in design mode
+             </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.ChartCore.LabelHash">
+            <summary>
+            Custom label hash.
+            </summary>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.IProvidePrimitives">
+            <summary>
+            Provides the Primitives objects representing chart graphical elements.
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.IProvidePrimitives.GetPrimitiveFromRowColumn(System.Int32,System.Int32,System.Type)">
+            <summary>
+            Retrieves an object reference to a Primitive for the requested (row, column).
+            </summary>
+            <param name="row">The zero-based index of the data row represented by the Primitive returned.</param>
+            <param name="column">The zero-based index of the data column represented by the Primitive returned.</param>
+            <param name="primitiveType">A requested Type to coerce the Primitive object into before returning it.</param>
+            <returns>A Primitive object representing the given (row, column) combination, or null if no such Primitive exists, or if the Primitive exists but is not of the requested primitiveType.</returns>
+            <remarks>
+            <p class="body">Advanced developers may use this method from the application-level to access individual <see cref="T:Infragistics.UltraChart.Core.Primitives.Primitive"/> shapes that are used to render the chart graphics. Changing the size and position of Primitive objects outside of UltraChart may affect the informational content of the chart rendered.  When the <i>primitiveType</i> is specified, any non-null Primitive returned can be safely typecast to the Type requested.</p>
+            <p class="body">After directly manipulating the Primitive objects returned by this method, the developer must call <see cref="M:Infragistics.UltraChart.Resources.IChartComponent.Invalidate(Infragistics.UltraChart.Shared.Styles.CacheLevel)">Invalidate</see> with <see cref="F:Infragistics.UltraChart.Shared.Styles.CacheLevel.SceneGraphLevelCache">CacheLevel.SceneGraphLevelCache</see> to refresh the chart image.</p>
+            </remarks>
+            <exception cref="T:System.ArgumentException">Thrown when either of the parameters are negative.</exception>
+        </member>
+        <member name="T:Infragistics.UltraChart.Core.SceneGraph">
+            <summary>
+            The SceneGraph holds the list of core primitives to render 
+            </summary>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.SceneGraph.Add(Infragistics.UltraChart.Core.Primitives.Primitive)">
+            <summary>
+            Pass in a Primitive reference to add to the end of the list
+            </summary>
+            <param name="ob">Primitive object</param>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.SceneGraph.GetEnumerator">
+            <summary>
+            Get the IEnumerator interface to quickly pass through the list
+            </summary>
+            <returns>IEnumerator</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.SceneGraph.Clear">
+            <summary>
+            Remove all the primitives from the scenegraph and reset the array
+            </summary>
+        </member>
+        <member name="P:Infragistics.UltraChart.Core.SceneGraph.Count">
+            <summary>
+            Get the number of items in the SceneGraph
+            </summary>
+            <returns>count of items in scenegraph</returns>
+        </member>
+        <member name="M:Infragistics.UltraChart.Core.LocalizedCategoryAttribute.GetLocalizedString(System.String)">
+            <summary>
+            Returns the localized category name
+            </summary>
+            <param name="value">Name of the category to retreive</param>
+            <returns>The localized string value</returns>
+        </member>
+    </members>
+</doc>

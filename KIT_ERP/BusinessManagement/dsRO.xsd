@@ -1,0 +1,55 @@
+<?xml version="1.0" standalone="yes"?>
+<xs:schema id="dsRO" targetNamespace="http://www.tempuri.org/dsRO.xsd" xmlns:mstns="http://www.tempuri.org/dsRO.xsd" xmlns="http://www.tempuri.org/dsRO.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" attributeFormDefault="qualified" elementFormDefault="qualified">
+  <xs:element name="dsRO" msdata:IsDataSet="true" msdata:Locale="ko-KR">
+    <xs:complexType>
+      <xs:choice maxOccurs="unbounded">
+        <xs:element name="RO_HT">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="ItemNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ItemDrawNum" type="xs:string" minOccurs="0" />
+              <xs:element name="ItemName" type="xs:string" minOccurs="0" />
+              <xs:element name="CompanyName" type="xs:string" minOccurs="0" />
+              <xs:element name="BusinessRegistrationNum" type="xs:string" minOccurs="0" />
+              <xs:element name="PropertyClassification" type="xs:string" minOccurs="0" />
+              <xs:element name="ProductionRequestDivision" type="xs:boolean" minOccurs="0" />
+              <xs:element name="ReceivingOrderDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="ApplyUnitCost" type="xs:decimal" minOccurs="0" />
+              <xs:element name="DeliveryRequestQuantity1" type="xs:decimal" minOccurs="0" />
+              <xs:element name="DeliveryRequestDate1" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="DeliveryRequestQuantity2" type="xs:decimal" minOccurs="0" />
+              <xs:element name="DeliveryRequestDate2" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="DeliveryRequestQuantity3" type="xs:decimal" minOccurs="0" />
+              <xs:element name="DeliveryRequestDate3" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="DeliveryRequestQuantity4" type="xs:decimal" minOccurs="0" />
+              <xs:element name="DeliveryRequestDate4" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="DeliveryRequestQuantity5" type="xs:decimal" minOccurs="0" />
+              <xs:element name="DeliveryRequestDate5" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="TotalReceiveingOrderQuantity" type="xs:decimal" minOccurs="0" />
+              <xs:element name="TotalCost" type="xs:decimal" minOccurs="0" />
+              <xs:element name="OutStorehouseQuantity" type="xs:decimal" minOccurs="0" />
+              <xs:element name="SuitabilityQuantity" type="xs:decimal" minOccurs="0" />
+              <xs:element name="UnInspectionQuantity" type="xs:decimal" minOccurs="0" />
+              <xs:element name="RemainderQuantity" type="xs:decimal" minOccurs="0" />
+              <xs:element name="OrderNum" type="xs:string" minOccurs="0" />
+              <xs:element name="DeliveryPlace" type="xs:string" minOccurs="0" />
+              <xs:element name="VolumNum" type="xs:int" minOccurs="0" />
+              <xs:element name="ProgressCondition" type="xs:string" minOccurs="0" />
+              <xs:element name="RegistrationPerson" type="xs:string" minOccurs="0" />
+              <xs:element name="RegistrationPersonID" type="xs:string" minOccurs="0" />
+              <xs:element name="RegistrationDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="UpdatingPerson" type="xs:string" minOccurs="0" />
+              <xs:element name="UpdatingPersonID" type="xs:string" minOccurs="0" />
+              <xs:element name="UpdatingDate" type="xs:dateTime" minOccurs="0" />
+              <xs:element name="ReceivingOrderHistoryIndex" msdata:ReadOnly="true" msdata:AutoIncrement="true" type="xs:int" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+    <xs:unique name="Constraint1" msdata:PrimaryKey="true">
+      <xs:selector xpath=".//mstns:RO_HT" />
+      <xs:field xpath="mstns:ReceivingOrderHistoryIndex" />
+    </xs:unique>
+  </xs:element>
+</xs:schema>

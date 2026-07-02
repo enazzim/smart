@@ -1,0 +1,24 @@
+# Build
+target/
+build/
+.gradle/
+node_modules/
+!.gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local secrets (use config/local-db.env locally)
+config/local-db.env
+
+# Logs
+*.log

@@ -1,0 +1,38 @@
+---
+description: 기준정보 마스터 공통 — PK·소프트삭제·감사 컬럼은 프로그램 자동 설정 (사용자 입력 금지)
+alwaysApply: true
+---
+
+# 기준정보 마스터 — 시스템 컬럼 자동화 (SmartManager 확정)
+
+모든 **기준정보 `_MT` 대응 마스터 테이블**에 공통 적용한다.
+
+## 자동 설정 컬럼 (사용자 입력·API 요청 본문 금지)
+
+| SmartManager (권장) | 레거시 (`CI_MT` 등) | 시점 |
+|---------------------|---------------------|------|
+| `id` (PK) | `*InfoIndex` | INSERT 시 DB/ORM 생성 |
+| `recording_state` | `RecodingState` | 생성=`1`(활성), 삭제=`0`(소프트 삭제) |
+| `created_at` | `RegistrationDate` | INSERT 시 서버 시각 |
+| `created_by` / `created_by_id` | `RegistrationPerson` / `RegistrationPersonID` | INSERT 시 로그인 사용자 |
+| `updated_at` | `UpdatingDate` | INSERT·UPDATE 시 서버 시각 |
+| `updated_by` / `updated_by_id` | `UpdatingPerson` / `UpdatingPersonID` | UPDATE 시 로그인 사용자 |
+
+## 구현 규칙
+
+- **React**: 위 필드용 입력 컴포넌트 **금지**. 목록·상세에서 읽기 전용 표시만 허용(선택).
+- **API Request DTO**: `id`, `recording_state`, `created_*`, `updated_*` **수신하지 않음** (내도 무시).
+- **API Response DTO**: 조회 시 노출 가능.
+- **Spring**: JPA Auditing(`@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy`) 또는 서비스 레이어에서 **동일 TX** 내 설정.
+- **삭제**: HTTP DELETE → `recording_state=0` (물리 DELETE 금지, 기준정보 기본 정책).
+- **domain_event**: `actor_user_id`·`occurred_at`은 이벤트 레코드에, 마스터 감사 컬럼과 **중복 허용**(감사·리플레이 목적).
+
+## D4 문서 표기
+
+- 분류: **시스템(자동)** — 구 UI숨김과 동일, 사용자 미입력 명시.
+- 레거시 36필드 매트릭스 작성 시 시스템 행은 모든 메뉴 동일 패턴.
+
+## 참조
+
+- FK 정책: `docs/step0/domain-event-projector-matrix.md` §10
+- 거래처 예: `docs/step0/d4-company.md` §2
