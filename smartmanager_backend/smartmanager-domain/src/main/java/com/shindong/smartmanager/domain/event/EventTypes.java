@@ -17,6 +17,22 @@ public final class EventTypes {
     public static final String PROCESS_UPDATED = "ProcessUpdated";
     public static final String PROCESS_DELETED = "ProcessDeleted";
 
+    public static final String SALE_UNIT_PRICE_REGISTERED = "SaleUnitPriceRegistered";
+    public static final String SALE_UNIT_PRICE_UPDATED = "SaleUnitPriceUpdated";
+    public static final String SALE_UNIT_PRICE_DELETED = "SaleUnitPriceDeleted";
+
+    public static final String PURCHASE_UNIT_PRICE_REGISTERED = "PurchaseUnitPriceRegistered";
+    public static final String PURCHASE_UNIT_PRICE_UPDATED = "PurchaseUnitPriceUpdated";
+    public static final String PURCHASE_UNIT_PRICE_DELETED = "PurchaseUnitPriceDeleted";
+
+    public static final String OUTSOURCE_UNIT_PRICE_REGISTERED = "OutsourceUnitPriceRegistered";
+    public static final String OUTSOURCE_UNIT_PRICE_UPDATED = "OutsourceUnitPriceUpdated";
+    public static final String OUTSOURCE_UNIT_PRICE_DELETED = "OutsourceUnitPriceDeleted";
+
+    public static final String BOM_LINE_REGISTERED = "BomLineRegistered";
+    public static final String BOM_LINE_UPDATED = "BomLineUpdated";
+    public static final String BOM_LINE_DELETED = "BomLineDeleted";
+
     private EventTypes() {
     }
 }

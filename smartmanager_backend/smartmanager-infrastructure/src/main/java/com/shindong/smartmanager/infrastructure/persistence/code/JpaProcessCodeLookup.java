@@ -22,4 +22,11 @@ public class JpaProcessCodeLookup implements ProcessCodeLookup {
                 .filter(code -> code.getSmallCode() != null)
                 .map(code -> new ProcessCodeInfo(code.getId(), code.getSmallCode(), code.getSmallName()));
     }
+
+    @Override
+    public Optional<ProcessCodeInfo> findActiveProcessCodeBySmallCode(String smallCode) {
+        return publicCodeRepository
+                .findBySmallCodeAndUsageTypeAndRecordingState(smallCode, PROCESS_USAGE_TYPE, 1)
+                .map(code -> new ProcessCodeInfo(code.getId(), code.getSmallCode(), code.getSmallName()));
+    }
 }

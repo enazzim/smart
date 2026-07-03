@@ -2,6 +2,7 @@ package com.shindong.smartmanager.infrastructure.persistence.inventory;
 
 import com.shindong.smartmanager.application.process.InventoryBalanceRepository;
 import java.time.Instant;
+import java.time.Year;
 import java.util.List;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class JpaInventoryBalanceRepository implements InventoryBalanceRepository {
 
     private static final String WIP_LOCATION_CODE = "WIP";
+    private static final String OUTSOURCE_LOCATION_CODE = "OUTSOURCE";
 
     private final SpringDataInventoryBalanceRepository balanceRepository;
     private final SpringDataInventoryLocationRepository locationRepository;
@@ -90,9 +92,84 @@ public class JpaInventoryBalanceRepository implements InventoryBalanceRepository
         balanceRepository.saveAll(balances);
     }
 
+    @Override
+    @Transactional
+    public void ensureOutsourceInputBalance(
+            long itemId,
+            int fiscalYear,
+            long partnerId,
+            long inputProcessId,
+            String actorUserId
+    ) {
+        long outsourceLocationId = resolveOutsourceLocationId();
+        balanceRepository
+                .findByItemIdAndLocationIdAndFiscalYearAndInputProcessIdAndPartnerId(
+                        itemId, outsourceLocationId, (short) fiscalYear, inputProcessId, partnerId)
+                .ifPresentOrElse(
+                        existing -> {
+                            if (existing.getRecordingState() != 1) {
+                                Instant now = Instant.now();
+                                existing.setRecordingState(1);
+                                existing.setUpdatedBy(actorUserId);
+                                existing.setUpdatedById(actorUserId);
+                                existing.setUpdatedAt(now);
+                                balanceRepository.save(existing);
+                            }
+                        },
+                        () -> {
+                            Instant now = Instant.now();
+                            InventoryBalanceJpaEntity entity = new InventoryBalanceJpaEntity();
+                            entity.setItemId(itemId);
+                            entity.setLocationId(outsourceLocationId);
+                            entity.setFiscalYear((short) fiscalYear);
+                            entity.setOutputProcessId(null);
+                            entity.setInputProcessId(inputProcessId);
+                            entity.setPartnerId(partnerId);
+                            entity.setRecordingState(1);
+                            entity.setCreatedBy(actorUserId);
+                            entity.setCreatedById(actorUserId);
+                            entity.setCreatedAt(now);
+                            entity.setUpdatedBy(actorUserId);
+                            entity.setUpdatedById(actorUserId);
+                            entity.setUpdatedAt(now);
+                            balanceRepository.save(entity);
+                        }
+                );
+    }
+
+    @Override
+    @Transactional
+    public void deactivateOutsourceInputBalance(
+            long itemId,
+            long partnerId,
+            long inputProcessId,
+            String actorUserId
+    ) {
+        long outsourceLocationId = resolveOutsourceLocationId();
+        balanceRepository
+                .findByItemIdAndLocationIdAndFiscalYearAndInputProcessIdAndPartnerId(
+                        itemId, outsourceLocationId, (short) Year.now().getValue(), inputProcessId, partnerId)
+                .ifPresent(balance -> {
+                    if (balance.getRecordingState() == 1) {
+                        Instant now = Instant.now();
+                        balance.setRecordingState(0);
+                        balance.setUpdatedBy(actorUserId);
+                        balance.setUpdatedById(actorUserId);
+                        balance.setUpdatedAt(now);
+                        balanceRepository.save(balance);
+                    }
+                });
+    }
+
     private long resolveWipLocationId() {
         return locationRepository.findByLocationCode(WIP_LOCATION_CODE)
                 .map(InventoryLocationJpaEntity::getId)
                 .orElseThrow(() -> new IllegalStateException("WIP 창고 위치가 시드되지 않았습니다."));
+    }
+
+    private long resolveOutsourceLocationId() {
+        return locationRepository.findByLocationCode(OUTSOURCE_LOCATION_CODE)
+                .map(InventoryLocationJpaEntity::getId)
+                .orElseThrow(() -> new IllegalStateException("OUTSOURCE 창고 위치가 시드되지 않았습니다."));
     }
 }

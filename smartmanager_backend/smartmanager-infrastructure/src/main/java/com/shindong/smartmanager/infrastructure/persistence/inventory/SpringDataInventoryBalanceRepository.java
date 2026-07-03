@@ -14,5 +14,13 @@ public interface SpringDataInventoryBalanceRepository extends JpaRepository<Inve
             Long partnerId
     );
 
+    Optional<InventoryBalanceJpaEntity> findByItemIdAndLocationIdAndFiscalYearAndInputProcessIdAndPartnerId(
+            Long itemId,
+            Long locationId,
+            short fiscalYear,
+            Long inputProcessId,
+            Long partnerId
+    );
+
     List<InventoryBalanceJpaEntity> findByOutputProcessIdAndRecordingState(Long outputProcessId, int recordingState);
 }

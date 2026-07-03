@@ -43,4 +43,11 @@ public interface SpringDataProcessSequenceRepository extends JpaRepository<Proce
             @Param("processSequenceNum") short processSequenceNum,
             @Param("excludeId") Long excludeId
     );
+
+    List<ProcessSequenceJpaEntity> findByItemIdAndPublicCodeIdAndVariantAndRecordingState(
+            Long itemId,
+            Long publicCodeId,
+            ProcessVariant variant,
+            int recordingState
+    );
 }

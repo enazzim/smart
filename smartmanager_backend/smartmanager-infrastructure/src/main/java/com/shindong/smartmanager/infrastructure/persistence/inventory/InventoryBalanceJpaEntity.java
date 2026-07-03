@@ -28,6 +28,9 @@ public class InventoryBalanceJpaEntity {
     @Column(name = "output_process_id")
     private Long outputProcessId;
 
+    @Column(name = "input_process_id")
+    private Long inputProcessId;
+
     @Column(name = "partner_id")
     private Long partnerId;
 
@@ -89,6 +92,14 @@ public class InventoryBalanceJpaEntity {
 
     public void setOutputProcessId(Long outputProcessId) {
         this.outputProcessId = outputProcessId;
+    }
+
+    public Long getInputProcessId() {
+        return inputProcessId;
+    }
+
+    public void setInputProcessId(Long inputProcessId) {
+        this.inputProcessId = inputProcessId;
     }
 
     public Long getPartnerId() {

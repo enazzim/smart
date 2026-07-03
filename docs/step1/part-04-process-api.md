@@ -3,7 +3,7 @@
 > **완료일:** 2026-07-02  
 > **범위:** 공정 계획 CRUD REST API · `ProcessRegistered/Updated/Deleted` · `WipBalanceProjector` · React 공정 화면  
 > **설계 SSOT:** [`docs/step0/d4-process.md`](../step0/d4-process.md) v0.1  
-> **다음 파트:** Part 05 — 외주단가 + `OutsourceInputBalanceProjector`
+> **다음 파트:** Part 05 — 외주단가 + `OutsourceInputBalanceProjector` ✅ [`part-05-unit-price-api.md`](./part-05-unit-price-api.md)
 
 ---
 

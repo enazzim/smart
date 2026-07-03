@@ -125,12 +125,13 @@ ORDER BY Num;
 | 공용코드 | ✅ v0.1 | Flyway·`CodeSelect`·`ProcessReferenceChecker` |
 | 거래처 | ✅ v0.3 | CRUD·`PartnerLedgerProjector` |
 | 품목 | ✅ v0.2 | CRUD·6종→4종 이관 |
-| 품목구성 | ✅ v0.1 | CRUD·explosion/copy·`BomHistoryProjector` |
+| 품목구성 | ✅ v0.1 | CRUD API · `BomHistoryProjector` · explosion UI는 백로그 |
 | 작업장 | ✅ v0.2 | CRUD |
 | 공정 | ✅ v0.1 | CRUD·copy·`WipBalanceProjector` E2E |
 | 설비 | ✅ v0.1 | CRUD |
 | 작업표준 | ✅ v0.1 | CRUD·copy |
 | 단가 | ✅ v0.1 | CRUD·history·`OutsourceInputBalanceProjector` |
+| Lot 추적 | ✅ v0.1 **초안** | [`d5-lot-traceability.md`](./d5-lot-traceability.md) · schema-drafts — **Part 06 이후 구현** |
 | 생산달력 | ✅ v0.1 | CRUD·`EffectiveMinutes` |
 | 사용자 | ✅ v0.1 | CRUD·RBAC·JWT |
 

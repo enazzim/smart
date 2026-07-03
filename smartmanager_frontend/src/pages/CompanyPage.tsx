@@ -136,7 +136,7 @@ export default function CompanyPage() {
 
       <section className="panel">
         <h2>{isEditing ? `거래처 수정 (ID ${editingId})` : '거래처 등록'}</h2>
-        <form onSubmit={onSubmit} className="form-grid">
+        <form onSubmit={onSubmit} className="form-grid form-grid-wide">
           <label>
             상호 *
             <input

@@ -5,6 +5,7 @@ import com.shindong.smartmanager.application.process.ProcessRepository;
 import com.shindong.smartmanager.application.process.ProcessUpdateCommand;
 import com.shindong.smartmanager.application.process.ProcessView;
 import com.shindong.smartmanager.domain.process.ProcessVariant;
+import com.shindong.smartmanager.domain.process.WorkDistinction;
 import com.shindong.smartmanager.infrastructure.persistence.code.PublicCodeJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.code.SpringDataPublicCodeRepository;
 import com.shindong.smartmanager.infrastructure.persistence.item.ItemJpaEntity;
@@ -111,6 +112,43 @@ public class JpaProcessRepository implements ProcessRepository {
             Long excludeId
     ) {
         return processRepository.existsActiveDuplicate(itemId, processCodeId, processSequenceNum, excludeId);
+    }
+
+    @Override
+    @Transactional
+    public long ensureMaterialProcess(long itemId, String actorUserId) {
+        PublicCodeJpaEntity materialCode = publicCodeRepository
+                .findBySmallCodeAndUsageTypeAndRecordingState("14000000", "PROCESS", 1)
+                .orElseThrow(() -> new IllegalStateException("소재공정 코드(14000000)가 시드되지 않았습니다."));
+
+        return processRepository
+                .findByItemIdAndPublicCodeIdAndVariantAndRecordingState(
+                        itemId, materialCode.getId(), ProcessVariant.plan, 1)
+                .stream()
+                .findFirst()
+                .map(ProcessSequenceJpaEntity::getId)
+                .orElseGet(() -> createMaterialProcess(itemId, materialCode.getId(), actorUserId));
+    }
+
+    private long createMaterialProcess(long itemId, long materialCodeId, String actorUserId) {
+        Instant now = Instant.now();
+        ProcessSequenceJpaEntity entity = new ProcessSequenceJpaEntity();
+        entity.setItemId(itemId);
+        entity.setProcessSequenceNum((short) 1);
+        entity.setPublicCodeId(materialCodeId);
+        entity.setWorkDistinction(WorkDistinction.INHOUSE);
+        entity.setWorkCenterId(null);
+        entity.setOutsideOrderRate(0);
+        entity.setProgressRate((short) 100);
+        entity.setVariant(ProcessVariant.plan);
+        entity.setRecordingState(1);
+        entity.setCreatedBy(actorUserId);
+        entity.setCreatedById(actorUserId);
+        entity.setCreatedAt(now);
+        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedAt(now);
+        return processRepository.save(entity).getId();
     }
 
     private void applyCommand(ProcessSequenceJpaEntity entity, ProcessCommand command) {

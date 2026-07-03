@@ -22,4 +22,10 @@ public interface SpringDataPublicCodeRepository extends JpaRepository<PublicCode
             @Param("largeCode") String largeCode,
             @Param("usageType") String usageType
     );
+
+    Optional<PublicCodeJpaEntity> findBySmallCodeAndUsageTypeAndRecordingState(
+            String smallCode,
+            String usageType,
+            int recordingState
+    );
 }

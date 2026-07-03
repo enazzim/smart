@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { fetchItems } from '../api/item';
 import type { PropertyClassification } from '../api/item';
 
-const ALLOWED_CLASSES = new Set<PropertyClassification>(['제품', '공정품']);
+const DEFAULT_ALLOWED_CLASSES: PropertyClassification[] = ['제품', '공정품'];
 const SEARCH_DEBOUNCE_MS = 300;
+
+function toAllowedClassesKey(classes?: PropertyClassification[]): string {
+  return (classes ?? DEFAULT_ALLOWED_CLASSES).join('\0');
+}
 
 export type ItemSearchSelection = {
   id: number;
@@ -30,7 +34,10 @@ function matchesQuery(item: ItemSearchSelection, query: string) {
   );
 }
 
-async function loadProductItems(query: string): Promise<ItemSearchSelection[]> {
+async function loadProductItems(
+  query: string,
+  allowedClasses: Set<PropertyClassification>,
+): Promise<ItemSearchSelection[]> {
   const trimmed = query.trim();
 
   let results = trimmed
@@ -42,8 +49,14 @@ async function loadProductItems(query: string): Promise<ItemSearchSelection[]> {
   }
 
   return results
-    .filter((item) => ALLOWED_CLASSES.has(item.propertyClassification))
-    .filter((item) => matchesQuery(item, trimmed));
+    .filter((item) => allowedClasses.has(item.propertyClassification))
+    .filter((item) => matchesQuery(item, trimmed))
+    .map((item) => ({
+      id: item.id,
+      itemNo: item.itemNo,
+      itemName: item.itemName,
+      propertyClassification: item.propertyClassification,
+    }));
 }
 
 export interface ItemSearchFieldProps {
@@ -51,6 +64,7 @@ export interface ItemSearchFieldProps {
   selectedItem: ItemSearchSelection | null;
   onSelect: (item: ItemSearchSelection | null) => void;
   placeholder?: string;
+  allowedClassifications?: PropertyClassification[];
 }
 
 export default function ItemSearchField({
@@ -58,7 +72,13 @@ export default function ItemSearchField({
   selectedItem,
   onSelect,
   placeholder = '품목번호 또는 품목명 입력',
+  allowedClassifications,
 }: ItemSearchFieldProps) {
+  const allowedClassesKey = toAllowedClassesKey(allowedClassifications);
+  const allowedClasses = useMemo(
+    () => new Set<PropertyClassification>(allowedClassifications ?? DEFAULT_ALLOWED_CLASSES),
+    [allowedClassesKey],
+  );
   const listId = useId();
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [query, setQuery] = useState('');
@@ -71,14 +91,14 @@ export default function ItemSearchField({
     setSearching(true);
     setSearchError(null);
     try {
-      setOptions(await loadProductItems(searchQuery));
+      setOptions(await loadProductItems(searchQuery, allowedClasses));
     } catch (e) {
       setSearchError(e instanceof Error ? e.message : '품목 검색 실패');
       setOptions([]);
     } finally {
       setSearching(false);
     }
-  }, []);
+  }, [allowedClassesKey]);
 
   useEffect(() => {
     if (selectedItem) {
@@ -86,7 +106,7 @@ export default function ItemSearchField({
     } else {
       setQuery('');
     }
-  }, [selectedItem?.id]);
+  }, [selectedItem?.id, selectedItem?.itemNo, selectedItem?.itemName]);
 
   useEffect(() => {
     if (!open) {
