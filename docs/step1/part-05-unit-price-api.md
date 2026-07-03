@@ -128,6 +128,8 @@ Ref: [`domain-event-projector-matrix.md`](../step0/domain-event-projector-matrix
 5. 수정(변경사유) → `unit_price_change_log` 행 추가
 6. 삭제 → 단가 `recording_state=0`, 투입 잔고 비활성
 
+**검증 결과 (2026-07-03):** API 기준 PASS — 상세·케이스 B/C 전제는 [Part 06 §6](./part-06-projector-alignment.md#6-e2e-수동-검증-체크리스트) 참고.
+
 ---
 
-*Part 05 완료 · Git commit/push는 사용자 요청 시 진행*
+*Part 05 완료*

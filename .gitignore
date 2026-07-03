@@ -22,3 +22,6 @@ config/local-db.env
 
 # Logs
 *.log
+
+# E2E generated request payloads
+scripts/e2e-payloads/
