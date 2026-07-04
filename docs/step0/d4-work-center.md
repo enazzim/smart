@@ -201,7 +201,7 @@ Base: `/api/v1/basis/work-centers`
 - [x] 대표공정 **`main_process_code_id` FK** (domain-event §10 정합)
 - [x] 콤보 `code_group` **`PROCESS_CODE`** + 저장 `public_code.id`
 - [x] 등록 시 달력 복사 **폐지** (domain-event §2·§5 정합)
-- [ ] Step 1 Flyway + work-centers CRUD
+- [x] Step 1 Flyway + work-centers CRUD
 - [ ] `PUC_MT` export → `code_group` §3 `large_code` 확정 (공용코드 문서 §9)
 
 ---

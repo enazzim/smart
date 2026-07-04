@@ -282,7 +282,7 @@ Base: `/api/v1/basis/work-standards/plan`
 - [x] `process_sequence_id` FK · INHOUSE/SPLIT만
 - [x] 작업장·설비·작업자 PK FK 정합
 - [x] domain-event 부수효과 없음·ProcessDeleted cascade 정합
-- [ ] Step 1 Flyway + plan CRUD + copy
+- [x] Step 1 Flyway + plan CRUD + copy
 - [ ] PRD-W 작업일보 `work_standard_id` 대입
 - [ ] actual/compare (P2)
 

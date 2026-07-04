@@ -39,6 +39,9 @@ export interface WorkCenter {
   id: number;
   wcName: string;
   mainProcessCodeId: number;
+  mainProcessCode?: string;
+  mainProcessName?: string;
+  operationTime?: number;
 }
 
 const API_BASE = '/api/v1/basis/processes/plan';

@@ -4,9 +4,11 @@ import ItemCompositionPage from './pages/ItemCompositionPage';
 import ItemPage from './pages/ItemPage';
 import ProcessPage from './pages/ProcessPage';
 import UnitPricePage from './pages/UnitPricePage';
+import WorkCenterPage from './pages/WorkCenterPage';
+import WorkStandardPage from './pages/WorkStandardPage';
 import './App.css';
 
-type Page = 'company' | 'item' | 'bom' | 'process' | 'unitPrice';
+type Page = 'company' | 'item' | 'bom' | 'process' | 'unitPrice' | 'workCenter' | 'workStandard';
 
 export default function App() {
   const [page, setPage] = useState<Page>('company');
@@ -49,12 +51,28 @@ export default function App() {
         >
           단가
         </button>
+        <button
+          type="button"
+          className={page === 'workCenter' ? 'nav-active' : undefined}
+          onClick={() => setPage('workCenter')}
+        >
+          작업장
+        </button>
+        <button
+          type="button"
+          className={page === 'workStandard' ? 'nav-active' : undefined}
+          onClick={() => setPage('workStandard')}
+        >
+          작업표준
+        </button>
       </nav>
       {page === 'company' && <CompanyPage />}
       {page === 'item' && <ItemPage />}
       {page === 'bom' && <ItemCompositionPage />}
       {page === 'process' && <ProcessPage />}
       {page === 'unitPrice' && <UnitPricePage />}
+      {page === 'workCenter' && <WorkCenterPage />}
+      {page === 'workStandard' && <WorkStandardPage />}
     </div>
   );
 }

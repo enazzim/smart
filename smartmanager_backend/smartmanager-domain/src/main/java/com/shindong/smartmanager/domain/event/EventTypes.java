@@ -33,6 +33,14 @@ public final class EventTypes {
     public static final String BOM_LINE_UPDATED = "BomLineUpdated";
     public static final String BOM_LINE_DELETED = "BomLineDeleted";
 
+    public static final String WORK_CENTER_REGISTERED = "WorkCenterRegistered";
+    public static final String WORK_CENTER_UPDATED = "WorkCenterUpdated";
+    public static final String WORK_CENTER_DELETED = "WorkCenterDeleted";
+
+    public static final String WORK_STANDARD_REGISTERED = "WorkStandardRegistered";
+    public static final String WORK_STANDARD_UPDATED = "WorkStandardUpdated";
+    public static final String WORK_STANDARD_DELETED = "WorkStandardDeleted";
+
     private EventTypes() {
     }
 }

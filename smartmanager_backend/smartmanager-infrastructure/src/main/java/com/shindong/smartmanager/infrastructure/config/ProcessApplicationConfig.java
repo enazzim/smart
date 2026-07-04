@@ -8,6 +8,7 @@ import com.shindong.smartmanager.application.process.ProcessRepository;
 import com.shindong.smartmanager.application.process.ProcessService;
 import com.shindong.smartmanager.application.process.WipBalanceProjector;
 import com.shindong.smartmanager.application.process.WorkCenterLookup;
+import com.shindong.smartmanager.application.workstandard.WorkStandardRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -26,6 +27,7 @@ public class ProcessApplicationConfig {
             ProcessCodeLookup processCodeLookup,
             WorkCenterLookup workCenterLookup,
             WipBalanceProjector wipBalanceProjector,
+            WorkStandardRepository workStandardRepository,
             DomainEventStore domainEventStore
     ) {
         return new ProcessService(
@@ -34,6 +36,7 @@ public class ProcessApplicationConfig {
                 processCodeLookup,
                 workCenterLookup,
                 wipBalanceProjector,
+                workStandardRepository,
                 domainEventStore
         );
     }

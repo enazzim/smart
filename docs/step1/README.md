@@ -9,6 +9,8 @@
 | 04 | [part-04-process-api.md](./part-04-process-api.md) | ✅ 공정 CRUD + WipBalanceProjector |
 | 05 | [part-05-unit-price-api.md](./part-05-unit-price-api.md) | ✅ 외주·판매·구매 단가 CRUD + Projector 1차 |
 | 06 | [part-06-projector-alignment.md](./part-06-projector-alignment.md) | ✅ BOM + OutsourceInputBalanceProjector 400·walk |
+| 07 | [part-07-work-center-api.md](./part-07-work-center-api.md) | ✅ 작업장 3필드 CRUD |
+| 08 | [part-08-work-standard-api.md](./part-08-work-standard-api.md) | ✅ 작업표준 CRUD + copy |
 
 **실행:** `cd smartmanager_backend` → `.\gradlew.bat :smartmanager-api:bootRun`
 

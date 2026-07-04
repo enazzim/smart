@@ -10,6 +10,8 @@ public final class AggregateTypes {
     public static final String PROCESS = "Process";
     public static final String UNIT_PRICE = "UnitPrice";
     public static final String BOM_LINE = "BomLine";
+    public static final String WORK_CENTER = "WorkCenter";
+    public static final String WORK_STANDARD = "WorkStandard";
 
     private AggregateTypes() {
     }

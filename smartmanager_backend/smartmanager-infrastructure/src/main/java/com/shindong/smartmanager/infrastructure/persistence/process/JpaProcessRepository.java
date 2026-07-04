@@ -115,6 +115,19 @@ public class JpaProcessRepository implements ProcessRepository {
     }
 
     @Override
+    public Optional<ProcessView> findActiveByItemIdAndPublicCodeIdAndSequence(
+            long itemId,
+            long publicCodeId,
+            short processSequenceNum,
+            ProcessVariant variant
+    ) {
+        return processRepository
+                .findByItemIdAndPublicCodeIdAndProcessSequenceNumAndVariantAndRecordingState(
+                        itemId, publicCodeId, processSequenceNum, variant, 1)
+                .map(this::toView);
+    }
+
+    @Override
     @Transactional
     public long ensureMaterialProcess(long itemId, String actorUserId) {
         PublicCodeJpaEntity materialCode = publicCodeRepository

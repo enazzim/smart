@@ -50,4 +50,14 @@ public interface SpringDataProcessSequenceRepository extends JpaRepository<Proce
             ProcessVariant variant,
             int recordingState
     );
+
+    boolean existsByWorkCenterIdAndRecordingState(Long workCenterId, int recordingState);
+
+    Optional<ProcessSequenceJpaEntity> findByItemIdAndPublicCodeIdAndProcessSequenceNumAndVariantAndRecordingState(
+            Long itemId,
+            Long publicCodeId,
+            Short processSequenceNum,
+            ProcessVariant variant,
+            int recordingState
+    );
 }

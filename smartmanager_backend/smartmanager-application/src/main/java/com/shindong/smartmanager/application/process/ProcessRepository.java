@@ -20,6 +20,13 @@ public interface ProcessRepository {
 
     boolean existsActiveDuplicate(long itemId, long processCodeId, short processSequenceNum, Long excludeId);
 
+    Optional<ProcessView> findActiveByItemIdAndPublicCodeIdAndSequence(
+            long itemId,
+            long publicCodeId,
+            short processSequenceNum,
+            ProcessVariant variant
+    );
+
     /**
      * 원자재 BOM 투입용 소재공정(14000000) process_sequence를 조회·없으면 생성.
      */

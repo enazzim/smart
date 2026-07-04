@@ -9,6 +9,7 @@ import com.shindong.smartmanager.domain.event.EventTypes;
 import com.shindong.smartmanager.domain.item.PropertyClassification;
 import com.shindong.smartmanager.domain.process.ProcessVariant;
 import com.shindong.smartmanager.domain.process.WorkDistinction;
+import com.shindong.smartmanager.application.workstandard.WorkStandardRepository;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -24,6 +25,7 @@ public class ProcessService {
     private final ProcessCodeLookup processCodeLookup;
     private final WorkCenterLookup workCenterLookup;
     private final WipBalanceProjector wipBalanceProjector;
+    private final WorkStandardRepository workStandardRepository;
     private final DomainEventStore domainEventStore;
 
     public ProcessService(
@@ -32,6 +34,7 @@ public class ProcessService {
             ProcessCodeLookup processCodeLookup,
             WorkCenterLookup workCenterLookup,
             WipBalanceProjector wipBalanceProjector,
+            WorkStandardRepository workStandardRepository,
             DomainEventStore domainEventStore
     ) {
         this.processRepository = processRepository;
@@ -39,6 +42,7 @@ public class ProcessService {
         this.processCodeLookup = processCodeLookup;
         this.workCenterLookup = workCenterLookup;
         this.wipBalanceProjector = wipBalanceProjector;
+        this.workStandardRepository = workStandardRepository;
         this.domainEventStore = domainEventStore;
     }
 
@@ -100,6 +104,7 @@ public class ProcessService {
 
     public void delete(long id, String actorUserId) {
         ProcessView existing = getActive(id);
+        workStandardRepository.softDeleteByProcessSequenceId(id, actorUserId);
         processRepository.softDelete(id, actorUserId);
         wipBalanceProjector.deactivate(id, actorUserId);
 
