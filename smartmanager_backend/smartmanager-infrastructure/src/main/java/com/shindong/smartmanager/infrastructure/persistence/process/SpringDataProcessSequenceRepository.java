@@ -60,4 +60,6 @@ public interface SpringDataProcessSequenceRepository extends JpaRepository<Proce
             ProcessVariant variant,
             int recordingState
     );
+
+    boolean existsByPublicCodeIdAndRecordingState(Long publicCodeId, int recordingState);
 }

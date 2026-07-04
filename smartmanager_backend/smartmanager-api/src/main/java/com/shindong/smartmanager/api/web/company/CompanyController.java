@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.api.web.company;
 
+import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.application.company.CompanyCommand;
 import com.shindong.smartmanager.application.company.CompanyUpdateCommand;
 import com.shindong.smartmanager.infrastructure.application.CompanyApplicationService;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/basis/companies")
+@BasisAuthorize.CompanyRead
 public class CompanyController {
 
     private static final String DEFAULT_ACTOR = "local-dev";
@@ -43,6 +45,7 @@ public class CompanyController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @BasisAuthorize.CompanyWrite
     public CompanyResponse create(
             @Valid @RequestBody CreateCompanyRequest request,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
@@ -70,6 +73,7 @@ public class CompanyController {
     }
 
     @PutMapping("/{id}")
+    @BasisAuthorize.CompanyWrite
     public CompanyResponse update(
             @PathVariable long id,
             @Valid @RequestBody UpdateCompanyRequest request,
@@ -98,6 +102,7 @@ public class CompanyController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @BasisAuthorize.CompanyWrite
     public void delete(
             @PathVariable long id,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId

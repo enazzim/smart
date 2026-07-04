@@ -30,4 +30,6 @@ public interface SpringDataWorkCenterRepository extends JpaRepository<WorkCenter
             ORDER BY w.wcName ASC
             """)
     List<WorkCenterJpaEntity> searchActive(@Param("query") String query);
+
+    boolean existsByMainProcessCodeIdAndRecordingState(Long mainProcessCodeId, int recordingState);
 }

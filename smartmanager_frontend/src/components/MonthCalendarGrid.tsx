@@ -4,6 +4,7 @@ export interface CalendarCell {
   date: string;
   day: number;
   inMonth: boolean;
+  dayOfWeek: number;
 }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -15,12 +16,18 @@ export function buildMonthCells(year: number, month: number): CalendarCell[] {
   const cells: CalendarCell[] = [];
 
   for (let i = 0; i < startOffset; i++) {
-    cells.push({ date: '', day: 0, inMonth: false });
+    cells.push({ date: '', day: 0, inMonth: false, dayOfWeek: i % 7 });
   }
   for (let day = 1; day <= lastDay; day++) {
     const mm = String(month).padStart(2, '0');
     const dd = String(day).padStart(2, '0');
-    cells.push({ date: `${year}-${mm}-${dd}`, day, inMonth: true });
+    const dateObj = new Date(year, month - 1, day);
+    cells.push({
+      date: `${year}-${mm}-${dd}`,
+      day,
+      inMonth: true,
+      dayOfWeek: dateObj.getDay(),
+    });
   }
   return cells;
 }
@@ -29,9 +36,15 @@ interface MonthCalendarGridProps {
   year: number;
   month: number;
   renderCell: (cell: CalendarCell) => React.ReactNode;
+  cellClassName?: (cell: CalendarCell) => string;
 }
 
-export default function MonthCalendarGrid({ year, month, renderCell }: MonthCalendarGridProps) {
+export default function MonthCalendarGrid({
+  year,
+  month,
+  renderCell,
+  cellClassName,
+}: MonthCalendarGridProps) {
   const cells = useMemo(() => buildMonthCells(year, month), [year, month]);
 
   return (
@@ -44,14 +57,17 @@ export default function MonthCalendarGrid({ year, month, renderCell }: MonthCale
         ))}
       </div>
       <div className="month-calendar-grid">
-        {cells.map((cell, idx) => (
-          <div
-            key={`${cell.date || 'blank'}-${idx}`}
-            className={`month-calendar-cell${cell.inMonth ? '' : ' month-calendar-cell-blank'}`}
-          >
-            {cell.inMonth ? renderCell(cell) : null}
-          </div>
-        ))}
+        {cells.map((cell, idx) => {
+          const extraClass = cell.inMonth && cellClassName ? cellClassName(cell) : '';
+          return (
+            <div
+              key={`${cell.date || 'blank'}-${idx}`}
+              className={`month-calendar-cell${cell.inMonth ? '' : ' month-calendar-cell-blank'}${extraClass ? ` ${extraClass}` : ''}`}
+            >
+              {cell.inMonth ? renderCell(cell) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

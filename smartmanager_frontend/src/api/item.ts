@@ -1,3 +1,5 @@
+import { apiFetch, handleResponse } from './http';
+
 export type PropertyClassification = '원자재' | '제품' | '상품' | '공정품';
 export type CheckDistinction = 'NONE' | 'INSPECTION';
 
@@ -35,29 +37,18 @@ export type UpdateItemRequest = Omit<CreateItemRequest, 'itemNo'>;
 
 const API_BASE = '/api/v1/basis/items';
 
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(body.message ?? '요청에 실패했습니다.');
-  }
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  return response.json() as Promise<T>;
-}
-
 export async function fetchItems(itemNo?: string, itemName?: string): Promise<Item[]> {
   const params = new URLSearchParams();
   if (itemNo) params.set('itemNo', itemNo);
   if (itemName) params.set('itemName', itemName);
   const query = params.toString();
   const url = query ? `${API_BASE}?${query}` : API_BASE;
-  return handleResponse<Item[]>(await fetch(url));
+  return handleResponse<Item[]>(await apiFetch(url));
 }
 
 export async function createItem(payload: CreateItemRequest): Promise<Item> {
   return handleResponse<Item>(
-    await fetch(API_BASE, {
+    await apiFetch(API_BASE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -67,7 +58,7 @@ export async function createItem(payload: CreateItemRequest): Promise<Item> {
 
 export async function updateItem(id: number, payload: UpdateItemRequest): Promise<Item> {
   return handleResponse<Item>(
-    await fetch(`${API_BASE}/${id}`, {
+    await apiFetch(`${API_BASE}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -77,7 +68,7 @@ export async function updateItem(id: number, payload: UpdateItemRequest): Promis
 
 export async function deleteItem(id: number): Promise<void> {
   await handleResponse<void>(
-    await fetch(`${API_BASE}/${id}`, {
+    await apiFetch(`${API_BASE}/${id}`, {
       method: 'DELETE',
     }),
   );

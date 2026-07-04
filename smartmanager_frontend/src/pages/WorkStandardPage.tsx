@@ -492,10 +492,10 @@ export default function WorkStandardPage() {
                   <td>{ws.setupTime}</td>
                   <td>{ws.standardTime}</td>
                   <td className="actions">
-                    <button type="button" className="link" onClick={() => startEdit(ws)}>
+                    <button type="button" className="btn-action" onClick={() => startEdit(ws)}>
                       수정
                     </button>
-                    <button type="button" className="link danger" onClick={() => void onDelete(ws)}>
+                    <button type="button" className="btn-action danger" onClick={() => void onDelete(ws)}>
                       삭제
                     </button>
                   </td>

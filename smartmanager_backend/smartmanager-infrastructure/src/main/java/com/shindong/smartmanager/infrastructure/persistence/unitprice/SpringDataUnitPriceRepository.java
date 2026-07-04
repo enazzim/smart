@@ -115,4 +115,8 @@ public interface SpringDataUnitPriceRepository extends JpaRepository<UnitPriceJp
             @Param("itemNo") String itemNo,
             @Param("costType") CostType costType
     );
+
+    boolean existsByBeginProcessCodeIdAndRecordingState(Long beginProcessCodeId, int recordingState);
+
+    boolean existsByEndProcessCodeIdAndRecordingState(Long endProcessCodeId, int recordingState);
 }

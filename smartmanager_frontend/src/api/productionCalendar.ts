@@ -1,7 +1,18 @@
+import { apiFetch, handleResponse } from './http';
+
 export interface ProductionCalendarDay {
   id: number;
   calendarDate: string;
   workTime: number;
+  content?: string | null;
+}
+
+export interface ProductionCalendarEffectiveDay {
+  calendarDate: string;
+  effectiveWorkTime: number;
+  registered: boolean;
+  autoOffDay: boolean;
+  registeredWorkTime?: number | null;
   content?: string | null;
 }
 
@@ -12,20 +23,18 @@ export interface UpsertProductionCalendarRequest {
 
 const API_BASE = '/api/v1/basis/production-calendars';
 
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(body.message ?? '요청에 실패했습니다.');
-  }
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  return response.json() as Promise<T>;
-}
-
 export async function fetchProductionCalendars(year: number, month: number): Promise<ProductionCalendarDay[]> {
   return handleResponse<ProductionCalendarDay[]>(
-    await fetch(`${API_BASE}?year=${year}&month=${month}`),
+    await apiFetch(`${API_BASE}?year=${year}&month=${month}`),
+  );
+}
+
+export async function fetchProductionCalendarEffective(
+  year: number,
+  month: number,
+): Promise<ProductionCalendarEffectiveDay[]> {
+  return handleResponse<ProductionCalendarEffectiveDay[]>(
+    await apiFetch(`/api/v1/basis/production-calendars/effective?year=${year}&month=${month}`),
   );
 }
 
@@ -34,7 +43,7 @@ export async function upsertProductionCalendarByDate(
   payload: UpsertProductionCalendarRequest,
 ): Promise<ProductionCalendarDay> {
   return handleResponse<ProductionCalendarDay>(
-    await fetch(`${API_BASE}/by-date/${calendarDate}`, {
+    await apiFetch(`${API_BASE}/by-date/${calendarDate}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -44,7 +53,7 @@ export async function upsertProductionCalendarByDate(
 
 export async function deleteProductionCalendarByDate(calendarDate: string): Promise<void> {
   await handleResponse<void>(
-    await fetch(`${API_BASE}/by-date/${calendarDate}`, {
+    await apiFetch(`${API_BASE}/by-date/${calendarDate}`, {
       method: 'DELETE',
     }),
   );
@@ -52,9 +61,9 @@ export async function deleteProductionCalendarByDate(calendarDate: string): Prom
 
 export const DEFAULT_WORK_TIME = 480;
 
-export function formatWorkTimeLabel(minutes: number): string {
+export function formatWorkTimeLabel(minutes: number, autoOffDay = false): string {
   if (minutes === 0) {
-    return '휴무(0)';
+    return autoOffDay ? '휴무(자동)' : '휴무(0)';
   }
   return `${minutes}분`;
 }

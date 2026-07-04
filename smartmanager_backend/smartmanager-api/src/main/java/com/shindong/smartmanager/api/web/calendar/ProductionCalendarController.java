@@ -1,7 +1,10 @@
 package com.shindong.smartmanager.api.web.calendar;
 
+import com.shindong.smartmanager.api.security.BasisAuthorize;
+import com.shindong.smartmanager.application.calendar.ProductionCalendarEffectiveDayView;
 import com.shindong.smartmanager.application.calendar.ProductionCalendarUpsertCommand;
 import com.shindong.smartmanager.application.calendar.ProductionCalendarView;
+import com.shindong.smartmanager.infrastructure.application.CalendarQueryApplicationService;
 import com.shindong.smartmanager.infrastructure.application.ProductionCalendarApplicationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -23,14 +26,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/basis/production-calendars")
+@BasisAuthorize.ProductionCalendarRead
 public class ProductionCalendarController {
 
     private static final String DEFAULT_ACTOR = "local-dev";
 
     private final ProductionCalendarApplicationService productionCalendarApplicationService;
+    private final CalendarQueryApplicationService calendarQueryApplicationService;
 
-    public ProductionCalendarController(ProductionCalendarApplicationService productionCalendarApplicationService) {
+    public ProductionCalendarController(
+            ProductionCalendarApplicationService productionCalendarApplicationService,
+            CalendarQueryApplicationService calendarQueryApplicationService
+    ) {
         this.productionCalendarApplicationService = productionCalendarApplicationService;
+        this.calendarQueryApplicationService = calendarQueryApplicationService;
     }
 
     @GetMapping
@@ -43,12 +52,23 @@ public class ProductionCalendarController {
                 .toList();
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/effective")
+    public List<ProductionCalendarEffectiveDayResponse> listEffective(
+            @RequestParam int year,
+            @RequestParam @Min(1) @Max(12) int month
+    ) {
+        return calendarQueryApplicationService.listProductionCalendarEffective(year, month).stream()
+                .map(ProductionCalendarEffectiveDayResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/{id:\\d+}")
     public ProductionCalendarResponse get(@PathVariable long id) {
         return ProductionCalendarResponse.from(productionCalendarApplicationService.getById(id));
     }
 
     @PutMapping("/by-date/{calendarDate}")
+    @BasisAuthorize.ProductionCalendarWrite
     public ProductionCalendarResponse upsertByDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate calendarDate,
             @Valid @RequestBody UpsertProductionCalendarRequest request,
@@ -66,6 +86,7 @@ public class ProductionCalendarController {
 
     @DeleteMapping("/by-date/{calendarDate}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @BasisAuthorize.ProductionCalendarWrite
     public void deleteByDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate calendarDate,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
@@ -91,6 +112,26 @@ public class ProductionCalendarController {
                     view.id(),
                     view.calendarDate(),
                     view.workTime(),
+                    view.content()
+            );
+        }
+    }
+
+    public record ProductionCalendarEffectiveDayResponse(
+            LocalDate calendarDate,
+            int effectiveWorkTime,
+            boolean registered,
+            boolean autoOffDay,
+            Integer registeredWorkTime,
+            String content
+    ) {
+        static ProductionCalendarEffectiveDayResponse from(ProductionCalendarEffectiveDayView view) {
+            return new ProductionCalendarEffectiveDayResponse(
+                    view.calendarDate(),
+                    view.effectiveWorkTime(),
+                    view.registered(),
+                    view.autoOffDay(),
+                    view.registeredWorkTime(),
                     view.content()
             );
         }

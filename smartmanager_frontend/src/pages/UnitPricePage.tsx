@@ -432,10 +432,10 @@ export default function UnitPricePage() {
                     {price.endDate ? ` ~ ${price.endDate}` : ' ~'}
                   </td>
                   <td className="actions">
-                    <button type="button" className="link" onClick={() => startEdit(price)}>
+                    <button type="button" className="btn-action" onClick={() => startEdit(price)}>
                       수정
                     </button>
-                    <button type="button" className="link danger" onClick={() => void onDelete(price.id)}>
+                    <button type="button" className="btn-action danger" onClick={() => void onDelete(price.id)}>
                       삭제
                     </button>
                   </td>

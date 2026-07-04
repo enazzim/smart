@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.api.web.process;
 
+import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.application.process.ProcessCommand;
 import com.shindong.smartmanager.application.process.ProcessUpdateCommand;
 import com.shindong.smartmanager.infrastructure.application.ProcessApplicationService;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/basis/processes/plan")
+@BasisAuthorize.ProcessRead
 public class ProcessController {
 
     private static final String DEFAULT_ACTOR = "local-dev";
@@ -49,6 +51,7 @@ public class ProcessController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @BasisAuthorize.ProcessWrite
     public ProcessResponse create(
             @Valid @RequestBody CreateProcessRequest request,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
@@ -59,6 +62,7 @@ public class ProcessController {
     }
 
     @PutMapping("/{id}")
+    @BasisAuthorize.ProcessWrite
     public ProcessResponse update(
             @PathVariable long id,
             @Valid @RequestBody UpdateProcessRequest request,
@@ -71,6 +75,7 @@ public class ProcessController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @BasisAuthorize.ProcessWrite
     public void delete(
             @PathVariable long id,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId

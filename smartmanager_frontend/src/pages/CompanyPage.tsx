@@ -238,10 +238,10 @@ export default function CompanyPage() {
                   <td>{c.presidentName}</td>
                   <td>{c.roles.join(', ')}</td>
                   <td className="actions">
-                    <button type="button" className="link" onClick={() => startEdit(c)}>
+                    <button type="button" className="btn-action" onClick={() => startEdit(c)}>
                       수정
                     </button>
-                    <button type="button" className="link danger" onClick={() => void onDelete(c)}>
+                    <button type="button" className="btn-action danger" onClick={() => void onDelete(c)}>
                       삭제
                     </button>
                   </td>

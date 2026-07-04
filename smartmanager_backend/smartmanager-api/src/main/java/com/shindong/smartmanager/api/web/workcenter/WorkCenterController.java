@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.api.web.workcenter;
 
+import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.application.workcenter.WorkCenterCommand;
 import com.shindong.smartmanager.infrastructure.application.WorkCenterApplicationService;
 import jakarta.validation.Valid;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/basis/work-centers")
+@BasisAuthorize.WorkCenterRead
 public class WorkCenterController {
 
     private static final String DEFAULT_ACTOR = "local-dev";
@@ -43,6 +45,7 @@ public class WorkCenterController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @BasisAuthorize.WorkCenterWrite
     public WorkCenterResponse create(
             @Valid @RequestBody CreateWorkCenterRequest request,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
@@ -53,6 +56,7 @@ public class WorkCenterController {
     }
 
     @PutMapping("/{id}")
+    @BasisAuthorize.WorkCenterWrite
     public WorkCenterResponse update(
             @PathVariable long id,
             @Valid @RequestBody CreateWorkCenterRequest request,
@@ -65,6 +69,7 @@ public class WorkCenterController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @BasisAuthorize.WorkCenterWrite
     public void delete(
             @PathVariable long id,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId

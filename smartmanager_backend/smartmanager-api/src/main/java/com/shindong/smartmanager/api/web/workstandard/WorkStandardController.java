@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.api.web.workstandard;
 
+import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.application.workstandard.WorkStandardUpdateCommand;
 import com.shindong.smartmanager.infrastructure.application.WorkStandardApplicationService;
 import jakarta.validation.Valid;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/basis/work-standards/plan")
+@BasisAuthorize.WorkStandardRead
 public class WorkStandardController {
 
     private static final String DEFAULT_ACTOR = "local-dev";
@@ -43,6 +45,7 @@ public class WorkStandardController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @BasisAuthorize.WorkStandardWrite
     public WorkStandardResponse create(
             @Valid @RequestBody CreateWorkStandardRequest request,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
@@ -63,6 +66,7 @@ public class WorkStandardController {
     }
 
     @PutMapping("/{id}")
+    @BasisAuthorize.WorkStandardWrite
     public WorkStandardResponse update(
             @PathVariable long id,
             @Valid @RequestBody UpdateWorkStandardRequest request,
@@ -83,6 +87,7 @@ public class WorkStandardController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @BasisAuthorize.WorkStandardWrite
     public void delete(
             @PathVariable long id,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
@@ -92,6 +97,7 @@ public class WorkStandardController {
     }
 
     @PostMapping("/copy")
+    @BasisAuthorize.WorkStandardWrite
     public CopyWorkStandardResponse copy(
             @Valid @RequestBody CopyWorkStandardRequest request,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId

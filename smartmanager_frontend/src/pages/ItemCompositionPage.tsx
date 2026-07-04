@@ -419,10 +419,10 @@ export default function ItemCompositionPage() {
                   <td>{row.parentQuantity}</td>
                   <td>{row.childQuantity}</td>
                   <td className="actions">
-                    <button type="button" className="link" onClick={() => startEdit(row)}>
+                    <button type="button" className="btn-action" onClick={() => startEdit(row)}>
                       수정
                     </button>
-                    <button type="button" className="link danger" onClick={() => void onDelete(row)}>
+                    <button type="button" className="btn-action danger" onClick={() => void onDelete(row)}>
                       삭제
                     </button>
                   </td>
@@ -498,7 +498,7 @@ export default function ItemCompositionPage() {
                           <td>
                             <button
                               type="button"
-                              className="link"
+                              className="btn-action"
                               onClick={() => filterByParent(row)}
                             >
                               모품목 필터

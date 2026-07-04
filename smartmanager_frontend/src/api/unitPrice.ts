@@ -1,3 +1,5 @@
+import { apiFetch, handleResponse } from './http';
+
 export type CostType = 'SALE' | 'PURCHASE' | 'OUTSOURCE';
 
 export interface UnitPrice {
@@ -47,26 +49,15 @@ export interface UpdateUnitPriceRequest {
 
 const API_BASE = '/api/v1/basis/unit-prices';
 
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(body.message ?? '요청에 실패했습니다.');
-  }
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  return response.json() as Promise<T>;
-}
-
 export async function fetchUnitPrices(type: CostType, q?: string): Promise<UnitPrice[]> {
   const params = new URLSearchParams({ type });
   if (q?.trim()) params.set('q', q.trim());
-  return handleResponse<UnitPrice[]>(await fetch(`${API_BASE}?${params}`));
+  return handleResponse<UnitPrice[]>(await apiFetch(`${API_BASE}?${params}`));
 }
 
 export async function createUnitPrice(payload: CreateUnitPriceRequest): Promise<UnitPrice> {
   return handleResponse<UnitPrice>(
-    await fetch(API_BASE, {
+    await apiFetch(API_BASE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -76,7 +67,7 @@ export async function createUnitPrice(payload: CreateUnitPriceRequest): Promise<
 
 export async function updateUnitPrice(id: number, payload: UpdateUnitPriceRequest): Promise<UnitPrice> {
   return handleResponse<UnitPrice>(
-    await fetch(`${API_BASE}/${id}`, {
+    await apiFetch(`${API_BASE}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -86,7 +77,7 @@ export async function updateUnitPrice(id: number, payload: UpdateUnitPriceReques
 
 export async function deleteUnitPrice(id: number): Promise<void> {
   await handleResponse<void>(
-    await fetch(`${API_BASE}/${id}`, {
+    await apiFetch(`${API_BASE}/${id}`, {
       method: 'DELETE',
     }),
   );

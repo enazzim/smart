@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.api.web.system;
 
+import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.application.role.RoleRepository;
 import com.shindong.smartmanager.application.role.RoleView;
 import java.util.List;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/system/roles")
+@BasisAuthorize.RoleRead
 public class RoleController {
 
     private final RoleRepository roleRepository;

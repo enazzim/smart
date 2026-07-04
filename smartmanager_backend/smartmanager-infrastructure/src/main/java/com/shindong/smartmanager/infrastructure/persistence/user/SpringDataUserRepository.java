@@ -28,4 +28,8 @@ public interface SpringDataUserRepository extends JpaRepository<UserJpaEntity, L
               AND (:excludeId IS NULL OR u.id <> :excludeId)
             """)
     boolean existsActiveByLoginId(@Param("loginId") String loginId, @Param("excludeId") Long excludeId);
+
+    boolean existsByWorkDiaryGroupIdAndRecordingState(Long workDiaryGroupId, int recordingState);
+
+    Optional<UserJpaEntity> findByLoginIdAndRecordingState(String loginId, int recordingState);
 }

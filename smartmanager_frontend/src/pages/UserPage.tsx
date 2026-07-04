@@ -351,10 +351,10 @@ export default function UserPage() {
                     <td>{user.roleCodes.join(', ') || '—'}</td>
                     <td>{user.workDiaryGroupName ?? '—'}</td>
                     <td className="row-actions">
-                      <button type="button" onClick={() => startEdit(user)}>
+                      <button type="button" className="btn-action" onClick={() => startEdit(user)}>
                         수정
                       </button>
-                      <button type="button" className="danger" onClick={() => void onDelete(user)}>
+                      <button type="button" className="btn-action danger" onClick={() => void onDelete(user)}>
                         삭제
                       </button>
                     </td>

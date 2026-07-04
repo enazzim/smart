@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.api.web.user;
 
+import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.application.user.UserCommand;
 import com.shindong.smartmanager.application.user.UserUpdateCommand;
 import com.shindong.smartmanager.infrastructure.application.UserApplicationService;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/basis/users")
+@BasisAuthorize.UserRead
 public class UserController {
 
     private static final String DEFAULT_ACTOR = "local-dev";
@@ -54,6 +56,7 @@ public class UserController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @BasisAuthorize.UserWrite
     public UserResponse create(
             @Valid @RequestBody CreateUserRequest request,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
@@ -72,6 +75,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @BasisAuthorize.UserWrite
     public UserResponse update(
             @PathVariable long id,
             @Valid @RequestBody UpdateUserRequest request,
@@ -91,6 +95,7 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @BasisAuthorize.UserWrite
     public void delete(
             @PathVariable long id,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId

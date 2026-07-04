@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.api.web.equipment;
 
+import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.application.equipment.EquipmentCommand;
 import com.shindong.smartmanager.application.equipment.EquipmentUpdateCommand;
 import com.shindong.smartmanager.infrastructure.application.EquipmentApplicationService;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/basis/equipment")
+@BasisAuthorize.EquipmentRead
 public class EquipmentController {
 
     private static final String DEFAULT_ACTOR = "local-dev";
@@ -44,6 +46,7 @@ public class EquipmentController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @BasisAuthorize.EquipmentWrite
     public EquipmentResponse create(
             @Valid @RequestBody CreateEquipmentRequest request,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
@@ -61,6 +64,7 @@ public class EquipmentController {
     }
 
     @PutMapping("/{id}")
+    @BasisAuthorize.EquipmentWrite
     public EquipmentResponse update(
             @PathVariable long id,
             @Valid @RequestBody UpdateEquipmentRequest request,
@@ -79,6 +83,7 @@ public class EquipmentController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @BasisAuthorize.EquipmentWrite
     public void delete(
             @PathVariable long id,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId

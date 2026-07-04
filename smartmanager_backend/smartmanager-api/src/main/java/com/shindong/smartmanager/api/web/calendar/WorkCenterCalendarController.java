@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.api.web.calendar;
 
+import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.application.calendar.EffectiveCalendarDayView;
 import com.shindong.smartmanager.application.calendar.WorkCenterCalendarOverrideCommand;
 import com.shindong.smartmanager.application.calendar.WorkCenterCalendarOverrideView;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/basis/work-center-calendars")
+@BasisAuthorize.ProductionCalendarRead
 public class WorkCenterCalendarController {
 
     private static final String DEFAULT_ACTOR = "local-dev";
@@ -56,6 +58,7 @@ public class WorkCenterCalendarController {
     }
 
     @PutMapping("/overrides")
+    @BasisAuthorize.ProductionCalendarWrite
     public EffectiveCalendarDayResponse upsertOverride(
             @Valid @RequestBody UpsertWorkCenterCalendarOverrideRequest request,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
@@ -74,6 +77,7 @@ public class WorkCenterCalendarController {
 
     @DeleteMapping("/overrides")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @BasisAuthorize.ProductionCalendarWrite
     public void deleteOverride(
             @RequestParam long workCenterId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate calendarDate,

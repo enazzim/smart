@@ -10,6 +10,7 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class WorkCenterCalendarService {
@@ -17,17 +18,20 @@ public class WorkCenterCalendarService {
     private final WorkCenterCalendarRepository workCenterCalendarRepository;
     private final ProductionCalendarRepository productionCalendarRepository;
     private final WorkCenterLookup workCenterLookup;
+    private final PublicHolidayRepository publicHolidayRepository;
     private final DomainEventStore domainEventStore;
 
     public WorkCenterCalendarService(
             WorkCenterCalendarRepository workCenterCalendarRepository,
             ProductionCalendarRepository productionCalendarRepository,
             WorkCenterLookup workCenterLookup,
+            PublicHolidayRepository publicHolidayRepository,
             DomainEventStore domainEventStore
     ) {
         this.workCenterCalendarRepository = workCenterCalendarRepository;
         this.productionCalendarRepository = productionCalendarRepository;
         this.workCenterLookup = workCenterLookup;
+        this.publicHolidayRepository = publicHolidayRepository;
         this.domainEventStore = domainEventStore;
     }
 
@@ -113,6 +117,8 @@ public class WorkCenterCalendarService {
                 workCenterCalendarRepository.findActiveOverrides(workCenterId, year, month).stream()
                         .collect(Collectors.toMap(WorkCenterCalendarOverrideView::calendarDate, v -> v));
 
+        Set<LocalDate> holidays = publicHolidayRepository.findHolidayDatesByYear(year);
+
         YearMonth yearMonth = YearMonth.of(year, month);
         List<EffectiveCalendarDayView> result = new ArrayList<>();
         for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
@@ -122,7 +128,13 @@ public class WorkCenterCalendarService {
 
             Integer baseWorkTime = base != null ? base.workTime() : null;
             Integer overrideWorkTime = override != null ? override.workTime() : null;
-            int effective = EffectiveMinutesResolver.resolve(overrideWorkTime, baseWorkTime, operationTime);
+            boolean autoOffDay = NonWorkingDayPolicy.isAutoOffDay(date, holidays);
+            int effective = EffectiveMinutesResolver.resolve(
+                    overrideWorkTime,
+                    baseWorkTime,
+                    operationTime,
+                    autoOffDay
+            );
             String content = override != null && override.content() != null && !override.content().isBlank()
                     ? override.content()
                     : (base != null ? base.content() : null);
@@ -151,7 +163,16 @@ public class WorkCenterCalendarService {
 
         Integer baseWorkTime = base != null ? base.workTime() : null;
         Integer overrideWorkTime = override != null ? override.workTime() : null;
-        int effective = EffectiveMinutesResolver.resolve(overrideWorkTime, baseWorkTime, operationTime);
+        boolean autoOffDay = NonWorkingDayPolicy.isAutoOffDay(
+                calendarDate,
+                publicHolidayRepository.findHolidayDatesByYear(calendarDate.getYear())
+        );
+        int effective = EffectiveMinutesResolver.resolve(
+                overrideWorkTime,
+                baseWorkTime,
+                operationTime,
+                autoOffDay
+        );
         String content = override != null && override.content() != null && !override.content().isBlank()
                 ? override.content()
                 : (base != null ? base.content() : null);
@@ -164,7 +185,11 @@ public class WorkCenterCalendarService {
         Integer baseWorkTime = productionCalendarRepository.findActiveByDate(calendarDate)
                 .map(ProductionCalendarView::workTime)
                 .orElse(null);
-        return EffectiveMinutesResolver.resolveBaseWithoutOverride(baseWorkTime, operationTime);
+        boolean autoOffDay = NonWorkingDayPolicy.isAutoOffDay(
+                calendarDate,
+                publicHolidayRepository.findHolidayDatesByYear(calendarDate.getYear())
+        );
+        return EffectiveMinutesResolver.resolveBaseWithoutOverride(baseWorkTime, operationTime, autoOffDay);
     }
 
     private void requireWorkCenter(long workCenterId) {

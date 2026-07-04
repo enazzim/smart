@@ -364,12 +364,12 @@ export default function ProcessPage() {
                   <td>{process.outsideOrderRate}</td>
                   <td>{process.progressRate}</td>
                   <td className="actions">
-                    <button type="button" className="link" onClick={() => startEdit(process)}>
+                    <button type="button" className="btn-action" onClick={() => startEdit(process)}>
                       수정
                     </button>
                     <button
                       type="button"
-                      className="link danger"
+                      className="btn-action danger"
                       onClick={() => void onDelete(process)}
                     >
                       삭제

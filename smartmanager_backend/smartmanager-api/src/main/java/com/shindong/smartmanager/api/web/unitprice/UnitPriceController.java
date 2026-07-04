@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.api.web.unitprice;
 
+import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.application.unitprice.UnitPriceUpdateCommand;
 import com.shindong.smartmanager.domain.pricing.CostType;
 import com.shindong.smartmanager.infrastructure.application.UnitPriceApplicationService;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/basis/unit-prices")
+@BasisAuthorize.UnitPriceRead
 public class UnitPriceController {
 
     private static final String DEFAULT_ACTOR = "local-dev";
@@ -62,6 +64,7 @@ public class UnitPriceController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @BasisAuthorize.UnitPriceWrite
     public UnitPriceResponse create(
             @Valid @RequestBody CreateUnitPriceRequest request,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
@@ -83,6 +86,7 @@ public class UnitPriceController {
     }
 
     @PutMapping("/{id}")
+    @BasisAuthorize.UnitPriceWrite
     public UnitPriceResponse update(
             @PathVariable long id,
             @Valid @RequestBody UpdateUnitPriceRequest request,
@@ -102,6 +106,7 @@ public class UnitPriceController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @BasisAuthorize.UnitPriceWrite
     public void delete(
             @PathVariable long id,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId

@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MonthCalendarGrid, { MonthNavigator } from '../components/MonthCalendarGrid';
-import type { ProductionCalendarDay } from '../api/productionCalendar';
 import {
   DEFAULT_WORK_TIME,
   deleteProductionCalendarByDate,
-  fetchProductionCalendars,
+  fetchProductionCalendarEffective,
   formatWorkTimeLabel,
   upsertProductionCalendarByDate,
+  type ProductionCalendarEffectiveDay,
 } from '../api/productionCalendar';
 
 export default function ProductionCalendarPage() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [days, setDays] = useState<ProductionCalendarDay[]>([]);
+  const [days, setDays] = useState<ProductionCalendarEffectiveDay[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [workTime, setWorkTime] = useState(DEFAULT_WORK_TIME);
   const [content, setContent] = useState('');
@@ -27,7 +27,7 @@ export default function ProductionCalendarPage() {
     setLoading(true);
     setError(null);
     try {
-      setDays(await fetchProductionCalendars(year, month));
+      setDays(await fetchProductionCalendarEffective(year, month));
     } catch (e) {
       setError(e instanceof Error ? e.message : '달력 조회 실패');
     } finally {
@@ -42,7 +42,7 @@ export default function ProductionCalendarPage() {
   const openDay = (date: string) => {
     const existing = dayMap.get(date);
     setSelectedDate(date);
-    setWorkTime(existing?.workTime ?? DEFAULT_WORK_TIME);
+    setWorkTime(existing?.effectiveWorkTime ?? DEFAULT_WORK_TIME);
     setContent(existing?.content ?? '');
     setError(null);
   };
@@ -72,7 +72,11 @@ export default function ProductionCalendarPage() {
   };
 
   const onDelete = async () => {
-    if (!selectedDate || !dayMap.has(selectedDate)) {
+    if (!selectedDate) {
+      return;
+    }
+    const existing = dayMap.get(selectedDate);
+    if (!existing?.registered) {
       return;
     }
     if (!window.confirm(`${selectedDate} 기본생산달력 설정을 삭제하시겠습니까?`)) {
@@ -95,7 +99,7 @@ export default function ProductionCalendarPage() {
     <>
       <header>
         <h1>기본생산달력</h1>
-        <p>공장 전체 가동일·휴무일 — 일자별 upsert (기본 480분)</p>
+        <p>공장 전체 가동일·휴무일 — 주말·공휴일 자동 휴무, 일자별 upsert (평일 기본 480분)</p>
       </header>
 
       {error && <div className="error">{error}</div>}
@@ -117,18 +121,41 @@ export default function ProductionCalendarPage() {
             month={month}
             renderCell={(cell) => {
               const entry = dayMap.get(cell.date);
-              const minutes = entry?.workTime ?? DEFAULT_WORK_TIME;
-              const hasEntry = entry != null;
+              const minutes = entry?.effectiveWorkTime ?? DEFAULT_WORK_TIME;
+              const autoOffDay = entry?.autoOffDay ?? false;
+              const registered = entry?.registered ?? false;
               return (
-                <button type="button" className="calendar-day-btn" onClick={() => openDay(cell.date)}>
+                <button
+                  type="button"
+                  className="calendar-day-btn"
+                  onClick={() => openDay(cell.date)}
+                >
                   <span className="calendar-day-num">{cell.day}</span>
-                  <span className={`calendar-day-label${minutes === 0 ? ' calendar-holiday' : ''}`}>
-                    {formatWorkTimeLabel(minutes)}
+                  <span
+                    className={`calendar-day-label${minutes === 0 ? ' calendar-holiday' : ''}`}
+                  >
+                    {formatWorkTimeLabel(minutes, autoOffDay && !registered)}
                   </span>
-                  {hasEntry && entry.content && <span className="calendar-day-badge">비고</span>}
-                  {!hasEntry && <span className="calendar-day-default">기본</span>}
+                  {registered && entry?.content && <span className="calendar-day-badge">비고</span>}
+                  {!registered && autoOffDay && (
+                    <span className="calendar-day-default">자동휴무</span>
+                  )}
+                  {!registered && !autoOffDay && (
+                    <span className="calendar-day-default">기본</span>
+                  )}
                 </button>
               );
+            }}
+            cellClassName={(cell) => {
+              const entry = dayMap.get(cell.date);
+              const classes = [];
+              if (cell.dayOfWeek === 0 || cell.dayOfWeek === 6) {
+                classes.push('weekend');
+              }
+              if (entry?.autoOffDay && !entry.registered) {
+                classes.push('auto-off');
+              }
+              return classes.join(' ');
             }}
           />
         )}
@@ -158,7 +185,7 @@ export default function ProductionCalendarPage() {
               <button type="button" onClick={() => void onSave()} disabled={submitting}>
                 {submitting ? '저장 중…' : '저장'}
               </button>
-              {dayMap.has(selectedDate) && (
+              {dayMap.get(selectedDate)?.registered && (
                 <button type="button" className="danger" onClick={() => void onDelete()} disabled={submitting}>
                   삭제
                 </button>

@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.api.web.bom;
 
+import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.application.bom.ItemCompositionUpdateCommand;
 import com.shindong.smartmanager.infrastructure.application.ItemCompositionApplicationService;
 import jakarta.validation.Valid;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/basis/item-composition/plan")
+@BasisAuthorize.ItemRead
 public class ItemCompositionController {
 
     private static final String DEFAULT_ACTOR = "local-dev";
@@ -40,6 +42,7 @@ public class ItemCompositionController {
     }
 
     @PostMapping("/copy")
+    @BasisAuthorize.ItemWrite
     public CopyBomResponse copy(
             @Valid @RequestBody CopyBomRequest request,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
@@ -79,6 +82,7 @@ public class ItemCompositionController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @BasisAuthorize.ItemWrite
     public ItemCompositionResponse create(
             @Valid @RequestBody CreateItemCompositionRequest request,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
@@ -94,6 +98,7 @@ public class ItemCompositionController {
     }
 
     @PutMapping("/{id}")
+    @BasisAuthorize.ItemWrite
     public ItemCompositionResponse update(
             @PathVariable long id,
             @Valid @RequestBody UpdateItemCompositionRequest request,
@@ -109,6 +114,7 @@ public class ItemCompositionController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @BasisAuthorize.ItemWrite
     public void delete(
             @PathVariable long id,
             @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId

@@ -317,10 +317,10 @@ export default function EquipmentPage() {
                   <td>{eq.workShot.toLocaleString()}</td>
                   <td>{eq.replacementDue ? '필요' : '—'}</td>
                   <td className="actions">
-                    <button type="button" className="link" onClick={() => startEdit(eq)}>
+                    <button type="button" className="btn-action" onClick={() => startEdit(eq)}>
                       수정
                     </button>
-                    <button type="button" className="link danger" onClick={() => void onDelete(eq)}>
+                    <button type="button" className="btn-action danger" onClick={() => void onDelete(eq)}>
                       삭제
                     </button>
                   </td>
