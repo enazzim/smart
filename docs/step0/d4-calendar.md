@@ -216,7 +216,7 @@ Base: `/api/v1/basis/work-center-calendars`
 - [x] v0.1 2계층·상속 연산·레거시 fan-out 대비 확정
 - [x] `work_time` 분(INT)·`calendar_date` DATE
 - [x] 작업장 등록 달력 복사 **폐지** 정합
-- [ ] Step 1 Flyway + production-calendars + work-center-calendars CRUD
+- [x] Step 1 Flyway + production-calendars + work-center-calendars CRUD
 - [ ] `EffectiveMinutes` Capa E2E (PRD-W3)
 - [ ] `기준 작업장` PCI → `production_calendar` Cut-over 스크립트
 

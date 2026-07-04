@@ -26,4 +26,12 @@ public class JpaWorkCenterLookup implements WorkCenterLookup {
                 .map(WorkCenterJpaEntity::getWcName)
                 .orElse(null);
     }
+
+    @Override
+    public int findActiveOperationTime(long workCenterId) {
+        return workCenterRepository.findById(workCenterId)
+                .filter(wc -> wc.getRecordingState() == 1)
+                .map(WorkCenterJpaEntity::getOperationTime)
+                .orElse(480);
+    }
 }

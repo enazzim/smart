@@ -4,6 +4,7 @@ import com.shindong.smartmanager.application.process.ProcessCodeLookup;
 import com.shindong.smartmanager.application.workcenter.WorkCenterCommand;
 import com.shindong.smartmanager.application.workcenter.WorkCenterRepository;
 import com.shindong.smartmanager.application.workcenter.WorkCenterView;
+import com.shindong.smartmanager.infrastructure.persistence.equipment.SpringDataEquipmentRepository;
 import com.shindong.smartmanager.infrastructure.persistence.process.SpringDataProcessSequenceRepository;
 import java.time.Instant;
 import java.util.List;
@@ -16,15 +17,18 @@ public class JpaWorkCenterRepository implements WorkCenterRepository {
 
     private final SpringDataWorkCenterRepository workCenterRepository;
     private final SpringDataProcessSequenceRepository processSequenceRepository;
+    private final SpringDataEquipmentRepository equipmentRepository;
     private final ProcessCodeLookup processCodeLookup;
 
     public JpaWorkCenterRepository(
             SpringDataWorkCenterRepository workCenterRepository,
             SpringDataProcessSequenceRepository processSequenceRepository,
+            SpringDataEquipmentRepository equipmentRepository,
             ProcessCodeLookup processCodeLookup
     ) {
         this.workCenterRepository = workCenterRepository;
         this.processSequenceRepository = processSequenceRepository;
+        this.equipmentRepository = equipmentRepository;
         this.processCodeLookup = processCodeLookup;
     }
 
@@ -95,6 +99,11 @@ public class JpaWorkCenterRepository implements WorkCenterRepository {
     @Override
     public boolean isReferencedByActiveProcess(long workCenterId) {
         return processSequenceRepository.existsByWorkCenterIdAndRecordingState(workCenterId, 1);
+    }
+
+    @Override
+    public boolean isReferencedByActiveEquipment(long workCenterId) {
+        return equipmentRepository.existsByWorkCenterIdAndRecordingState(workCenterId, 1);
     }
 
     private WorkCenterView toView(WorkCenterJpaEntity entity) {

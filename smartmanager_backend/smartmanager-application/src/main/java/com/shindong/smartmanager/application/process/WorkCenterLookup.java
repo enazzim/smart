@@ -5,4 +5,6 @@ public interface WorkCenterLookup {
     boolean existsActive(long workCenterId);
 
     String findActiveName(long workCenterId);
+
+    int findActiveOperationTime(long workCenterId);
 }

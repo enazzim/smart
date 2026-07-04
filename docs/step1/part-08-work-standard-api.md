@@ -3,7 +3,7 @@
 > **완료일:** 2026-07-04  
 > **범위:** 작업표준 plan CRUD · `POST /plan/copy` · `ProcessDeleted` cascade · React 작업표준 화면  
 > **설계 SSOT:** [`docs/step0/d4-work-standard.md`](../step0/d4-work-standard.md) v0.1  
-> **다음 파트:** 설비 CRUD
+> **다음 파트:** 사용자 CRUD · 생산달력
 
 ---
 

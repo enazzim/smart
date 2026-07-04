@@ -14,8 +14,10 @@ export interface WorkStandard {
   workCenterId: number;
   wcName: string;
   equipmentId?: number | null;
+  equipmentName?: string | null;
   priorityOrder: number;
   mainWorkerId?: number | null;
+  mainWorkerName?: string | null;
   toolName?: string | null;
   setupTime: number;
   standardTime: number;

@@ -231,7 +231,7 @@ Base: `/api/v1/basis/equipment`
 - [x] **`equipment_category_id` FK** · `code_group` **`EQUIPMENT_CLASS`**
 - [x] `work_center_id` FK nullable
 - [x] domain-event 부수효과 없음 정합
-- [ ] Step 1 Flyway + equipment CRUD
+- [x] Step 1 Flyway + equipment CRUD
 - [ ] `PUC_MT` export → `EQUIPMENT_CLASS` `large_code` 확정
 
 ---

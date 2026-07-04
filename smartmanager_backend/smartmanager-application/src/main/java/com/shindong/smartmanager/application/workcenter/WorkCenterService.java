@@ -57,6 +57,9 @@ public class WorkCenterService {
         if (workCenterRepository.isReferencedByActiveProcess(id)) {
             throw new IllegalArgumentException("공정에서 사용 중인 작업장은 삭제할 수 없습니다.");
         }
+        if (workCenterRepository.isReferencedByActiveEquipment(id)) {
+            throw new IllegalArgumentException("설비에서 사용 중인 작업장은 삭제할 수 없습니다.");
+        }
 
         workCenterRepository.softDelete(id, actorUserId);
         domainEventStore.append(DomainEvent.create(

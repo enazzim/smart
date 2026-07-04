@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.application.workstandard;
 
+import com.shindong.smartmanager.application.equipment.EquipmentLookup;
+import com.shindong.smartmanager.application.user.UserLookup;
 import com.shindong.smartmanager.application.event.DomainEventStore;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
@@ -27,6 +29,8 @@ public class WorkStandardService {
     private final ItemRepository itemRepository;
     private final ProcessRepository processRepository;
     private final WorkCenterLookup workCenterLookup;
+    private final EquipmentLookup equipmentLookup;
+    private final UserLookup userLookup;
     private final DomainEventStore domainEventStore;
 
     public WorkStandardService(
@@ -34,12 +38,16 @@ public class WorkStandardService {
             ItemRepository itemRepository,
             ProcessRepository processRepository,
             WorkCenterLookup workCenterLookup,
+            EquipmentLookup equipmentLookup,
+            UserLookup userLookup,
             DomainEventStore domainEventStore
     ) {
         this.workStandardRepository = workStandardRepository;
         this.itemRepository = itemRepository;
         this.processRepository = processRepository;
         this.workCenterLookup = workCenterLookup;
+        this.equipmentLookup = equipmentLookup;
+        this.userLookup = userLookup;
         this.domainEventStore = domainEventStore;
     }
 
@@ -192,11 +200,11 @@ public class WorkStandardService {
     }
 
     private void validateOptionalReferences(Long equipmentId, Long mainWorkerId) {
-        if (equipmentId != null) {
-            throw new IllegalArgumentException("설비 마스터는 아직 지원되지 않습니다. equipmentId는 비워 주세요.");
+        if (equipmentId != null && !equipmentLookup.existsActive(equipmentId)) {
+            throw new IllegalArgumentException("설비를 찾을 수 없습니다: " + equipmentId);
         }
-        if (mainWorkerId != null) {
-            throw new IllegalArgumentException("사용자 마스터는 아직 지원되지 않습니다. mainWorkerId는 비워 주세요.");
+        if (mainWorkerId != null && !userLookup.existsActive(mainWorkerId)) {
+            throw new IllegalArgumentException("주작업자를 찾을 수 없습니다: " + mainWorkerId);
         }
     }
 

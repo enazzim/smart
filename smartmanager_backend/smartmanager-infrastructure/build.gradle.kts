@@ -10,6 +10,7 @@ dependencies {
     implementation("org.springframework:spring-tx")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-mysql")
+    implementation("org.springframework.security:spring-security-crypto")
     runtimeOnly("org.mariadb.jdbc:mariadb-java-client")
 }
 

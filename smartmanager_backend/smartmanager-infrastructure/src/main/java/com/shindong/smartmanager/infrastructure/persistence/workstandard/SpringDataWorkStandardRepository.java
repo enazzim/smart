@@ -20,6 +20,8 @@ public interface SpringDataWorkStandardRepository extends JpaRepository<WorkStan
             int recordingState
     );
 
+    boolean existsByEquipmentIdAndRecordingState(Long equipmentId, int recordingState);
+
     @Query("""
             SELECT ws FROM WorkStandardJpaEntity ws
             JOIN com.shindong.smartmanager.infrastructure.persistence.item.ItemJpaEntity i ON i.id = ws.itemId

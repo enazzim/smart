@@ -429,6 +429,142 @@ th {
   margin-top: 0;
 }
 
+.modal {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.modal h2 {
+  margin-top: 0;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0 0 0.75rem;
+}
+
+.month-navigator {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.month-calendar-header,
+.month-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.month-calendar-weekday {
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.35rem;
+}
+
+.month-calendar-cell {
+  min-height: 72px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.month-calendar-cell-blank {
+  background: #f9fafb;
+  border-color: transparent;
+}
+
+.calendar-day-btn {
+  width: 100%;
+  height: 100%;
+  min-height: 72px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.35rem;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.calendar-day-btn:hover {
+  background: #eff6ff;
+}
+
+.calendar-day-num {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.calendar-day-label {
+  font-size: 0.75rem;
+  color: #374151;
+}
+
+.calendar-day-label.calendar-holiday {
+  color: #dc2626;
+}
+
+.calendar-day-label.calendar-override {
+  color: #c2410c;
+  font-weight: 600;
+}
+
+.calendar-day-badge {
+  font-size: 0.65rem;
+  background: #fed7aa;
+  color: #9a3412;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  align-self: flex-start;
+}
+
+.calendar-day-default {
+  font-size: 0.65rem;
+  color: #9ca3af;
+}
+
+.calendar-split {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1rem;
+}
+
+.calendar-sidebar h2 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.wc-select-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.wc-select-list button {
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.25rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.wc-select-list button.nav-active {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
 .hint-text {
   margin: 0;
   font-size: 0.85rem;

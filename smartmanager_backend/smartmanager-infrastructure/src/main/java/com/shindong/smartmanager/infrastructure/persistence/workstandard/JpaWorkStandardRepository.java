@@ -8,6 +8,10 @@ import com.shindong.smartmanager.infrastructure.persistence.code.PublicCodeJpaEn
 import com.shindong.smartmanager.infrastructure.persistence.code.SpringDataPublicCodeRepository;
 import com.shindong.smartmanager.infrastructure.persistence.item.ItemJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.item.SpringDataItemRepository;
+import com.shindong.smartmanager.infrastructure.persistence.equipment.EquipmentJpaEntity;
+import com.shindong.smartmanager.infrastructure.persistence.equipment.SpringDataEquipmentRepository;
+import com.shindong.smartmanager.infrastructure.persistence.user.SpringDataUserRepository;
+import com.shindong.smartmanager.infrastructure.persistence.user.UserJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.process.ProcessSequenceJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.process.SpringDataProcessSequenceRepository;
 import com.shindong.smartmanager.infrastructure.persistence.workcenter.SpringDataWorkCenterRepository;
@@ -26,19 +30,25 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
     private final SpringDataProcessSequenceRepository processSequenceRepository;
     private final SpringDataPublicCodeRepository publicCodeRepository;
     private final SpringDataWorkCenterRepository workCenterRepository;
+    private final SpringDataEquipmentRepository equipmentRepository;
+    private final SpringDataUserRepository userRepository;
 
     public JpaWorkStandardRepository(
             SpringDataWorkStandardRepository workStandardRepository,
             SpringDataItemRepository itemRepository,
             SpringDataProcessSequenceRepository processSequenceRepository,
             SpringDataPublicCodeRepository publicCodeRepository,
-            SpringDataWorkCenterRepository workCenterRepository
+            SpringDataWorkCenterRepository workCenterRepository,
+            SpringDataEquipmentRepository equipmentRepository,
+            SpringDataUserRepository userRepository
     ) {
         this.workStandardRepository = workStandardRepository;
         this.itemRepository = itemRepository;
         this.processSequenceRepository = processSequenceRepository;
         this.publicCodeRepository = publicCodeRepository;
         this.workCenterRepository = workCenterRepository;
+        this.equipmentRepository = equipmentRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -163,6 +173,21 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
         WorkCenterJpaEntity workCenter = workCenterRepository.findById(entity.getWorkCenterId())
                 .orElseThrow(() -> new IllegalStateException("작업장을 찾을 수 없습니다: " + entity.getWorkCenterId()));
 
+        String equipmentName = null;
+        if (entity.getEquipmentId() != null) {
+            equipmentName = equipmentRepository.findById(entity.getEquipmentId())
+                    .filter(eq -> eq.getRecordingState() == 1)
+                    .map(EquipmentJpaEntity::getEquipmentName)
+                    .orElse(null);
+        }
+
+        String mainWorkerName = null;
+        if (entity.getMainWorkerUserId() != null) {
+            mainWorkerName = userRepository.findByIdAndRecordingState(entity.getMainWorkerUserId(), 1)
+                    .map(UserJpaEntity::getName)
+                    .orElse(null);
+        }
+
         return new WorkStandardView(
                 entity.getId(),
                 entity.getItemId(),
@@ -177,8 +202,10 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
                 entity.getWorkCenterId(),
                 workCenter.getWcName(),
                 entity.getEquipmentId(),
+                equipmentName,
                 entity.getPriorityOrder(),
                 entity.getMainWorkerUserId(),
+                mainWorkerName,
                 entity.getToolName(),
                 entity.getSetupTime(),
                 entity.getStandardTime(),

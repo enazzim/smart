@@ -19,4 +19,6 @@ public interface WorkCenterRepository {
     boolean existsActiveByWcName(String wcName, Long excludeId);
 
     boolean isReferencedByActiveProcess(long workCenterId);
+
+    boolean isReferencedByActiveEquipment(long workCenterId);
 }

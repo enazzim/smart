@@ -41,6 +41,22 @@ public final class EventTypes {
     public static final String WORK_STANDARD_UPDATED = "WorkStandardUpdated";
     public static final String WORK_STANDARD_DELETED = "WorkStandardDeleted";
 
+    public static final String EQUIPMENT_REGISTERED = "EquipmentRegistered";
+    public static final String EQUIPMENT_UPDATED = "EquipmentUpdated";
+    public static final String EQUIPMENT_DELETED = "EquipmentDeleted";
+
+    public static final String USER_REGISTERED = "UserRegistered";
+    public static final String USER_UPDATED = "UserUpdated";
+    public static final String USER_DELETED = "UserDeleted";
+
+    public static final String STANDARD_CALENDAR_DAY_REGISTERED = "StandardCalendarDayRegistered";
+    public static final String STANDARD_CALENDAR_DAY_UPDATED = "StandardCalendarDayUpdated";
+    public static final String STANDARD_CALENDAR_DAY_DELETED = "StandardCalendarDayDeleted";
+
+    public static final String WORK_CENTER_CALENDAR_DAY_REGISTERED = "WorkCenterCalendarDayRegistered";
+    public static final String WORK_CENTER_CALENDAR_DAY_UPDATED = "WorkCenterCalendarDayUpdated";
+    public static final String WORK_CENTER_CALENDAR_DAY_DELETED = "WorkCenterCalendarDayDeleted";
+
     private EventTypes() {
     }
 }

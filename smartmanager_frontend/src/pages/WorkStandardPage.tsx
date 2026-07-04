@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import type { ProcessPlan, WorkCenter } from '../api/process';
 import { fetchProcessPlans, fetchWorkCenters } from '../api/process';
+import type { Equipment } from '../api/equipment';
+import { fetchEquipment } from '../api/equipment';
+import type { User } from '../api/user';
+import { fetchUsers } from '../api/user';
 import type { CreateWorkStandardRequest, WorkStandard } from '../api/workStandard';
 import {
   copyWorkStandards,
@@ -46,6 +50,8 @@ function toUpdatePayload(standard: WorkStandard): Omit<CreateWorkStandardRequest
 
 export default function WorkStandardPage() {
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
+  const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
+  const [userList, setUserList] = useState<User[]>([]);
   const [processOptions, setProcessOptions] = useState<ProcessPlan[]>([]);
   const [standards, setStandards] = useState<WorkStandard[]>([]);
   const [formItem, setFormItem] = useState<ItemSearchSelection | null>(null);
@@ -91,8 +97,15 @@ export default function WorkStandardPage() {
       setLoading(true);
       setError(null);
       try {
-        const [centers, allStandards] = await Promise.all([fetchWorkCenters(), fetchWorkStandards()]);
+        const [centers, allStandards, equipment, users] = await Promise.all([
+          fetchWorkCenters(),
+          fetchWorkStandards(),
+          fetchEquipment(),
+          fetchUsers(),
+        ]);
         setWorkCenters(centers);
+        setEquipmentList(equipment);
+        setUserList(users);
         setStandards(allStandards);
         if (centers.length > 0) {
           setForm((prev) => (prev.workCenterId === 0 ? { ...prev, workCenterId: centers[0].id } : prev));
@@ -321,6 +334,44 @@ export default function WorkStandardPage() {
             </select>
           </label>
           <label>
+            사용설비
+            <select
+              value={form.equipmentId ?? ''}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  equipmentId: e.target.value ? Number(e.target.value) : undefined,
+                })
+              }
+            >
+              <option value="">(미지정)</option>
+              {equipmentList.map((eq) => (
+                <option key={eq.id} value={eq.id}>
+                  {eq.equipmentNum} — {eq.equipmentName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            주작업자
+            <select
+              value={form.mainWorkerId ?? ''}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  mainWorkerId: e.target.value ? Number(e.target.value) : undefined,
+                })
+              }
+            >
+              <option value="">(미지정)</option>
+              {userList.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.loginId} — {user.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
             우선순위 *
             <input
               required
@@ -413,6 +464,8 @@ export default function WorkStandardPage() {
                 <th>순번</th>
                 <th>공정</th>
                 <th>작업장</th>
+                <th>설비</th>
+                <th>주작업자</th>
                 <th>우선순위</th>
                 <th>셋업(분)</th>
                 <th>표준(초)</th>
@@ -433,6 +486,8 @@ export default function WorkStandardPage() {
                     {ws.processCode} {ws.processName}
                   </td>
                   <td>{ws.wcName}</td>
+                  <td>{ws.equipmentName ?? '—'}</td>
+                  <td>{ws.mainWorkerName ?? '—'}</td>
                   <td>{ws.priorityOrder}</td>
                   <td>{ws.setupTime}</td>
                   <td>{ws.standardTime}</td>

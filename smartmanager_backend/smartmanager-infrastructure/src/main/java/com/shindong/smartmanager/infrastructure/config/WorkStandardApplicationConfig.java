@@ -4,6 +4,8 @@ import com.shindong.smartmanager.application.event.DomainEventStore;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.process.ProcessRepository;
 import com.shindong.smartmanager.application.process.WorkCenterLookup;
+import com.shindong.smartmanager.application.equipment.EquipmentLookup;
+import com.shindong.smartmanager.application.user.UserLookup;
 import com.shindong.smartmanager.application.workstandard.WorkStandardRepository;
 import com.shindong.smartmanager.application.workstandard.WorkStandardService;
 import org.springframework.context.annotation.Bean;
@@ -18,6 +20,8 @@ public class WorkStandardApplicationConfig {
             ItemRepository itemRepository,
             ProcessRepository processRepository,
             WorkCenterLookup workCenterLookup,
+            EquipmentLookup equipmentLookup,
+            UserLookup userLookup,
             DomainEventStore domainEventStore
     ) {
         return new WorkStandardService(
@@ -25,6 +29,8 @@ public class WorkStandardApplicationConfig {
                 itemRepository,
                 processRepository,
                 workCenterLookup,
+                equipmentLookup,
+                userLookup,
                 domainEventStore
         );
     }

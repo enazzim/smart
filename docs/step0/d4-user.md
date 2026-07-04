@@ -237,7 +237,7 @@ Base: `/api/v1/basis/users`
 - [x] `work_diary_group_id` FK · `WORK_DIARY_GROUP` code_group (usageType 미채택)
 - [x] domain-event 부수효과 없음
 - [x] `code_group` §3 `WORK_DIARY_GROUP` → **`1900`** ([`work-diary-group-seed.csv`](./data/work-diary-group-seed.csv))
-- [ ] Step 1 Flyway + users CRUD + check-login-id + RBAC
+- [x] Step 1 Flyway + users CRUD + check-login-id + RBAC
 - [ ] Auth JWT·`@PreAuthorize` (system 모듈)
 
 ---
