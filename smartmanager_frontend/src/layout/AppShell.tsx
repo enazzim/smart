@@ -3,8 +3,12 @@ import {
   MENU_GROUPS,
   type MenuCategory,
   type PlaceholderPageId,
+  type ProductionPageId,
+  type SalesPageId,
   type SystemPage,
+  renderProductionPage,
   renderPlaceholderPage,
+  renderSalesPage,
   renderSystemPage,
 } from './menuConfig';
 import BasisInfoPage from '../pages/BasisInfoPage';
@@ -12,7 +16,12 @@ import BasisInfoPage from '../pages/BasisInfoPage';
 export type AppSelection =
   | { category: 'basis' }
   | { category: 'system'; page: SystemPage }
-  | { category: 'sales' | 'production' | 'purchase'; page: PlaceholderPageId };
+  | { category: 'sales'; page: SalesPageId }
+  | { category: 'production'; page: ProductionPageId }
+  | {
+      category: 'purchase' | 'outsource' | 'quality';
+      page: PlaceholderPageId;
+    };
 
 interface AppShellProps {
   currentUser: AuthenticatedUser | null;
@@ -102,6 +111,12 @@ function renderContent(selection: AppSelection) {
   }
   if (selection.category === 'system') {
     return renderSystemPage(selection.page);
+  }
+  if (selection.category === 'sales') {
+    return renderSalesPage(selection.page);
+  }
+  if (selection.category === 'production') {
+    return renderProductionPage(selection.page);
   }
   return renderPlaceholderPage(selection.page);
 }

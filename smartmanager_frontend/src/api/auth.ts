@@ -25,7 +25,11 @@ export async function login(loginId: string, password: string): Promise<AuthToke
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ loginId, password }),
   });
-  const data = await handleResponse<AuthTokenResponse>(response);
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({ message: '로그인에 실패했습니다.' }));
+    throw new Error(body.message ?? '로그인에 실패했습니다.');
+  }
+  const data = (await response.json()) as AuthTokenResponse;
   setAccessToken(data.accessToken);
   return data;
 }

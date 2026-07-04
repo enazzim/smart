@@ -21,6 +21,8 @@ echo   Backend: %BACKEND_DIR%
 echo.
 
 echo [1/3] Stopping process on port %PORT%...
+set "ATTEMPT=0"
+:kill_port
 set "FOUND=0"
 for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%PORT%" ^| findstr "LISTENING"') do (
     if not "%%p"=="0" (
@@ -29,12 +31,17 @@ for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%PORT%" ^| findstr "LISTENI
         set "FOUND=1"
     )
 )
-
-if "!FOUND!"=="0" (
-    echo   - No listening process on port %PORT%
-) else (
+if "!FOUND!"=="1" (
+    set /a ATTEMPT+=1
+    if !ATTEMPT! GEQ 5 (
+        echo   - ERROR: Port %PORT% is still in use. Close other bootRun windows and retry.
+        exit /b 1
+    )
     echo   - Waiting for port release...
     timeout /t 2 /nobreak >nul
+    goto kill_port
+) else (
+    echo   - Port %PORT% is free
 )
 
 echo.

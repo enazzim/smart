@@ -65,6 +65,10 @@ export interface ItemSearchFieldProps {
   onSelect: (item: ItemSearchSelection | null) => void;
   placeholder?: string;
   allowedClassifications?: PropertyClassification[];
+  /** 지정 시 API 대신 목록에서만 검색 (판매단가 품목 등) */
+  items?: ItemSearchSelection[];
+  disabled?: boolean;
+  emptyMessage?: string;
 }
 
 export default function ItemSearchField({
@@ -73,7 +77,11 @@ export default function ItemSearchField({
   onSelect,
   placeholder = '품목번호 또는 품목명 입력',
   allowedClassifications,
+  items,
+  disabled = false,
+  emptyMessage,
 }: ItemSearchFieldProps) {
+  const isLocalMode = items !== undefined;
   const allowedClassesKey = toAllowedClassesKey(allowedClassifications);
   const allowedClasses = useMemo(
     () => new Set<PropertyClassification>(allowedClassifications ?? DEFAULT_ALLOWED_CLASSES),
@@ -86,6 +94,11 @@ export default function ItemSearchField({
   const [open, setOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  const loadLocalOptions = useCallback(
+    (searchQuery: string) => items!.filter((item) => matchesQuery(item, searchQuery)),
+    [items],
+  );
 
   const fetchOptions = useCallback(async (searchQuery: string) => {
     setSearching(true);
@@ -109,7 +122,7 @@ export default function ItemSearchField({
   }, [selectedItem?.id, selectedItem?.itemNo, selectedItem?.itemName]);
 
   useEffect(() => {
-    if (!open) {
+    if (!open || disabled) {
       return;
     }
 
@@ -118,12 +131,23 @@ export default function ItemSearchField({
         ? query
         : '';
 
+    if (isLocalMode) {
+      setOptions(loadLocalOptions(searchQuery));
+      return;
+    }
+
     const timer = setTimeout(() => {
       void fetchOptions(searchQuery);
     }, searchQuery ? SEARCH_DEBOUNCE_MS : 0);
 
     return () => clearTimeout(timer);
-  }, [query, open, selectedItem, fetchOptions]);
+  }, [query, open, selectedItem, fetchOptions, isLocalMode, loadLocalOptions, disabled]);
+
+  useEffect(() => {
+    if (disabled) {
+      setOpen(false);
+    }
+  }, [disabled]);
 
   const onQueryChange = (value: string) => {
     setQuery(value);
@@ -156,6 +180,21 @@ export default function ItemSearchField({
     setOpen(true);
   };
 
+  const resolvedPlaceholder =
+    isLocalMode && items!.length === 0
+      ? '판매단가 품목 없음'
+      : placeholder;
+
+  const resolvedEmptyMessage =
+    emptyMessage ??
+    (isLocalMode
+      ? query.trim()
+        ? '일치하는 품목이 없습니다.'
+        : '판매단가 품목이 없습니다.'
+      : query.trim()
+        ? '일치하는 품목이 없습니다.'
+        : '등록된 품목이 없습니다.');
+
   return (
     <label className="item-combobox">
       {label}
@@ -165,7 +204,8 @@ export default function ItemSearchField({
         aria-controls={listId}
         aria-autocomplete="list"
         value={query}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
+        disabled={disabled}
         onChange={(e) => onQueryChange(e.target.value)}
         onFocus={onFocus}
         onBlur={onBlur}
@@ -175,15 +215,13 @@ export default function ItemSearchField({
           }
         }}
       />
-      {open && (
+      {open && !disabled && (
         <ul id={listId} className="item-combobox-list" role="listbox">
-          {searching && <li className="item-combobox-empty">검색 중…</li>}
-          {!searching && options.length === 0 && (
-            <li className="item-combobox-empty">
-              {query.trim() ? '일치하는 품목이 없습니다.' : '등록된 품목이 없습니다.'}
-            </li>
+          {!isLocalMode && searching && <li className="item-combobox-empty">검색 중…</li>}
+          {(!searching || isLocalMode) && options.length === 0 && (
+            <li className="item-combobox-empty">{resolvedEmptyMessage}</li>
           )}
-          {!searching &&
+          {(!searching || isLocalMode) &&
             options.map((item) => (
               <li key={item.id}>
                 <button

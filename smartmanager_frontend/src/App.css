@@ -162,7 +162,18 @@
 }
 
 .form-grid-wide {
+  display: grid;
+  gap: 0.75rem;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.line-block {
+  position: relative;
+  overflow: visible;
+}
+
+.line-block .item-combobox-list {
+  z-index: 30;
 }
 
 .search-row {
@@ -318,6 +329,11 @@ button.secondary {
 td.actions,
 td.row-actions {
   white-space: nowrap;
+}
+
+td input.qty-input {
+  width: 6rem;
+  min-width: 5rem;
 }
 
 button.btn-action {

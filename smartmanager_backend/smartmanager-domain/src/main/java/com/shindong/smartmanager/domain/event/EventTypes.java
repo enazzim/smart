@@ -57,6 +57,11 @@ public final class EventTypes {
     public static final String WORK_CENTER_CALENDAR_DAY_UPDATED = "WorkCenterCalendarDayUpdated";
     public static final String WORK_CENTER_CALENDAR_DAY_DELETED = "WorkCenterCalendarDayDeleted";
 
+    public static final String SALES_ORDER_REGISTERED = "SalesOrderRegistered";
+    public static final String SALES_ORDER_UPDATED = "SalesOrderUpdated";
+    public static final String SALES_ORDER_CONFIRMED = "SalesOrderConfirmed";
+    public static final String SALES_ORDER_CANCELLED = "SalesOrderCancelled";
+
     private EventTypes() {
     }
 }

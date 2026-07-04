@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.api.security;
 
+import com.shindong.smartmanager.application.auth.AuthUserRepository;
 import com.shindong.smartmanager.application.auth.JwtTokenPort;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -18,9 +19,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenPort jwtTokenPort;
+    private final AuthUserRepository authUserRepository;
 
-    public JwtAuthenticationFilter(JwtTokenPort jwtTokenPort) {
+    public JwtAuthenticationFilter(JwtTokenPort jwtTokenPort, AuthUserRepository authUserRepository) {
         this.jwtTokenPort = jwtTokenPort;
+        this.authUserRepository = authUserRepository;
     }
 
     @Override
@@ -35,17 +38,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (!token.isBlank()) {
                 try {
                     JwtTokenPort.JwtClaims claims = jwtTokenPort.parseToken(token);
-                    JwtUserPrincipal principal = new JwtUserPrincipal(
-                            claims.userId(),
-                            claims.loginId(),
-                            claims.authorities()
-                    );
-                    List<SimpleGrantedAuthority> authorities = claims.authorities().stream()
-                            .map(SimpleGrantedAuthority::new)
-                            .toList();
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(principal, token, authorities);
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    AuthUserRepository.AuthUserRecord user = authUserRepository.findActiveById(claims.userId())
+                            .orElse(null);
+                    if (user == null) {
+                        SecurityContextHolder.clearContext();
+                    } else {
+                        JwtUserPrincipal principal = new JwtUserPrincipal(
+                                user.id(),
+                                user.loginId(),
+                                user.authorities()
+                        );
+                        List<SimpleGrantedAuthority> authorities = user.authorities().stream()
+                                .map(SimpleGrantedAuthority::new)
+                                .toList();
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(principal, token, authorities);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
                 } catch (RuntimeException ignored) {
                     SecurityContextHolder.clearContext();
                 }
