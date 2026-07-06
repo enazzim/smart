@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchCurrentUser, isAuthenticated, logout, type AuthenticatedUser } from './api/auth';
+import { fetchSystemSettings, SETTING_KEY_INVENTORY_ALLOW_NEGATIVE_STOCK, SETTING_KEY_MATERIAL_ISSUE_ENABLED } from './api/systemSettings';
 import { setSessionExpiredHandler } from './api/http';
 import LoginPage from './pages/LoginPage';
 import AppShell, { type AppSelection } from './layout/AppShell';
+import { MaterialIssueSettingProvider } from './context/MaterialIssueSettingContext';
 import {
   defaultChildId,
   type MenuCategory,
-  type PlaceholderPageId,
+  type OutsourcePageId,
   type ProductionPageId,
+  type PurchasePageId,
+  type QualityPageId,
   type SalesPageId,
   type SystemPage,
 } from './layout/menuConfig';
@@ -41,9 +45,18 @@ function toSelection(category: MenuCategory, childId?: string): AppSelection {
   if (category === 'production') {
     return { category: 'production', page: (childId ?? defaultChildId(category)) as ProductionPageId };
   }
+  if (category === 'purchase') {
+    return { category: 'purchase', page: (childId ?? defaultChildId(category)) as PurchasePageId };
+  }
+  if (category === 'quality') {
+    return { category: 'quality', page: (childId ?? defaultChildId(category)) as QualityPageId };
+  }
+  if (category === 'outsource') {
+    return { category: 'outsource', page: (childId ?? defaultChildId(category)) as OutsourcePageId };
+  }
   return {
-    category,
-    page: (childId ?? defaultChildId(category)) as PlaceholderPageId,
+    category: 'sales',
+    page: (childId ?? defaultChildId(category)) as SalesPageId,
   };
 }
 
@@ -54,6 +67,8 @@ export default function App() {
   const [expandedCategory, setExpandedCategory] = useState<MenuCategory | null>(
     () => readSavedNavigation()?.expandedCategory ?? 'basis',
   );
+  const [materialIssueEnabled, setMaterialIssueEnabled] = useState(false);
+  const [negativeStockAllowed, setNegativeStockAllowed] = useState(true);
   const selectionRef = useRef(selection);
   const expandedCategoryRef = useRef(expandedCategory);
 
@@ -87,6 +102,8 @@ export default function App() {
   useEffect(() => {
     if (!authed) {
       setCurrentUser(null);
+      setMaterialIssueEnabled(false);
+      setNegativeStockAllowed(true);
       return;
     }
     void fetchCurrentUser()
@@ -95,7 +112,30 @@ export default function App() {
         logout();
         setAuthed(false);
       });
+    void fetchSystemSettings()
+      .then((rows) => {
+        const materialIssueRow = rows.find((item) => item.settingKey === SETTING_KEY_MATERIAL_ISSUE_ENABLED);
+        const negativeStockRow = rows.find((item) => item.settingKey === SETTING_KEY_INVENTORY_ALLOW_NEGATIVE_STOCK);
+        setMaterialIssueEnabled(materialIssueRow?.value === 'YES');
+        setNegativeStockAllowed(negativeStockRow?.value !== 'NO');
+      })
+      .catch(() => {
+        setMaterialIssueEnabled(false);
+        setNegativeStockAllowed(true);
+      });
   }, [authed]);
+
+  useEffect(() => {
+    if (
+      materialIssueEnabled ||
+      selection.category !== 'production' ||
+      !('page' in selection) ||
+      selection.page !== 'prod-material-issue'
+    ) {
+      return;
+    }
+    setSelection({ category: 'production', page: 'prod-work-diary' });
+  }, [materialIssueEnabled, selection]);
 
   if (!authed) {
     return (
@@ -135,13 +175,21 @@ export default function App() {
   };
 
   return (
-    <AppShell
-      currentUser={currentUser}
-      selection={selection}
-      expandedCategory={expandedCategory}
-      onSelectCategory={onSelectCategory}
-      onSelectChild={onSelectChild}
-      onLogout={onLogout}
-    />
+    <MaterialIssueSettingProvider
+      materialIssueEnabled={materialIssueEnabled}
+      setMaterialIssueEnabled={setMaterialIssueEnabled}
+      negativeStockAllowed={negativeStockAllowed}
+      setNegativeStockAllowed={setNegativeStockAllowed}
+    >
+      <AppShell
+        currentUser={currentUser}
+        selection={selection}
+        expandedCategory={expandedCategory}
+        materialIssueEnabled={materialIssueEnabled}
+        onSelectCategory={onSelectCategory}
+        onSelectChild={onSelectChild}
+        onLogout={onLogout}
+      />
+    </MaterialIssueSettingProvider>
   );
 }

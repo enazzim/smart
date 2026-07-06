@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
@@ -33,6 +34,12 @@ public class InventoryBalanceJpaEntity {
 
     @Column(name = "partner_id")
     private Long partnerId;
+
+    @Column(name = "stock_qty", nullable = false, precision = 18, scale = 4)
+    private BigDecimal stockQty = BigDecimal.ZERO;
+
+    @Column(name = "stock_amount", nullable = false, precision = 18, scale = 2)
+    private BigDecimal stockAmount = BigDecimal.ZERO;
 
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
@@ -108,6 +115,22 @@ public class InventoryBalanceJpaEntity {
 
     public void setPartnerId(Long partnerId) {
         this.partnerId = partnerId;
+    }
+
+    public BigDecimal getStockQty() {
+        return stockQty;
+    }
+
+    public void setStockQty(BigDecimal stockQty) {
+        this.stockQty = stockQty;
+    }
+
+    public BigDecimal getStockAmount() {
+        return stockAmount;
+    }
+
+    public void setStockAmount(BigDecimal stockAmount) {
+        this.stockAmount = stockAmount;
     }
 
     public int getRecordingState() {

@@ -1,6 +1,6 @@
 # KIT_ERP 재고·원장·구매 설계서
 
-> **문서 버전:** 1.0  
+> **문서 버전:** 1.2  
 > **작성일:** 2026-06-22  
 > **대상 스택:** Spring Boot 3.5 + MariaDB  
 > **레거시:** `RMS_MT`, `BS_MT`, `DS_MT`, `PS_MT`, `OS_MT`, `BSI_MT`, `Register.cs` (BuyingDelivery)  
@@ -14,6 +14,8 @@
 ## 1. 문서 목적
 
 레거시 5창고 테이블·`BSI_MT`·연말 SP 패턴을 대체하는 **재고·거래처 원장·구매입고** 모듈을 정의한다.
+
+**UX:** [업무 흐름 TO-BE](./business-workflow-revision.md) §2.1 — **등록 1번 = 재고·원장 반영**. 확정·전기(POST) UI **없음** (검사품 구매입고만 예외 2단계).
 
 ---
 
@@ -40,13 +42,24 @@
 
 ### 3.1 inventory_location (시드)
 
-| code | 명칭 | 비고 |
-|------|------|------|
-| RAW | 원자재창고 | 원자재 |
-| SALES_1~3 | 영업창고 | 제품·상품 |
-| DELIVERY | 납품창고 | |
-| WIP | 생산창고 | 공정별 슬롯 |
-| OUTSOURCE | 외주창고 | partner_id 필요 |
+| code | 명칭 | 사내 보유 재고 | 비고 |
+|------|------|----------------|------|
+| RAW | 원자재창고 | 원자재 | 구매입고 |
+| **SALES** | **영업창고** | **제품·상품** | 생산 최종·상품 구매입고 |
+| **DELIVERY** | **납품창고** | **아님** — 출하 후·매출 전 | 제품출고 IN → 매출 OUT |
+| WIP | 생산창고 | 공정 중 | 공정별 슬롯 |
+| OUTSOURCE | 외주창고 | 외주 | partner_id |
+
+> 레거시 `BS_MT` 1~3 → **`SALES` 1개** ([basis-item-spec.md](./basis-item-spec.md) §5.1).
+
+### 3.1a 재고 이동 (TO-BE)
+
+```text
+구매입고(무검사)      → RAW 또는 SALES
+작업일보 등록(최종)   → WIP → SALES
+제품출고             → SALES OUT, DELIVERY IN
+매출등록             → DELIVERY OUT
+```
 
 ### 3.2 inventory_balance UK
 
@@ -117,13 +130,23 @@ ledger_type: SALES | PURCHASE
 
 ### 6.2 신규 흐름
 
+> **상세 설계:** [purchase-receipt-quality-spec.md](./purchase-receipt-quality-spec.md) (TX1-R, 2026-07-05)
+
 ```text
-PurchaseReceiptController
-  → PurchaseReceiptService (receipt, history, 발주잔량)
-  → PurchaseReceiptPostedEvent
-  → InventoryOnPurchaseReceiptListener (movement + balance + monthly)
-  → LedgerOnPurchaseReceiptListener (partner_ledger_monthly)
+[구매입고] POST /purchase/receipts  — 입고 등록 1액션
+  → PurchaseReceiptService
+       ├─ purchase_receipt INSERT (BD_HT)
+       ├─ NONE: 즉시 창고·purchase_history·미지급 (동일 TX)
+       └─ INSPECTION: quality_inspection PENDING → 검사완료 시 창고
+
+[품질검사] POST /quality/inspections/{id}/complete  — 검사품만
+
+PurchaseReceiptStockAppliedEvent (내부; 사용자 「전기」 없음)
+  → InventoryOnPurchaseReceiptListener
+  → LedgerOnPurchaseReceiptListener
 ```
+
+**UI:** 「구매입고」 1화면. `quality_inspection` — **검사품만** INSERT ([purchase-receipt-quality-spec.md](./purchase-receipt-quality-spec.md)).
 
 ### 6.3 테이블
 
@@ -132,11 +155,25 @@ PurchaseReceiptController
 | `purchase_order` | BO_HT |
 | `purchase_receipt` | BD_HT |
 | `purchase_history` | B_HT |
+| `quality_inspection` | QI_HT |
+| `stock_movement` | SH_HT, BOS_HT |
 
-### 6.4 API
+### 6.4 API (요약)
 
-- `POST /api/v1/purchasing/receipts`
-- 검사품목: `progress_condition=대기`, 이벤트 미발행 → 검사완료 후 재발행
+- `GET /api/v1/purchase/receipt-candidates` — 미입고 발주 라인
+- `POST /api/v1/purchase/receipts` — **입고 등록 = 무검사 시 즉시 창고 반영**
+- `POST /api/v1/quality/inspections/{id}/complete` — 검사품 창고 반영
+- 구매·발주 **확정(CONFIRMED) UI 없음** — DRAFT 발주도 입고 허용
+
+### 6.5 생산·영업 (PRD-W1 / 후속 TX)
+
+| 행위 | 재고 |
+|------|------|
+| 작업일보 **등록** | 즉시 WIP 이동; 최종 → **SALES** IN |
+| 제품출고 | SALES OUT, DELIVERY IN |
+| 매출등록 | DELIVERY OUT |
+
+상세: [production-work-report-mapping.md](./production-work-report-mapping.md)
 
 ---
 
@@ -167,7 +204,7 @@ com.kit.erp.purchasing  ? PurchaseReceiptService
 | 레거시 | 신규 |
 |--------|------|
 | RMS_MT | location=RAW |
-| BS_MT | SALES_1~3 |
+| BS_MT | SALES (1창고 합산) |
 | DS_MT | DELIVERY |
 | PS_MT | WIP + process_sequence/code |
 | OS_MT | OUTSOURCE + partner_id |
@@ -181,9 +218,11 @@ com.kit.erp.purchasing  ? PurchaseReceiptService
 
 | Wave | 내용 |
 |------|------|
-| **INF-1** | inventory + ledger 서비스 | ✅ |
+| **INF-1** | inventory_location, inventory_balance (슬롯) | ✅ |
+| **INF-1b** | stock_movement, inventory_balance_monthly, 수량 서비스 | ✅ [TX1-R](./purchase-receipt-quality-spec.md) |
 | **INF-2** | FiscalCalendar, MonthClosing 연동 | ✅ |
-| **TX1** | 구매입고 E2E + 통합 테스트 | ✅ |
+| **TX1** | 구매발주 (`purchase_order`) | ✅ |
+| **TX1-R** | 구매입고·품질검사 E2E | ✅ Wave 1~4 |
 | **INF-3** | FiscalYearRolloverJob |
 | **INF-4** | 외주 발주/입고 시 OUTSOURCE 잔고 |
 
@@ -193,4 +232,6 @@ com.kit.erp.purchasing  ? PurchaseReceiptService
 
 | 버전 | 일자 | 내용 |
 |------|------|------|
-| 1.0 | 2026-06-22 | 초안 ? 통합재고, 원장, 구매입고, 연도운영 |
+| 1.0 | 2026-06-22 | 초안 — 통합재고, 원장, 구매입고, 연도운영 |
+| 1.1 | 2026-07-05 | §6 구매입고·QI — [purchase-receipt-quality-spec.md](./purchase-receipt-quality-spec.md) |
+| 1.2 | 2026-07-05 | §2.1 1액션, §3.1 SALES/DELIVERY 역할, 생산·영업 이동, QI 검사품만 |

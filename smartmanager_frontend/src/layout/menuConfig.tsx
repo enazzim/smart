@@ -12,8 +12,22 @@ import WorkCenterCalendarPage from '../pages/WorkCenterCalendarPage';
 import UserPage from '../pages/UserPage';
 import PublicCodePage from '../pages/PublicCodePage';
 import MonthClosingPage from '../pages/MonthClosingPage';
+import SystemSettingsPage from '../pages/SystemSettingsPage';
 import SalesOrderPage from '../pages/SalesOrderPage';
 import ProductionPlanPage from '../pages/ProductionPlanPage';
+import MrpPage from '../pages/MrpPage';
+import PurchaseOrderPage from '../pages/PurchaseOrderPage';
+import PurchaseReceiptPage from '../pages/PurchaseReceiptPage';
+import InventoryLedgerPage from '../pages/InventoryLedgerPage';
+import WorkPlanPage from '../pages/WorkPlanPage';
+import WorkCenterLoadPage from '../pages/WorkCenterLoadPage';
+import WorkOrderPage from '../pages/WorkOrderPage';
+import MaterialIssuePage from '../pages/MaterialIssuePage';
+import WorkReportPage from '../pages/WorkReportPage';
+import OutsourcingOrderPage from '../pages/OutsourcingOrderPage';
+import OutsourcingShipmentPage from '../pages/OutsourcingShipmentPage';
+import OutsourcingReceiptPage from '../pages/OutsourcingReceiptPage';
+import QualityInspectionPage from '../pages/QualityInspectionPage';
 import PlaceholderPage from '../pages/PlaceholderPage';
 
 /** TO-BE 업무 흐름 기준 7개 대메뉴 */
@@ -39,27 +53,29 @@ export type BasisTab =
   | 'workCenterCalendar'
   | 'user';
 
-export type SystemPage = 'publicCode' | 'role' | 'monthClosing';
+export type SystemPage = 'publicCode' | 'role' | 'monthClosing' | 'systemSettings';
 
 export type SalesPageId = 'sales-order' | 'sales-shipment' | 'sales-revenue' | 'sales-collection';
 
-export type ProductionPageId = 'prod-plan' | 'prod-mrp' | 'prod-work-plan' | 'prod-work-order' | 'prod-work-diary';
+export type ProductionPageId =
+  | 'prod-plan'
+  | 'prod-mrp'
+  | 'prod-work-plan'
+  | 'prod-schedule'
+  | 'prod-work-order'
+  | 'prod-material-issue'
+  | 'prod-work-diary';
+
+export type PurchasePageId = 'purchase-order' | 'purchase-receipt' | 'inventory-ledger';
+
+export type OutsourcePageId = 'outsource-order' | 'outsource-shipment' | 'outsource-receipt';
+
+export type QualityPageId = 'quality-inspection';
 
 export type PlaceholderPageId =
   | 'sales-shipment'
   | 'sales-revenue'
-  | 'sales-collection'
-  | 'prod-mrp'
-  | 'prod-work-plan'
-  | 'prod-work-order'
-  | 'prod-work-diary'
-  | 'purchase-order'
-  | 'purchase-delivery'
-  | 'purchase-receipt'
-  | 'outsource-order'
-  | 'outsource-shipment'
-  | 'outsource-receipt'
-  | 'quality-inspection';
+  | 'sales-collection';
 
 export interface MenuChild {
   id: string;
@@ -91,7 +107,9 @@ export const MENU_GROUPS: MenuGroup[] = [
       { id: 'prod-plan', label: '생산계획' },
       { id: 'prod-mrp', label: '자재소요' },
       { id: 'prod-work-plan', label: '작업계획' },
+      { id: 'prod-schedule', label: '작업장 부하' },
       { id: 'prod-work-order', label: '작업지시' },
+      { id: 'prod-material-issue', label: '자재투입' },
       { id: 'prod-work-diary', label: '작업일보' },
     ],
   },
@@ -100,8 +118,8 @@ export const MENU_GROUPS: MenuGroup[] = [
     label: '구매',
     children: [
       { id: 'purchase-order', label: '구매발주' },
-      { id: 'purchase-delivery', label: '납품' },
-      { id: 'purchase-receipt', label: '입고' },
+      { id: 'purchase-receipt', label: '구매입고' },
+      { id: 'inventory-ledger', label: '재고·원장' },
     ],
   },
   {
@@ -129,6 +147,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     children: [
       { id: 'publicCode', label: '공용코드' },
       { id: 'role', label: '권한' },
+      { id: 'systemSettings', label: '시스템 설정' },
       { id: 'monthClosing', label: '월마감' },
     ],
   },
@@ -167,22 +186,10 @@ const PLACEHOLDER_LABELS: Record<PlaceholderPageId | 'sales-order', string> = {
   'sales-shipment': '출고·납품',
   'sales-revenue': '매출',
   'sales-collection': '수금',
-  'prod-mrp': '자재소요',
-  'prod-work-plan': '작업계획',
-  'prod-work-order': '작업지시',
-  'prod-work-diary': '작업일보',
-  'purchase-order': '구매발주',
-  'purchase-delivery': '납품',
-  'purchase-receipt': '입고',
-  'outsource-order': '외주발주',
-  'outsource-shipment': '출고',
-  'outsource-receipt': '입고',
-  'quality-inspection': '품질검사',
 };
 
-const SYSTEM_PLACEHOLDER_LABELS: Record<Exclude<SystemPage, 'publicCode'>, string> = {
+const SYSTEM_PLACEHOLDER_LABELS: Record<Exclude<SystemPage, 'publicCode' | 'monthClosing' | 'systemSettings'>, string> = {
   role: '권한',
-  monthClosing: '월마감',
 };
 
 export function renderBasisPage(tab: BasisTab) {
@@ -197,12 +204,33 @@ export function renderSystemPage(page: SystemPage) {
   if (page === 'monthClosing') {
     return <MonthClosingPage />;
   }
+  if (page === 'systemSettings') {
+    return <SystemSettingsPage />;
+  }
   return <PlaceholderPage title={SYSTEM_PLACEHOLDER_LABELS[page]} />;
 }
 
 export function renderProductionPage(page: ProductionPageId) {
   if (page === 'prod-plan') {
     return <ProductionPlanPage />;
+  }
+  if (page === 'prod-mrp') {
+    return <MrpPage />;
+  }
+  if (page === 'prod-work-plan') {
+    return <WorkPlanPage />;
+  }
+  if (page === 'prod-schedule') {
+    return <WorkCenterLoadPage />;
+  }
+  if (page === 'prod-work-order') {
+    return <WorkOrderPage />;
+  }
+  if (page === 'prod-material-issue') {
+    return <MaterialIssuePage />;
+  }
+  if (page === 'prod-work-diary') {
+    return <WorkReportPage />;
   }
   return <PlaceholderPage title={PLACEHOLDER_LABELS[page]} />;
 }
@@ -212,6 +240,30 @@ export function renderSalesPage(page: SalesPageId) {
     return <SalesOrderPage />;
   }
   return <PlaceholderPage title={PLACEHOLDER_LABELS[page]} />;
+}
+
+export function renderPurchasePage(page: PurchasePageId) {
+  if (page === 'purchase-order') {
+    return <PurchaseOrderPage />;
+  }
+  if (page === 'inventory-ledger') {
+    return <InventoryLedgerPage />;
+  }
+  return <PurchaseReceiptPage />;
+}
+
+export function renderOutsourcePage(page: OutsourcePageId) {
+  if (page === 'outsource-order') {
+    return <OutsourcingOrderPage />;
+  }
+  if (page === 'outsource-shipment') {
+    return <OutsourcingShipmentPage />;
+  }
+  return <OutsourcingReceiptPage />;
+}
+
+export function renderQualityPage(_page: QualityPageId) {
+  return <QualityInspectionPage />;
 }
 
 export function renderPlaceholderPage(id: PlaceholderPageId) {

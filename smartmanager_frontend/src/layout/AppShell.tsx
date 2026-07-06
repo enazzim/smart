@@ -2,12 +2,16 @@ import type { AuthenticatedUser } from '../api/auth';
 import {
   MENU_GROUPS,
   type MenuCategory,
-  type PlaceholderPageId,
+  type OutsourcePageId,
   type ProductionPageId,
+  type PurchasePageId,
+  type QualityPageId,
   type SalesPageId,
   type SystemPage,
   renderProductionPage,
-  renderPlaceholderPage,
+  renderOutsourcePage,
+  renderPurchasePage,
+  renderQualityPage,
   renderSalesPage,
   renderSystemPage,
 } from './menuConfig';
@@ -18,15 +22,15 @@ export type AppSelection =
   | { category: 'system'; page: SystemPage }
   | { category: 'sales'; page: SalesPageId }
   | { category: 'production'; page: ProductionPageId }
-  | {
-      category: 'purchase' | 'outsource' | 'quality';
-      page: PlaceholderPageId;
-    };
+  | { category: 'purchase'; page: PurchasePageId }
+  | { category: 'quality'; page: QualityPageId }
+  | { category: 'outsource'; page: OutsourcePageId };
 
 interface AppShellProps {
   currentUser: AuthenticatedUser | null;
   selection: AppSelection;
   expandedCategory: MenuCategory | null;
+  materialIssueEnabled: boolean;
   onSelectCategory: (category: MenuCategory) => void;
   onSelectChild: (category: MenuCategory, childId: string) => void;
   onLogout: () => void;
@@ -36,6 +40,7 @@ export default function AppShell({
   currentUser,
   selection,
   expandedCategory,
+  materialIssueEnabled,
   onSelectCategory,
   onSelectChild,
   onLogout,
@@ -75,7 +80,12 @@ export default function AppShell({
                 </button>
                 {!isDirect && expanded && group.children && (
                   <ul className="menu-children">
-                    {group.children.map((child) => {
+                    {group.children
+                      .filter(
+                        (child) =>
+                          child.id !== 'prod-material-issue' || materialIssueEnabled,
+                      )
+                      .map((child) => {
                       const childActive =
                         selection.category === group.id &&
                         'page' in selection &&
@@ -118,5 +128,14 @@ function renderContent(selection: AppSelection) {
   if (selection.category === 'production') {
     return renderProductionPage(selection.page);
   }
-  return renderPlaceholderPage(selection.page);
+  if (selection.category === 'purchase') {
+    return renderPurchasePage(selection.page);
+  }
+  if (selection.category === 'quality') {
+    return renderQualityPage(selection.page);
+  }
+  if (selection.category === 'outsource') {
+    return renderOutsourcePage(selection.page);
+  }
+  return null;
 }

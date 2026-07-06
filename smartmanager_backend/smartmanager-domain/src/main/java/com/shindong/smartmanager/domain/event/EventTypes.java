@@ -62,6 +62,17 @@ public final class EventTypes {
     public static final String SALES_ORDER_CONFIRMED = "SalesOrderConfirmed";
     public static final String SALES_ORDER_CANCELLED = "SalesOrderCancelled";
 
+    public static final String PURCHASE_ORDER_REGISTERED = "PurchaseOrderRegistered";
+    public static final String PURCHASE_ORDER_UPDATED = "PurchaseOrderUpdated";
+    public static final String PURCHASE_ORDER_CONFIRMED = "PurchaseOrderConfirmed";
+    public static final String PURCHASE_ORDER_CANCELLED = "PurchaseOrderCancelled";
+
+    public static final String OUTSOURCING_ORDER_REGISTERED = "OutsourcingOrderRegistered";
+    public static final String OUTSOURCING_ORDER_CANCELLED = "OutsourcingOrderCancelled";
+    public static final String OUTSOURCING_SHIPMENT_REGISTERED = "OutsourcingShipmentRegistered";
+    public static final String OUTSOURCING_SHIPMENT_CANCELLED = "OutsourcingShipmentCancelled";
+    public static final String OUTSOURCING_RECEIPT_REGISTERED = "OutsourcingReceiptRegistered";
+
     private EventTypes() {
     }
 }

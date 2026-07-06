@@ -25,7 +25,7 @@ dependencyManagement {
 
 tasks.register<JavaExec>("flywayRepairLocal") {
     group = "flyway"
-    description = "Repair Flyway checksums for local kit_erp database"
+    description = "Repair Flyway checksums for local smartmanager database"
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("com.shindong.smartmanager.infrastructure.flyway.FlywayRepairLocal")
 }

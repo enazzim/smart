@@ -52,14 +52,14 @@ export async function handleResponse<T>(response: Response): Promise<T> {
     const message = typeof body.message === 'string' ? body.message : '';
     const hadToken = getAccessToken() !== null;
     const isSessionExpired =
-      message.includes('인증이 필요합니다') ||
       message.includes('인증이 만료') ||
-      message.includes('만료');
+      message.includes('만료되었습니다') ||
+      message.includes('expired');
     if (hadToken && isSessionExpired) {
       notifySessionExpired();
       throw new Error(message || '인증이 만료되었습니다. 다시 로그인해 주세요.');
     }
-    throw new Error(message || '요청에 실패했습니다. API 서버 상태를 확인해 주세요.');
+    throw new Error(message || '인증이 필요합니다. 다시 로그인해 주세요.');
   }
   if (response.status === 403) {
     const body = await response.json().catch(() => ({ message: response.statusText }));

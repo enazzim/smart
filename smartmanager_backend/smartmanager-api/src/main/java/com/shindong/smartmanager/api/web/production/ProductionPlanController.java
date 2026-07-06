@@ -4,6 +4,7 @@ import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.api.web.sales.SalesOrderLineListResponse;
 import com.shindong.smartmanager.application.production.ProductionPlanCreateLineCommand;
 import com.shindong.smartmanager.application.production.ProductionPlanListCriteria;
+import com.shindong.smartmanager.domain.production.ProductionPlanMrpStatus;
 import com.shindong.smartmanager.domain.production.ProductionPlanStatus;
 import com.shindong.smartmanager.infrastructure.application.ProductionPlanApplicationService;
 import java.time.LocalDate;
@@ -43,14 +44,16 @@ public class ProductionPlanController {
             @RequestParam(required = false) Long itemId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate requestedDeliveryDateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate requestedDeliveryDateTo,
-            @RequestParam(required = false) ProductionPlanStatus status
+            @RequestParam(required = false) ProductionPlanStatus status,
+            @RequestParam(required = false) ProductionPlanMrpStatus mrpStatus
     ) {
         ProductionPlanListCriteria criteria = new ProductionPlanListCriteria(
                 partnerId,
                 itemId,
                 requestedDeliveryDateFrom,
                 requestedDeliveryDateTo,
-                status
+                status,
+                mrpStatus
         );
         return productionPlanApplicationService.list(criteria).stream()
                 .map(ProductionPlanResponse::from)

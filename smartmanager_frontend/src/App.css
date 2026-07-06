@@ -297,6 +297,19 @@ button[type='submit'] {
   white-space: nowrap;
 }
 
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.radio-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+}
+
 button.danger {
   padding: 0.5rem 1.25rem;
   background: #b91c1c;
@@ -597,6 +610,49 @@ th {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
+.modal.modal-wide {
+  max-width: 820px;
+}
+
+.section-subtitle {
+  margin: 1rem 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+.issue-qty-cell {
+  width: 5rem;
+  min-width: 4.5rem;
+  max-width: 5.5rem;
+}
+
+.issue-qty-label {
+  display: inline-block;
+  min-width: 3rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.issue-qty-label:hover {
+  background: #f3f4f6;
+}
+
+.issue-qty-label-disabled {
+  color: #9ca3af;
+  cursor: default;
+}
+
+.issue-qty-label-disabled:hover {
+  background: transparent;
+}
+
+.issue-qty-input {
+  width: 4.5rem;
+  max-width: 100%;
+  padding: 0.15rem 0.35rem;
+  box-sizing: border-box;
+}
+
 .modal h2 {
   margin-top: 0;
 }
@@ -769,6 +825,21 @@ tr.row-selected td {
 
 tr.row-selected td:first-child {
   box-shadow: inset 3px 0 0 #2563eb;
+}
+
+tr.row-muted td {
+  color: #6b7280;
+}
+
+table.nested-table {
+  width: 100%;
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+table.nested-table th,
+table.nested-table td {
+  padding: 0.35rem 0.5rem;
 }
 
 .login-page {

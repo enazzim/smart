@@ -19,8 +19,18 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, String>> handleDataIntegrity(DataIntegrityViolationException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("message", "이미 등록된 데이터와 충돌하여 생산계획을 수립할 수 없습니다."));
+        String detail = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        String message;
+        if (detail != null && detail.contains("uk_purchase_receipt_no")) {
+            message = "동일 입고번호의 취소 이력이 있어 입고를 취소할 수 없습니다. 관리자에게 문의해 주세요.";
+        } else if (detail != null && detail.contains("uk_work_plan")) {
+            message = "동일 생산계획·공정의 작업계획이 이미 존재합니다. 목록에서 취소 후 다시 시도해 주세요.";
+        } else if (detail != null && detail.contains("uk_work_order")) {
+            message = "동일 작업계획의 작업지시가 이미 존재합니다. 목록에서 취소 후 다시 시도해 주세요.";
+        } else {
+            message = "이미 등록된 데이터와 충돌하여 요청을 처리할 수 없습니다.";
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", message));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

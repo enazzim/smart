@@ -174,6 +174,6 @@ public class ProductionPlanService {
     }
 
     private ProductionPlanListCriteria emptyPlanCriteria() {
-        return new ProductionPlanListCriteria(null, null, null, null, null);
+        return new ProductionPlanListCriteria(null, null, null, null, null, null);
     }
 }

@@ -9,7 +9,7 @@ import org.flywaydb.core.Flyway;
 public final class FlywayRepairLocal {
 
     private static final String JDBC_URL =
-            "jdbc:mariadb://localhost:3306/kit_erp?characterEncoding=utf8mb4&serverTimezone=Asia/Seoul";
+            "jdbc:mariadb://localhost:3306/smartmanager?characterEncoding=utf8mb4&serverTimezone=Asia/Seoul";
     private static final String USER = "root";
     private static final String PASSWORD = "1111";
 

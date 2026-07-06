@@ -209,6 +209,59 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
                 return false;
             }
         }
-        return criteria.status() == null || view.status() == criteria.status();
+        if (criteria.status() != null && view.status() != criteria.status()) {
+            return false;
+        }
+        return criteria.mrpStatus() == null || view.mrpStatus() == criteria.mrpStatus();
+    }
+
+    @Override
+    @Transactional
+    public void updateMrpStatus(long id, ProductionPlanMrpStatus mrpStatus, String actorUserId) {
+        ProductionPlanJpaEntity entity = planRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("생산계획을 찾을 수 없습니다: " + id));
+        entity.setMrpStatus(mrpStatus);
+        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedAt(Instant.now());
+        planRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void updateWorkPlanStatus(long id, ProductionPlanWorkPlanStatus workPlanStatus, String actorUserId) {
+        ProductionPlanJpaEntity entity = planRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("생산계획을 찾을 수 없습니다: " + id));
+        entity.setWorkPlanStatus(workPlanStatus);
+        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedAt(Instant.now());
+        planRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void addProducedQty(long id, java.math.BigDecimal qty, String actorUserId) {
+        updateProducedQty(id, qty, actorUserId);
+    }
+
+    @Override
+    @Transactional
+    public void subtractProducedQty(long id, java.math.BigDecimal qty, String actorUserId) {
+        updateProducedQty(id, qty.negate(), actorUserId);
+    }
+
+    private void updateProducedQty(long id, java.math.BigDecimal delta, String actorUserId) {
+        ProductionPlanJpaEntity entity = planRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("생산계획을 찾을 수 없습니다: " + id));
+        java.math.BigDecimal next = entity.getProducedQty().add(delta);
+        if (next.compareTo(java.math.BigDecimal.ZERO) < 0) {
+            throw new IllegalStateException("생산 실적 수량이 음수가 됩니다.");
+        }
+        entity.setProducedQty(next);
+        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedAt(Instant.now());
+        planRepository.save(entity);
     }
 }

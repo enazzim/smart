@@ -98,7 +98,7 @@ public class OutsourceInputBalanceProjector {
         }
     }
 
-    List<OutsourceInputSlot> resolveInputSlots(OutsourceUnitPriceContext context, String actorUserId) {
+    public List<OutsourceInputSlot> resolveInputSlots(OutsourceUnitPriceContext context, String actorUserId) {
         List<OutsourceInputSlot> fromProcesses = resolvePriorInhouseProcessSlots(context);
         if (!fromProcesses.isEmpty()) {
             return fromProcesses;

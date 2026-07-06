@@ -47,7 +47,7 @@ if "!FOUND!"=="1" (
 echo.
 echo [2/3] Building backend...
 cd /d "%BACKEND_DIR%"
-call gradlew.bat compileJava --no-daemon
+call gradlew.bat :smartmanager-api:bootJar -x test --no-daemon
 if errorlevel 1 (
     echo.
     echo BUILD FAILED. Server was not restarted.

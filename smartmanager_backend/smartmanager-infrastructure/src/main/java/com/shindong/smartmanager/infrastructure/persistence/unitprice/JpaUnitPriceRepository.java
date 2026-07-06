@@ -15,6 +15,7 @@ import com.shindong.smartmanager.infrastructure.persistence.item.SpringDataItemR
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
@@ -110,6 +111,16 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
                 ? unitPriceRepository.findByCostTypeAndRecordingStateOrderByBeginDateDescIdDesc(costType, 1)
                 : unitPriceRepository.searchActive(costType, normalizedQuery);
         return entities.stream().map(this::toView).toList();
+    }
+
+    @Override
+    public List<UnitPriceView> findAllActiveByCostTypeAndItemIds(CostType costType, Collection<Long> itemIds) {
+        if (itemIds == null || itemIds.isEmpty()) {
+            return List.of();
+        }
+        return unitPriceRepository.findActiveByCostTypeAndItemIds(costType, itemIds).stream()
+                .map(this::toView)
+                .toList();
     }
 
     @Override

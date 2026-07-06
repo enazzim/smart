@@ -17,6 +17,10 @@ public final class AggregateTypes {
     public static final String PRODUCTION_CALENDAR = "ProductionCalendar";
     public static final String WORK_CENTER_CALENDAR = "WorkCenterCalendar";
     public static final String SALES_ORDER = "SalesOrder";
+    public static final String PURCHASE_ORDER = "PurchaseOrder";
+    public static final String OUTSOURCING_ORDER = "OutsourcingOrder";
+    public static final String OUTSOURCING_SHIPMENT = "OutsourcingShipment";
+    public static final String OUTSOURCING_RECEIPT = "OutsourcingReceipt";
 
     private AggregateTypes() {
     }

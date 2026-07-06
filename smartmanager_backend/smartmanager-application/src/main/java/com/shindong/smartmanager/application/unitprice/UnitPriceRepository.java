@@ -3,6 +3,7 @@ package com.shindong.smartmanager.application.unitprice;
 import com.shindong.smartmanager.domain.pricing.CostType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,8 @@ public interface UnitPriceRepository {
     Optional<UnitPriceView> findActiveById(long id);
 
     List<UnitPriceView> findAllActiveByCostType(CostType costType, String query);
+
+    List<UnitPriceView> findAllActiveByCostTypeAndItemIds(CostType costType, Collection<Long> itemIds);
 
     Optional<UnitPriceView> findActiveByItemNoAndCostType(String itemNo, CostType costType);
 

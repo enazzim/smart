@@ -3,6 +3,7 @@ package com.shindong.smartmanager.infrastructure.persistence.unitprice;
 import com.shindong.smartmanager.domain.pricing.CostType;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -114,6 +115,18 @@ public interface SpringDataUnitPriceRepository extends JpaRepository<UnitPriceJp
     List<UnitPriceJpaEntity> findActiveByItemNoAndCostType(
             @Param("itemNo") String itemNo,
             @Param("costType") CostType costType
+    );
+
+    @Query("""
+            SELECT u FROM UnitPriceJpaEntity u
+            WHERE u.costType = :costType
+              AND u.itemId IN :itemIds
+              AND u.recordingState = 1
+            ORDER BY u.itemId ASC, u.beginDate DESC, u.id DESC
+            """)
+    List<UnitPriceJpaEntity> findActiveByCostTypeAndItemIds(
+            @Param("costType") CostType costType,
+            @Param("itemIds") Collection<Long> itemIds
     );
 
     boolean existsByBeginProcessCodeIdAndRecordingState(Long beginProcessCodeId, int recordingState);
