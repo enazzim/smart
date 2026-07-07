@@ -80,6 +80,9 @@ public final class EventTypes {
     public static final String SALES_COLLECTION_REGISTERED = "SalesCollectionRegistered";
     public static final String SALES_COLLECTION_CANCELLED = "SalesCollectionCancelled";
 
+    public static final String PARTNER_PAYMENT_REGISTERED = "PartnerPaymentRegistered";
+    public static final String PARTNER_PAYMENT_CANCELLED = "PartnerPaymentCancelled";
+
     private EventTypes() {
     }
 }

@@ -24,6 +24,7 @@ public final class AggregateTypes {
     public static final String SALES_SHIPMENT = "SalesShipment";
     public static final String SALES_REVENUE = "SalesRevenue";
     public static final String SALES_COLLECTION = "SalesCollection";
+    public static final String PARTNER_PAYMENT = "PartnerPayment";
 
     private AggregateTypes() {
     }

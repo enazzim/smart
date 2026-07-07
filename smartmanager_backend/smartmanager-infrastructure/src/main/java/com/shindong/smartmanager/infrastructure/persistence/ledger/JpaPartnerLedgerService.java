@@ -132,4 +132,37 @@ public class JpaPartnerLedgerService implements PartnerLedgerService {
         }
         addCollectedAmount(companyId, transactionDate, amount.negate(), actorUserId);
     }
+
+    @Override
+    @Transactional
+    public void addPaidAmount(long companyId, LocalDate transactionDate, BigDecimal amount, String actorUserId) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) == 0) {
+            return;
+        }
+        FiscalPeriod period = fiscalCalendarService.resolvePeriod(transactionDate);
+        ledgerAccountRepository.ensureAccount(companyId, period.fiscalYear(), PartnerLedgerType.PURCHASE, actorUserId);
+
+        long accountId = accountRepository
+                .findByCompanyIdAndFiscalYearAndLedgerType(companyId, (short) period.fiscalYear(), PartnerLedgerType.PURCHASE)
+                .orElseThrow(() -> new IllegalStateException("매입 원장 계정을 찾을 수 없습니다."))
+                .getId();
+
+        byte month = (byte) period.fiscalMonth();
+        PartnerLedgerMonthlyJpaEntity monthly = monthlyRepository
+                .findByLedgerAccountIdAndMonthNumAndRecordingState(accountId, month, 1)
+                .orElseGet(() -> PartnerLedgerMonthlyJpaEntity.createNew(accountId, month));
+
+        monthly.setPaidAmount(monthly.getPaidAmount().add(amount));
+        monthly.setUpdatedAt(Instant.now());
+        monthlyRepository.save(monthly);
+    }
+
+    @Override
+    @Transactional
+    public void subtractPaidAmount(long companyId, LocalDate transactionDate, BigDecimal amount, String actorUserId) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) == 0) {
+            return;
+        }
+        addPaidAmount(companyId, transactionDate, amount.negate(), actorUserId);
+    }
 }

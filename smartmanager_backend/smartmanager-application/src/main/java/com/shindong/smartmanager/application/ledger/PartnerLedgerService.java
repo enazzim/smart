@@ -16,4 +16,8 @@ public interface PartnerLedgerService {
     void addCollectedAmount(long companyId, LocalDate transactionDate, BigDecimal amount, String actorUserId);
 
     void subtractCollectedAmount(long companyId, LocalDate transactionDate, BigDecimal amount, String actorUserId);
+
+    void addPaidAmount(long companyId, LocalDate transactionDate, BigDecimal amount, String actorUserId);
+
+    void subtractPaidAmount(long companyId, LocalDate transactionDate, BigDecimal amount, String actorUserId);
 }
