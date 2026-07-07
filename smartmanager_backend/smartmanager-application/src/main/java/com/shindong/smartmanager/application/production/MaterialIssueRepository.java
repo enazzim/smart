@@ -27,5 +27,7 @@ public interface MaterialIssueRepository {
 
     Map<Long, BigDecimal> sumIssuedQtyByWorkOrderId(long workOrderId);
 
+    Map<Long, BigDecimal> sumIssuedQtyByItemIdForWorkOrder(long workOrderId);
+
     List<MaterialIssueLineRecordView> findActiveLinesByIssueId(long issueId);
 }

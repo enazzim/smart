@@ -266,14 +266,12 @@ export default function WorkStandardPage() {
         <form onSubmit={onSubmit} className="form-grid form-grid-wide">
           {isEditing && editingStandard ? (
             <>
-              <label>
-                품목 *
-                <input
-                  readOnly
-                  className="readonly"
-                  value={`${editingStandard.itemNum} — ${editingStandard.itemName}`}
-                />
-              </label>
+              <ItemSearchField
+                label="품목 *"
+                selectedItem={formItem}
+                onSelect={() => {}}
+                disabled
+              />
               <label>
                 공정 *
                 <input
@@ -428,12 +426,13 @@ export default function WorkStandardPage() {
         <h2>작업표준 목록</h2>
         <div className="search-row">
           <ItemSearchField
-            label="품목 필터 (비우면 전체)"
+            label="품목 필터 (선택)"
             selectedItem={filterItem}
             onSelect={(item) => {
               setFilterItem(item);
               void refreshList(item);
             }}
+            placeholder="전체 조회 — 품목번호 또는 품목명 입력"
           />
           <button
             type="button"

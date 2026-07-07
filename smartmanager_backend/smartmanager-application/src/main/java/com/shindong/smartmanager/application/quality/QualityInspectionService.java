@@ -109,7 +109,8 @@ public class QualityInspectionService {
         LocalDate completedDate = inspection.completedAt().atZone(ZoneId.systemDefault()).toLocalDate();
         monthClosingService.assertTransactionOpen(completedDate);
 
-        if (inspection.passedQty().compareTo(BigDecimal.ZERO) > 0) {
+        if (inspection.passedQty().compareTo(BigDecimal.ZERO) > 0
+                || inspection.requestQty().compareTo(BigDecimal.ZERO) > 0) {
             if (inspection.sourceType() == QualityInspectionSourceType.OUTSOURCE) {
                 cancelOutsourceInspectionStock(inspection, completedDate, actorUserId);
             } else {
@@ -176,6 +177,7 @@ public class QualityInspectionService {
                 orderLineView,
                 inspection.companyId(),
                 movementDate,
+                inspection.requestQty(),
                 inspection.passedQty(),
                 OutsourceHistorySourceType.QUALITY_INSPECTION,
                 inspection.id(),
@@ -246,7 +248,7 @@ public class QualityInspectionService {
                 .findFirst()
                 .orElseThrow();
 
-        if (command.passedQty().compareTo(BigDecimal.ZERO) > 0) {
+        if (inspection.requestQty().compareTo(BigDecimal.ZERO) > 0) {
             outsourcingReceiptService.applyStockAndLedger(
                     receiptLine,
                     orderLine,
@@ -254,13 +256,16 @@ public class QualityInspectionService {
                     orderLineView,
                     inspection.companyId(),
                     command.completedDate(),
+                    inspection.requestQty(),
                     command.passedQty(),
                     OutsourceHistorySourceType.QUALITY_INSPECTION,
                     inspection.id(),
                     actorUserId
             );
-            outsourcingReceiptRepository.addReceivedQty(orderLine.outsourcingOrderLineId(), command.passedQty(), actorUserId);
-            outsourcingReceiptRepository.updateReceiptLinePostedQty(receiptLine.id(), command.passedQty(), actorUserId);
+            if (command.passedQty().compareTo(BigDecimal.ZERO) > 0) {
+                outsourcingReceiptRepository.addReceivedQty(orderLine.outsourcingOrderLineId(), command.passedQty(), actorUserId);
+                outsourcingReceiptRepository.updateReceiptLinePostedQty(receiptLine.id(), command.passedQty(), actorUserId);
+            }
         }
 
         outsourcingReceiptRepository.updateReceiptStatus(receipt.id(), actorUserId);

@@ -58,8 +58,13 @@ public class ItemCompositionApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<ItemCompositionView> listActive(String parentItemNo, String childItemNo) {
-        return itemCompositionService.listActive(parentItemNo, childItemNo);
+    public List<ItemCompositionView> listActive(
+            Long parentItemId,
+            Long childItemId,
+            String parentItemNo,
+            String childItemNo
+    ) {
+        return itemCompositionService.listActive(parentItemId, childItemId, parentItemNo, childItemNo);
     }
 
     @Transactional(readOnly = true)

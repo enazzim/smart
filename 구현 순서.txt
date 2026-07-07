@@ -4,11 +4,52 @@ TO-BE 메인 흐름을 끝까지 이으려면 대략 아래 순서가 자연스�
 [완료] 수주 → 생산계획 → MRP → 구매발주 → 구매입고(+QI)
 [완료] 작업계획 → 작업지시 → 작업일보 → SALES
 [완료] INF-4  외주발주 → 외주출고 → 외주입고(납품)  + 외주 QI
+[완료] TX-S1  출고·납품 (SALES → DELIVERY)
+[완료] TX-S2  매출등록 (DELIVERY 감소)
+[완료] TX-S3  수금
 [미완] ─────────────────────────────────────────
-② TX-S1  출고·납품 (SALES → DELIVERY)
-③ TX-S2  매출등록 (DELIVERY 감소)
-④ TX-S3  수금
 ⑤ INF-5  지급 (구매·외주 미지급 정리)
+
+[완료] Wave ① 구매발주 MANUAL (MRP/수주 없이 직접 발주)
+  - 백엔드: POST /api/v1/purchase/orders (sourceType=MANUAL)
+  - 프론트: PurchaseOrderPage "직접 발주" 패널
+
+[완료] Wave ② 생산계획 MANUAL (수주 없이 계획 추가)
+  - DB: V054 production_plan.source_type, 수주 FK nullable
+  - 백엔드: POST /api/v1/production/plans/standalone
+  - 프론트: ProductionPlanPage "계획 직접 추가" 패널
+
+[완료] Wave ③ 외주 선출고 ADVANCE (발주 있어도 별도 출고)
+  - DB: V055 outsourcing_shipment.shipment_type, partner_id 등
+  - 백엔드: GET advance-process-options, advance-input-preview, POST advance
+  - 선출고는 발주 shipped_qty 미반영
+  - 프론트: OutsourcingShipmentPage "선출고 (발주 무관)" 패널
+
+정책 문서: docs/step0/tx-cancel-delete-policy.md
+
+[미완] ─────────────────────────────────────────
+⑥ COMM  게시판·대시보드·업무일지
+  설계: docs/step0/community-board-wave-design.md
+
+[완료] Wave COMM-1  공통 게시판 엔진
+  - DB: V056 board_post, board_attachment [적용완료]
+  - API: /api/v1/boards/{boardType}/posts (답변형 6종) [완료]
+  - GET /api/v1/dashboard/widgets [완료]
+  - GET /api/v1/boards/editor-template (WYSIWYG 기본 HTML) [완료]
+  - 파일 저장: 프로젝트/filedownload, UUID 저장·원본명 분리 [완료]
+  - 첨부 수정/게시글 삭제 시 물리 파일 삭제 [완료]
+  - RBAC community:board:* [완료]
+
+[완료] Wave COMM-2  대시보드 + 답변형 6종 UI
+  - 로그인 홈 DashboardPage (Contents.aspx 2열 위젯)
+  - 공지·대표·생산자재·레이저·연구소·영업QC 목록/상세/답글/첨부
+  - 메뉴: 대시보드(홈), 위젯 MORE → 게시판 목록 연동
+
+[미완] Wave COMM-3  업무일지
+  - DB: V057 work_diary_template, work_diary_entry
+  - user.work_diary_group_id → 템플릿 분기 (레거시 WorkDiaryWrite01~16)
+  - 대시보드 업무일지 위젯 연동
+
 순위	Wave	이유
 1
 INF-4 외주 3종
@@ -42,3 +83,7 @@ Controller + 권한
 프론트 OutsourcingReceiptPage + 메뉴 연결
 QI(OUTSOURCE) 분기 추가
 이 순서로 차근차근 넣으면 됩니다.
+
+
+커서 오류수정
+API 빌드가 Java 버전 문제로 실패했습니다. MariaDB에 V050을 직접 적용한 뒤 Flyway 이력을 확인합니다.

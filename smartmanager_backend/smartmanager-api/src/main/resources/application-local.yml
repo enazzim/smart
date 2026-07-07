@@ -33,3 +33,7 @@ smartmanager:
       login-id: admin
       initial-password: Admin123!
       enabled: true
+  board:
+    files-dir: ../../filedownload
+    max-file-size-bytes: 104857600
+    allowed-extensions: pdf,doc,docx,xls,xlsx,png,jpg,jpeg,zip

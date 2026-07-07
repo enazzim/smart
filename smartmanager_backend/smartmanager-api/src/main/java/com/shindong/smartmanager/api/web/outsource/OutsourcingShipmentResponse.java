@@ -4,6 +4,7 @@ import com.shindong.smartmanager.application.outsource.OutsourcingShipmentInputL
 import com.shindong.smartmanager.application.outsource.OutsourcingShipmentLineView;
 import com.shindong.smartmanager.application.outsource.OutsourcingShipmentView;
 import com.shindong.smartmanager.domain.outsource.OutsourcingShipmentStatus;
+import com.shindong.smartmanager.domain.outsource.OutsourcingShipmentType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -13,6 +14,10 @@ public record OutsourcingShipmentResponse(
         long id,
         String shipmentNo,
         LocalDate shipmentDate,
+        OutsourcingShipmentType shipmentType,
+        String shipmentTypeLabel,
+        Long partnerId,
+        String partnerName,
         OutsourcingShipmentStatus status,
         String statusLabel,
         Instant createdAt,
@@ -25,6 +30,10 @@ public record OutsourcingShipmentResponse(
                 view.id(),
                 view.shipmentNo(),
                 view.shipmentDate(),
+                view.shipmentType(),
+                shipmentTypeLabel(view.shipmentType()),
+                view.partnerId(),
+                view.partnerName(),
                 view.status(),
                 statusLabel(view.status()),
                 view.createdAt(),
@@ -32,6 +41,13 @@ public record OutsourcingShipmentResponse(
                 view.cancelable(),
                 view.lines().stream().map(OutsourcingShipmentLineResponse::from).toList()
         );
+    }
+
+    private static String shipmentTypeLabel(OutsourcingShipmentType type) {
+        return switch (type) {
+            case ORDER -> "발주출고";
+            case ADVANCE -> "선출고";
+        };
     }
 
     private static String statusLabel(OutsourcingShipmentStatus status) {
@@ -45,14 +61,17 @@ public record OutsourcingShipmentResponse(
 record OutsourcingShipmentLineResponse(
         long id,
         int lineNo,
-        long orderLineId,
+        Long orderLineId,
         String orderNo,
-        long partnerId,
-        String partnerName,
+        Long parentItemId,
+        String parentItemNo,
+        String parentItemName,
         String itemNo,
         String itemName,
         String processName,
         BigDecimal shipmentQty,
+        long partnerId,
+        String partnerName,
         List<OutsourcingShipmentInputLineResponse> inputLines
 ) {
     static OutsourcingShipmentLineResponse from(OutsourcingShipmentLineView view) {
@@ -61,12 +80,15 @@ record OutsourcingShipmentLineResponse(
                 view.lineNo(),
                 view.orderLineId(),
                 view.orderNo(),
-                view.partnerId(),
-                view.partnerName(),
+                view.parentItemId(),
+                view.parentItemNo(),
+                view.parentItemName(),
                 view.itemNo(),
                 view.itemName(),
                 view.processName(),
                 view.shipmentQty(),
+                view.partnerId(),
+                view.partnerName(),
                 view.inputLines().stream().map(OutsourcingShipmentInputLineResponse::from).toList()
         );
     }

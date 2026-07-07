@@ -4,7 +4,7 @@ import com.shindong.smartmanager.application.production.MaterialIssuePreviewLine
 import java.math.BigDecimal;
 
 public record MaterialIssuePreviewLineResponse(
-        long itemCompositionId,
+        Long itemCompositionId,
         long itemId,
         String itemNo,
         String itemName,

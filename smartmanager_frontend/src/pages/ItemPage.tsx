@@ -20,6 +20,7 @@ const emptyForm: CreateItemRequest = {
   itemName: '',
   propertyClassification: '제품',
   unit: 'EA',
+  checkDistinction: 'NONE',
 };
 
 function toUpdatePayload(item: Item): UpdateItemRequest {
@@ -29,7 +30,7 @@ function toUpdatePayload(item: Item): UpdateItemRequest {
     unit: item.unit,
     standard: item.standard ?? undefined,
     standardUnitCost: item.standardUnitCost ?? undefined,
-    checkDistinction: item.checkDistinction ?? undefined,
+    checkDistinction: item.checkDistinction ?? 'NONE',
     leadTime: item.leadTime ?? undefined,
     safetyStockQuantity: item.safetyStockQuantity ?? undefined,
     orderIntervalQuantity: item.orderIntervalQuantity ?? undefined,
@@ -198,15 +199,14 @@ export default function ItemPage() {
           <label>
             검사구분
             <select
-              value={form.checkDistinction ?? ''}
+              value={form.checkDistinction ?? 'NONE'}
               onChange={(e) =>
                 setForm({
                   ...form,
-                  checkDistinction: (e.target.value || undefined) as CheckDistinction | undefined,
+                  checkDistinction: e.target.value as CheckDistinction,
                 })
               }
             >
-              <option value="">(없음)</option>
               {CHECK_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}

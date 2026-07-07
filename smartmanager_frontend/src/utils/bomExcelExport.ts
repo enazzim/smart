@@ -7,6 +7,16 @@ function fileTimestamp(): string {
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 }
 
+function flattenVendorPrices(prices: BomTreeNode['outsourcePrices']): string {
+  if (!prices || prices.length === 0) return '';
+  return prices
+    .map((price) => {
+      const detail = price.detail ? ` (${price.detail})` : '';
+      return `${price.partnerName}${detail} ${price.unitPrice}`;
+    })
+    .join(' / ');
+}
+
 function flattenExplosion(node: BomTreeNode): Record<string, string | number>[] {
   const rows: Record<string, string | number>[] = [];
 
@@ -17,6 +27,8 @@ function flattenExplosion(node: BomTreeNode): Record<string, string | number>[] 
       품목명: current.itemName,
       자산분류: current.propertyClassification,
       누적수량: current.quantity,
+      '외주거래처·단가': flattenVendorPrices(current.outsourcePrices),
+      '구매거래처·단가': flattenVendorPrices(current.purchasePrices),
     });
     current.children.forEach(walk);
   };

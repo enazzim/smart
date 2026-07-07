@@ -73,7 +73,7 @@ export default function ProcessPage() {
     setLoading(true);
     setError(null);
     try {
-      const target = item === undefined ? filterItem : item;
+      const target = item !== undefined ? item : filterItem;
       setProcesses(await fetchProcessPlans(target?.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록 조회 실패');
@@ -83,34 +83,45 @@ export default function ProcessPage() {
   }, [filterItem]);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
+    void (async () => {
       try {
-        const [codes, centers, allProcesses] = await Promise.all([
+        const [codes, centers] = await Promise.all([
           fetchProcessCodeOptions(),
           fetchWorkCenters(),
-          fetchProcessPlans(),
         ]);
         setProcessCodes(codes);
         setWorkCenters(centers);
-        setProcesses(allProcesses);
       } catch (e) {
-        setProcesses([]);
-        setError(e instanceof Error ? e.message : '공정 목록 조회 실패');
-      } finally {
-        setLoading(false);
+        setError(e instanceof Error ? e.message : '공정 기준정보 조회 실패');
       }
-    };
-    void load();
+    })();
   }, []);
 
   useEffect(() => {
-    if (filterItem === null) {
-      return;
-    }
-    void refreshProcessList(filterItem);
-  }, [filterItem?.id, refreshProcessList]);
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await fetchProcessPlans(filterItem?.id);
+        if (!cancelled) {
+          setProcesses(data);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : '공정 목록 조회 실패');
+          setProcesses([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [filterItem?.id]);
 
   const resetForm = () => {
     setForm({
@@ -185,7 +196,7 @@ export default function ProcessPage() {
     <>
       <header>
         <h1>공정 (Process Plan)</h1>
-        <p>제품·공정품 7필드 CRUD — 등록 시 WIP 잔고 Lazy 생성</p>
+        <p>제품·공정품 7필드 CRUD — 등록 시 공정창고 잔고 Lazy 생성</p>
       </header>
 
       {error && <div className="error">{error}</div>}
@@ -317,12 +328,16 @@ export default function ProcessPage() {
             selectedItem={filterItem}
             onSelect={(item) => {
               setFilterItem(item);
-              if (item === null) {
-                void refreshProcessList(null);
-              }
             }}
             placeholder="전체 조회 — 품목번호 또는 품목명 입력"
           />
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setFilterItem(null)}
+          >
+            전체
+          </button>
         </div>
         {loading ? (
           <p>불러오는 중…</p>

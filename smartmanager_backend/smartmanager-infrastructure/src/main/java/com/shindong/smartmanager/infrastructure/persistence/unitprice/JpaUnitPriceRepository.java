@@ -129,7 +129,7 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
         if (rows.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(toView(rows.getFirst()));
+        return Optional.of(toView(rows.get(0)));
     }
 
     @Override

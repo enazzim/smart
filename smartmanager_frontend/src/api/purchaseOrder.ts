@@ -154,6 +154,45 @@ export async function createPurchaseOrderFromMrp(
   return handleResponse(res);
 }
 
+export interface CreatePurchaseOrderLineRequest {
+  itemId: number;
+  orderQty: number;
+  unitPrice?: number;
+}
+
+export interface CreatePurchaseOrderRequest {
+  orderNo?: string;
+  partnerId: number;
+  orderDate: string;
+  sourceType?: PurchaseOrderSourceType;
+  lines: CreatePurchaseOrderLineRequest[];
+}
+
+export async function fetchNextPurchaseOrderNo(orderDate: string): Promise<string> {
+  const res = await apiFetch(
+    `/api/v1/purchase/orders/next-order-no?orderDate=${encodeURIComponent(orderDate)}`,
+  );
+  const data: { orderNo: string } = await handleResponse(res);
+  return data.orderNo;
+}
+
+export async function createPurchaseOrder(request: CreatePurchaseOrderRequest): Promise<PurchaseOrder> {
+  const res = await apiFetch('/api/v1/purchase/orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...request,
+      sourceType: request.sourceType ?? 'MANUAL',
+    }),
+  });
+  return handleResponse(res);
+}
+
+export async function confirmPurchaseOrder(orderId: number): Promise<PurchaseOrder> {
+  const res = await apiFetch(`/api/v1/purchase/orders/${orderId}/confirm`, { method: 'POST' });
+  return handleResponse(res);
+}
+
 export async function cancelPurchaseOrder(orderId: number): Promise<void> {
   const res = await apiFetch(`/api/v1/purchase/orders/${orderId}/cancel`, { method: 'POST' });
   if (!res.ok) {

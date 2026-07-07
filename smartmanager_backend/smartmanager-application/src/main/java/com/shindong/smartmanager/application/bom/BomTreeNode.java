@@ -10,6 +10,8 @@ public record BomTreeNode(
         PropertyClassification propertyClassification,
         int level,
         BigDecimal quantity,
+        List<BomVendorPriceView> outsourcePrices,
+        List<BomVendorPriceView> purchasePrices,
         List<BomTreeNode> children
 ) {
 }

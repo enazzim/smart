@@ -1,16 +1,23 @@
 package com.shindong.smartmanager.application.outsource;
 
 import com.shindong.smartmanager.application.closing.MonthClosingService;
+import com.shindong.smartmanager.application.company.CompanyRepository;
 import com.shindong.smartmanager.application.event.DomainEventStore;
 import com.shindong.smartmanager.application.inventory.InventoryBalanceService;
 import com.shindong.smartmanager.application.item.ItemRepository;
+import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.process.ProcessRepository;
 import com.shindong.smartmanager.application.process.ProcessView;
+import com.shindong.smartmanager.application.unitprice.UnitPriceRepository;
+import com.shindong.smartmanager.application.unitprice.UnitPriceView;
+import com.shindong.smartmanager.domain.company.CompanyRoleType;
 import com.shindong.smartmanager.domain.event.AggregateTypes;
 import com.shindong.smartmanager.domain.event.DomainEvent;
 import com.shindong.smartmanager.domain.event.EventTypes;
 import com.shindong.smartmanager.domain.outsource.OutsourcingOrderStatus;
 import com.shindong.smartmanager.domain.outsource.OutsourcingShipmentStatus;
+import com.shindong.smartmanager.domain.outsource.OutsourcingShipmentType;
+import com.shindong.smartmanager.domain.pricing.CostType;
 import com.shindong.smartmanager.domain.process.ProcessVariant;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,10 +25,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class OutsourcingShipmentService {
@@ -33,6 +40,8 @@ public class OutsourcingShipmentService {
     private final InventoryBalanceService inventoryBalanceService;
     private final ItemRepository itemRepository;
     private final ProcessRepository processRepository;
+    private final CompanyRepository companyRepository;
+    private final UnitPriceRepository unitPriceRepository;
     private final MonthClosingService monthClosingService;
     private final DomainEventStore domainEventStore;
 
@@ -44,6 +53,8 @@ public class OutsourcingShipmentService {
             InventoryBalanceService inventoryBalanceService,
             ItemRepository itemRepository,
             ProcessRepository processRepository,
+            CompanyRepository companyRepository,
+            UnitPriceRepository unitPriceRepository,
             MonthClosingService monthClosingService,
             DomainEventStore domainEventStore
     ) {
@@ -54,6 +65,8 @@ public class OutsourcingShipmentService {
         this.inventoryBalanceService = inventoryBalanceService;
         this.itemRepository = itemRepository;
         this.processRepository = processRepository;
+        this.companyRepository = companyRepository;
+        this.unitPriceRepository = unitPriceRepository;
         this.monthClosingService = monthClosingService;
         this.domainEventStore = domainEventStore;
     }
@@ -95,6 +108,40 @@ public class OutsourcingShipmentService {
         return candidates;
     }
 
+    public List<OutsourceAdvanceProcessOptionView> listAdvanceProcessOptions(
+            long partnerId,
+            long parentItemId,
+            LocalDate refDate
+    ) {
+        validatePartner(partnerId);
+        itemRepository.findActiveById(parentItemId)
+                .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + parentItemId));
+        LocalDate effectiveDate = refDate != null ? refDate : LocalDate.now();
+        Map<String, OutsourceAdvanceProcessOptionView> options = new LinkedHashMap<>();
+        for (UnitPriceView price : unitPriceRepository.findAllActiveByCostTypeAndItemIds(
+                CostType.OUTSOURCE,
+                Set.of(parentItemId)
+        )) {
+            if (price.companyId() != partnerId || !isEffectiveOn(price, effectiveDate)) {
+                continue;
+            }
+            if (price.beginProcessCodeId() == null || price.endProcessCodeId() == null) {
+                continue;
+            }
+            String key = price.beginProcessCodeId() + ":" + price.endProcessCodeId();
+            options.putIfAbsent(key, new OutsourceAdvanceProcessOptionView(
+                    price.beginProcessCodeId(),
+                    price.beginProcessName(),
+                    price.endProcessCodeId(),
+                    price.endProcessName()
+            ));
+        }
+        if (options.isEmpty()) {
+            throw new IllegalArgumentException("선택한 거래처·품목에 유효한 외주단가(공정구간)가 없습니다.");
+        }
+        return new ArrayList<>(options.values());
+    }
+
     public OutsourcingShipmentInputPreviewView previewInput(long orderLineId, BigDecimal shipmentQty, LocalDate shipmentDate) {
         OrderLineContext context = resolveOrderLineContext(orderLineId);
         LocalDate stockDate = shipmentDate != null ? shipmentDate : LocalDate.now();
@@ -104,43 +151,45 @@ public class OutsourcingShipmentService {
                 shipmentQty,
                 "system"
         );
-        Map<Long, String> processNames = loadProcessNames(context.line().itemId());
-        List<OutsourcingShipmentInputPreviewLineView> lines = inputs.stream()
-                .map(input -> {
-                    var item = itemRepository.findActiveById(input.itemId()).orElseThrow();
-                    BigDecimal onHand = inventoryBalanceService.currentStockQty(
-                            input.itemId(),
-                            input.sourceLocationCode(),
-                            stockDate,
-                            input.sourceProcessId(),
-                            null,
-                            null
-                    );
-                    BigDecimal unitRatio = shipmentQty.compareTo(BigDecimal.ZERO) > 0
-                            ? input.issueQty().divide(shipmentQty, 4, java.math.RoundingMode.HALF_UP)
-                            : BigDecimal.ZERO;
-                    return new OutsourcingShipmentInputPreviewLineView(
-                            input.itemId(),
-                            item.itemNo(),
-                            item.itemName(),
-                            item.propertyClassification().name(),
-                            input.itemCompositionId(),
-                            unitRatio,
-                            input.issueQty(),
-                            input.sourceLocationCode(),
-                            input.sourceProcessId(),
-                            input.inputProcessId(),
-                            processNames.getOrDefault(input.inputProcessId(), ""),
-                            onHand
-                    );
-                })
-                .toList();
-        return new OutsourcingShipmentInputPreviewView(
+        return buildPreviewView(
                 orderLineId,
                 context.order().orderNo(),
                 context.line().itemNo(),
+                context.line().itemId(),
                 shipmentQty,
-                lines
+                stockDate,
+                inputs
+        );
+    }
+
+    public OutsourcingShipmentInputPreviewView previewAdvanceInput(
+            long partnerId,
+            long parentItemId,
+            long beginProcessCodeId,
+            long endProcessCodeId,
+            BigDecimal referenceQty,
+            LocalDate shipmentDate
+    ) {
+        validatePartner(partnerId);
+        ItemView parentItem = itemRepository.findActiveById(parentItemId)
+                .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + parentItemId));
+        LocalDate stockDate = shipmentDate != null ? shipmentDate : LocalDate.now();
+        List<OutsourcingShipmentInputSaveCommand> inputs = consumptionCalculator.calculateAdvanceInputLines(
+                parentItemId,
+                partnerId,
+                beginProcessCodeId,
+                endProcessCodeId,
+                referenceQty,
+                "system"
+        );
+        return buildPreviewView(
+                null,
+                "선출고",
+                parentItem.itemNo(),
+                parentItemId,
+                referenceQty,
+                stockDate,
+                inputs
         );
     }
 
@@ -186,13 +235,22 @@ public class OutsourcingShipmentService {
             lineSaves.add(new OutsourcingShipmentLineSaveCommand(
                     lineCommand.orderLineId(),
                     lineCommand.shipmentQty(),
+                    null,
+                    null,
+                    null,
                     inputs
             ));
         }
 
         String shipmentNo = nextShipmentNo(shipmentDate);
         OutsourcingShipmentView saved = outsourcingShipmentRepository.save(
-                new OutsourcingShipmentSaveCommand(shipmentNo, shipmentDate, lineSaves),
+                new OutsourcingShipmentSaveCommand(
+                        shipmentNo,
+                        shipmentDate,
+                        OutsourcingShipmentType.ORDER,
+                        null,
+                        lineSaves
+                ),
                 actorUserId
         );
 
@@ -213,6 +271,60 @@ public class OutsourcingShipmentService {
         return outsourcingShipmentRepository.findActiveIssuedById(saved.id()).orElse(saved);
     }
 
+    public OutsourcingShipmentView registerAdvance(CreateOutsourcingAdvanceShipmentCommand command, String actorUserId) {
+        if (command.lines() == null || command.lines().isEmpty()) {
+            throw new IllegalArgumentException("선출고 라인을 1건 이상 입력하세요.");
+        }
+        validatePartner(command.partnerId());
+        LocalDate shipmentDate = command.shipmentDate() != null ? command.shipmentDate() : LocalDate.now();
+        monthClosingService.assertTransactionOpen(shipmentDate);
+
+        List<OutsourcingShipmentLineSaveCommand> lineSaves = new ArrayList<>();
+        for (CreateOutsourcingAdvanceShipmentLineCommand lineCommand : command.lines()) {
+            if (lineCommand.referenceQty() == null || lineCommand.referenceQty().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("기준 수량은 0보다 커야 합니다.");
+            }
+            itemRepository.findActiveById(lineCommand.parentItemId())
+                    .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + lineCommand.parentItemId()));
+
+            List<OutsourcingShipmentInputSaveCommand> inputs = resolveAdvanceInputLines(lineCommand, command.partnerId(), actorUserId);
+            inventoryService.assertSufficientStock(shipmentDate, command.partnerId(), inputs);
+            lineSaves.add(new OutsourcingShipmentLineSaveCommand(
+                    null,
+                    lineCommand.referenceQty(),
+                    lineCommand.parentItemId(),
+                    lineCommand.beginProcessCodeId(),
+                    lineCommand.endProcessCodeId(),
+                    inputs
+            ));
+        }
+
+        String shipmentNo = nextAdvanceShipmentNo(shipmentDate);
+        OutsourcingShipmentView saved = outsourcingShipmentRepository.save(
+                new OutsourcingShipmentSaveCommand(
+                        shipmentNo,
+                        shipmentDate,
+                        OutsourcingShipmentType.ADVANCE,
+                        command.partnerId(),
+                        lineSaves
+                ),
+                actorUserId
+        );
+
+        for (OutsourcingShipmentLineSaveCommand lineSave : lineSaves) {
+            inventoryService.applyRegistration(
+                    shipmentDate,
+                    saved.id(),
+                    command.partnerId(),
+                    lineSave.inputLines(),
+                    actorUserId
+            );
+        }
+
+        appendEvent(EventTypes.OUTSOURCING_SHIPMENT_REGISTERED, saved.id(), actorUserId, saved.shipmentNo());
+        return outsourcingShipmentRepository.findActiveIssuedById(saved.id()).orElse(saved);
+    }
+
     public void cancel(long id, String actorUserId) {
         OutsourcingShipmentView shipment = outsourcingShipmentRepository.findActiveIssuedById(id)
                 .orElseThrow(() -> new IllegalArgumentException("외주출고를 찾을 수 없습니다: " + id));
@@ -222,10 +334,6 @@ public class OutsourcingShipmentService {
         monthClosingService.assertTransactionOpen(shipment.shipmentDate());
 
         for (OutsourcingShipmentLineView line : shipment.lines()) {
-            OrderLineContext context = resolveOrderLineContext(line.orderLineId());
-            if (context.line().receivedQty().compareTo(BigDecimal.ZERO) > 0) {
-                throw new IllegalArgumentException("입고 실적이 있어 출고를 취소할 수 없습니다.");
-            }
             List<OutsourcingShipmentInputSaveCommand> inputs = line.inputLines().stream()
                     .map(input -> new OutsourcingShipmentInputSaveCommand(
                             input.itemId(),
@@ -236,19 +344,121 @@ public class OutsourcingShipmentService {
                             input.inputProcessId()
                     ))
                     .toList();
+
+            long partnerId = shipment.shipmentType() == OutsourcingShipmentType.ADVANCE
+                    ? shipment.partnerId()
+                    : line.partnerId();
+
             inventoryService.applyCancellation(
                     shipment.shipmentDate(),
                     shipment.id(),
-                    context.order().partnerId(),
+                    partnerId,
                     inputs,
                     actorUserId
             );
-            outsourcingOrderRepository.subtractShippedQty(line.orderLineId(), line.shipmentQty(), actorUserId);
-            outsourcingOrderRepository.refreshOrderStatus(context.order().id(), actorUserId);
+
+            if (shipment.shipmentType() == OutsourcingShipmentType.ORDER && line.orderLineId() != null) {
+                OrderLineContext context = resolveOrderLineContext(line.orderLineId());
+                if (context.line().receivedQty().compareTo(BigDecimal.ZERO) > 0) {
+                    throw new IllegalArgumentException("입고 실적이 있어 출고를 취소할 수 없습니다.");
+                }
+                outsourcingOrderRepository.subtractShippedQty(line.orderLineId(), line.shipmentQty(), actorUserId);
+                outsourcingOrderRepository.refreshOrderStatus(context.order().id(), actorUserId);
+            }
         }
 
         outsourcingShipmentRepository.cancelById(id, actorUserId);
         appendEvent(EventTypes.OUTSOURCING_SHIPMENT_CANCELLED, id, actorUserId, shipment.shipmentNo());
+    }
+
+    private OutsourcingShipmentInputPreviewView buildPreviewView(
+            Long orderLineId,
+            String orderNo,
+            String itemNo,
+            long parentItemId,
+            BigDecimal shipmentQty,
+            LocalDate stockDate,
+            List<OutsourcingShipmentInputSaveCommand> inputs
+    ) {
+        Map<Long, String> processNames = loadProcessNames(parentItemId);
+        List<OutsourcingShipmentInputPreviewLineView> lines = inputs.stream()
+                .map(input -> {
+                    var item = itemRepository.findActiveById(input.itemId()).orElseThrow();
+                    BigDecimal onHand = inventoryBalanceService.currentStockQty(
+                            input.itemId(),
+                            input.sourceLocationCode(),
+                            stockDate,
+                            input.sourceProcessId(),
+                            null,
+                            null
+                    );
+                    BigDecimal unitRatio = shipmentQty.compareTo(BigDecimal.ZERO) > 0
+                            ? input.issueQty().divide(shipmentQty, 4, java.math.RoundingMode.HALF_UP)
+                            : BigDecimal.ZERO;
+                    return new OutsourcingShipmentInputPreviewLineView(
+                            input.itemId(),
+                            item.itemNo(),
+                            item.itemName(),
+                            item.propertyClassification().name(),
+                            input.itemCompositionId(),
+                            unitRatio,
+                            input.issueQty(),
+                            input.sourceLocationCode(),
+                            input.sourceProcessId(),
+                            input.inputProcessId(),
+                            processNames.getOrDefault(input.inputProcessId(), ""),
+                            onHand
+                    );
+                })
+                .toList();
+        return new OutsourcingShipmentInputPreviewView(
+                orderLineId,
+                orderNo,
+                itemNo,
+                shipmentQty,
+                lines
+        );
+    }
+
+    private List<OutsourcingShipmentInputSaveCommand> resolveAdvanceInputLines(
+            CreateOutsourcingAdvanceShipmentLineCommand lineCommand,
+            long partnerId,
+            String actorUserId
+    ) {
+        if (lineCommand.inputLines() != null && !lineCommand.inputLines().isEmpty()) {
+            for (OutsourcingShipmentInputSaveCommand input : lineCommand.inputLines()) {
+                if (input.issueQty() == null || input.issueQty().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new IllegalArgumentException("투입수량은 0보다 커야 합니다.");
+                }
+                itemRepository.findActiveById(input.itemId())
+                        .orElseThrow(() -> new IllegalArgumentException("투입 품목을 찾을 수 없습니다: " + input.itemId()));
+            }
+            return lineCommand.inputLines();
+        }
+        return consumptionCalculator.calculateAdvanceInputLines(
+                lineCommand.parentItemId(),
+                partnerId,
+                lineCommand.beginProcessCodeId(),
+                lineCommand.endProcessCodeId(),
+                lineCommand.referenceQty(),
+                actorUserId
+        );
+    }
+
+    private void validatePartner(long partnerId) {
+        companyRepository.findActiveById(partnerId)
+                .orElseThrow(() -> new IllegalArgumentException("거래처를 찾을 수 없습니다: " + partnerId));
+        List<CompanyRoleType> roles = companyRepository.findRoles(partnerId);
+        if (!roles.contains(CompanyRoleType.OUTSOURCE)) {
+            throw new IllegalArgumentException("외주거래처(OUTSOURCE)로 매핑된 거래처만 선택할 수 있습니다.");
+        }
+    }
+
+    private boolean isEffectiveOn(UnitPriceView price, LocalDate refDate) {
+        if (price.beginDate().isAfter(refDate)) {
+            return false;
+        }
+        return price.endDate() == null || !price.endDate().isBefore(refDate);
     }
 
     private OrderLineContext resolveOrderLineContext(long orderLineId) {
@@ -271,7 +481,13 @@ public class OutsourcingShipmentService {
     private String nextShipmentNo(LocalDate shipmentDate) {
         String prefix = "OS-" + shipmentDate.format(DateTimeFormatter.BASIC_ISO_DATE) + "-";
         long seq = outsourcingShipmentRepository.countByShipmentNoPrefix(prefix) + 1;
-        return prefix + seq;
+        return prefix + String.format("%03d", seq);
+    }
+
+    private String nextAdvanceShipmentNo(LocalDate shipmentDate) {
+        String prefix = "OA-" + shipmentDate.format(DateTimeFormatter.BASIC_ISO_DATE) + "-";
+        long seq = outsourcingShipmentRepository.countByShipmentNoPrefix(prefix) + 1;
+        return prefix + String.format("%03d", seq);
     }
 
     private void appendEvent(String eventType, long shipmentId, String actorUserId, String shipmentNo) {

@@ -1,6 +1,7 @@
 import { apiFetch, handleResponse } from './http';
 import type { SalesOrderLineListRow } from './salesOrder';
 
+export type ProductionPlanSourceType = 'SALES_ORDER' | 'MANUAL';
 export type ProductionPlanStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type ProductionPlanMrpStatus = 'NOT_CALCULATED' | 'CALCULATED';
 export type ProductionPlanWorkPlanStatus = 'NOT_PLANNED' | 'PLANNED';
@@ -8,12 +9,14 @@ export type ProductionPlanWorkPlanStatus = 'NOT_PLANNED' | 'PLANNED';
 export interface ProductionPlan {
   id: number;
   planNo: string;
-  salesOrderId: number;
-  salesOrderLineId: number;
-  orderNo: string;
-  partnerId: number;
-  partnerName: string;
-  orderDate: string;
+  sourceType: ProductionPlanSourceType;
+  sourceTypeLabel: string;
+  salesOrderId?: number | null;
+  salesOrderLineId?: number | null;
+  orderNo?: string | null;
+  partnerId?: number | null;
+  partnerName?: string | null;
+  orderDate?: string | null;
   itemId: number;
   itemNo: string;
   itemName: string;
@@ -77,6 +80,23 @@ export async function createProductionPlans(
   lines: ProductionPlanCreateLine[],
 ): Promise<ProductionPlan[]> {
   const res = await apiFetch('/api/v1/production/plans', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lines }),
+  });
+  return handleResponse(res);
+}
+
+export interface ProductionPlanStandaloneLine {
+  itemId: number;
+  plannedQty: number;
+  requestedDeliveryDate?: string;
+}
+
+export async function createStandaloneProductionPlans(
+  lines: ProductionPlanStandaloneLine[],
+): Promise<ProductionPlan[]> {
+  const res = await apiFetch('/api/v1/production/plans/standalone', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ lines }),

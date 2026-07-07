@@ -1,4 +1,5 @@
 import type { AuthenticatedUser } from '../api/auth';
+import type { BoardType } from '../api/board';
 import {
   MENU_GROUPS,
   type MenuCategory,
@@ -16,8 +17,12 @@ import {
   renderSystemPage,
 } from './menuConfig';
 import BasisInfoPage from '../pages/BasisInfoPage';
+import BoardPage, { type BoardScreen } from '../pages/BoardPage';
+import DashboardPage from '../pages/DashboardPage';
 
 export type AppSelection =
+  | { category: 'home' }
+  | { category: 'board'; boardType: BoardType; screen: BoardScreen }
   | { category: 'basis' }
   | { category: 'system'; page: SystemPage }
   | { category: 'sales'; page: SalesPageId }
@@ -34,6 +39,16 @@ interface AppShellProps {
   onSelectCategory: (category: MenuCategory) => void;
   onSelectChild: (category: MenuCategory, childId: string) => void;
   onLogout: () => void;
+  onNavigateHome: () => void;
+  onOpenBoardList: (boardType: BoardType) => void;
+  onOpenBoardPost: (boardType: BoardType, postId: number) => void;
+  onBoardNavigateList: () => void;
+  onBoardNavigateDetail: (postId: number) => void;
+  onBoardNavigateCompose: (compose: {
+    composeMode: 'create' | 'edit' | 'reply';
+    postId?: number;
+    parentPostId?: number;
+  }) => void;
 }
 
 export default function AppShell({
@@ -44,6 +59,12 @@ export default function AppShell({
   onSelectCategory,
   onSelectChild,
   onLogout,
+  onNavigateHome,
+  onOpenBoardList,
+  onOpenBoardPost,
+  onBoardNavigateList,
+  onBoardNavigateDetail,
+  onBoardNavigateCompose,
 }: AppShellProps) {
   return (
     <div className="app-shell">
@@ -67,6 +88,7 @@ export default function AppShell({
             const isDirect = group.direct === true;
             const isActive =
               selection.category === group.id ||
+              (group.id === 'home' && (selection.category === 'home' || selection.category === 'board')) ||
               (group.id === 'basis' && selection.category === 'basis');
 
             return (
@@ -109,13 +131,58 @@ export default function AppShell({
           })}
         </aside>
 
-        <main className="app-main">{renderContent(selection)}</main>
+        <main className="app-main">
+          {renderContent(selection, {
+            currentUser,
+            onNavigateHome,
+            onOpenBoardList,
+            onOpenBoardPost,
+            onBoardNavigateList,
+            onBoardNavigateDetail,
+            onBoardNavigateCompose,
+          })}
+        </main>
       </div>
     </div>
   );
 }
 
-function renderContent(selection: AppSelection) {
+interface RenderContext {
+  currentUser: AuthenticatedUser | null;
+  onNavigateHome: () => void;
+  onOpenBoardList: (boardType: BoardType) => void;
+  onOpenBoardPost: (boardType: BoardType, postId: number) => void;
+  onBoardNavigateList: () => void;
+  onBoardNavigateDetail: (postId: number) => void;
+  onBoardNavigateCompose: (compose: {
+    composeMode: 'create' | 'edit' | 'reply';
+    postId?: number;
+    parentPostId?: number;
+  }) => void;
+}
+
+function renderContent(selection: AppSelection, ctx: RenderContext) {
+  if (selection.category === 'home') {
+    return (
+      <DashboardPage
+        onOpenBoardList={ctx.onOpenBoardList}
+        onOpenBoardPost={ctx.onOpenBoardPost}
+      />
+    );
+  }
+  if (selection.category === 'board') {
+    return (
+      <BoardPage
+        boardType={selection.boardType}
+        screen={selection.screen}
+        currentUser={ctx.currentUser}
+        onNavigateHome={ctx.onNavigateHome}
+        onNavigateList={ctx.onBoardNavigateList}
+        onNavigateDetail={ctx.onBoardNavigateDetail}
+        onNavigateCompose={ctx.onBoardNavigateCompose}
+      />
+    );
+  }
   if (selection.category === 'basis') {
     return <BasisInfoPage />;
   }

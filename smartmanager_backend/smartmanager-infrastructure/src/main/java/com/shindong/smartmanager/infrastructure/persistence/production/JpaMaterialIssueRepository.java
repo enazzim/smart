@@ -247,6 +247,23 @@ public class JpaMaterialIssueRepository implements MaterialIssueRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public Map<Long, BigDecimal> sumIssuedQtyByItemIdForWorkOrder(long workOrderId) {
+        Map<Long, BigDecimal> result = new HashMap<>();
+        for (Object[] row : lineRepository.sumIssuedQtyByItemIdForWorkOrder(workOrderId)) {
+            if (row[0] == null) {
+                continue;
+            }
+            long itemId = ((Number) row[0]).longValue();
+            BigDecimal qty = row[1] instanceof BigDecimal bigDecimal
+                    ? bigDecimal
+                    : BigDecimal.valueOf(((Number) row[1]).doubleValue());
+            result.put(itemId, qty);
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<MaterialIssueLineRecordView> findActiveLinesByIssueId(long issueId) {
         return lineRepository.findByMaterialIssueIdAndRecordingStateOrderByLineNoAsc(issueId, ACTIVE).stream()
                 .map(line -> new MaterialIssueLineRecordView(

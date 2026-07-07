@@ -3,7 +3,7 @@ package com.shindong.smartmanager.application.production;
 import java.math.BigDecimal;
 
 public record WorkReportConsumptionLineView(
-        long itemCompositionId,
+        Long itemCompositionId,
         long itemId,
         String itemNo,
         String itemName,

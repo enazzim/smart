@@ -4,9 +4,11 @@ import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.api.web.sales.SalesOrderLineListResponse;
 import com.shindong.smartmanager.application.production.ProductionPlanCreateLineCommand;
 import com.shindong.smartmanager.application.production.ProductionPlanListCriteria;
+import com.shindong.smartmanager.application.production.ProductionPlanStandaloneCommand;
 import com.shindong.smartmanager.domain.production.ProductionPlanMrpStatus;
 import com.shindong.smartmanager.domain.production.ProductionPlanStatus;
 import com.shindong.smartmanager.infrastructure.application.ProductionPlanApplicationService;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -88,6 +90,25 @@ public class ProductionPlanController {
                     .toList();
         }
         throw new IllegalArgumentException("수립할 수주 라인을 1건 이상 선택하세요.");
+    }
+
+    @PostMapping("/plans/standalone")
+    @PreAuthorize("hasAuthority('production:plan:write')")
+    public List<ProductionPlanResponse> createStandalone(@Valid @RequestBody ProductionPlanStandaloneRequest request) {
+        var principal = SecurityUtils.requirePrincipal();
+        if (request.lines() == null || request.lines().isEmpty()) {
+            throw new IllegalArgumentException("수립할 품목을 1건 이상 입력하세요.");
+        }
+        List<ProductionPlanStandaloneCommand> commands = request.lines().stream()
+                .map(line -> new ProductionPlanStandaloneCommand(
+                        line.itemId(),
+                        line.plannedQty(),
+                        line.requestedDeliveryDate()
+                ))
+                .toList();
+        return productionPlanApplicationService.createStandalonePlans(commands, principal.loginId()).stream()
+                .map(ProductionPlanResponse::from)
+                .toList();
     }
 
     @PostMapping("/plans/{id}/cancel")

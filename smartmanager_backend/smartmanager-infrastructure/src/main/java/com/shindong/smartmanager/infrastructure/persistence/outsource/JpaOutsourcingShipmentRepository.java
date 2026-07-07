@@ -14,6 +14,9 @@ import com.shindong.smartmanager.application.outsource.OutsourcingShipmentReposi
 import com.shindong.smartmanager.application.outsource.OutsourcingShipmentSaveCommand;
 import com.shindong.smartmanager.application.outsource.OutsourcingShipmentView;
 import com.shindong.smartmanager.domain.outsource.OutsourcingShipmentStatus;
+import com.shindong.smartmanager.domain.outsource.OutsourcingShipmentType;
+import com.shindong.smartmanager.infrastructure.persistence.company.CompanyJpaEntity;
+import com.shindong.smartmanager.infrastructure.persistence.company.SpringDataCompanyRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -32,19 +35,22 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
     private final SpringDataOutsourcingShipmentInputLineRepository inputLineRepository;
     private final OutsourcingOrderRepository outsourcingOrderRepository;
     private final ItemRepository itemRepository;
+    private final SpringDataCompanyRepository companyRepository;
 
     public JpaOutsourcingShipmentRepository(
             SpringDataOutsourcingShipmentRepository shipmentRepository,
             SpringDataOutsourcingShipmentLineRepository shipmentLineRepository,
             SpringDataOutsourcingShipmentInputLineRepository inputLineRepository,
             OutsourcingOrderRepository outsourcingOrderRepository,
-            ItemRepository itemRepository
+            ItemRepository itemRepository,
+            SpringDataCompanyRepository companyRepository
     ) {
         this.shipmentRepository = shipmentRepository;
         this.shipmentLineRepository = shipmentLineRepository;
         this.inputLineRepository = inputLineRepository;
         this.outsourcingOrderRepository = outsourcingOrderRepository;
         this.itemRepository = itemRepository;
+        this.companyRepository = companyRepository;
     }
 
     @Override
@@ -59,6 +65,8 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
         OutsourcingShipmentJpaEntity header = new OutsourcingShipmentJpaEntity();
         header.setShipmentNo(command.shipmentNo());
         header.setShipmentDate(command.shipmentDate());
+        header.setShipmentType(command.shipmentType());
+        header.setPartnerId(command.partnerId());
         header.setStatus(OutsourcingShipmentStatus.ISSUED);
         header.setRecordingState(ACTIVE);
         header.setCreatedBy(actorUserId);
@@ -75,6 +83,9 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
             line.setOutsourcingShipmentId(savedHeader.getId());
             line.setLineNo(lineNo++);
             line.setOutsourcingOrderLineId(lineCommand.orderLineId());
+            line.setParentItemId(lineCommand.parentItemId());
+            line.setBeginProcessCodeId(lineCommand.beginProcessCodeId());
+            line.setEndProcessCodeId(lineCommand.endProcessCodeId());
             line.setShipmentQty(lineCommand.shipmentQty());
             line.setRecordingState(ACTIVE);
             line.setCreatedBy(actorUserId);
@@ -154,6 +165,9 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
             return true;
         }
         String needle = criteria.partnerName().trim().toLowerCase();
+        if (view.partnerName() != null && view.partnerName().toLowerCase().contains(needle)) {
+            return true;
+        }
         return view.lines().stream().anyMatch(line -> line.partnerName().toLowerCase().contains(needle));
     }
 
@@ -165,19 +179,29 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
     }
 
     private OutsourcingShipmentView toView(OutsourcingShipmentJpaEntity entity) {
+        String headerPartnerName = resolveCompanyName(entity.getPartnerId());
         List<OutsourcingShipmentLineJpaEntity> lineEntities =
                 shipmentLineRepository.findByOutsourcingShipmentIdAndRecordingStateOrderByLineNoAsc(
                         entity.getId(), ACTIVE);
         List<OutsourcingShipmentLineView> lines = new ArrayList<>();
         boolean cancelable = entity.getStatus() == OutsourcingShipmentStatus.ISSUED;
         for (OutsourcingShipmentLineJpaEntity lineEntity : lineEntities) {
-            OutsourcingOrderLineView orderLine = outsourcingOrderRepository.findActiveLineById(
-                    lineEntity.getOutsourcingOrderLineId()).orElse(null);
-            OutsourcingOrderView order = outsourcingOrderRepository.findActiveByOrderLineId(
-                    lineEntity.getOutsourcingOrderLineId()).orElse(null);
-            if (orderLine != null && orderLine.receivedQty().compareTo(BigDecimal.ZERO) > 0) {
-                cancelable = false;
+            OutsourcingOrderLineView orderLine = null;
+            OutsourcingOrderView order = null;
+            if (lineEntity.getOutsourcingOrderLineId() != null) {
+                orderLine = outsourcingOrderRepository.findActiveLineById(
+                        lineEntity.getOutsourcingOrderLineId()).orElse(null);
+                order = outsourcingOrderRepository.findActiveByOrderLineId(
+                        lineEntity.getOutsourcingOrderLineId()).orElse(null);
+                if (orderLine != null && orderLine.receivedQty().compareTo(BigDecimal.ZERO) > 0) {
+                    cancelable = false;
+                }
             }
+
+            ItemView parentItem = lineEntity.getParentItemId() != null
+                    ? itemRepository.findActiveById(lineEntity.getParentItemId()).orElse(null)
+                    : null;
+
             List<OutsourcingShipmentInputLineJpaEntity> inputEntities =
                     inputLineRepository.findByOutsourcingShipmentLineIdAndRecordingStateOrderByLineNoAsc(
                             lineEntity.getId(), ACTIVE);
@@ -196,19 +220,27 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
                         );
                     })
                     .toList();
-            String processName = "";
-            if (orderLine != null) {
-                processName = orderLine.processName();
-            }
+
+            String processName = orderLine != null ? orderLine.processName() : "선출고";
+            long partnerId = order != null ? order.partnerId()
+                    : entity.getPartnerId() != null ? entity.getPartnerId() : 0L;
+            String partnerName = order != null ? order.partnerName()
+                    : headerPartnerName != null ? headerPartnerName : "";
+
             lines.add(new OutsourcingShipmentLineView(
                     lineEntity.getId(),
                     lineEntity.getLineNo(),
                     lineEntity.getOutsourcingOrderLineId(),
-                    order != null ? order.orderNo() : "",
-                    order != null ? order.partnerId() : 0L,
-                    order != null ? order.partnerName() : "",
-                    orderLine != null ? orderLine.itemNo() : "",
-                    orderLine != null ? orderLine.itemName() : "",
+                    order != null ? order.orderNo() : "선출고",
+                    lineEntity.getParentItemId(),
+                    parentItem != null ? parentItem.itemNo() : "",
+                    parentItem != null ? parentItem.itemName() : "",
+                    lineEntity.getBeginProcessCodeId(),
+                    lineEntity.getEndProcessCodeId(),
+                    partnerId,
+                    partnerName,
+                    orderLine != null ? orderLine.itemNo() : (parentItem != null ? parentItem.itemNo() : ""),
+                    orderLine != null ? orderLine.itemName() : (parentItem != null ? parentItem.itemName() : ""),
                     processName,
                     lineEntity.getShipmentQty(),
                     inputLines
@@ -218,11 +250,24 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
                 entity.getId(),
                 entity.getShipmentNo(),
                 entity.getShipmentDate(),
+                entity.getShipmentType(),
+                entity.getPartnerId(),
+                headerPartnerName,
                 entity.getStatus(),
                 entity.getCreatedAt(),
                 entity.getCreatedBy(),
                 cancelable,
                 lines
         );
+    }
+
+    private String resolveCompanyName(Long partnerId) {
+        if (partnerId == null) {
+            return null;
+        }
+        return companyRepository.findById(partnerId)
+                .filter(company -> company.getRecordingState() == ACTIVE)
+                .map(CompanyJpaEntity::getCompanyName)
+                .orElse(null);
     }
 }

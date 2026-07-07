@@ -1,5 +1,6 @@
 import { apiFetch, handleResponse } from './http';
 
+export type OutsourcingShipmentType = 'ORDER' | 'ADVANCE';
 export type OutsourcingShipmentStatus = 'ISSUED' | 'CANCELLED';
 
 export interface OutsourcingShipmentCandidate {
@@ -38,11 +39,18 @@ export interface OutsourcingShipmentInputPreviewLine {
 }
 
 export interface OutsourcingShipmentInputPreview {
-  orderLineId: number;
+  orderLineId?: number | null;
   orderNo: string;
   itemNo: string;
   shipmentQty: number;
   lines: OutsourcingShipmentInputPreviewLine[];
+}
+
+export interface OutsourceAdvanceProcessOption {
+  beginProcessCodeId: number;
+  beginProcessName: string;
+  endProcessCodeId: number;
+  endProcessName: string;
 }
 
 export interface OutsourcingShipmentInputLine {
@@ -59,8 +67,11 @@ export interface OutsourcingShipmentInputLine {
 export interface OutsourcingShipmentLine {
   id: number;
   lineNo: number;
-  orderLineId: number;
+  orderLineId?: number | null;
   orderNo: string;
+  parentItemId?: number | null;
+  parentItemNo?: string | null;
+  parentItemName?: string | null;
   partnerId: number;
   partnerName: string;
   itemNo: string;
@@ -74,6 +85,10 @@ export interface OutsourcingShipment {
   id: number;
   shipmentNo: string;
   shipmentDate: string;
+  shipmentType: OutsourcingShipmentType;
+  shipmentTypeLabel: string;
+  partnerId?: number | null;
+  partnerName?: string | null;
   status: OutsourcingShipmentStatus;
   statusLabel: string;
   createdAt: string;
@@ -133,6 +148,71 @@ export async function createOutsourcingShipment(payload: {
 }): Promise<OutsourcingShipment> {
   return handleResponse(
     await apiFetch('/api/v1/outsource/shipments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export async function fetchOutsourceAdvanceProcessOptions(
+  partnerId: number,
+  parentItemId: number,
+  refDate?: string,
+): Promise<OutsourceAdvanceProcessOption[]> {
+  const search = new URLSearchParams({
+    partnerId: String(partnerId),
+    parentItemId: String(parentItemId),
+  });
+  if (refDate) search.set('refDate', refDate);
+  return handleResponse(
+    await apiFetch(`/api/v1/outsource/shipments/advance-process-options?${search.toString()}`),
+  );
+}
+
+export async function fetchOutsourcingAdvanceInputPreview(
+  partnerId: number,
+  parentItemId: number,
+  beginProcessCodeId: number,
+  endProcessCodeId: number,
+  referenceQty: number,
+  shipmentDate?: string,
+): Promise<OutsourcingShipmentInputPreview> {
+  const search = new URLSearchParams({
+    partnerId: String(partnerId),
+    parentItemId: String(parentItemId),
+    beginProcessCodeId: String(beginProcessCodeId),
+    endProcessCodeId: String(endProcessCodeId),
+    referenceQty: String(referenceQty),
+  });
+  if (shipmentDate) search.set('shipmentDate', shipmentDate);
+  return handleResponse(
+    await apiFetch(`/api/v1/outsource/shipments/advance-input-preview?${search.toString()}`),
+  );
+}
+
+export interface OutsourcingAdvanceInputLine {
+  itemId: number;
+  itemCompositionId?: number | null;
+  issueQty: number;
+  sourceLocationCode: string;
+  sourceProcessId?: number | null;
+  inputProcessId: number;
+}
+
+export async function createOutsourcingAdvanceShipment(payload: {
+  shipmentDate: string;
+  partnerId: number;
+  lines: Array<{
+    parentItemId: number;
+    beginProcessCodeId: number;
+    endProcessCodeId: number;
+    referenceQty: number;
+    inputLines?: OutsourcingAdvanceInputLine[];
+  }>;
+}): Promise<OutsourcingShipment> {
+  return handleResponse(
+    await apiFetch('/api/v1/outsource/shipments/advance', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

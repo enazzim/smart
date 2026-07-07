@@ -5,6 +5,7 @@ import com.shindong.smartmanager.application.bom.ItemCompositionView;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.process.ProcessRepository;
+import com.shindong.smartmanager.application.process.ProcessSequenceNavigator;
 import com.shindong.smartmanager.application.process.ProcessView;
 import com.shindong.smartmanager.domain.item.PropertyClassification;
 import com.shindong.smartmanager.domain.process.ProcessVariant;
@@ -42,10 +43,83 @@ public class BomConsumptionCalculator {
             BigDecimal totalGoodQty,
             Map<Long, BigDecimal> issuedQtyByCompositionId
     ) {
+        return calculateLines(
+                parentItemId,
+                currentProcessSequenceNum,
+                totalGoodQty,
+                issuedQtyByCompositionId,
+                Map.of()
+        );
+    }
+
+    public List<WorkReportConsumptionLineView> calculateLines(
+            long parentItemId,
+            short currentProcessSequenceNum,
+            BigDecimal totalGoodQty,
+            Map<Long, BigDecimal> issuedQtyByCompositionId,
+            Map<Long, BigDecimal> issuedQtyByItemId
+    ) {
         BigDecimal goodQty = totalGoodQty != null && totalGoodQty.compareTo(BigDecimal.ZERO) > 0
                 ? totalGoodQty
                 : BigDecimal.ZERO;
 
+        if (!ProcessSequenceNavigator.isFirstProcess(
+                processRepository, parentItemId, currentProcessSequenceNum)) {
+            return priorProcessConsumptionLines(
+                    parentItemId,
+                    goodQty,
+                    currentProcessSequenceNum,
+                    issuedQtyByItemId
+            );
+        }
+
+        return bomConsumptionLines(parentItemId, currentProcessSequenceNum, goodQty, issuedQtyByCompositionId);
+    }
+
+    private List<WorkReportConsumptionLineView> priorProcessConsumptionLines(
+            long parentItemId,
+            BigDecimal goodQty,
+            short currentProcessSequenceNum,
+            Map<Long, BigDecimal> issuedQtyByItemId
+    ) {
+        ProcessView priorProcess = ProcessSequenceNavigator.findImmediatePriorProcess(
+                processRepository,
+                parentItemId,
+                currentProcessSequenceNum
+        ).orElseThrow(() -> new IllegalArgumentException(
+                "직전 공정을 찾을 수 없습니다. 공정 계획을 확인해 주세요."));
+
+        ItemView parent = itemRepository.findActiveById(parentItemId)
+                .orElseThrow(() -> new IllegalArgumentException("모품목을 찾을 수 없습니다: " + parentItemId));
+
+        BigDecimal requiredQty = scaleQty(goodQty);
+        BigDecimal issuedQty = issuedQtyByItemId.getOrDefault(parentItemId, BigDecimal.ZERO);
+        BigDecimal remainingQty = requiredQty.subtract(issuedQty).max(BigDecimal.ZERO);
+        boolean satisfied = goodQty.compareTo(BigDecimal.ZERO) == 0 || issuedQty.compareTo(requiredQty) >= 0;
+
+        return List.of(new WorkReportConsumptionLineView(
+                null,
+                parent.id(),
+                parent.itemNo(),
+                parent.itemName(),
+                parent.propertyClassification().name(),
+                BigDecimal.ONE.setScale(QTY_SCALE, QTY_ROUNDING),
+                requiredQty,
+                issuedQty,
+                remainingQty,
+                satisfied,
+                priorProcess.id(),
+                priorProcess.processName(),
+                requiredQty
+        ));
+    }
+
+    private List<WorkReportConsumptionLineView> bomConsumptionLines(
+            long parentItemId,
+            short currentProcessSequenceNum,
+            BigDecimal goodQty,
+            Map<Long, BigDecimal> issuedQtyByCompositionId
+    ) {
         List<WorkReportConsumptionLineView> lines = new ArrayList<>();
         for (ItemCompositionView bomLine : itemCompositionRepository.findActiveByParentItemId(parentItemId)) {
             ItemView child = itemRepository.findActiveById(bomLine.childItemId())
@@ -80,7 +154,7 @@ public class BomConsumptionCalculator {
                     satisfied,
                     sourceProcess.processId(),
                     sourceProcess.processName(),
-                    BigDecimal.ZERO.setScale(QTY_SCALE, QTY_ROUNDING)
+                    requiredQty
             ));
         }
         return lines;
@@ -122,6 +196,10 @@ public class BomConsumptionCalculator {
                 .max(Comparator.comparingInt(ProcessView::processSequenceNum));
     }
 
+    private static BigDecimal scaleQty(BigDecimal qty) {
+        return qty.setScale(QTY_SCALE, QTY_ROUNDING);
+    }
+
     private record SourceProcess(Long processId, String processName) {
     }
 
@@ -135,9 +213,13 @@ public class BomConsumptionCalculator {
             return null;
         }
         if (classification == PropertyClassification.공정품) {
-            Optional<ProcessView> priorOnParent = resolvePriorInhouseProcess(parentItemId, currentProcessSequenceNum);
-            if (priorOnParent.isPresent()) {
-                return priorOnParent.get().id();
+            Optional<ProcessView> priorOnRoute = ProcessSequenceNavigator.findImmediatePriorProcess(
+                    processRepository,
+                    parentItemId,
+                    currentProcessSequenceNum
+            );
+            if (priorOnRoute.isPresent()) {
+                return priorOnRoute.get().id();
             }
             return resolveFinalInhouseProcess(childItemId).map(ProcessView::id).orElse(null);
         }

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchCurrentUser, isAuthenticated, logout, type AuthenticatedUser } from './api/auth';
+import type { BoardType } from './api/board';
 import { fetchSystemSettings, SETTING_KEY_INVENTORY_ALLOW_NEGATIVE_STOCK, SETTING_KEY_MATERIAL_ISSUE_ENABLED } from './api/systemSettings';
 import { setSessionExpiredHandler } from './api/http';
 import LoginPage from './pages/LoginPage';
 import AppShell, { type AppSelection } from './layout/AppShell';
+import type { BoardScreen } from './pages/BoardPage';
 import { MaterialIssueSettingProvider } from './context/MaterialIssueSettingContext';
 import {
   defaultChildId,
@@ -17,7 +19,7 @@ import {
 } from './layout/menuConfig';
 import './App.css';
 
-const DEFAULT_SELECTION: AppSelection = { category: 'basis' };
+const DEFAULT_SELECTION: AppSelection = { category: 'home' };
 const NAV_STORAGE_KEY = 'smartmanager.nav';
 
 function readSavedNavigation(): { selection: AppSelection; expandedCategory: MenuCategory | null } | null {
@@ -33,6 +35,9 @@ function readSavedNavigation(): { selection: AppSelection; expandedCategory: Men
 }
 
 function toSelection(category: MenuCategory, childId?: string): AppSelection {
+  if (category === 'home') {
+    return { category: 'home' };
+  }
   if (category === 'basis') {
     return { category: 'basis' };
   }
@@ -65,7 +70,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthenticatedUser | null>(null);
   const [selection, setSelection] = useState<AppSelection>(() => readSavedNavigation()?.selection ?? DEFAULT_SELECTION);
   const [expandedCategory, setExpandedCategory] = useState<MenuCategory | null>(
-    () => readSavedNavigation()?.expandedCategory ?? 'basis',
+    () => readSavedNavigation()?.expandedCategory ?? 'home',
   );
   const [materialIssueEnabled, setMaterialIssueEnabled] = useState(false);
   const [negativeStockAllowed, setNegativeStockAllowed] = useState(true);
@@ -154,6 +159,11 @@ export default function App() {
   }
 
   const onSelectCategory = (category: MenuCategory) => {
+    if (category === 'home') {
+      setSelection({ category: 'home' });
+      setExpandedCategory('home');
+      return;
+    }
     if (category === 'basis') {
       setSelection({ category: 'basis' });
       setExpandedCategory('basis');
@@ -161,6 +171,52 @@ export default function App() {
     }
     setExpandedCategory((prev) => (prev === category ? null : category));
     setSelection(toSelection(category, defaultChildId(category)));
+  };
+
+  const onNavigateHome = () => {
+    setSelection({ category: 'home' });
+    setExpandedCategory('home');
+  };
+
+  const onOpenBoardList = (boardType: BoardType) => {
+    setSelection({ category: 'board', boardType, screen: { mode: 'list' } });
+    setExpandedCategory('home');
+  };
+
+  const onOpenBoardPost = (boardType: BoardType, postId: number) => {
+    setSelection({ category: 'board', boardType, screen: { mode: 'detail', postId } });
+    setExpandedCategory('home');
+  };
+
+  const onBoardNavigateList = () => {
+    setSelection((prev) => {
+      if (prev.category !== 'board') return prev;
+      return { ...prev, screen: { mode: 'list' } };
+    });
+  };
+
+  const onBoardNavigateDetail = (postId: number) => {
+    setSelection((prev) => {
+      if (prev.category !== 'board') return prev;
+      return { ...prev, screen: { mode: 'detail', postId } };
+    });
+  };
+
+  const onBoardNavigateCompose = (compose: {
+    composeMode: 'create' | 'edit' | 'reply';
+    postId?: number;
+    parentPostId?: number;
+  }) => {
+    setSelection((prev) => {
+      if (prev.category !== 'board') return prev;
+      const screen: BoardScreen =
+        compose.composeMode === 'create'
+          ? { mode: 'compose', composeMode: 'create' }
+          : compose.composeMode === 'edit'
+            ? { mode: 'compose', composeMode: 'edit', postId: compose.postId }
+            : { mode: 'compose', composeMode: 'reply', parentPostId: compose.parentPostId };
+      return { ...prev, screen };
+    });
   };
 
   const onSelectChild = (category: MenuCategory, childId: string) => {
@@ -189,6 +245,12 @@ export default function App() {
         onSelectCategory={onSelectCategory}
         onSelectChild={onSelectChild}
         onLogout={onLogout}
+        onNavigateHome={onNavigateHome}
+        onOpenBoardList={onOpenBoardList}
+        onOpenBoardPost={onOpenBoardPost}
+        onBoardNavigateList={onBoardNavigateList}
+        onBoardNavigateDetail={onBoardNavigateDetail}
+        onBoardNavigateCompose={onBoardNavigateCompose}
       />
     </MaterialIssueSettingProvider>
   );

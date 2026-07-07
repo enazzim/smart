@@ -91,6 +91,7 @@ public class MaterialIssueController {
                         request.lines().stream()
                                 .map(line -> new MaterialIssueLineCommand(
                                         line.itemCompositionId(),
+                                        line.itemId(),
                                         line.issueQty()
                                 ))
                                 .toList()
@@ -115,7 +116,8 @@ public class MaterialIssueController {
     }
 
     public record MaterialIssueLineRequest(
-            @NotNull Long itemCompositionId,
+            Long itemCompositionId,
+            @NotNull Long itemId,
             @NotNull @PositiveOrZero BigDecimal issueQty
     ) {
     }

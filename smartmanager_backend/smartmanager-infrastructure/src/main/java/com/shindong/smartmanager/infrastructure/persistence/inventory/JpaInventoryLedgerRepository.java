@@ -35,12 +35,17 @@ public class JpaInventoryLedgerRepository implements InventoryLedgerRepository {
         StringBuilder sql = new StringBuilder("""
                 SELECT sm.id, sm.item_id, i.item_no, i.item_name,
                        il.location_code, il.location_name,
+                       ps.process_sequence, pc.small_name,
                        sm.movement_type, sm.qty, sm.amount,
                        sm.reference_type, sm.reference_id,
                        sm.movement_date, sm.fiscal_year, sm.fiscal_month
                 FROM stock_movement sm
                 JOIN item i ON i.id = sm.item_id
                 JOIN inventory_location il ON il.id = sm.location_id
+                JOIN inventory_balance ib ON ib.id = sm.inventory_balance_id
+                LEFT JOIN process_sequence ps ON ps.id = COALESCE(sm.output_process_id, ib.output_process_id)
+                        AND ps.recording_state = 1
+                LEFT JOIN public_code pc ON pc.id = ps.public_code_id
                 WHERE sm.recording_state = 1
                 """);
         Map<String, Object> params = new HashMap<>();
@@ -82,14 +87,16 @@ public class JpaInventoryLedgerRepository implements InventoryLedgerRepository {
                     row[3].toString(),
                     row[4].toString(),
                     row[5].toString(),
-                    StockMovementType.valueOf(row[6].toString()),
-                    toBigDecimal(row[7]),
-                    toBigDecimal(row[8]),
-                    row[9].toString(),
-                    ((Number) row[10]).longValue(),
-                    toLocalDate(row[11]),
-                    ((Number) row[12]).intValue(),
-                    ((Number) row[13]).intValue()
+                    toInteger(row[6]),
+                    row[7] != null ? row[7].toString() : null,
+                    StockMovementType.valueOf(row[8].toString()),
+                    toBigDecimal(row[9]),
+                    toBigDecimal(row[10]),
+                    row[11].toString(),
+                    ((Number) row[12]).longValue(),
+                    toLocalDate(row[13]),
+                    ((Number) row[14]).intValue(),
+                    ((Number) row[15]).intValue()
             ));
         }
         return result;
@@ -101,10 +108,13 @@ public class JpaInventoryLedgerRepository implements InventoryLedgerRepository {
         StringBuilder sql = new StringBuilder("""
                 SELECT ib.id, ib.item_id, i.item_no, i.item_name,
                        il.location_code, il.location_name,
+                       ps.process_sequence, pc.small_name,
                        ib.fiscal_year, ib.stock_qty, ib.stock_amount
                 FROM inventory_balance ib
                 JOIN item i ON i.id = ib.item_id
                 JOIN inventory_location il ON il.id = ib.location_id
+                LEFT JOIN process_sequence ps ON ps.id = ib.output_process_id AND ps.recording_state = 1
+                LEFT JOIN public_code pc ON pc.id = ps.public_code_id
                 WHERE ib.recording_state = 1
                 """);
         Map<String, Object> params = new HashMap<>();
@@ -125,7 +135,7 @@ public class JpaInventoryLedgerRepository implements InventoryLedgerRepository {
         sql.append(" AND (ib.stock_qty <> 0 OR EXISTS (SELECT 1 FROM inventory_balance_monthly m")
                 .append(" WHERE m.inventory_balance_id = ib.id AND m.recording_state = 1")
                 .append(" AND (m.in_qty <> 0 OR m.out_qty <> 0)))");
-        sql.append(" ORDER BY i.item_no, il.location_code, ib.id");
+        sql.append(" ORDER BY i.item_no, il.location_code, ps.process_sequence, ib.id");
 
         Query query = entityManager.createNativeQuery(sql.toString());
         params.forEach(query::setParameter);
@@ -142,9 +152,11 @@ public class JpaInventoryLedgerRepository implements InventoryLedgerRepository {
                     row[3].toString(),
                     row[4].toString(),
                     row[5].toString(),
-                    ((Number) row[6]).intValue(),
-                    toBigDecimal(row[7]),
-                    toBigDecimal(row[8]),
+                    toInteger(row[6]),
+                    row[7] != null ? row[7].toString() : null,
+                    ((Number) row[8]).intValue(),
+                    toBigDecimal(row[9]),
+                    toBigDecimal(row[10]),
                     loadMonthly(balanceId)
             ));
         }
@@ -172,6 +184,13 @@ public class JpaInventoryLedgerRepository implements InventoryLedgerRepository {
             ));
         }
         return months;
+    }
+
+    private static Integer toInteger(Object value) {
+        if (value == null) {
+            return null;
+        }
+        return ((Number) value).intValue();
     }
 
     private static BigDecimal toBigDecimal(Object value) {

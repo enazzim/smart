@@ -40,9 +40,10 @@ public class ProductionApplicationConfig {
     @Bean
     public ProductionPlanService productionPlanService(
             ProductionPlanRepository productionPlanRepository,
-            SalesOrderRepository salesOrderRepository
+            SalesOrderRepository salesOrderRepository,
+            ItemRepository itemRepository
     ) {
-        return new ProductionPlanService(productionPlanRepository, salesOrderRepository);
+        return new ProductionPlanService(productionPlanRepository, salesOrderRepository, itemRepository);
     }
 
     @Bean
@@ -108,11 +109,13 @@ public class ProductionApplicationConfig {
     public WorkReportInventoryService workReportInventoryService(
             InventoryBalanceService inventoryBalanceService,
             ProcessRepository processRepository,
+            ItemRepository itemRepository,
             WipBalanceProjector wipBalanceProjector
     ) {
         return new WorkReportInventoryService(
                 inventoryBalanceService,
                 processRepository,
+                itemRepository,
                 wipBalanceProjector
         );
     }

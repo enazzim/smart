@@ -33,10 +33,17 @@ public class ItemCompositionController {
 
     @GetMapping
     public List<ItemCompositionResponse> list(
+            @RequestParam(required = false) Long parentItemId,
+            @RequestParam(required = false) Long childItemId,
             @RequestParam(required = false) String parentItemNum,
             @RequestParam(required = false) String childItemNum
     ) {
-        return itemCompositionApplicationService.listActive(parentItemNum, childItemNum).stream()
+        return itemCompositionApplicationService.listActive(
+                parentItemId,
+                childItemId,
+                parentItemNum,
+                childItemNum
+        ).stream()
                 .map(ItemCompositionResponse::from)
                 .toList();
     }

@@ -2,6 +2,7 @@ package com.shindong.smartmanager.api.web.production;
 
 import com.shindong.smartmanager.application.production.ProductionPlanView;
 import com.shindong.smartmanager.domain.production.ProductionPlanMrpStatus;
+import com.shindong.smartmanager.domain.production.ProductionPlanSourceType;
 import com.shindong.smartmanager.domain.production.ProductionPlanStatus;
 import com.shindong.smartmanager.domain.production.ProductionPlanWorkPlanStatus;
 import java.math.BigDecimal;
@@ -10,10 +11,12 @@ import java.time.LocalDate;
 public record ProductionPlanResponse(
         long id,
         String planNo,
-        long salesOrderId,
-        long salesOrderLineId,
+        ProductionPlanSourceType sourceType,
+        String sourceTypeLabel,
+        Long salesOrderId,
+        Long salesOrderLineId,
         String orderNo,
-        long partnerId,
+        Long partnerId,
         String partnerName,
         LocalDate orderDate,
         long itemId,
@@ -34,6 +37,8 @@ public record ProductionPlanResponse(
         return new ProductionPlanResponse(
                 view.id(),
                 view.planNo(),
+                view.sourceType(),
+                sourceTypeLabel(view.sourceType()),
                 view.salesOrderId(),
                 view.salesOrderLineId(),
                 view.orderNo(),
@@ -67,6 +72,13 @@ public record ProductionPlanResponse(
             return false;
         }
         return view.workPlanStatus() == ProductionPlanWorkPlanStatus.NOT_PLANNED;
+    }
+
+    private static String sourceTypeLabel(ProductionPlanSourceType sourceType) {
+        return switch (sourceType) {
+            case SALES_ORDER -> "수주";
+            case MANUAL -> "직접추가";
+        };
     }
 
     private static String planStatusLabel(ProductionPlanStatus status) {

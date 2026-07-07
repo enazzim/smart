@@ -3,6 +3,7 @@ package com.shindong.smartmanager.infrastructure.application;
 import com.shindong.smartmanager.application.production.ProductionPlanCreateLineCommand;
 import com.shindong.smartmanager.application.production.ProductionPlanListCriteria;
 import com.shindong.smartmanager.application.production.ProductionPlanService;
+import com.shindong.smartmanager.application.production.ProductionPlanStandaloneCommand;
 import com.shindong.smartmanager.application.production.ProductionPlanView;
 import com.shindong.smartmanager.application.sales.SalesOrderLineListView;
 import java.util.List;
@@ -36,6 +37,14 @@ public class ProductionPlanApplicationService {
     @Transactional
     public List<ProductionPlanView> createPlans(List<ProductionPlanCreateLineCommand> lines, String actorUserId) {
         return productionPlanService.createPlans(lines, actorUserId);
+    }
+
+    @Transactional
+    public List<ProductionPlanView> createStandalonePlans(
+            List<ProductionPlanStandaloneCommand> commands,
+            String actorUserId
+    ) {
+        return productionPlanService.createStandalonePlans(commands, actorUserId);
     }
 
     @Transactional

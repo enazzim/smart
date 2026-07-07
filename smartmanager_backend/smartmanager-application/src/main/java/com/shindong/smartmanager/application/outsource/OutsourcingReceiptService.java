@@ -160,6 +160,7 @@ public class OutsourcingReceiptService {
                             orderLine,
                             receipt.partnerId(),
                             receipt.receiptDate(),
+                            inspection.requestQty(),
                             inspection.passedQty(),
                             OutsourceHistorySourceType.QUALITY_INSPECTION,
                             inspection.id(),
@@ -190,7 +191,35 @@ public class OutsourcingReceiptService {
             long historySourceId,
             String actorUserId
     ) {
-        BigDecimal amount = lineAmount(qty, ctx.unitPrice());
+        applyStockAndLedger(
+                receiptLine,
+                ctx,
+                order,
+                orderLine,
+                partnerId,
+                movementDate,
+                qty,
+                qty,
+                historySourceType,
+                historySourceId,
+                actorUserId
+        );
+    }
+
+    public void applyStockAndLedger(
+            OutsourcingReceiptLineView receiptLine,
+            OutsourcingOrderLineReceiptContext ctx,
+            OutsourcingOrderView order,
+            OutsourcingOrderLineView orderLine,
+            long partnerId,
+            LocalDate movementDate,
+            BigDecimal outsourceDecreaseQty,
+            BigDecimal inboundQty,
+            OutsourceHistorySourceType historySourceType,
+            long historySourceId,
+            String actorUserId
+    ) {
+        BigDecimal amount = lineAmount(inboundQty, ctx.unitPrice());
 
         inventoryService.applyRegistration(
                 movementDate,
@@ -198,7 +227,8 @@ public class OutsourcingReceiptService {
                 partnerId,
                 order,
                 orderLine,
-                qty,
+                outsourceDecreaseQty,
+                inboundQty,
                 amount,
                 actorUserId
         );
@@ -207,7 +237,7 @@ public class OutsourcingReceiptService {
         outsourceHistoryRepository.save(new OutsourceHistoryCommand(
                 partnerId,
                 ctx.itemId(),
-                qty,
+                inboundQty,
                 ctx.unitPrice(),
                 amount,
                 movementDate,
@@ -221,6 +251,64 @@ public class OutsourcingReceiptService {
         ));
 
         partnerLedgerService.addPurchaseAmount(partnerId, movementDate, amount, actorUserId);
+    }
+
+    public void reverseStockAndLedger(
+            OutsourcingReceiptLineView receiptLine,
+            OutsourcingOrderLineReceiptContext ctx,
+            OutsourcingOrderView order,
+            OutsourcingOrderLineView orderLine,
+            long partnerId,
+            LocalDate movementDate,
+            BigDecimal qty,
+            OutsourceHistorySourceType historySourceType,
+            long historySourceId,
+            String actorUserId
+    ) {
+        reverseStockAndLedger(
+                receiptLine,
+                ctx,
+                order,
+                orderLine,
+                partnerId,
+                movementDate,
+                qty,
+                qty,
+                historySourceType,
+                historySourceId,
+                actorUserId
+        );
+    }
+
+    public void reverseStockAndLedger(
+            OutsourcingReceiptLineView receiptLine,
+            OutsourcingOrderLineReceiptContext ctx,
+            OutsourcingOrderView order,
+            OutsourcingOrderLineView orderLine,
+            long partnerId,
+            LocalDate movementDate,
+            BigDecimal outsourceDecreaseQty,
+            BigDecimal inboundQty,
+            OutsourceHistorySourceType historySourceType,
+            long historySourceId,
+            String actorUserId
+    ) {
+        BigDecimal amount = lineAmount(inboundQty, ctx.unitPrice());
+
+        inventoryService.applyCancellation(
+                movementDate,
+                receiptLine.id(),
+                partnerId,
+                order,
+                orderLine,
+                outsourceDecreaseQty,
+                inboundQty,
+                amount,
+                actorUserId
+        );
+
+        outsourceHistoryRepository.deactivateBySource(historySourceType, historySourceId, actorUserId);
+        partnerLedgerService.subtractPurchaseAmount(partnerId, movementDate, amount, actorUserId);
     }
 
     private OutsourcingReceiptView registerForPartner(
@@ -370,35 +458,6 @@ public class OutsourcingReceiptService {
                             + ", 잔량=" + ctx.remainQty().stripTrailingZeros().toPlainString()
             );
         }
-    }
-
-    public void reverseStockAndLedger(
-            OutsourcingReceiptLineView receiptLine,
-            OutsourcingOrderLineReceiptContext ctx,
-            OutsourcingOrderView order,
-            OutsourcingOrderLineView orderLine,
-            long partnerId,
-            LocalDate movementDate,
-            BigDecimal qty,
-            OutsourceHistorySourceType historySourceType,
-            long historySourceId,
-            String actorUserId
-    ) {
-        BigDecimal amount = lineAmount(qty, ctx.unitPrice());
-
-        inventoryService.applyCancellation(
-                movementDate,
-                receiptLine.id(),
-                partnerId,
-                order,
-                orderLine,
-                qty,
-                amount,
-                actorUserId
-        );
-
-        outsourceHistoryRepository.deactivateBySource(historySourceType, historySourceId, actorUserId);
-        partnerLedgerService.subtractPurchaseAmount(partnerId, movementDate, amount, actorUserId);
     }
 
     static CheckDistinction resolveCheckDistinction(String value) {

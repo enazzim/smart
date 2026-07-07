@@ -2,10 +2,14 @@ package com.shindong.smartmanager.application.production;
 
 import com.shindong.smartmanager.application.inventory.InventoryBalanceService;
 import com.shindong.smartmanager.application.inventory.RecordStockMovementCommand;
+import com.shindong.smartmanager.application.item.ItemRepository;
+import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.process.ProcessRepository;
+import com.shindong.smartmanager.application.process.ProcessSequenceNavigator;
 import com.shindong.smartmanager.application.process.ProcessView;
 import com.shindong.smartmanager.application.process.WipBalanceProjector;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
+import com.shindong.smartmanager.domain.item.PropertyClassification;
 import com.shindong.smartmanager.domain.process.ProcessVariant;
 import com.shindong.smartmanager.domain.process.WorkDistinction;
 import java.math.BigDecimal;
@@ -23,15 +27,18 @@ public class WorkReportInventoryService {
 
     private final InventoryBalanceService inventoryBalanceService;
     private final ProcessRepository processRepository;
+    private final ItemRepository itemRepository;
     private final WipBalanceProjector wipBalanceProjector;
 
     public WorkReportInventoryService(
             InventoryBalanceService inventoryBalanceService,
             ProcessRepository processRepository,
+            ItemRepository itemRepository,
             WipBalanceProjector wipBalanceProjector
     ) {
         this.inventoryBalanceService = inventoryBalanceService;
         this.processRepository = processRepository;
+        this.itemRepository = itemRepository;
         this.wipBalanceProjector = wipBalanceProjector;
     }
 
@@ -63,6 +70,9 @@ public class WorkReportInventoryService {
             String actorUserId,
             boolean reverse
     ) {
+        ItemView item = itemRepository.findActiveById(context.itemId())
+                .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + context.itemId()));
+
         wipBalanceProjector.ensure(context.itemId(), context.processSequenceId(), actorUserId);
 
         boolean firstInhouseProcess = isFirstInhouseProcess(context.itemId(), context.processSequenceNum());
@@ -75,18 +85,27 @@ public class WorkReportInventoryService {
         }
 
         if (goodQty.compareTo(BigDecimal.ZERO) > 0) {
-            Optional<Long> nextProcessId = findNextInhouseProcessId(context.itemId(), context.processSequenceNum());
-            if (nextProcessId.isPresent()) {
-                long nextId = nextProcessId.get();
+            Optional<ProcessView> nextProcess = ProcessSequenceNavigator.findNextProcess(
+                    processRepository,
+                    context.itemId(),
+                    context.processSequenceNum()
+            );
+            if (nextProcess.isPresent()) {
+                long nextId = nextProcess.get().id();
                 wipBalanceProjector.ensure(context.itemId(), nextId, actorUserId);
                 record(reverse, context.itemId(), LOCATION_WIP, context.reportDate(),
                         StockMovementType.IN,
                         goodQty, nextId, null,
                         reverse ? REFERENCE_TYPE_CANCEL : REFERENCE_TYPE, reportId, actorUserId);
-            } else {
+            } else if (item.propertyClassification() == PropertyClassification.제품) {
                 record(reverse, context.itemId(), LOCATION_SALES, context.reportDate(),
                         StockMovementType.IN,
                         goodQty, null, null,
+                        reverse ? REFERENCE_TYPE_CANCEL : REFERENCE_TYPE, reportId, actorUserId);
+            } else {
+                record(reverse, context.itemId(), LOCATION_WIP, context.reportDate(),
+                        StockMovementType.IN,
+                        goodQty, context.processSequenceId(), null,
                         reverse ? REFERENCE_TYPE_CANCEL : REFERENCE_TYPE, reportId, actorUserId);
             }
         }
@@ -130,18 +149,6 @@ public class WorkReportInventoryService {
         };
     }
 
-    private Optional<Long> findNextInhouseProcessId(long itemId, short currentSequenceNum) {
-        List<ProcessView> processes = processRepository.findAllActiveByItemId(itemId, ProcessVariant.plan).stream()
-                .filter(process -> process.workDistinction() == WorkDistinction.INHOUSE
-                        || process.workDistinction() == WorkDistinction.SPLIT)
-                .sorted(Comparator.comparing(ProcessView::processSequenceNum))
-                .toList();
-        return processes.stream()
-                .filter(process -> process.processSequenceNum() > currentSequenceNum)
-                .map(ProcessView::id)
-                .findFirst();
-    }
-
     /**
      * 첫 사내공정은 모품목 WIP 잔고가 없음 — 자재투입이 하위품만 출고하므로 WIP OUT 생략.
      */
@@ -153,5 +160,4 @@ public class WorkReportInventoryService {
                 .min(Short::compare);
         return minSequence.map(min -> min.equals(currentSequenceNum)).orElse(true);
     }
-
 }

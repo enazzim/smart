@@ -5,6 +5,7 @@ import com.shindong.smartmanager.application.production.ProductionPlanRepository
 import com.shindong.smartmanager.application.production.ProductionPlanSaveCommand;
 import com.shindong.smartmanager.application.production.ProductionPlanView;
 import com.shindong.smartmanager.domain.production.ProductionPlanMrpStatus;
+import com.shindong.smartmanager.domain.production.ProductionPlanSourceType;
 import com.shindong.smartmanager.domain.production.ProductionPlanStatus;
 import com.shindong.smartmanager.domain.production.ProductionPlanWorkPlanStatus;
 import com.shindong.smartmanager.infrastructure.persistence.company.CompanyJpaEntity;
@@ -16,6 +17,7 @@ import com.shindong.smartmanager.infrastructure.persistence.sales.SpringDataSale
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -70,11 +72,17 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
     }
 
     @Override
+    public boolean existsActiveBySalesOrderId(long salesOrderId) {
+        return planRepository.existsBySalesOrderIdAndRecordingState(salesOrderId, ACTIVE);
+    }
+
+    @Override
     @Transactional
     public long save(ProductionPlanSaveCommand command, String planNo, String actorUserId) {
         Instant now = Instant.now();
         ProductionPlanJpaEntity entity = new ProductionPlanJpaEntity();
         entity.setPlanNo(planNo);
+        entity.setSourceType(command.sourceType());
         entity.setSalesOrderId(command.salesOrderId());
         entity.setSalesOrderLineId(command.salesOrderLineId());
         entity.setItemId(command.itemId());
@@ -108,8 +116,7 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
 
         return planRepository.findByRecordingStateOrderByIdDesc(ACTIVE).stream()
                 .map(plan -> toView(plan, orders, companies, items))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .flatMap(Optional::stream)
                 .filter(view -> matchesCriteria(view, criteria))
                 .toList();
     }
@@ -118,14 +125,17 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
     public Optional<ProductionPlanView> findActiveById(long id) {
         return planRepository.findByIdAndRecordingState(id, ACTIVE)
                 .flatMap(plan -> {
-                    Optional<SalesOrderJpaEntity> orderOpt = orderRepository.findByIdAndRecordingState(
-                            plan.getSalesOrderId(),
-                            ACTIVE
-                    );
-                    if (orderOpt.isEmpty()) {
-                        return Optional.empty();
+                    Map<Long, SalesOrderJpaEntity> orders = Map.of();
+                    if (plan.getSalesOrderId() != null) {
+                        Optional<SalesOrderJpaEntity> orderOpt = orderRepository.findByIdAndRecordingState(
+                                plan.getSalesOrderId(),
+                                ACTIVE
+                        );
+                        if (orderOpt.isEmpty()) {
+                            return Optional.empty();
+                        }
+                        orders = Map.of(orderOpt.get().getId(), orderOpt.get());
                     }
-                    Map<Long, SalesOrderJpaEntity> orders = Map.of(orderOpt.get().getId(), orderOpt.get());
                     Map<Long, CompanyJpaEntity> companies = companyRepository.findAll().stream()
                             .filter(company -> company.getRecordingState() == ACTIVE)
                             .collect(Collectors.toMap(CompanyJpaEntity::getId, Function.identity()));
@@ -140,6 +150,7 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
     public Set<Long> findActiveSalesOrderLineIds() {
         return planRepository.findByRecordingStateOrderByIdDesc(ACTIVE).stream()
                 .map(ProductionPlanJpaEntity::getSalesOrderLineId)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
     }
 
@@ -157,24 +168,42 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
             Map<Long, CompanyJpaEntity> companies,
             Map<Long, ItemJpaEntity> items
     ) {
-        SalesOrderJpaEntity order = orders.get(plan.getSalesOrderId());
-        if (order == null) {
-            return Optional.empty();
-        }
-        CompanyJpaEntity company = companies.get(order.getPartnerId());
         ItemJpaEntity item = items.get(plan.getItemId());
-        if (company == null || item == null) {
+        if (item == null) {
             return Optional.empty();
         }
+
+        ProductionPlanSourceType sourceType = plan.getSourceType();
+        String orderNo = null;
+        Long partnerId = null;
+        String partnerName = null;
+        java.time.LocalDate orderDate = null;
+
+        if (sourceType == ProductionPlanSourceType.SALES_ORDER) {
+            SalesOrderJpaEntity order = orders.get(plan.getSalesOrderId());
+            if (order == null) {
+                return Optional.empty();
+            }
+            CompanyJpaEntity company = companies.get(order.getPartnerId());
+            if (company == null) {
+                return Optional.empty();
+            }
+            orderNo = order.getOrderNo();
+            partnerId = order.getPartnerId();
+            partnerName = company.getCompanyName();
+            orderDate = order.getOrderDate();
+        }
+
         return Optional.of(new ProductionPlanView(
                 plan.getId(),
                 plan.getPlanNo(),
+                sourceType,
                 plan.getSalesOrderId(),
                 plan.getSalesOrderLineId(),
-                order.getOrderNo(),
-                order.getPartnerId(),
-                company.getCompanyName(),
-                order.getOrderDate(),
+                orderNo,
+                partnerId,
+                partnerName,
+                orderDate,
                 plan.getItemId(),
                 item.getItemNo(),
                 item.getItemName(),
@@ -191,8 +220,10 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
         if (criteria == null) {
             return true;
         }
-        if (criteria.partnerId() != null && view.partnerId() != criteria.partnerId()) {
-            return false;
+        if (criteria.partnerId() != null) {
+            if (view.partnerId() == null || view.partnerId() != criteria.partnerId()) {
+                return false;
+            }
         }
         if (criteria.itemId() != null && view.itemId() != criteria.itemId()) {
             return false;

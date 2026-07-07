@@ -5,12 +5,14 @@ import {
   type InventoryBalance,
   type StockMovement,
 } from '../api/inventoryLedger';
+import {
+  formatInventoryLocation,
+  INVENTORY_LOCATION_FILTER_OPTIONS,
+} from '../utils/inventoryLocation';
 
 function formatQty(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
-
-const LOCATION_OPTIONS = ['', 'RAW', 'SALES', 'WIP', 'DELIVERY', 'OUTSOURCE'];
 
 export default function InventoryLedgerPage() {
   const [tab, setTab] = useState<'movements' | 'balances'>('movements');
@@ -105,9 +107,9 @@ export default function InventoryLedgerPage() {
         <label>
           창고
           <select value={locationCode} onChange={(e) => setLocationCode(e.target.value)}>
-            {LOCATION_OPTIONS.map((code) => (
-              <option key={code || 'all'} value={code}>
-                {code || '전체'}
+            {INVENTORY_LOCATION_FILTER_OPTIONS.map((option) => (
+              <option key={option.value || 'all'} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
@@ -152,7 +154,12 @@ export default function InventoryLedgerPage() {
                     <td>
                       {row.itemNo} {row.itemName}
                     </td>
-                    <td>{row.locationCode}</td>
+                    <td>
+                      {formatInventoryLocation(row.locationCode, {
+                        outputProcessSequence: row.outputProcessSequence,
+                        outputProcessName: row.outputProcessName,
+                      })}
+                    </td>
                     <td>{movementTypeLabel(row.movementType)}</td>
                     <td>{formatQty(row.qty)}</td>
                     <td>{row.referenceType}</td>
@@ -191,7 +198,12 @@ export default function InventoryLedgerPage() {
                       <td>
                         {row.itemNo} {row.itemName}
                       </td>
-                      <td>{row.locationCode}</td>
+                      <td>
+                        {formatInventoryLocation(row.locationCode, {
+                          outputProcessSequence: row.outputProcessSequence,
+                          outputProcessName: row.outputProcessName,
+                        })}
+                      </td>
                       <td>{row.fiscalYear}</td>
                       <td>{formatQty(row.stockQty)}</td>
                       <td>

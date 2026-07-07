@@ -116,7 +116,7 @@ public class WorkReportController {
     }
 
     public record WorkReportIssueLineRequest(
-            @NotNull Long itemCompositionId,
+            Long itemCompositionId,
             @NotNull Long itemId,
             @NotNull @PositiveOrZero BigDecimal issueQty
     ) {

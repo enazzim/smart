@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record MaterialIssuePreviewLineView(
-        long itemCompositionId,
+        Long itemCompositionId,
         long itemId,
         String itemNo,
         String itemName,
