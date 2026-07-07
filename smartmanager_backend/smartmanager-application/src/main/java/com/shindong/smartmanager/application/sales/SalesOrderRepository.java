@@ -21,6 +21,8 @@ public interface SalesOrderRepository {
 
     void markConfirmed(long salesOrderId, String actorUserId);
 
+    void revertToDraft(long salesOrderId, String actorUserId);
+
     List<SalesOrderView> findAllActive();
 
     Optional<SalesOrderView> findActiveById(long id);

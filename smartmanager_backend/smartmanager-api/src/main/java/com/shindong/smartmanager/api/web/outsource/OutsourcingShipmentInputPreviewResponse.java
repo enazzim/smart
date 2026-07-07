@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record OutsourcingShipmentInputPreviewResponse(
-        long orderLineId,
+        Long orderLineId,
         String orderNo,
         String itemNo,
         BigDecimal shipmentQty,

@@ -1,3 +1,5 @@
+import { translateInventoryLocationInText } from '../utils/inventoryLocation';
+
 const TOKEN_KEY = 'smartmanager.accessToken';
 
 let sessionExpiredNotified = false;
@@ -46,6 +48,11 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {})
   return fetch(input, { ...init, headers });
 }
 
+function apiErrorMessage(message: string | undefined, fallback: string): string {
+  const raw = message?.trim() || fallback;
+  return translateInventoryLocationInText(raw) || fallback;
+}
+
 export async function handleResponse<T>(response: Response): Promise<T> {
   if (response.status === 401) {
     const body = await response.clone().json().catch(() => ({ message: '' }));
@@ -57,17 +64,17 @@ export async function handleResponse<T>(response: Response): Promise<T> {
       message.includes('expired');
     if (hadToken && isSessionExpired) {
       notifySessionExpired();
-      throw new Error(message || '인증이 만료되었습니다. 다시 로그인해 주세요.');
+      throw new Error(apiErrorMessage(message, '인증이 만료되었습니다. 다시 로그인해 주세요.'));
     }
-    throw new Error(message || '인증이 필요합니다. 다시 로그인해 주세요.');
+    throw new Error(apiErrorMessage(message, '인증이 필요합니다. 다시 로그인해 주세요.'));
   }
   if (response.status === 403) {
     const body = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(body.message ?? '접근 권한이 없습니다.');
+    throw new Error(apiErrorMessage(body.message, '접근 권한이 없습니다.'));
   }
   if (!response.ok) {
     const body = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(body.message ?? '요청에 실패했습니다.');
+    throw new Error(apiErrorMessage(body.message, '요청에 실패했습니다.'));
   }
   if (response.status === 204) {
     return undefined as T;

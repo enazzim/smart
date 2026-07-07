@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.production;
 
 import com.shindong.smartmanager.domain.production.ProductionPlanMrpStatus;
+import com.shindong.smartmanager.domain.production.ProductionPlanSourceType;
 import com.shindong.smartmanager.domain.production.ProductionPlanStatus;
 import com.shindong.smartmanager.domain.production.ProductionPlanWorkPlanStatus;
 import jakarta.persistence.Column;
@@ -26,10 +27,14 @@ public class ProductionPlanJpaEntity {
     @Column(name = "plan_no", nullable = false, length = 30)
     private String planNo;
 
-    @Column(name = "sales_order_id", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source_type", nullable = false, columnDefinition = "ENUM('SALES_ORDER','MANUAL')")
+    private ProductionPlanSourceType sourceType = ProductionPlanSourceType.SALES_ORDER;
+
+    @Column(name = "sales_order_id")
     private Long salesOrderId;
 
-    @Column(name = "sales_order_line_id", nullable = false)
+    @Column(name = "sales_order_line_id")
     private Long salesOrderLineId;
 
     @Column(name = "item_id", nullable = false)
@@ -87,6 +92,14 @@ public class ProductionPlanJpaEntity {
 
     public void setPlanNo(String planNo) {
         this.planNo = planNo;
+    }
+
+    public ProductionPlanSourceType getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(ProductionPlanSourceType sourceType) {
+        this.sourceType = sourceType;
     }
 
     public Long getSalesOrderId() {

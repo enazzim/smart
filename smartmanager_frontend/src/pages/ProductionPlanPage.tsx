@@ -6,6 +6,7 @@ import type { PropertyClassification } from '../api/item';
 import {
   cancelProductionPlan,
   createProductionPlans,
+  createStandaloneProductionPlans,
   fetchProductionPlanCandidates,
   fetchProductionPlans,
   type ProductionPlan,
@@ -43,6 +44,10 @@ export default function ProductionPlanPage() {
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [standaloneItem, setStandaloneItem] = useState<ItemSearchSelection | null>(null);
+  const [standaloneQty, setStandaloneQty] = useState('1');
+  const [standaloneDeliveryDate, setStandaloneDeliveryDate] = useState('');
+  const [standaloneError, setStandaloneError] = useState<string | null>(null);
 
   const [searchPartner, setSearchPartner] = useState<CompanySearchSelection | null>(null);
   const [searchItem, setSearchItem] = useState<ItemSearchSelection | null>(null);
@@ -160,6 +165,40 @@ export default function ProductionPlanPage() {
     }
   };
 
+  const onCreateStandalone = async () => {
+    if (!standaloneItem) {
+      setStandaloneError('품목을 선택하세요.');
+      return;
+    }
+    const plannedQty = Number(standaloneQty);
+    if (!Number.isFinite(plannedQty) || plannedQty <= 0) {
+      setStandaloneError('계획수량은 0보다 커야 합니다.');
+      return;
+    }
+    setSubmitting(true);
+    setStandaloneError(null);
+    setPlanError(null);
+    setMessage(null);
+    try {
+      const created = await createStandaloneProductionPlans([
+        {
+          itemId: standaloneItem.id,
+          plannedQty,
+          requestedDeliveryDate: standaloneDeliveryDate || undefined,
+        },
+      ]);
+      setMessage(`수주 없이 생산계획 ${created[0]?.planNo ?? ''}을(를) 등록했습니다.`);
+      setStandaloneItem(null);
+      setStandaloneQty('1');
+      setStandaloneDeliveryDate('');
+      await loadPlans(buildPlanSearchParams());
+    } catch (e) {
+      setStandaloneError(e instanceof Error ? e.message : '생산계획 직접 등록 실패');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const buildPlanSearchParams = (): ProductionPlanSearchParams => ({
     partnerId: searchPartner?.id,
     itemId: searchItem?.id,
@@ -193,15 +232,19 @@ export default function ProductionPlanPage() {
 
   const canCancelPlan = (plan: ProductionPlan) => plan.cancellable;
 
-  const onCancelPlan = async (planId: number) => {
-    if (!window.confirm('생산계획을 취소하시겠습니까? 수주 라인 이행상태가 대기로 되돌아갑니다.')) {
+  const onCancelPlan = async (plan: ProductionPlan) => {
+    const confirmMessage =
+      plan.sourceType === 'MANUAL'
+        ? '생산계획을 취소하시겠습니까? (수주와 연결되지 않은 계획입니다.)'
+        : '생산계획을 취소하시겠습니까? 수주 라인 이행상태가 대기로 되돌아가며, 해당 수주에 남은 생산계획이 없으면 수주는 작성중으로 복원됩니다.';
+    if (!window.confirm(confirmMessage)) {
       return;
     }
     setSubmitting(true);
     setPlanError(null);
     setCandidateError(null);
     try {
-      await cancelProductionPlan(planId);
+      await cancelProductionPlan(plan.id);
       setMessage('생산계획을 취소했습니다.');
       await loadCandidates();
       await loadPlans(buildPlanSearchParams());
@@ -219,9 +262,49 @@ export default function ProductionPlanPage() {
       <h1>생산계획</h1>
 
       <section className="panel">
+        <h2>계획 직접 추가</h2>
+        <p className="hint-text">
+          수주 없이 <strong>제품·공정품</strong> 생산계획을 등록합니다. 수주 확정·이행상태는 변경되지 않습니다.
+        </p>
+        {standaloneError && <div className="error">{standaloneError}</div>}
+        <div className="form-grid-wide">
+          <ItemSearchField
+            label="품목"
+            allowedClassifications={PLAN_ITEM_CLASSES}
+            selectedItem={standaloneItem}
+            onSelect={setStandaloneItem}
+          />
+          <label>
+            계획수량
+            <input
+              type="number"
+              min={0.0001}
+              step="any"
+              value={standaloneQty}
+              onChange={(e) => setStandaloneQty(e.target.value)}
+            />
+          </label>
+          <label>
+            납기요구일
+            <input
+              type="date"
+              value={standaloneDeliveryDate}
+              onChange={(e) => setStandaloneDeliveryDate(e.target.value)}
+            />
+          </label>
+        </div>
+        <div className="form-actions">
+          <button type="button" disabled={submitting} onClick={() => void onCreateStandalone()}>
+            {submitting ? '등록 중…' : '계획 추가'}
+          </button>
+        </div>
+      </section>
+
+      <section className="panel">
         <h2>수립 대기</h2>
         <p className="hint-text">
           이행상태가 <strong>대기</strong>이고 생산 라우트(제품·공정품)이며 납품이 완료되지 않은 수주 라인입니다.
+          생산계획 수립 시 해당 수주는 자동으로 <strong>확정</strong>되며, 라인 이행상태는 <strong>진행</strong>으로 바뀝니다.
           계획수량은 수주수량과 다르게 지정할 수 있으며, 수주 원장의 수주수량은 변경되지 않습니다.
         </p>
         {candidateError && <div className="error">{candidateError}</div>}
@@ -390,6 +473,7 @@ export default function ProductionPlanPage() {
             <thead>
               <tr>
                 <th>계획번호</th>
+                <th>출처</th>
                 <th>수주번호</th>
                 <th>거래처</th>
                 <th>품목</th>
@@ -406,8 +490,9 @@ export default function ProductionPlanPage() {
               {filteredPlans.map((plan) => (
                 <tr key={plan.id}>
                   <td>{plan.planNo}</td>
-                  <td>{plan.orderNo}</td>
-                  <td>{plan.partnerName}</td>
+                  <td>{plan.sourceTypeLabel}</td>
+                  <td>{plan.orderNo ?? '—'}</td>
+                  <td>{plan.partnerName ?? '—'}</td>
                   <td>
                     {plan.itemNo} — {plan.itemName}
                   </td>
@@ -416,14 +501,14 @@ export default function ProductionPlanPage() {
                   <td>{plan.requestedDeliveryDate ?? '—'}</td>
                   <td>{plan.mrpStatusLabel}</td>
                   <td>{plan.workPlanStatusLabel}</td>
-                  <td>{plan.orderDate}</td>
+                  <td>{plan.orderDate ?? '—'}</td>
                   <td className="actions">
                     {canCancelPlan(plan) && (
                       <button
                         type="button"
                         className="btn-action danger"
                         disabled={submitting}
-                        onClick={() => void onCancelPlan(plan.id)}
+                        onClick={() => void onCancelPlan(plan)}
                       >
                         취소
                       </button>

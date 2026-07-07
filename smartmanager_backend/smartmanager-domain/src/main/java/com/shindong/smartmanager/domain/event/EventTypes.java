@@ -73,6 +73,13 @@ public final class EventTypes {
     public static final String OUTSOURCING_SHIPMENT_CANCELLED = "OutsourcingShipmentCancelled";
     public static final String OUTSOURCING_RECEIPT_REGISTERED = "OutsourcingReceiptRegistered";
 
+    public static final String SALES_SHIPMENT_REGISTERED = "SalesShipmentRegistered";
+    public static final String SALES_SHIPMENT_CANCELLED = "SalesShipmentCancelled";
+    public static final String SALES_REVENUE_REGISTERED = "SalesRevenueRegistered";
+    public static final String SALES_REVENUE_CANCELLED = "SalesRevenueCancelled";
+    public static final String SALES_COLLECTION_REGISTERED = "SalesCollectionRegistered";
+    public static final String SALES_COLLECTION_CANCELLED = "SalesCollectionCancelled";
+
     private EventTypes() {
     }
 }

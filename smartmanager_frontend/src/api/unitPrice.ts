@@ -55,6 +55,29 @@ export async function fetchUnitPrices(type: CostType, q?: string): Promise<UnitP
   return handleResponse<UnitPrice[]>(await apiFetch(`${API_BASE}?${params}`));
 }
 
+export function resolveUnitPriceAmount(price: UnitPrice): number {
+  return price.discountUnitCost ?? price.standardUnitCost;
+}
+
+function isEffectiveUnitPrice(price: UnitPrice, refDate: string): boolean {
+  if (price.beginDate > refDate) return false;
+  if (price.endDate && price.endDate < refDate) return false;
+  return true;
+}
+
+export async function lookupPurchaseUnitPrice(
+  partnerId: number,
+  itemId: number,
+  itemNo: string,
+  refDate: string,
+): Promise<number | null> {
+  const prices = await fetchUnitPrices('PURCHASE', itemNo);
+  const match = prices
+    .filter((price) => price.companyId === partnerId && price.itemId === itemId && isEffectiveUnitPrice(price, refDate))
+    .sort((left, right) => right.beginDate.localeCompare(left.beginDate))[0];
+  return match != null ? resolveUnitPriceAmount(match) : null;
+}
+
 export async function createUnitPrice(payload: CreateUnitPriceRequest): Promise<UnitPrice> {
   return handleResponse<UnitPrice>(
     await apiFetch(API_BASE, {

@@ -23,8 +23,17 @@ public class OutsourcingShipmentLineJpaEntity {
     @Column(name = "line_no", nullable = false)
     private short lineNo;
 
-    @Column(name = "outsourcing_order_line_id", nullable = false)
+    @Column(name = "outsourcing_order_line_id")
     private Long outsourcingOrderLineId;
+
+    @Column(name = "parent_item_id")
+    private Long parentItemId;
+
+    @Column(name = "begin_process_code_id")
+    private Long beginProcessCodeId;
+
+    @Column(name = "end_process_code_id")
+    private Long endProcessCodeId;
 
     @Column(name = "shipment_qty", nullable = false, precision = 18, scale = 4)
     private BigDecimal shipmentQty;
@@ -79,6 +88,30 @@ public class OutsourcingShipmentLineJpaEntity {
 
     public void setOutsourcingOrderLineId(Long outsourcingOrderLineId) {
         this.outsourcingOrderLineId = outsourcingOrderLineId;
+    }
+
+    public Long getParentItemId() {
+        return parentItemId;
+    }
+
+    public void setParentItemId(Long parentItemId) {
+        this.parentItemId = parentItemId;
+    }
+
+    public Long getBeginProcessCodeId() {
+        return beginProcessCodeId;
+    }
+
+    public void setBeginProcessCodeId(Long beginProcessCodeId) {
+        this.beginProcessCodeId = beginProcessCodeId;
+    }
+
+    public Long getEndProcessCodeId() {
+        return endProcessCodeId;
+    }
+
+    public void setEndProcessCodeId(Long endProcessCodeId) {
+        this.endProcessCodeId = endProcessCodeId;
     }
 
     public BigDecimal getShipmentQty() {

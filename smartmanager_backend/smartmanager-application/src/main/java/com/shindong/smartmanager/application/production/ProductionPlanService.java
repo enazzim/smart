@@ -1,9 +1,13 @@
 package com.shindong.smartmanager.application.production;
 
+import com.shindong.smartmanager.application.item.ItemRepository;
+import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.sales.SalesOrderLineListCriteria;
 import com.shindong.smartmanager.application.sales.SalesOrderLineListView;
 import com.shindong.smartmanager.application.sales.SalesOrderRepository;
+import com.shindong.smartmanager.domain.item.PropertyClassification;
 import com.shindong.smartmanager.domain.production.ProductionPlanMrpStatus;
+import com.shindong.smartmanager.domain.production.ProductionPlanSourceType;
 import com.shindong.smartmanager.domain.production.ProductionPlanStatus;
 import com.shindong.smartmanager.domain.production.ProductionPlanWorkPlanStatus;
 import com.shindong.smartmanager.domain.sales.SalesFulfillmentRoute;
@@ -14,20 +18,27 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
 public class ProductionPlanService {
 
+    private static final Set<PropertyClassification> STANDALONE_ITEM_CLASSES =
+            EnumSet.of(PropertyClassification.제품, PropertyClassification.공정품);
+
     private final ProductionPlanRepository productionPlanRepository;
     private final SalesOrderRepository salesOrderRepository;
+    private final ItemRepository itemRepository;
 
     public ProductionPlanService(
             ProductionPlanRepository productionPlanRepository,
-            SalesOrderRepository salesOrderRepository
+            SalesOrderRepository salesOrderRepository,
+            ItemRepository itemRepository
     ) {
         this.productionPlanRepository = productionPlanRepository;
         this.salesOrderRepository = salesOrderRepository;
+        this.itemRepository = itemRepository;
     }
 
     public List<SalesOrderLineListView> listCandidates() {
@@ -57,6 +68,20 @@ public class ProductionPlanService {
         return created;
     }
 
+    public List<ProductionPlanView> createStandalonePlans(
+            List<ProductionPlanStandaloneCommand> commands,
+            String actorUserId
+    ) {
+        if (commands == null || commands.isEmpty()) {
+            throw new IllegalArgumentException("수립할 품목을 1건 이상 입력하세요.");
+        }
+        List<ProductionPlanView> created = new ArrayList<>();
+        for (ProductionPlanStandaloneCommand command : commands) {
+            created.add(createStandalonePlan(command, actorUserId));
+        }
+        return created;
+    }
+
     public ProductionPlanView cancelPlan(long id, String actorUserId) {
         ProductionPlanView plan = get(id);
         if (plan.producedQty() != null && plan.producedQty().compareTo(BigDecimal.ZERO) > 0) {
@@ -72,21 +97,37 @@ public class ProductionPlanService {
             throw new IllegalArgumentException("작업계획이 수립된 생산계획은 취소할 수 없습니다.");
         }
 
-        productionPlanRepository.deleteById(id);
+        Long salesOrderId = plan.salesOrderId();
+        Long salesOrderLineId = plan.salesOrderLineId();
 
-        if (!productionPlanRepository.existsActiveBySalesOrderLineId(plan.salesOrderLineId())) {
-            SalesOrderLineListView line = salesOrderRepository.findLineListItem(plan.salesOrderLineId())
-                    .orElse(null);
-            if (line != null && line.fulfillmentStatus() == SalesLineFulfillmentStatus.IN_PROGRESS) {
-                salesOrderRepository.updateLineFulfillmentStatus(
-                        plan.salesOrderLineId(),
-                        SalesLineFulfillmentStatus.WAITING,
-                        actorUserId
-                );
-            }
+        productionPlanRepository.deleteById(id);
+        if (salesOrderId != null && salesOrderLineId != null) {
+            syncSalesOrderAfterPlanRemoved(salesOrderId, salesOrderLineId, actorUserId);
         }
 
         return plan;
+    }
+
+    private ProductionPlanView createStandalonePlan(ProductionPlanStandaloneCommand command, String actorUserId) {
+        ItemView item = itemRepository.findActiveById(command.itemId())
+                .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + command.itemId()));
+        if (!STANDALONE_ITEM_CLASSES.contains(item.propertyClassification())) {
+            throw new IllegalArgumentException("생산계획 추가는 제품·공정품만 가능합니다: " + item.itemNo());
+        }
+
+        BigDecimal plannedQty = resolvePlannedQty(command.plannedQty(), null);
+        String planNo = nextPlanNo(LocalDate.now());
+        ProductionPlanSaveCommand saveCommand = new ProductionPlanSaveCommand(
+                ProductionPlanSourceType.MANUAL,
+                null,
+                null,
+                command.itemId(),
+                plannedQty,
+                command.requestedDeliveryDate()
+        );
+        long planId = productionPlanRepository.save(saveCommand, planNo, actorUserId);
+        return productionPlanRepository.findActiveById(planId)
+                .orElseThrow(() -> new IllegalStateException("생산계획 저장 후 조회에 실패했습니다: " + planId));
     }
 
     private ProductionPlanView createPlan(ProductionPlanCreateLineCommand lineCommand, String actorUserId) {
@@ -105,12 +146,15 @@ public class ProductionPlanService {
 
         String planNo = nextPlanNo(LocalDate.now());
         ProductionPlanSaveCommand command = new ProductionPlanSaveCommand(
+                ProductionPlanSourceType.SALES_ORDER,
                 line.orderId(),
                 line.lineId(),
                 line.itemId(),
                 plannedQty,
                 line.requestedDeliveryDate()
         );
+        salesOrderRepository.markConfirmed(line.orderId(), actorUserId);
+
         long planId = productionPlanRepository.save(command, planNo, actorUserId);
         salesOrderRepository.updateLineFulfillmentStatus(
                 salesOrderLineId,
@@ -167,6 +211,34 @@ public class ProductionPlanService {
         String prefix = "PP-" + planDate.format(DateTimeFormatter.BASIC_ISO_DATE) + "-";
         long seq = productionPlanRepository.nextSequenceByPlanNoPrefix(prefix);
         return prefix + String.format("%03d", seq);
+    }
+
+    private void syncSalesOrderAfterPlanRemoved(long salesOrderId, long salesOrderLineId, String actorUserId) {
+        if (!productionPlanRepository.existsActiveBySalesOrderLineId(salesOrderLineId)) {
+            SalesOrderLineListView line = salesOrderRepository.findLineListItem(salesOrderLineId).orElse(null);
+            if (line != null && line.fulfillmentStatus() == SalesLineFulfillmentStatus.IN_PROGRESS) {
+                salesOrderRepository.updateLineFulfillmentStatus(
+                        salesOrderLineId,
+                        SalesLineFulfillmentStatus.WAITING,
+                        actorUserId
+                );
+            }
+        }
+
+        if (productionPlanRepository.existsActiveBySalesOrderId(salesOrderId)) {
+            return;
+        }
+
+        salesOrderRepository.findActiveById(salesOrderId).ifPresent(order -> {
+            if (order.status() != SalesOrderStatus.CONFIRMED) {
+                return;
+            }
+            boolean allWaiting = order.lines().stream()
+                    .allMatch(orderLine -> orderLine.fulfillmentStatus() == SalesLineFulfillmentStatus.WAITING);
+            if (allWaiting) {
+                salesOrderRepository.revertToDraft(salesOrderId, actorUserId);
+            }
+        });
     }
 
     private SalesOrderLineListCriteria emptyLineCriteria() {

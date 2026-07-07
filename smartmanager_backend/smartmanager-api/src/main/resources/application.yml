@@ -3,6 +3,10 @@ spring:
     name: smartmanager-api
   profiles:
     default: local
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 1050MB
 
 server:
   port: 8080

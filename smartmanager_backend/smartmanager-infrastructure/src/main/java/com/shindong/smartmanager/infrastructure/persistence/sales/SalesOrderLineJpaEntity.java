@@ -55,6 +55,9 @@ public class SalesOrderLineJpaEntity {
     @Column(name = "delivery_status", nullable = false, columnDefinition = "ENUM('NOT_STARTED','IN_PROGRESS','COMPLETED')")
     private SalesLineDeliveryStatus deliveryStatus = SalesLineDeliveryStatus.NOT_STARTED;
 
+    @Column(name = "shipped_qty", nullable = false, precision = 18, scale = 4)
+    private BigDecimal shippedQty = BigDecimal.ZERO;
+
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
 
@@ -143,6 +146,14 @@ public class SalesOrderLineJpaEntity {
 
     public void setDeliveryStatus(SalesLineDeliveryStatus deliveryStatus) {
         this.deliveryStatus = deliveryStatus;
+    }
+
+    public BigDecimal getShippedQty() {
+        return shippedQty;
+    }
+
+    public void setShippedQty(BigDecimal shippedQty) {
+        this.shippedQty = shippedQty;
     }
 
     public int getRecordingState() {

@@ -30,12 +30,28 @@ function calcIssueQty(unitRatio: number, goodQty: number): string {
   return String(Math.round(raw * 10000) / 10000);
 }
 
+function consumptionLineKey(line: { itemCompositionId: number | null; itemId: number }): string {
+  return line.itemCompositionId != null ? `bom-${line.itemCompositionId}` : `item-${line.itemId}`;
+}
+
+function formatConsumptionClassification(line: {
+  propertyClassification: string;
+  sourceProcessName?: string | null;
+}): string {
+  if (line.sourceProcessName) {
+    return `${line.propertyClassification} · ${line.sourceProcessName}`;
+  }
+  return line.propertyClassification;
+}
+
 interface IssueLineEdit {
-  itemCompositionId: number;
+  lineKey: string;
+  itemCompositionId: number | null;
   itemId: number;
   itemNo: string;
   itemName: string;
   propertyClassification: string;
+  sourceProcessName: string | null;
   unitRatio: number;
   requiredQty: number;
   onHandQty: number;
@@ -61,7 +77,7 @@ export default function MaterialIssuePage() {
   const [issueLineEdits, setIssueLineEdits] = useState<IssueLineEdit[]>([]);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [editingIssueLineId, setEditingIssueLineId] = useState<number | null>(null);
+  const [editingIssueLineId, setEditingIssueLineId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const issueQtyInputRef = useRef<HTMLInputElement>(null);
 
@@ -151,19 +167,24 @@ export default function MaterialIssuePage() {
         if (!cancelled) {
           const onHandByItemId = new Map(onHandList.map((row) => [row.itemId, row.onHandQty]));
           setIssueLineEdits((prev) => {
-            const checkedMap = new Map(prev.map((line) => [line.itemCompositionId, line.checked]));
-            return preview.lines.map((line) => ({
-              itemCompositionId: line.itemCompositionId,
-              itemId: line.itemId,
-              itemNo: line.itemNo,
-              itemName: line.itemName,
-              propertyClassification: line.propertyClassification,
-              unitRatio: line.unitRatio,
-              requiredQty: line.requiredQty,
-              onHandQty: onHandByItemId.get(line.itemId) ?? 0,
-              checked: checkedMap.get(line.itemCompositionId) ?? true,
-              issueQty: calcIssueQty(line.unitRatio, pending),
-            }));
+            const checkedMap = new Map(prev.map((line) => [line.lineKey, line.checked]));
+            return preview.lines.map((line) => {
+              const lineKey = consumptionLineKey(line);
+              return {
+                lineKey,
+                itemCompositionId: line.itemCompositionId,
+                itemId: line.itemId,
+                itemNo: line.itemNo,
+                itemName: line.itemName,
+                propertyClassification: line.propertyClassification,
+                sourceProcessName: line.sourceProcessName ?? null,
+                unitRatio: line.unitRatio,
+                requiredQty: line.requiredQty,
+                onHandQty: onHandByItemId.get(line.itemId) ?? 0,
+                checked: checkedMap.get(lineKey) ?? true,
+                issueQty: calcIssueQty(line.unitRatio, pending),
+              };
+            });
           });
           setEditingIssueLineId(null);
         }
@@ -191,15 +212,15 @@ export default function MaterialIssuePage() {
     setSelected(null);
   };
 
-  const toggleIssueLine = (itemCompositionId: number, checked: boolean) => {
+  const toggleIssueLine = (lineKey: string, checked: boolean) => {
     setIssueLineEdits((lines) =>
-      lines.map((line) => (line.itemCompositionId === itemCompositionId ? { ...line, checked } : line)),
+      lines.map((line) => (line.lineKey === lineKey ? { ...line, checked } : line)),
     );
   };
 
   const startEditIssueQty = (line: IssueLineEdit) => {
     if (submitting || !line.checked) return;
-    setEditingIssueLineId(line.itemCompositionId);
+    setEditingIssueLineId(line.lineKey);
     setEditDraft(line.issueQty);
   };
 
@@ -209,7 +230,7 @@ export default function MaterialIssuePage() {
     const nextQty = Number.isFinite(parsed) && parsed >= 0 ? String(parsed) : '0';
     setIssueLineEdits((lines) =>
       lines.map((line) =>
-        line.itemCompositionId === editingIssueLineId ? { ...line, issueQty: nextQty } : line,
+        line.lineKey === editingIssueLineId ? { ...line, issueQty: nextQty } : line,
       ),
     );
     setEditingIssueLineId(null);
@@ -233,6 +254,7 @@ export default function MaterialIssuePage() {
         .filter((line) => line.checked && Number(line.issueQty) > 0)
         .map((line) => ({
           itemCompositionId: line.itemCompositionId,
+          itemId: line.itemId,
           issueQty:
             goodQty !== appliedGoodQty ? Number(calcIssueQty(line.unitRatio, good)) : Number(line.issueQty),
         }))
@@ -466,23 +488,28 @@ export default function MaterialIssuePage() {
                   </thead>
                   <tbody>
                     {issueLineEdits.map((line) => (
-                      <tr key={line.itemCompositionId}>
+                      <tr key={line.lineKey}>
                         <td>
                           <input
                             type="checkbox"
                             checked={line.checked}
                             disabled={submitting}
-                            onChange={(e) => toggleIssueLine(line.itemCompositionId, e.target.checked)}
+                            onChange={(e) => toggleIssueLine(line.lineKey, e.target.checked)}
                           />
                         </td>
                         <td>
                           {line.itemNo} {line.itemName}
                         </td>
-                        <td>{line.propertyClassification}</td>
+                        <td>
+                          {formatConsumptionClassification({
+                            propertyClassification: line.propertyClassification,
+                            sourceProcessName: line.sourceProcessName,
+                          })}
+                        </td>
                         <td>{formatQty(line.unitRatio)}</td>
                         <td>{formatQty(line.requiredQty)}</td>
                         <td className="issue-qty-cell">
-                          {editingIssueLineId === line.itemCompositionId ? (
+                          {editingIssueLineId === line.lineKey ? (
                             <input
                               ref={issueQtyInputRef}
                               type="number"

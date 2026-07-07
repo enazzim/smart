@@ -28,7 +28,7 @@ export interface MaterialIssueListParams {
 }
 
 export interface MaterialIssuePreviewLine {
-  itemCompositionId: number;
+  itemCompositionId: number | null;
   itemId: number;
   itemNo: string;
   itemName: string;
@@ -54,7 +54,7 @@ export interface MaterialIssueOnHand {
 export interface CreateMaterialIssueRequest {
   workOrderId: number;
   issueDate: string;
-  lines: { itemCompositionId: number; issueQty: number }[];
+  lines: { itemCompositionId?: number | null; itemId: number; issueQty: number }[];
 }
 
 function buildQuery(params?: MaterialIssueListParams): string {

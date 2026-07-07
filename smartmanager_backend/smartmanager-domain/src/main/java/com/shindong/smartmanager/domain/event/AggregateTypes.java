@@ -21,6 +21,9 @@ public final class AggregateTypes {
     public static final String OUTSOURCING_ORDER = "OutsourcingOrder";
     public static final String OUTSOURCING_SHIPMENT = "OutsourcingShipment";
     public static final String OUTSOURCING_RECEIPT = "OutsourcingReceipt";
+    public static final String SALES_SHIPMENT = "SalesShipment";
+    public static final String SALES_REVENUE = "SalesRevenue";
+    public static final String SALES_COLLECTION = "SalesCollection";
 
     private AggregateTypes() {
     }

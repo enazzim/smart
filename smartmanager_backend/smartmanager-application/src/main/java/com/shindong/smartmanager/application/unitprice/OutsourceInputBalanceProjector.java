@@ -99,11 +99,26 @@ public class OutsourceInputBalanceProjector {
     }
 
     public List<OutsourceInputSlot> resolveInputSlots(OutsourceUnitPriceContext context, String actorUserId) {
-        List<OutsourceInputSlot> fromProcesses = resolvePriorInhouseProcessSlots(context);
-        if (!fromProcesses.isEmpty()) {
-            return fromProcesses;
+        List<ProcessView> processes = processRepository
+                .findAllActiveByItemId(context.itemId(), ProcessVariant.plan)
+                .stream()
+                .sorted(Comparator.comparingInt(ProcessView::processSequenceNum))
+                .toList();
+        if (processes.isEmpty()) {
+            return resolveBomSlots(context.itemId(), context, actorUserId, new HashSet<>());
         }
-        return resolveBomSlots(context.itemId(), context, actorUserId, new HashSet<>());
+
+        short beginSequence = findSequence(processes, context.beginProcessCodeId(), "시작공정");
+        short firstSequence = processes.get(0).processSequenceNum();
+        if (beginSequence == firstSequence) {
+            return resolveBomSlots(context.itemId(), context, actorUserId, new HashSet<>());
+        }
+
+        return processes.stream()
+                .filter(process -> process.processSequenceNum() < beginSequence)
+                .max(Comparator.comparingInt(ProcessView::processSequenceNum))
+                .map(process -> List.of(new OutsourceInputSlot(context.itemId(), process.id())))
+                .orElseGet(() -> resolveBomSlots(context.itemId(), context, actorUserId, new HashSet<>()));
     }
 
     private List<OutsourceInputSlot> resolvePriorInhouseProcessSlots(OutsourceUnitPriceContext context) {

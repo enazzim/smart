@@ -125,11 +125,32 @@ public class JpaSalesOrderRepository implements SalesOrderRepository {
     @Transactional
     public void markConfirmed(long salesOrderId, String actorUserId) {
         SalesOrderJpaEntity entity = requireActiveOrder(salesOrderId);
+        if (entity.getStatus() != SalesOrderStatus.DRAFT) {
+            return;
+        }
         Instant now = Instant.now();
         entity.setStatus(SalesOrderStatus.CONFIRMED);
         entity.setConfirmedAt(now);
         entity.setConfirmedBy(actorUserId);
         entity.setConfirmedById(actorUserId);
+        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedAt(now);
+        orderRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void revertToDraft(long salesOrderId, String actorUserId) {
+        SalesOrderJpaEntity entity = requireActiveOrder(salesOrderId);
+        if (entity.getStatus() != SalesOrderStatus.CONFIRMED) {
+            return;
+        }
+        Instant now = Instant.now();
+        entity.setStatus(SalesOrderStatus.DRAFT);
+        entity.setConfirmedAt(null);
+        entity.setConfirmedBy(null);
+        entity.setConfirmedById(null);
         entity.setUpdatedBy(actorUserId);
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);

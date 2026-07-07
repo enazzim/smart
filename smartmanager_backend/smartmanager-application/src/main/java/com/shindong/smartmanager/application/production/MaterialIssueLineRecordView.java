@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 public record MaterialIssueLineRecordView(
         long id,
         long itemId,
-        long itemCompositionId,
+        Long itemCompositionId,
         BigDecimal issueQty,
         String locationCode,
         Long sourceProcessId

@@ -2,12 +2,15 @@ package com.shindong.smartmanager.application.outsource;
 
 import com.shindong.smartmanager.application.inventory.InventoryBalanceService;
 import com.shindong.smartmanager.application.inventory.RecordStockMovementCommand;
+import com.shindong.smartmanager.application.item.ItemRepository;
+import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.process.InventoryBalanceRepository;
 import com.shindong.smartmanager.application.process.ProcessRepository;
-import com.shindong.smartmanager.application.process.ProcessView;
+import com.shindong.smartmanager.application.process.ProcessSequenceNavigator;
 import com.shindong.smartmanager.application.process.WipBalanceProjector;
 import com.shindong.smartmanager.application.system.SystemSettingService;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
+import com.shindong.smartmanager.domain.item.PropertyClassification;
 import com.shindong.smartmanager.domain.process.ProcessVariant;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -20,11 +23,13 @@ public class OutsourcingReceiptInventoryService {
     private static final String REFERENCE_TYPE_CANCEL = "OUTSOURCING_RECEIPT_CANCEL";
     private static final String LOCATION_OUTSOURCE = "OUTSOURCE";
     private static final String LOCATION_WIP = "WIP";
+    private static final String LOCATION_SALES = "SALES";
 
     private final InventoryBalanceService inventoryBalanceService;
     private final InventoryBalanceRepository inventoryBalanceRepository;
     private final WipBalanceProjector wipBalanceProjector;
     private final ProcessRepository processRepository;
+    private final ItemRepository itemRepository;
     private final OutsourcingShipmentConsumptionCalculator consumptionCalculator;
     private final SystemSettingService systemSettingService;
 
@@ -33,6 +38,7 @@ public class OutsourcingReceiptInventoryService {
             InventoryBalanceRepository inventoryBalanceRepository,
             WipBalanceProjector wipBalanceProjector,
             ProcessRepository processRepository,
+            ItemRepository itemRepository,
             OutsourcingShipmentConsumptionCalculator consumptionCalculator,
             SystemSettingService systemSettingService
     ) {
@@ -40,6 +46,7 @@ public class OutsourcingReceiptInventoryService {
         this.inventoryBalanceRepository = inventoryBalanceRepository;
         this.wipBalanceProjector = wipBalanceProjector;
         this.processRepository = processRepository;
+        this.itemRepository = itemRepository;
         this.consumptionCalculator = consumptionCalculator;
         this.systemSettingService = systemSettingService;
     }
@@ -87,7 +94,21 @@ public class OutsourcingReceiptInventoryService {
             BigDecimal amount,
             String actorUserId
     ) {
-        apply(receiptDate, receiptId, partnerId, order, orderLine, receiptQty, amount, actorUserId, false);
+        apply(receiptDate, receiptId, partnerId, order, orderLine, receiptQty, receiptQty, amount, actorUserId, false);
+    }
+
+    public void applyRegistration(
+            LocalDate receiptDate,
+            long receiptId,
+            long partnerId,
+            OutsourcingOrderView order,
+            OutsourcingOrderLineView orderLine,
+            BigDecimal outsourceDecreaseQty,
+            BigDecimal inboundQty,
+            BigDecimal amount,
+            String actorUserId
+    ) {
+        apply(receiptDate, receiptId, partnerId, order, orderLine, outsourceDecreaseQty, inboundQty, amount, actorUserId, false);
     }
 
     public void applyCancellation(
@@ -100,7 +121,21 @@ public class OutsourcingReceiptInventoryService {
             BigDecimal amount,
             String actorUserId
     ) {
-        apply(receiptDate, receiptId, partnerId, order, orderLine, receiptQty, amount, actorUserId, true);
+        apply(receiptDate, receiptId, partnerId, order, orderLine, receiptQty, receiptQty, amount, actorUserId, true);
+    }
+
+    public void applyCancellation(
+            LocalDate receiptDate,
+            long receiptId,
+            long partnerId,
+            OutsourcingOrderView order,
+            OutsourcingOrderLineView orderLine,
+            BigDecimal outsourceDecreaseQty,
+            BigDecimal inboundQty,
+            BigDecimal amount,
+            String actorUserId
+    ) {
+        apply(receiptDate, receiptId, partnerId, order, orderLine, outsourceDecreaseQty, inboundQty, amount, actorUserId, true);
     }
 
     private void apply(
@@ -109,18 +144,54 @@ public class OutsourcingReceiptInventoryService {
             long partnerId,
             OutsourcingOrderView order,
             OutsourcingOrderLineView orderLine,
-            BigDecimal receiptQty,
+            BigDecimal outsourceDecreaseQty,
+            BigDecimal inboundQty,
             BigDecimal amount,
+            String actorUserId,
+            boolean reverse
+    ) {
+        if (outsourceDecreaseQty.compareTo(BigDecimal.ZERO) > 0) {
+            applyOutsourceDecrease(
+                    receiptDate,
+                    receiptId,
+                    partnerId,
+                    order,
+                    orderLine,
+                    outsourceDecreaseQty,
+                    actorUserId,
+                    reverse
+            );
+        }
+
+        if (inboundQty.compareTo(BigDecimal.ZERO) > 0) {
+            applyInbound(
+                    receiptDate,
+                    receiptId,
+                    orderLine,
+                    inboundQty,
+                    amount,
+                    actorUserId,
+                    reverse
+            );
+        }
+    }
+
+    private void applyOutsourceDecrease(
+            LocalDate receiptDate,
+            long receiptId,
+            long partnerId,
+            OutsourcingOrderView order,
+            OutsourcingOrderLineView orderLine,
+            BigDecimal outsourceDecreaseQty,
             String actorUserId,
             boolean reverse
     ) {
         int fiscalYear = Year.now().getValue();
         StockMovementType outsourceType = reverse ? StockMovementType.IN : StockMovementType.OUT;
-        StockMovementType wipType = reverse ? StockMovementType.OUT : StockMovementType.IN;
         String referenceType = reverse ? REFERENCE_TYPE_CANCEL : REFERENCE_TYPE;
 
         List<OutsourcingShipmentInputSaveCommand> inputs = consumptionCalculator.calculateInputLines(
-                order, orderLine, receiptQty, actorUserId);
+                order, orderLine, outsourceDecreaseQty, actorUserId);
 
         for (OutsourcingShipmentInputSaveCommand line : inputs) {
             if (line.issueQty().compareTo(BigDecimal.ZERO) <= 0) {
@@ -148,15 +219,54 @@ public class OutsourcingReceiptInventoryService {
                     actorUserId
             ));
         }
+    }
 
+    private void applyInbound(
+            LocalDate receiptDate,
+            long receiptId,
+            OutsourcingOrderLineView orderLine,
+            BigDecimal inboundQty,
+            BigDecimal amount,
+            String actorUserId,
+            boolean reverse
+    ) {
+        ItemView item = itemRepository.findActiveById(orderLine.itemId())
+                .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + orderLine.itemId()));
         long endProcessId = resolveEndProcessSequenceId(orderLine);
+        boolean finalProcess = ProcessSequenceNavigator.isFinalProcessBySequenceId(
+                processRepository,
+                orderLine.itemId(),
+                endProcessId
+        );
+
+        StockMovementType inboundType = reverse ? StockMovementType.OUT : StockMovementType.IN;
+        String referenceType = reverse ? REFERENCE_TYPE_CANCEL : REFERENCE_TYPE;
+
+        if (finalProcess && item.propertyClassification() == PropertyClassification.제품) {
+            inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
+                    orderLine.itemId(),
+                    LOCATION_SALES,
+                    receiptDate,
+                    inboundType,
+                    inboundQty,
+                    amount,
+                    referenceType,
+                    receiptId,
+                    null,
+                    null,
+                    null,
+                    actorUserId
+            ));
+            return;
+        }
+
         wipBalanceProjector.ensure(orderLine.itemId(), endProcessId, actorUserId);
         inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
                 orderLine.itemId(),
                 LOCATION_WIP,
                 receiptDate,
-                wipType,
-                receiptQty,
+                inboundType,
+                inboundQty,
                 amount,
                 referenceType,
                 receiptId,
@@ -170,7 +280,7 @@ public class OutsourcingReceiptInventoryService {
     private long resolveEndProcessSequenceId(OutsourcingOrderLineView orderLine) {
         return processRepository.findAllActiveByItemId(orderLine.itemId(), ProcessVariant.plan).stream()
                 .filter(process -> process.processCodeId() == orderLine.endProcessCodeId())
-                .map(ProcessView::id)
+                .map(com.shindong.smartmanager.application.process.ProcessView::id)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException(
                         "외주 완료 공정을 찾을 수 없습니다. 품목=" + orderLine.itemNo()

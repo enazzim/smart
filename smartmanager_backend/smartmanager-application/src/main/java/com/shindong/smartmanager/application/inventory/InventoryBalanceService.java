@@ -4,6 +4,7 @@ import com.shindong.smartmanager.application.closing.FiscalCalendarService;
 import com.shindong.smartmanager.application.closing.FiscalPeriod;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.system.SystemSettingService;
+import com.shindong.smartmanager.domain.inventory.InventoryLocationLabels;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -84,7 +85,7 @@ public class InventoryBalanceService {
         BigDecimal onHand = currentStockQty(itemId, locationCode, movementDate, outputProcessId, inputProcessId, null);
         if (onHand.compareTo(qty) < 0) {
             throw new IllegalArgumentException(
-                    "재고가 부족합니다: " + itemNo + " (" + locationCode + ") — 필요 "
+                    "재고가 부족합니다: " + itemNo + " (" + InventoryLocationLabels.label(locationCode) + ") — 필요 "
                             + qty.stripTrailingZeros().toPlainString()
                             + ", 보유 " + onHand.stripTrailingZeros().toPlainString()
                             + ". 투입 체크를 해제하거나 재고를 보충해 주세요."

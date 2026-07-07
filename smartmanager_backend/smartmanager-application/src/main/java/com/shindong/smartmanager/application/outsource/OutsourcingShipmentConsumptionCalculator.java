@@ -49,15 +49,51 @@ public class OutsourcingShipmentConsumptionCalculator {
             BigDecimal shipmentQty,
             String actorUserId
     ) {
+        return calculateForParent(
+                orderLine.itemId(),
+                order.partnerId(),
+                orderLine.beginProcessCodeId(),
+                orderLine.endProcessCodeId(),
+                shipmentQty,
+                actorUserId
+        );
+    }
+
+    public List<OutsourcingShipmentInputSaveCommand> calculateAdvanceInputLines(
+            long parentItemId,
+            long partnerId,
+            long beginProcessCodeId,
+            long endProcessCodeId,
+            BigDecimal referenceQty,
+            String actorUserId
+    ) {
+        return calculateForParent(
+                parentItemId,
+                partnerId,
+                beginProcessCodeId,
+                endProcessCodeId,
+                referenceQty,
+                actorUserId
+        );
+    }
+
+    private List<OutsourcingShipmentInputSaveCommand> calculateForParent(
+            long parentItemId,
+            long partnerId,
+            long beginProcessCodeId,
+            long endProcessCodeId,
+            BigDecimal shipmentQty,
+            String actorUserId
+    ) {
         if (shipmentQty == null || shipmentQty.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("출고수량은 0보다 커야 합니다.");
         }
 
         OutsourceUnitPriceContext context = new OutsourceUnitPriceContext(
-                orderLine.itemId(),
-                order.partnerId(),
-                orderLine.beginProcessCodeId(),
-                orderLine.endProcessCodeId()
+                parentItemId,
+                partnerId,
+                beginProcessCodeId,
+                endProcessCodeId
         );
         List<OutsourceInputSlot> slots = outsourceInputBalanceProjector.resolveInputSlots(context, actorUserId);
         if (slots.isEmpty()) {
@@ -65,12 +101,8 @@ public class OutsourcingShipmentConsumptionCalculator {
         }
 
         Map<Long, ItemCompositionView> bomByChildId = itemCompositionRepository
-                .findActiveByParentItemId(orderLine.itemId()).stream()
+                .findActiveByParentItemId(parentItemId).stream()
                 .collect(Collectors.toMap(ItemCompositionView::childItemId, Function.identity(), (left, right) -> left));
-
-        Map<Long, String> processNameById = processRepository
-                .findAllActiveByItemId(orderLine.itemId(), ProcessVariant.plan).stream()
-                .collect(Collectors.toMap(ProcessView::id, ProcessView::processName));
 
         List<OutsourcingShipmentInputSaveCommand> result = new ArrayList<>();
         for (OutsourceInputSlot slot : slots) {
@@ -82,7 +114,7 @@ public class OutsourcingShipmentConsumptionCalculator {
             Long sourceProcessId;
             Long itemCompositionId = null;
 
-            if (slot.itemId() == orderLine.itemId()) {
+            if (slot.itemId() == parentItemId) {
                 issueQty = shipmentQty.setScale(QTY_SCALE, QTY_ROUNDING);
                 locationCode = LOCATION_WIP;
                 sourceProcessId = slot.inputProcessId();
@@ -115,7 +147,6 @@ public class OutsourcingShipmentConsumptionCalculator {
                     sourceProcessId,
                     slot.inputProcessId()
             ));
-            processNameById.putIfAbsent(slot.inputProcessId(), "");
         }
         if (result.isEmpty()) {
             throw new IllegalArgumentException("출고할 투입 자재가 없습니다.");

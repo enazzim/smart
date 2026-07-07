@@ -3,7 +3,7 @@ package com.shindong.smartmanager.application.production;
 import java.math.BigDecimal;
 
 public record WorkReportIssueLineCommand(
-        long itemCompositionId,
+        Long itemCompositionId,
         long itemId,
         BigDecimal issueQty
 ) {

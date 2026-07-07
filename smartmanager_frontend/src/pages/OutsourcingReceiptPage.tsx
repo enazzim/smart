@@ -223,7 +223,7 @@ export default function OutsourcingReceiptPage() {
     <div className="page">
       <header className="page-header">
         <h1>외주입고</h1>
-        <p>출고된 외주발주 라인에 대해 납품(입고)을 등록합니다. 무검사품은 즉시 WIP 창고에 반영됩니다.</p>
+        <p>출고된 외주발주 라인에 대해 납품(입고)을 등록합니다. 무검사품은 즉시 공정창고에 반영됩니다.</p>
       </header>
 
       <div className="tab-row">

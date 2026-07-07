@@ -1,6 +1,8 @@
 package com.shindong.smartmanager.infrastructure.application;
 
+import com.shindong.smartmanager.application.outsource.CreateOutsourcingAdvanceShipmentCommand;
 import com.shindong.smartmanager.application.outsource.CreateOutsourcingShipmentCommand;
+import com.shindong.smartmanager.application.outsource.OutsourceAdvanceProcessOptionView;
 import com.shindong.smartmanager.application.outsource.OutsourcingShipmentInputPreviewView;
 import com.shindong.smartmanager.application.outsource.OutsourcingShipmentCandidateView;
 import com.shindong.smartmanager.application.outsource.OutsourcingShipmentListCriteria;
@@ -27,12 +29,40 @@ public class OutsourcingShipmentApplicationService {
     }
 
     @Transactional(readOnly = true)
+    public List<OutsourceAdvanceProcessOptionView> listAdvanceProcessOptions(
+            long partnerId,
+            long parentItemId,
+            LocalDate refDate
+    ) {
+        return outsourcingShipmentService.listAdvanceProcessOptions(partnerId, parentItemId, refDate);
+    }
+
+    @Transactional(readOnly = true)
     public OutsourcingShipmentInputPreviewView previewInput(
             long orderLineId,
             BigDecimal shipmentQty,
             LocalDate shipmentDate
     ) {
         return outsourcingShipmentService.previewInput(orderLineId, shipmentQty, shipmentDate);
+    }
+
+    @Transactional(readOnly = true)
+    public OutsourcingShipmentInputPreviewView previewAdvanceInput(
+            long partnerId,
+            long parentItemId,
+            long beginProcessCodeId,
+            long endProcessCodeId,
+            BigDecimal referenceQty,
+            LocalDate shipmentDate
+    ) {
+        return outsourcingShipmentService.previewAdvanceInput(
+                partnerId,
+                parentItemId,
+                beginProcessCodeId,
+                endProcessCodeId,
+                referenceQty,
+                shipmentDate
+        );
     }
 
     @Transactional(readOnly = true)
@@ -43,6 +73,11 @@ public class OutsourcingShipmentApplicationService {
     @Transactional
     public OutsourcingShipmentView register(CreateOutsourcingShipmentCommand command, String actorUserId) {
         return outsourcingShipmentService.register(command, actorUserId);
+    }
+
+    @Transactional
+    public OutsourcingShipmentView registerAdvance(CreateOutsourcingAdvanceShipmentCommand command, String actorUserId) {
+        return outsourcingShipmentService.registerAdvance(command, actorUserId);
     }
 
     @Transactional

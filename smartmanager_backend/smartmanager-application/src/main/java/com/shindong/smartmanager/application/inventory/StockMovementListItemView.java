@@ -11,6 +11,8 @@ public record StockMovementListItemView(
         String itemName,
         String locationCode,
         String locationName,
+        Integer outputProcessSequence,
+        String outputProcessName,
         StockMovementType movementType,
         BigDecimal qty,
         BigDecimal amount,

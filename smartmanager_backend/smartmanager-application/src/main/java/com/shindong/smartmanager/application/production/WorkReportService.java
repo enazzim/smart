@@ -76,11 +76,16 @@ public class WorkReportService {
                 ));
         LocalDate stockDate = reportDate != null ? reportDate : LocalDate.now();
 
-        return itemCompositionRepository.findActiveByParentItemId(order.itemId()).stream()
-                .map(bomLine -> new MaterialIssueOnHandView(
-                        bomLine.childItemId(),
+        return bomConsumptionCalculator.calculateLines(
+                order.itemId(),
+                order.processSequenceNum(),
+                BigDecimal.ONE,
+                Map.of()
+        ).stream()
+                .map(line -> new MaterialIssueOnHandView(
+                        line.itemId(),
                         workReportConsumptionInventoryService.resolveOnHandQty(
-                                bomLine.childItemId(),
+                                line.itemId(),
                                 order.itemId(),
                                 order.processSequenceNum(),
                                 stockDate,
@@ -111,11 +116,14 @@ public class WorkReportService {
             cumulativeGoodQty = order.reportedQty().add(pending);
             Map<Long, BigDecimal> issuedQtyByCompositionId =
                     materialIssueRepository.sumIssuedQtyByWorkOrderId(workOrderId);
+            Map<Long, BigDecimal> issuedQtyByItemId =
+                    materialIssueRepository.sumIssuedQtyByItemIdForWorkOrder(workOrderId);
             lines = bomConsumptionCalculator.calculateLines(
                     order.itemId(),
                     order.processSequenceNum(),
                     cumulativeGoodQty,
-                    issuedQtyByCompositionId
+                    issuedQtyByCompositionId,
+                    issuedQtyByItemId
             );
             allSatisfied = lines.isEmpty() || lines.stream().allMatch(WorkReportConsumptionLineView::satisfied);
         } else {
@@ -321,12 +329,15 @@ public class WorkReportService {
         BigDecimal cumulativeGoodQty = context.reportedQty().add(pendingGoodQty);
         Map<Long, BigDecimal> issuedQtyByCompositionId =
                 materialIssueRepository.sumIssuedQtyByWorkOrderId(context.workOrderId());
+        Map<Long, BigDecimal> issuedQtyByItemId =
+                materialIssueRepository.sumIssuedQtyByItemIdForWorkOrder(context.workOrderId());
 
         List<WorkReportConsumptionLineView> lines = bomConsumptionCalculator.calculateLines(
                 context.itemId(),
                 context.processSequenceNum(),
                 cumulativeGoodQty,
-                issuedQtyByCompositionId
+                issuedQtyByCompositionId,
+                issuedQtyByItemId
         );
 
         for (WorkReportConsumptionLineView line : lines) {
@@ -408,4 +419,3 @@ public class WorkReportService {
         return prefix + seq;
     }
 }
-

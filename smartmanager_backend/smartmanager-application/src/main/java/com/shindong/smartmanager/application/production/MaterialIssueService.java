@@ -93,11 +93,16 @@ public class MaterialIssueService {
                 .orElseThrow(() -> new IllegalArgumentException("작업지시를 찾을 수 없습니다: " + workOrderId));
         LocalDate stockDate = issueDate != null ? issueDate : LocalDate.now();
 
-        return itemCompositionRepository.findActiveByParentItemId(order.itemId()).stream()
-                .map(bomLine -> new MaterialIssueOnHandView(
-                        bomLine.childItemId(),
+        return bomConsumptionCalculator.calculateLines(
+                order.itemId(),
+                order.processSequenceNum(),
+                BigDecimal.ONE,
+                Map.of()
+        ).stream()
+                .map(line -> new MaterialIssueOnHandView(
+                        line.itemId(),
                         materialIssueInventoryService.resolveOnHandQty(
-                                bomLine.childItemId(),
+                                line.itemId(),
                                 order.itemId(),
                                 order.processSequenceNum(),
                                 stockDate
@@ -181,13 +186,21 @@ public class MaterialIssueService {
             if (line.issueQty() == null || line.issueQty().compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
-            ItemCompositionView bomLine = bomByCompositionId.get(line.itemCompositionId());
-            if (bomLine == null) {
-                throw new IllegalArgumentException("유효하지 않은 BOM 투입 라인입니다.");
+            long itemId;
+            if (line.itemCompositionId() != null) {
+                ItemCompositionView bomLine = bomByCompositionId.get(line.itemCompositionId());
+                if (bomLine == null) {
+                    throw new IllegalArgumentException("유효하지 않은 BOM 투입 라인입니다.");
+                }
+                itemId = bomLine.childItemId();
+            } else if (line.itemId() != null) {
+                itemId = line.itemId();
+            } else {
+                throw new IllegalArgumentException("투입 품목을 지정해 주세요.");
             }
             result.add(materialIssueInventoryService.resolveSaveCommand(
                     line,
-                    bomLine.childItemId(),
+                    itemId,
                     parentItemId,
                     processSequenceNum
             ));

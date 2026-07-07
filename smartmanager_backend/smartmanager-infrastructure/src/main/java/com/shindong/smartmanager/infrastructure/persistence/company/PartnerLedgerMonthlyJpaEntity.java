@@ -29,6 +29,9 @@ public class PartnerLedgerMonthlyJpaEntity {
     @Column(name = "purchase_amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal purchaseAmount = BigDecimal.ZERO;
 
+    @Column(name = "collected_amount", nullable = false, precision = 18, scale = 2)
+    private BigDecimal collectedAmount = BigDecimal.ZERO;
+
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
 
@@ -86,6 +89,14 @@ public class PartnerLedgerMonthlyJpaEntity {
 
     public void setPurchaseAmount(BigDecimal purchaseAmount) {
         this.purchaseAmount = purchaseAmount;
+    }
+
+    public BigDecimal getCollectedAmount() {
+        return collectedAmount;
+    }
+
+    public void setCollectedAmount(BigDecimal collectedAmount) {
+        this.collectedAmount = collectedAmount;
     }
 
     public int getRecordingState() {

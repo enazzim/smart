@@ -89,8 +89,18 @@ public class JpaItemCompositionRepository implements ItemCompositionRepository {
     }
 
     @Override
-    public List<ItemCompositionView> findAllActive(String parentItemNoQuery, String childItemNoQuery) {
-        return compositionRepository.findAllActiveFiltered(parentItemNoQuery, childItemNoQuery)
+    public List<ItemCompositionView> findAllActive(
+            Long parentItemId,
+            Long childItemId,
+            String parentItemNoQuery,
+            String childItemNoQuery
+    ) {
+        return compositionRepository.findAllActiveFiltered(
+                parentItemId,
+                childItemId,
+                parentItemNoQuery,
+                childItemNoQuery
+        )
                 .stream()
                 .map(this::toView)
                 .toList();

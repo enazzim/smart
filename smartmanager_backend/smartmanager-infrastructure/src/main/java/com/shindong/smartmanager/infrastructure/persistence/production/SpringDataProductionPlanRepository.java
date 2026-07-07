@@ -12,6 +12,8 @@ public interface SpringDataProductionPlanRepository extends JpaRepository<Produc
 
     boolean existsBySalesOrderLineIdAndRecordingState(long salesOrderLineId, int recordingState);
 
+    boolean existsBySalesOrderIdAndRecordingState(long salesOrderId, int recordingState);
+
     List<ProductionPlanJpaEntity> findByRecordingStateOrderByIdDesc(int recordingState);
 
     List<ProductionPlanJpaEntity> findBySalesOrderLineIdAndRecordingState(long salesOrderLineId, int recordingState);

@@ -170,6 +170,10 @@ public class OutsourceApplicationConfig {
 
             ProcessRepository processRepository,
 
+            CompanyRepository companyRepository,
+
+            UnitPriceRepository unitPriceRepository,
+
             MonthClosingService monthClosingService,
 
             DomainEventStore domainEventStore
@@ -192,6 +196,10 @@ public class OutsourceApplicationConfig {
 
                 processRepository,
 
+                companyRepository,
+
+                unitPriceRepository,
+
                 monthClosingService,
 
                 domainEventStore
@@ -206,6 +214,7 @@ public class OutsourceApplicationConfig {
             InventoryBalanceRepository inventoryBalanceRepository,
             WipBalanceProjector wipBalanceProjector,
             ProcessRepository processRepository,
+            ItemRepository itemRepository,
             OutsourcingShipmentConsumptionCalculator outsourcingShipmentConsumptionCalculator,
             SystemSettingService systemSettingService
     ) {
@@ -214,6 +223,7 @@ public class OutsourceApplicationConfig {
                 inventoryBalanceRepository,
                 wipBalanceProjector,
                 processRepository,
+                itemRepository,
                 outsourcingShipmentConsumptionCalculator,
                 systemSettingService
         );

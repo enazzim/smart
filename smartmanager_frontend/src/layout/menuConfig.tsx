@@ -28,10 +28,14 @@ import OutsourcingOrderPage from '../pages/OutsourcingOrderPage';
 import OutsourcingShipmentPage from '../pages/OutsourcingShipmentPage';
 import OutsourcingReceiptPage from '../pages/OutsourcingReceiptPage';
 import QualityInspectionPage from '../pages/QualityInspectionPage';
+import SalesShipmentPage from '../pages/SalesShipmentPage';
+import SalesRevenuePage from '../pages/SalesRevenuePage';
+import SalesCollectionPage from '../pages/SalesCollectionPage';
 import PlaceholderPage from '../pages/PlaceholderPage';
 
-/** TO-BE 업무 흐름 기준 7개 대메뉴 */
+/** TO-BE 업무 흐름 기준 대메뉴 */
 export type MenuCategory =
+  | 'home'
   | 'sales'
   | 'production'
   | 'purchase'
@@ -73,9 +77,7 @@ export type OutsourcePageId = 'outsource-order' | 'outsource-shipment' | 'outsou
 export type QualityPageId = 'quality-inspection';
 
 export type PlaceholderPageId =
-  | 'sales-shipment'
-  | 'sales-revenue'
-  | 'sales-collection';
+  | 'sales-revenue';
 
 export interface MenuChild {
   id: string;
@@ -90,6 +92,11 @@ export interface MenuGroup {
 }
 
 export const MENU_GROUPS: MenuGroup[] = [
+  {
+    id: 'home',
+    label: '대시보드',
+    direct: true,
+  },
   {
     id: 'sales',
     label: '영업',
@@ -183,9 +190,7 @@ const BASIS_PAGE_MAP: Record<BasisTab, ComponentType> = {
 
 const PLACEHOLDER_LABELS: Record<PlaceholderPageId | 'sales-order', string> = {
   'sales-order': '수주',
-  'sales-shipment': '출고·납품',
   'sales-revenue': '매출',
-  'sales-collection': '수금',
 };
 
 const SYSTEM_PLACEHOLDER_LABELS: Record<Exclude<SystemPage, 'publicCode' | 'monthClosing' | 'systemSettings'>, string> = {
@@ -239,6 +244,15 @@ export function renderSalesPage(page: SalesPageId) {
   if (page === 'sales-order') {
     return <SalesOrderPage />;
   }
+  if (page === 'sales-shipment') {
+    return <SalesShipmentPage />;
+  }
+  if (page === 'sales-revenue') {
+    return <SalesRevenuePage />;
+  }
+  if (page === 'sales-collection') {
+    return <SalesCollectionPage />;
+  }
   return <PlaceholderPage title={PLACEHOLDER_LABELS[page]} />;
 }
 
@@ -273,6 +287,8 @@ export function renderPlaceholderPage(id: PlaceholderPageId) {
 /** 카테고리별 기본 하위 메뉴 ID */
 export function defaultChildId(category: MenuCategory): string {
   switch (category) {
+    case 'home':
+      return '';
     case 'sales':
       return 'sales-order';
     case 'production':

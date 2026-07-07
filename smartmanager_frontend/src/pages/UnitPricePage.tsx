@@ -77,15 +77,16 @@ function toForm(price: UnitPrice): CreateUnitPriceRequest & { updateReason?: str
 }
 
 export default function UnitPricePage() {
-  const [activeTab, setActiveTab] = useState<CostType>('OUTSOURCE');
+  const [activeTab, setActiveTab] = useState<CostType>('SALE');
   const tabConfig = TAB_CONFIG.find((tab) => tab.type === activeTab)!;
 
   const [processCodes, setProcessCodes] = useState<CodeOption[]>([]);
   const [prices, setPrices] = useState<UnitPrice[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filterItem, setFilterItem] = useState<ItemSearchSelection | null>(null);
+  const [filterCompany, setFilterCompany] = useState<CompanySearchSelection | null>(null);
   const [formItem, setFormItem] = useState<ItemSearchSelection | null>(null);
   const [formCompany, setFormCompany] = useState<CompanySearchSelection | null>(null);
-  const [form, setForm] = useState<CreateUnitPriceRequest & { updateReason?: string }>(emptyForm('OUTSOURCE'));
+  const [form, setForm] = useState<CreateUnitPriceRequest & { updateReason?: string }>(emptyForm('SALE'));
   const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -93,17 +94,19 @@ export default function UnitPricePage() {
 
   const isEditing = editingId !== null;
 
+  const listQuery = filterItem?.itemNo ?? filterCompany?.companyName ?? '';
+
   const refreshList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setPrices(await fetchUnitPrices(activeTab, searchQuery));
+      setPrices(await fetchUnitPrices(activeTab, listQuery));
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록 조회 실패');
     } finally {
       setLoading(false);
     }
-  }, [activeTab, searchQuery]);
+  }, [activeTab, listQuery]);
 
   useEffect(() => {
     void fetchProcessCodeOptions().then(setProcessCodes).catch(() => setProcessCodes([]));
@@ -123,7 +126,8 @@ export default function UnitPricePage() {
   const switchTab = (type: CostType) => {
     setActiveTab(type);
     resetForm();
-    setSearchQuery('');
+    setFilterItem(null);
+    setFilterCompany(null);
   };
 
   const startEdit = (price: UnitPrice) => {
@@ -230,11 +234,11 @@ export default function UnitPricePage() {
         <h2>{isEditing ? '단가 수정' : '단가 등록'}</h2>
         <form className="form-grid form-grid-wide" onSubmit={onSubmit}>
           <ItemSearchField
-            label="품목"
+            label="품목 *"
             selectedItem={formItem}
             onSelect={setFormItem}
             allowedClassifications={tabConfig.itemClasses}
-            placeholder={isEditing ? undefined : '품목번호 또는 품목명 입력'}
+            disabled={isEditing}
           />
           <CompanySearchField
             label="거래처"
@@ -376,17 +380,32 @@ export default function UnitPricePage() {
       </section>
 
       <section className="panel">
+        <h2>{tabConfig.label} 목록</h2>
         <div className="search-row">
-          <h2 style={{ margin: 0 }}>{tabConfig.label} 목록</h2>
-          <label>
-            검색
-            <input
-              type="search"
-              value={searchQuery}
-              placeholder="품목·거래처"
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </label>
+          <ItemSearchField
+            label="품목 필터 (선택)"
+            selectedItem={filterItem}
+            onSelect={setFilterItem}
+            allowedClassifications={tabConfig.itemClasses}
+            placeholder="전체 조회 — 품목번호 또는 품목명 입력"
+          />
+          <CompanySearchField
+            label="거래처 필터 (선택)"
+            partnerType={tabConfig.partnerType}
+            selectedCompany={filterCompany}
+            onSelect={setFilterCompany}
+          />
+          <button
+            type="button"
+            className="secondary"
+            disabled={loading}
+            onClick={() => {
+              setFilterItem(null);
+              setFilterCompany(null);
+            }}
+          >
+            전체
+          </button>
         </div>
         {loading ? (
           <p>불러오는 중…</p>

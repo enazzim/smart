@@ -10,6 +10,8 @@ public record InventoryBalanceLedgerView(
         String itemName,
         String locationCode,
         String locationName,
+        Integer outputProcessSequence,
+        String outputProcessName,
         int fiscalYear,
         BigDecimal stockQty,
         BigDecimal stockAmount,

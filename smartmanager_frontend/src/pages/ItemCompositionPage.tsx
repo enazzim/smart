@@ -19,10 +19,28 @@ import { downloadExplosionExcel, downloadReverseExcel } from '../utils/bomExcelE
 
 const PARENT_CLASSES: PropertyClassification[] = ['제품', '상품', '공정품'];
 const CHILD_CLASSES: PropertyClassification[] = ['원자재', '공정품'];
+/** 목록 필터: 상품·원자재 제외 (제품·공정품) */
+const PARENT_FILTER_CLASSES: PropertyClassification[] = ['제품', '공정품'];
+/** 목록 필터: 제품·상품 제외 (원자재·공정품) */
+const CHILD_FILTER_CLASSES: PropertyClassification[] = ['원자재', '공정품'];
 
 type ModalKind = 'explosion' | 'reverse' | 'copy' | null;
 
-function BomTreeRows({ node }: { node: BomTreeNode }) {
+function formatUnitPrice(value: number): string {
+  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function formatVendorPrices(prices: BomTreeNode['outsourcePrices']): string {
+  if (!prices || prices.length === 0) return '—';
+  return prices
+    .map((price) => {
+      const detail = price.detail ? ` (${price.detail})` : '';
+      return `${price.partnerName}${detail} ${formatUnitPrice(price.unitPrice)}`;
+    })
+    .join('\n');
+}
+
+function BomTreeRows({ node, path = 'root' }: { node: BomTreeNode; path?: string }) {
   return (
     <>
       <tr>
@@ -33,9 +51,19 @@ function BomTreeRows({ node }: { node: BomTreeNode }) {
         <td>{node.itemName}</td>
         <td>{node.propertyClassification}</td>
         <td>{node.quantity}</td>
+        <td className="bom-vendor-cell" style={{ whiteSpace: 'pre-line' }}>
+          {formatVendorPrices(node.outsourcePrices ?? [])}
+        </td>
+        <td className="bom-vendor-cell" style={{ whiteSpace: 'pre-line' }}>
+          {formatVendorPrices(node.purchasePrices ?? [])}
+        </td>
       </tr>
-      {node.children.map((child) => (
-        <BomTreeRows key={`${child.itemNum}-${child.level}`} node={child} />
+      {node.children.map((child, index) => (
+        <BomTreeRows
+          key={`${path}/${child.itemNum}-${index}`}
+          node={child}
+          path={`${path}/${child.itemNum}-${index}`}
+        />
       ))}
     </>
   );
@@ -75,6 +103,8 @@ export default function ItemCompositionPage() {
         await fetchItemCompositions(
           filterParent?.itemNo,
           filterChild?.itemNo,
+          filterParent?.id,
+          filterChild?.id,
         ),
       );
     } catch (e) {
@@ -82,11 +112,11 @@ export default function ItemCompositionPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterParent?.itemNo, filterChild?.itemNo]);
+  }, [filterParent?.id, filterParent?.itemNo, filterChild?.id, filterChild?.itemNo]);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   const closeModal = () => {
     setModal(null);
@@ -253,16 +283,6 @@ export default function ItemCompositionPage() {
     });
     setFilterChild(null);
     closeModal();
-    void (async () => {
-      setLoading(true);
-      try {
-        setRows(await fetchItemCompositions(row.parentItemNo, undefined));
-      } catch (e) {
-        setError(e instanceof Error ? e.message : '목록 조회 실패');
-      } finally {
-        setLoading(false);
-      }
-    })();
   };
 
   useEffect(() => {
@@ -286,22 +306,20 @@ export default function ItemCompositionPage() {
         <form onSubmit={onSubmitForm} className="form-grid form-grid-wide">
           {isEditing ? (
             <>
-              <label>
-                모품목 *
-                <input
-                  readOnly
-                  className="readonly"
-                  value={formParent ? `${formParent.itemNo} — ${formParent.itemName}` : ''}
-                />
-              </label>
-              <label>
-                자품목 *
-                <input
-                  readOnly
-                  className="readonly"
-                  value={formChild ? `${formChild.itemNo} — ${formChild.itemName}` : ''}
-                />
-              </label>
+              <ItemSearchField
+                label="모품목 *"
+                selectedItem={formParent}
+                onSelect={() => {}}
+                allowedClassifications={PARENT_CLASSES}
+                disabled
+              />
+              <ItemSearchField
+                label="자품목 *"
+                selectedItem={formChild}
+                onSelect={() => {}}
+                allowedClassifications={CHILD_CLASSES}
+                disabled
+              />
             </>
           ) : (
             <>
@@ -360,23 +378,34 @@ export default function ItemCompositionPage() {
       <section className="panel">
         <h2>품목구성 목록</h2>
         <div className="bom-toolbar">
-          <div className="bom-filter-bar">
+          <div className="search-row">
             <ItemSearchField
-              label="모품목"
+              label="모품목 필터 (선택)"
               selectedItem={filterParent}
-              onSelect={setFilterParent}
-              allowedClassifications={PARENT_CLASSES}
-              placeholder="품목번호 또는 품목명"
+              onSelect={(item) => {
+                setFilterParent(item);
+              }}
+              allowedClassifications={PARENT_FILTER_CLASSES}
+              placeholder="전체 조회 — 품목번호 또는 품목명 입력"
             />
             <ItemSearchField
-              label="자품목"
+              label="자품목 필터 (선택)"
               selectedItem={filterChild}
-              onSelect={setFilterChild}
-              allowedClassifications={CHILD_CLASSES}
-              placeholder="품목번호 또는 품목명"
+              onSelect={(item) => {
+                setFilterChild(item);
+              }}
+              allowedClassifications={CHILD_FILTER_CLASSES}
+              placeholder="전체 조회 — 품목번호 또는 품목명 입력"
             />
-            <button type="button" className="bom-search-btn" onClick={() => void load()}>
-              검색
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                setFilterParent(null);
+                setFilterChild(null);
+              }}
+            >
+              전체
             </button>
           </div>
           <div className="toolbar-actions">
@@ -452,6 +481,8 @@ export default function ItemCompositionPage() {
                       <th>품목명</th>
                       <th>자산분류</th>
                       <th>누적수량</th>
+                      <th>외주거래처·단가</th>
+                      <th>구매거래처·단가</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -474,7 +505,8 @@ export default function ItemCompositionPage() {
 
             {modal === 'reverse' && (
               <>
-                <h2>BOM 역전개 (1레벨)</h2>
+                <h2>BOM 역전개 (직계 상위 1레벨)</h2>
+                <p className="hint-text">자품목 「{reverseItemNum}」을(를) 사용하는 모품목 목록입니다.</p>
                 {reverseRows.length === 0 ? (
                   <p>상위 모품목이 없습니다.</p>
                 ) : (

@@ -13,7 +13,12 @@ public interface ItemCompositionRepository {
 
     Optional<ItemCompositionView> findActiveById(long id);
 
-    List<ItemCompositionView> findAllActive(String parentItemNoQuery, String childItemNoQuery);
+    List<ItemCompositionView> findAllActive(
+            Long parentItemId,
+            Long childItemId,
+            String parentItemNoQuery,
+            String childItemNoQuery
+    );
 
     List<ItemCompositionView> findActiveByParentItemId(long parentItemId);
 

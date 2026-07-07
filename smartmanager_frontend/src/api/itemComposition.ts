@@ -15,12 +15,20 @@ export interface ItemComposition {
   createdAt: string;
 }
 
+export interface BomVendorPrice {
+  partnerName: string;
+  unitPrice: number;
+  detail: string;
+}
+
 export interface BomTreeNode {
   itemNum: string;
   itemName: string;
   propertyClassification: string;
   level: number;
   quantity: number;
+  outsourcePrices: BomVendorPrice[];
+  purchasePrices: BomVendorPrice[];
   children: BomTreeNode[];
 }
 
@@ -46,8 +54,12 @@ const API_BASE = '/api/v1/basis/item-composition/plan';
 export async function fetchItemCompositions(
   parentItemNum?: string,
   childItemNum?: string,
+  parentItemId?: number,
+  childItemId?: number,
 ): Promise<ItemComposition[]> {
   const params = new URLSearchParams();
+  if (parentItemId != null) params.set('parentItemId', String(parentItemId));
+  if (childItemId != null) params.set('childItemId', String(childItemId));
   if (parentItemNum) params.set('parentItemNum', parentItemNum);
   if (childItemNum) params.set('childItemNum', childItemNum);
   const query = params.toString();

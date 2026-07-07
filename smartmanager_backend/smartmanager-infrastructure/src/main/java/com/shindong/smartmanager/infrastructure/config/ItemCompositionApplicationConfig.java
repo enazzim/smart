@@ -5,6 +5,8 @@ import com.shindong.smartmanager.application.bom.ItemCompositionRepository;
 import com.shindong.smartmanager.application.bom.ItemCompositionService;
 import com.shindong.smartmanager.application.event.DomainEventStore;
 import com.shindong.smartmanager.application.item.ItemRepository;
+import com.shindong.smartmanager.application.process.ProcessRepository;
+import com.shindong.smartmanager.application.unitprice.UnitPriceRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -20,12 +22,16 @@ public class ItemCompositionApplicationConfig {
     public ItemCompositionService itemCompositionService(
             ItemCompositionRepository itemCompositionRepository,
             ItemRepository itemRepository,
+            ProcessRepository processRepository,
+            UnitPriceRepository unitPriceRepository,
             BomHistoryProjector bomHistoryProjector,
             DomainEventStore domainEventStore
     ) {
         return new ItemCompositionService(
                 itemCompositionRepository,
                 itemRepository,
+                processRepository,
+                unitPriceRepository,
                 bomHistoryProjector,
                 domainEventStore
         );

@@ -38,11 +38,17 @@ public interface SpringDataItemCompositionRepository extends JpaRepository<ItemC
             JOIN ItemJpaEntity parent ON parent.id = c.parentItemId
             JOIN ItemJpaEntity child ON child.id = c.childItemId
             WHERE c.recordingState = 1
-              AND (:parentItemNo IS NULL OR :parentItemNo = '' OR parent.itemNo LIKE CONCAT('%', :parentItemNo, '%'))
-              AND (:childItemNo IS NULL OR :childItemNo = '' OR child.itemNo LIKE CONCAT('%', :childItemNo, '%'))
+              AND (:parentItemId IS NULL OR parent.id = :parentItemId)
+              AND (:childItemId IS NULL OR child.id = :childItemId)
+              AND (:parentItemId IS NOT NULL OR :parentItemNo IS NULL OR :parentItemNo = ''
+                   OR parent.itemNo = :parentItemNo)
+              AND (:childItemId IS NOT NULL OR :childItemNo IS NULL OR :childItemNo = ''
+                   OR child.itemNo = :childItemNo)
             ORDER BY parent.itemNo, child.itemNo
             """)
     List<ItemCompositionJpaEntity> findAllActiveFiltered(
+            @Param("parentItemId") Long parentItemId,
+            @Param("childItemId") Long childItemId,
             @Param("parentItemNo") String parentItemNo,
             @Param("childItemNo") String childItemNo
     );

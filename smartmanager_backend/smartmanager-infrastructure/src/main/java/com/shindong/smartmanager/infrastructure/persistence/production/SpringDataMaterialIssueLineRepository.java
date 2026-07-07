@@ -24,4 +24,16 @@ public interface SpringDataMaterialIssueLineRepository extends JpaRepository<Mat
             GROUP BY mil.itemCompositionId
             """)
     List<Object[]> sumIssuedQtyByWorkOrderId(@Param("workOrderId") long workOrderId);
+
+    @Query("""
+            SELECT mil.itemId, SUM(mil.issueQty)
+            FROM MaterialIssueLineJpaEntity mil
+            JOIN MaterialIssueJpaEntity mi ON mi.id = mil.materialIssueId
+            WHERE mi.workOrderId = :workOrderId
+              AND mi.recordingState = 1
+              AND mi.status = com.shindong.smartmanager.domain.production.MaterialIssueStatus.ISSUED
+              AND mil.recordingState = 1
+            GROUP BY mil.itemId
+            """)
+    List<Object[]> sumIssuedQtyByItemIdForWorkOrder(@Param("workOrderId") long workOrderId);
 }

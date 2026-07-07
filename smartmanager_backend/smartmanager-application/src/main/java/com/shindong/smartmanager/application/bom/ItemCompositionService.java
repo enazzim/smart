@@ -3,15 +3,23 @@ package com.shindong.smartmanager.application.bom;
 import com.shindong.smartmanager.application.event.DomainEventStore;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
+import com.shindong.smartmanager.application.process.ProcessRepository;
+import com.shindong.smartmanager.application.unitprice.UnitPriceRepository;
+import com.shindong.smartmanager.application.unitprice.UnitPriceView;
 import com.shindong.smartmanager.domain.event.AggregateTypes;
 import com.shindong.smartmanager.domain.event.DomainEvent;
 import com.shindong.smartmanager.domain.event.EventTypes;
 import com.shindong.smartmanager.domain.item.PropertyClassification;
+import com.shindong.smartmanager.domain.pricing.CostType;
+import com.shindong.smartmanager.domain.process.ProcessVariant;
+import com.shindong.smartmanager.domain.process.WorkDistinction;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -26,17 +34,23 @@ public class ItemCompositionService {
 
     private final ItemCompositionRepository itemCompositionRepository;
     private final ItemRepository itemRepository;
+    private final ProcessRepository processRepository;
+    private final UnitPriceRepository unitPriceRepository;
     private final BomHistoryProjector bomHistoryProjector;
     private final DomainEventStore domainEventStore;
 
     public ItemCompositionService(
             ItemCompositionRepository itemCompositionRepository,
             ItemRepository itemRepository,
+            ProcessRepository processRepository,
+            UnitPriceRepository unitPriceRepository,
             BomHistoryProjector bomHistoryProjector,
             DomainEventStore domainEventStore
     ) {
         this.itemCompositionRepository = itemCompositionRepository;
         this.itemRepository = itemRepository;
+        this.processRepository = processRepository;
+        this.unitPriceRepository = unitPriceRepository;
         this.bomHistoryProjector = bomHistoryProjector;
         this.domainEventStore = domainEventStore;
     }
@@ -91,8 +105,18 @@ public class ItemCompositionService {
         appendEvent(EventTypes.BOM_LINE_DELETED, id, parent, child, actorUserId);
     }
 
-    public List<ItemCompositionView> listActive(String parentItemNoQuery, String childItemNoQuery) {
-        return itemCompositionRepository.findAllActive(parentItemNoQuery, childItemNoQuery);
+    public List<ItemCompositionView> listActive(
+            Long parentItemId,
+            Long childItemId,
+            String parentItemNoQuery,
+            String childItemNoQuery
+    ) {
+        return itemCompositionRepository.findAllActive(
+                parentItemId,
+                childItemId,
+                parentItemNoQuery,
+                childItemNoQuery
+        );
     }
 
     public List<ItemCompositionView> listByParentItemId(long parentItemId) {
@@ -177,14 +201,71 @@ public class ItemCompositionService {
         }
 
         path.removeLast();
+        LocalDate refDate = LocalDate.now();
+        List<BomVendorPriceView> outsourcePrices = resolveOutsourcePrices(item, refDate);
+        List<BomVendorPriceView> purchasePrices = resolvePurchasePrices(item, refDate);
         return new BomTreeNode(
                 item.itemNo(),
                 item.itemName(),
                 item.propertyClassification(),
                 level,
                 cumulativeQuantity.setScale(4, RoundingMode.HALF_UP),
+                outsourcePrices,
+                purchasePrices,
                 children
         );
+    }
+
+    private List<BomVendorPriceView> resolveOutsourcePrices(ItemView item, LocalDate refDate) {
+        boolean hasOutsourceProcess = processRepository.findAllActiveByItemId(item.id(), ProcessVariant.plan).stream()
+                .anyMatch(process -> process.workDistinction() == WorkDistinction.OUTSOURCE);
+        if (!hasOutsourceProcess) {
+            return List.of();
+        }
+        return unitPriceRepository.findAllActiveByCostTypeAndItemIds(CostType.OUTSOURCE, Set.of(item.id())).stream()
+                .filter(price -> isEffectiveOn(price, refDate))
+                .map(this::toOutsourceVendorPrice)
+                .sorted(Comparator.comparing(BomVendorPriceView::partnerName).thenComparing(BomVendorPriceView::detail))
+                .toList();
+    }
+
+    private List<BomVendorPriceView> resolvePurchasePrices(ItemView item, LocalDate refDate) {
+        if (item.propertyClassification() != PropertyClassification.원자재) {
+            return List.of();
+        }
+        return unitPriceRepository.findAllActiveByCostTypeAndItemIds(CostType.PURCHASE, Set.of(item.id())).stream()
+                .filter(price -> isEffectiveOn(price, refDate))
+                .map(this::toPurchaseVendorPrice)
+                .sorted(Comparator.comparing(BomVendorPriceView::partnerName))
+                .toList();
+    }
+
+    private BomVendorPriceView toOutsourceVendorPrice(UnitPriceView price) {
+        String begin = price.beginProcessName() != null ? price.beginProcessName() : "";
+        String end = price.endProcessName() != null ? price.endProcessName() : "";
+        String detail = begin.isBlank() && end.isBlank() ? "" : begin + "~" + end;
+        return new BomVendorPriceView(price.companyName(), resolveUnitPriceAmount(price), detail);
+    }
+
+    private BomVendorPriceView toPurchaseVendorPrice(UnitPriceView price) {
+        String detail = price.orderRate() != null
+                ? price.orderRate().stripTrailingZeros().toPlainString() + "%"
+                : "";
+        return new BomVendorPriceView(price.companyName(), resolveUnitPriceAmount(price), detail);
+    }
+
+    private boolean isEffectiveOn(UnitPriceView price, LocalDate refDate) {
+        if (price.beginDate().isAfter(refDate)) {
+            return false;
+        }
+        return price.endDate() == null || !price.endDate().isBefore(refDate);
+    }
+
+    private BigDecimal resolveUnitPriceAmount(UnitPriceView price) {
+        if (price.discountUnitCost() != null) {
+            return price.discountUnitCost();
+        }
+        return price.standardUnitCost() != null ? price.standardUnitCost() : BigDecimal.ZERO;
     }
 
     private ItemView resolveParentItem(long parentItemId) {

@@ -5,6 +5,8 @@ import com.shindong.smartmanager.application.inventory.RecordStockMovementComman
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.process.ProcessRepository;
+import com.shindong.smartmanager.application.process.ProcessSequenceNavigator;
+import com.shindong.smartmanager.application.process.ProcessView;
 import com.shindong.smartmanager.application.process.WipBalanceProjector;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
 import com.shindong.smartmanager.domain.item.PropertyClassification;
@@ -68,21 +70,18 @@ public class WorkReportConsumptionInventoryService {
                     null
             );
         }
-        if (item.propertyClassification() == PropertyClassification.공정품) {
-            Long sourceProcessId = bomConsumptionCalculator.resolveIssueSourceProcessId(
-                    item.propertyClassification(),
-                    item.id(),
-                    parentItemId,
-                    currentProcessSequenceNum
-            );
-            if (sourceProcessId == null) {
-                return BigDecimal.ZERO;
-            }
+        Long wipSourceProcessId = resolveWipSourceProcessId(
+                item.id(),
+                item.propertyClassification(),
+                parentItemId,
+                currentProcessSequenceNum
+        );
+        if (wipSourceProcessId != null) {
             return inventoryBalanceService.currentStockQty(
                     item.id(),
                     LOCATION_WIP,
                     reportDate,
-                    sourceProcessId,
+                    wipSourceProcessId,
                     null,
                     null
             );
@@ -180,26 +179,50 @@ public class WorkReportConsumptionInventoryService {
                     null
             );
         }
-        if (item.propertyClassification() == PropertyClassification.공정품) {
-            Long sourceProcessId = bomConsumptionCalculator.resolveIssueSourceProcessId(
-                    item.propertyClassification(),
-                    item.id(),
-                    parentItemId,
-                    currentProcessSequenceNum
-            );
-            if (sourceProcessId == null) {
-                throw new IllegalArgumentException(
-                        "공정품 투입 공정을 찾을 수 없습니다: " + item.itemNo() + " — 공정 계획을 확인해 주세요."
-                );
-            }
+        Long wipSourceProcessId = resolveWipSourceProcessId(
+                item.id(),
+                item.propertyClassification(),
+                parentItemId,
+                currentProcessSequenceNum
+        );
+        if (wipSourceProcessId != null) {
             return new WorkReportConsumptionSaveCommand(
                     item.id(),
                     issueLine.itemCompositionId(),
                     issueLine.issueQty(),
                     LOCATION_WIP,
-                    sourceProcessId
+                    wipSourceProcessId
             );
         }
         throw new IllegalArgumentException("투입할 수 없는 품목 분류입니다: " + item.propertyClassification());
+    }
+
+    /**
+     * 비첫 공정에서 모품목을 직전 공정 WIP에서 투입할 때는 품목 분류(제품·상품·공정품)와 무관하게
+     * 라우트상 직전 공정 WIP를 사용합니다.
+     */
+    private Long resolveWipSourceProcessId(
+            long itemId,
+            PropertyClassification classification,
+            long parentItemId,
+            short currentProcessSequenceNum
+    ) {
+        if (itemId == parentItemId
+                && !ProcessSequenceNavigator.isFirstProcess(
+                        processRepository, parentItemId, currentProcessSequenceNum)) {
+            return ProcessSequenceNavigator.findImmediatePriorProcess(
+                            processRepository, parentItemId, currentProcessSequenceNum)
+                    .map(ProcessView::id)
+                    .orElse(null);
+        }
+        if (classification == PropertyClassification.공정품) {
+            return bomConsumptionCalculator.resolveIssueSourceProcessId(
+                    classification,
+                    itemId,
+                    parentItemId,
+                    currentProcessSequenceNum
+            );
+        }
+        return null;
     }
 }

@@ -54,7 +54,7 @@ export interface CreateWorkReportRequest {
 }
 
 export interface WorkReportIssueLineRequest {
-  itemCompositionId: number;
+  itemCompositionId?: number | null;
   itemId: number;
   issueQty: number;
 }
@@ -65,7 +65,7 @@ export interface WorkReportIssueOnHand {
 }
 
 export interface WorkReportConsumptionLine {
-  itemCompositionId: number;
+  itemCompositionId: number | null;
   itemId: number;
   itemNo: string;
   itemName: string;

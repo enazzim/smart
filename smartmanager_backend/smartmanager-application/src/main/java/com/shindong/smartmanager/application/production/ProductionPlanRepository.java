@@ -12,6 +12,8 @@ public interface ProductionPlanRepository {
 
     boolean existsActiveBySalesOrderLineId(long salesOrderLineId);
 
+    boolean existsActiveBySalesOrderId(long salesOrderId);
+
     long save(ProductionPlanSaveCommand command, String planNo, String actorUserId);
 
     List<ProductionPlanView> findAllActive(ProductionPlanListCriteria criteria);

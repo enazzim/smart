@@ -1,6 +1,8 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   cancelPurchaseOrder,
+  confirmPurchaseOrder,
+  createPurchaseOrder,
   createPurchaseOrderFromMrp,
   fetchMrpPurchaseCandidates,
   fetchPurchaseOrders,
@@ -10,6 +12,28 @@ import {
   type PurchaseOrder,
   type PurchaseOrderListParams,
 } from '../api/purchaseOrder';
+import type { PropertyClassification } from '../api/item';
+import { lookupPurchaseUnitPrice } from '../api/unitPrice';
+import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+
+const MANUAL_PURCHASE_ITEM_CLASSES: PropertyClassification[] = ['원자재', '상품'];
+
+type ManualPurchaseLine = {
+  key: string;
+  item: ItemSearchSelection | null;
+  orderQty: string;
+  unitPrice: string;
+};
+
+function newManualLine(): ManualPurchaseLine {
+  return {
+    key: `line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    item: null,
+    orderQty: '1',
+    unitPrice: '',
+  };
+}
 
 function formatQty(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
@@ -83,6 +107,9 @@ export default function PurchaseOrderPage() {
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [manualPartner, setManualPartner] = useState<CompanySearchSelection | null>(null);
+  const [manualLines, setManualLines] = useState<ManualPurchaseLine[]>(() => [newManualLine()]);
+  const [manualError, setManualError] = useState<string | null>(null);
 
   const loadCandidates = useCallback(async () => {
     setLoadingCandidates(true);
@@ -187,6 +214,56 @@ export default function PurchaseOrderPage() {
     }
   };
 
+  const applyManualLineUnitPrice = useCallback(
+    async (index: number, item: ItemSearchSelection | null, partner: CompanySearchSelection | null) => {
+      if (!item || !partner) {
+        setManualLines((prev) =>
+          prev.map((row, i) => (i === index ? { ...row, item, unitPrice: item ? row.unitPrice : '' } : row)),
+        );
+        return;
+      }
+      let unitPrice = '';
+      try {
+        const resolved = await lookupPurchaseUnitPrice(partner.id, item.id, item.itemNo, orderDate);
+        if (resolved != null) {
+          unitPrice = String(resolved);
+        }
+      } catch {
+        // 단가 조회 실패 시 수동 입력 유지
+      }
+      setManualLines((prev) =>
+        prev.map((row, i) => (i === index ? { ...row, item, unitPrice } : row)),
+      );
+    },
+    [orderDate],
+  );
+
+  useEffect(() => {
+    if (!manualPartner) return;
+    void (async () => {
+      const updates = await Promise.all(
+        manualLines.map(async (line) => {
+          if (!line.item) return line;
+          try {
+            const resolved = await lookupPurchaseUnitPrice(
+              manualPartner.id,
+              line.item.id,
+              line.item.itemNo,
+              orderDate,
+            );
+            if (resolved == null) return line;
+            return { ...line, unitPrice: String(resolved) };
+          } catch {
+            return line;
+          }
+        }),
+      );
+      setManualLines(updates);
+    })();
+    // 거래처·발주일 변경 시에만 기존 라인 단가를 다시 조회한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manualPartner?.id, orderDate]);
+
   const onCreateFromMrp = async () => {
     const selections = [...selectedVendorKeys].map(parseVendorSelectionKey);
     if (selections.length === 0) {
@@ -261,6 +338,70 @@ export default function PurchaseOrderPage() {
     }
   };
 
+  const onCreateManual = async () => {
+    if (!manualPartner) {
+      setManualError('구매 거래처를 선택하세요.');
+      return;
+    }
+    const createLines: Array<{
+      itemId: number;
+      orderQty: number;
+      unitPrice?: number;
+    }> = [];
+    for (let index = 0; index < manualLines.length; index += 1) {
+      const line = manualLines[index];
+      if (!line.item) {
+        setManualError(`라인 ${index + 1}: 품목을 선택하세요.`);
+        return;
+      }
+      const orderQty = Number(line.orderQty);
+      if (!Number.isFinite(orderQty) || orderQty <= 0) {
+        setManualError(`라인 ${index + 1}: 발주수량은 0보다 커야 합니다.`);
+        return;
+      }
+      const unitPrice = line.unitPrice.trim() ? Number(line.unitPrice) : undefined;
+      if (unitPrice != null && (!Number.isFinite(unitPrice) || unitPrice < 0)) {
+        setManualError(`라인 ${index + 1}: 단가가 올바르지 않습니다.`);
+        return;
+      }
+      createLines.push({
+        itemId: line.item.id,
+        orderQty,
+        unitPrice,
+      });
+    }
+    if (createLines.length === 0) {
+      setManualError('발주 라인을 1건 이상 입력하세요.');
+      return;
+    }
+
+    setSubmitting(true);
+    setManualError(null);
+    setMessage(null);
+    try {
+      const draft = await createPurchaseOrder({
+        partnerId: manualPartner.id,
+        orderDate,
+        sourceType: 'MANUAL',
+        lines: createLines,
+      });
+      const confirmed = await confirmPurchaseOrder(draft.id);
+      setLastCreatedOrders([confirmed]);
+      setListFilters((prev) => ({
+        ...prev,
+        orderDateFrom: prev.orderDateFrom && prev.orderDateFrom <= orderDate ? prev.orderDateFrom : orderDate,
+        orderDateTo: prev.orderDateTo && prev.orderDateTo >= orderDate ? prev.orderDateTo : orderDate,
+      }));
+      setMessage(`직접 발주 ${confirmed.orderNo}을(를) 등록·확정했습니다.`);
+      setManualLines([newManualLine()]);
+      await loadOrders();
+    } catch (e) {
+      setManualError(e instanceof Error ? e.message : '직접 발주 등록 실패');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const onCancel = async (order: PurchaseOrder) => {
     if (!window.confirm(`발주 ${order.orderNo}을(를) 취소하시겠습니까?`)) {
       return;
@@ -285,6 +426,95 @@ export default function PurchaseOrderPage() {
   return (
     <div className="page">
       <h1>구매발주</h1>
+
+      <section className="panel">
+        <h2>직접 발주</h2>
+        <p className="hint-text">
+          MRP·수주 없이 <strong>원자재·상품</strong>을 거래처에 직접 발주합니다. 등록 시 자동으로 확정됩니다.
+        </p>
+        {manualError && <div className="error">{manualError}</div>}
+        <div className="form-grid-wide">
+          <CompanySearchField
+            label="구매 거래처"
+            partnerType="PURCHASE"
+            selectedCompany={manualPartner}
+            onSelect={setManualPartner}
+          />
+          <label>
+            발주일
+            <input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
+          </label>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>품목</th>
+              <th>발주수량</th>
+              <th>단가</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {manualLines.map((line, index) => (
+              <tr key={line.key}>
+                <td>
+                  <ItemSearchField
+                    label=""
+                    allowedClassifications={MANUAL_PURCHASE_ITEM_CLASSES}
+                    selectedItem={line.item}
+                    onSelect={(item) => void applyManualLineUnitPrice(index, item, manualPartner)}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    min={0.0001}
+                    step="any"
+                    value={line.orderQty}
+                    onChange={(e) =>
+                      setManualLines((prev) =>
+                        prev.map((row, i) => (i === index ? { ...row, orderQty: e.target.value } : row)),
+                      )
+                    }
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    placeholder="선택"
+                    value={line.unitPrice}
+                    onChange={(e) =>
+                      setManualLines((prev) =>
+                        prev.map((row, i) => (i === index ? { ...row, unitPrice: e.target.value } : row)),
+                      )
+                    }
+                  />
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn-action danger"
+                    disabled={manualLines.length <= 1 || submitting}
+                    onClick={() => setManualLines((prev) => prev.filter((_, i) => i !== index))}
+                  >
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="form-actions">
+          <button type="button" className="secondary" onClick={() => setManualLines((prev) => [...prev, newManualLine()])}>
+            라인 추가
+          </button>
+          <button type="button" disabled={submitting} onClick={() => void onCreateManual()}>
+            {submitting ? '처리 중…' : '직접 발주 등록'}
+          </button>
+        </div>
+      </section>
 
       <section className="panel">
         <h2>MRP 발주 대상</h2>

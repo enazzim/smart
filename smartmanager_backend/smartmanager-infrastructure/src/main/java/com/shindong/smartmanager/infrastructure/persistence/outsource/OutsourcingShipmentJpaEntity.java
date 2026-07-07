@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.outsource;
 
 import com.shindong.smartmanager.domain.outsource.OutsourcingShipmentStatus;
+import com.shindong.smartmanager.domain.outsource.OutsourcingShipmentType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -25,6 +26,13 @@ public class OutsourcingShipmentJpaEntity {
 
     @Column(name = "shipment_date", nullable = false)
     private LocalDate shipmentDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "shipment_type", nullable = false, columnDefinition = "ENUM('ORDER','ADVANCE')")
+    private OutsourcingShipmentType shipmentType = OutsourcingShipmentType.ORDER;
+
+    @Column(name = "partner_id")
+    private Long partnerId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -72,6 +80,22 @@ public class OutsourcingShipmentJpaEntity {
 
     public void setShipmentDate(LocalDate shipmentDate) {
         this.shipmentDate = shipmentDate;
+    }
+
+    public OutsourcingShipmentType getShipmentType() {
+        return shipmentType;
+    }
+
+    public void setShipmentType(OutsourcingShipmentType shipmentType) {
+        this.shipmentType = shipmentType;
+    }
+
+    public Long getPartnerId() {
+        return partnerId;
+    }
+
+    public void setPartnerId(Long partnerId) {
+        this.partnerId = partnerId;
     }
 
     public OutsourcingShipmentStatus getStatus() {

@@ -4,7 +4,7 @@ import com.shindong.smartmanager.application.production.WorkReportConsumptionLin
 import java.math.BigDecimal;
 
 public record WorkReportConsumptionLineResponse(
-        long itemCompositionId,
+        Long itemCompositionId,
         long itemId,
         String itemNo,
         String itemName,

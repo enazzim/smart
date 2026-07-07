@@ -7,6 +7,8 @@ export interface StockMovement {
   itemName: string;
   locationCode: string;
   locationName: string;
+  outputProcessSequence: number | null;
+  outputProcessName: string | null;
   movementType: 'IN' | 'OUT' | 'ADJUST';
   qty: number;
   amount: number;
@@ -31,6 +33,8 @@ export interface InventoryBalance {
   itemName: string;
   locationCode: string;
   locationName: string;
+  outputProcessSequence: number | null;
+  outputProcessName: string | null;
   fiscalYear: number;
   stockQty: number;
   stockAmount: number;

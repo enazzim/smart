@@ -1,15 +1,51 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   cancelOutsourcingShipment,
+  createOutsourcingAdvanceShipment,
   createOutsourcingShipment,
+  fetchOutsourceAdvanceProcessOptions,
+  fetchOutsourcingAdvanceInputPreview,
   fetchOutsourcingShipmentCandidates,
   fetchOutsourcingShipmentInputPreview,
   fetchOutsourcingShipments,
+  type OutsourceAdvanceProcessOption,
   type OutsourcingShipment,
   type OutsourcingShipmentCandidate,
   type OutsourcingShipmentInputPreview,
+  type OutsourcingShipmentInputPreviewLine,
   type OutsourcingShipmentListParams,
 } from '../api/outsourcingShipment';
+import type { PropertyClassification } from '../api/item';
+import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import {
+  formatInventoryLocation,
+  INVENTORY_LOCATION_LABEL,
+  translateInventoryLocationInText,
+} from '../utils/inventoryLocation';
+
+const ADVANCE_PARENT_CLASSES: PropertyClassification[] = ['제품', '공정품'];
+
+function processOptionKey(option: OutsourceAdvanceProcessOption): string {
+  return `${option.beginProcessCodeId}:${option.endProcessCodeId}`;
+}
+
+function advanceInputLineKey(line: OutsourcingShipmentInputPreviewLine): string {
+  return `${line.itemId}-${line.inputProcessId}-${line.itemCompositionId ?? 0}`;
+}
+
+type AdvanceInputLineEdit = OutsourcingShipmentInputPreviewLine & {
+  lineKey: string;
+  issueQtyText: string;
+};
+
+function toAdvanceInputLineEdits(lines: OutsourcingShipmentInputPreviewLine[]): AdvanceInputLineEdit[] {
+  return lines.map((line) => ({
+    ...line,
+    lineKey: advanceInputLineKey(line),
+    issueQtyText: String(line.issueQty),
+  }));
+}
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -50,6 +86,18 @@ export default function OutsourcingShipmentPage() {
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [shipmentError, setShipmentError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [advancePartner, setAdvancePartner] = useState<CompanySearchSelection | null>(null);
+  const [advanceParentItem, setAdvanceParentItem] = useState<ItemSearchSelection | null>(null);
+  const [advanceProcessOptions, setAdvanceProcessOptions] = useState<OutsourceAdvanceProcessOption[]>([]);
+  const [advanceProcessKey, setAdvanceProcessKey] = useState('');
+  const [advanceReferenceQty, setAdvanceReferenceQty] = useState('1');
+  const [advanceInputEdits, setAdvanceInputEdits] = useState<AdvanceInputLineEdit[]>([]);
+  const [editingAdvanceLineKey, setEditingAdvanceLineKey] = useState<string | null>(null);
+  const [editAdvanceQtyDraft, setEditAdvanceQtyDraft] = useState('');
+  const advanceQtyInputRef = useRef<HTMLInputElement | null>(null);
+  const [advanceError, setAdvanceError] = useState<string | null>(null);
+  const [loadingAdvanceOptions, setLoadingAdvanceOptions] = useState(false);
+  const [loadingAdvancePreview, setLoadingAdvancePreview] = useState(false);
 
   const loadCandidates = useCallback(async () => {
     setLoadingCandidates(true);
@@ -94,6 +142,164 @@ export default function OutsourcingShipmentPage() {
   useEffect(() => {
     void loadShipments();
   }, [loadShipments]);
+
+  useEffect(() => {
+    if (!advancePartner || !advanceParentItem) {
+      setAdvanceProcessOptions([]);
+      setAdvanceProcessKey('');
+      setAdvanceInputEdits([]);
+      setEditingAdvanceLineKey(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingAdvanceOptions(true);
+    setAdvanceError(null);
+    void fetchOutsourceAdvanceProcessOptions(advancePartner.id, advanceParentItem.id, shipmentDate)
+      .then((options) => {
+        if (cancelled) return;
+        setAdvanceProcessOptions(options);
+        setAdvanceProcessKey(options.length > 0 ? processOptionKey(options[0]) : '');
+        setAdvanceInputEdits([]);
+        setEditingAdvanceLineKey(null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setAdvanceProcessOptions([]);
+        setAdvanceProcessKey('');
+        setAdvanceInputEdits([]);
+        setEditingAdvanceLineKey(null);
+        setAdvanceError(e instanceof Error ? e.message : '공정구간 조회 실패');
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAdvanceOptions(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [advancePartner, advanceParentItem, shipmentDate]);
+
+  const selectedAdvanceProcess = useMemo(
+    () => advanceProcessOptions.find((option) => processOptionKey(option) === advanceProcessKey) ?? null,
+    [advanceProcessOptions, advanceProcessKey],
+  );
+
+  useEffect(() => {
+    if (editingAdvanceLineKey !== null) {
+      advanceQtyInputRef.current?.focus();
+      advanceQtyInputRef.current?.select();
+    }
+  }, [editingAdvanceLineKey]);
+
+  const loadAdvancePreview = async () => {
+    if (!advancePartner || !advanceParentItem || !selectedAdvanceProcess) {
+      setAdvanceError('거래처·품목·공정구간을 선택하세요.');
+      return;
+    }
+    const referenceQty = parseQty(advanceReferenceQty);
+    if (referenceQty == null) {
+      setAdvanceError('기준수량은 0보다 커야 합니다.');
+      return;
+    }
+    setLoadingAdvancePreview(true);
+    setAdvanceError(null);
+    try {
+      const preview = await fetchOutsourcingAdvanceInputPreview(
+        advancePartner.id,
+        advanceParentItem.id,
+        selectedAdvanceProcess.beginProcessCodeId,
+        selectedAdvanceProcess.endProcessCodeId,
+        referenceQty,
+        shipmentDate,
+      );
+      setAdvanceInputEdits(toAdvanceInputLineEdits(preview.lines));
+      setEditingAdvanceLineKey(null);
+    } catch (e) {
+      setAdvanceInputEdits([]);
+      setEditingAdvanceLineKey(null);
+      setAdvanceError(e instanceof Error ? e.message : '선출고 투입 미리보기 조회 실패');
+    } finally {
+      setLoadingAdvancePreview(false);
+    }
+  };
+
+  const startEditAdvanceIssueQty = (line: AdvanceInputLineEdit) => {
+    if (submitting) return;
+    setEditingAdvanceLineKey(line.lineKey);
+    setEditAdvanceQtyDraft(line.issueQtyText);
+  };
+
+  const commitEditAdvanceIssueQty = () => {
+    if (editingAdvanceLineKey === null) return;
+    const parsed = Number(editAdvanceQtyDraft);
+    const nextQty = Number.isFinite(parsed) && parsed > 0 ? String(parsed) : '';
+    setAdvanceInputEdits((lines) =>
+      lines.map((line) =>
+        line.lineKey === editingAdvanceLineKey ? { ...line, issueQtyText: nextQty || line.issueQtyText } : line,
+      ),
+    );
+    setEditingAdvanceLineKey(null);
+  };
+
+  const onCreateAdvanceShipment = async () => {
+    if (!advancePartner || !advanceParentItem || !selectedAdvanceProcess) {
+      setAdvanceError('거래처·품목·공정구간을 선택하세요.');
+      return;
+    }
+    const referenceQty = parseQty(advanceReferenceQty);
+    if (referenceQty == null) {
+      setAdvanceError('기준수량은 0보다 커야 합니다.');
+      return;
+    }
+    if (advanceInputEdits.length === 0) {
+      setAdvanceError('투입 미리보기를 먼저 실행하세요.');
+      return;
+    }
+    const inputLines = advanceInputEdits
+      .map((line) => {
+        const issueQty = Number(line.issueQtyText);
+        if (!Number.isFinite(issueQty) || issueQty <= 0) return null;
+        return {
+          itemId: line.itemId,
+          itemCompositionId: line.itemCompositionId ?? undefined,
+          issueQty,
+          sourceLocationCode: line.sourceLocationCode,
+          sourceProcessId: line.sourceProcessId ?? undefined,
+          inputProcessId: line.inputProcessId,
+        };
+      })
+      .filter((line): line is NonNullable<typeof line> => line != null);
+    if (inputLines.length === 0) {
+      setAdvanceError('투입수량은 0보다 커야 합니다.');
+      return;
+    }
+    setSubmitting(true);
+    setAdvanceError(null);
+    setShipmentError(null);
+    setMessage(null);
+    try {
+      const created = await createOutsourcingAdvanceShipment({
+        shipmentDate,
+        partnerId: advancePartner.id,
+        lines: [
+          {
+            parentItemId: advanceParentItem.id,
+            beginProcessCodeId: selectedAdvanceProcess.beginProcessCodeId,
+            endProcessCodeId: selectedAdvanceProcess.endProcessCodeId,
+            referenceQty,
+            inputLines,
+          },
+        ],
+      });
+      setMessage(`선출고 ${created.shipmentNo}을(를) 등록했습니다. (발주 잔량과 무관)`);
+      setAdvanceInputEdits([]);
+      setEditingAdvanceLineKey(null);
+      await loadShipments();
+    } catch (e) {
+      setAdvanceError(e instanceof Error ? e.message : '선출고 등록 실패');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const selectableLineIds = useMemo(
     () => new Set(candidates.filter((row) => row.shippable).map((row) => row.orderLineId)),
@@ -214,11 +420,147 @@ export default function OutsourcingShipmentPage() {
     <div className="page">
       <header className="page-header">
         <h1>외주출고</h1>
-        <p>외주발주 잔량을 기준으로 투입 자재·반제품을 출고하고 외주창고(OUTSOURCE)로 이동합니다.</p>
+        <p>외주발주 잔량을 기준으로 투입 자재·반제품을 출고하고 {INVENTORY_LOCATION_LABEL.OUTSOURCE}로 이동합니다.</p>
       </header>
 
       {message && <p className="success-banner">{message}</p>}
       {shipmentError && <p className="error-banner">{shipmentError}</p>}
+
+      <section className="panel">
+        <h2>선출고 (발주 무관)</h2>
+        <p className="hint">
+          외주발주가 있어도 별도로 투입 자재·반제품을 {INVENTORY_LOCATION_LABEL.OUTSOURCE}로 선출고합니다. 발주
+          출고수량(shipped_qty)에는 반영되지 않습니다.
+        </p>
+        {advanceError && <p className="error-banner">{advanceError}</p>}
+        <div className="action-bar">
+          <label>
+            출고일
+            <input type="date" value={shipmentDate} onChange={(e) => setShipmentDate(e.target.value)} disabled={submitting} />
+          </label>
+        </div>
+        <div className="form-grid-wide">
+          <CompanySearchField
+            label="외주 거래처"
+            partnerType="OUTSOURCE"
+            selectedCompany={advancePartner}
+            onSelect={setAdvancePartner}
+          />
+          <ItemSearchField
+            label="공정품(모품목)"
+            allowedClassifications={ADVANCE_PARENT_CLASSES}
+            selectedItem={advanceParentItem}
+            onSelect={setAdvanceParentItem}
+          />
+          <label>
+            공정구간
+            <select
+              value={advanceProcessKey}
+              disabled={loadingAdvanceOptions || advanceProcessOptions.length === 0}
+              onChange={(e) => {
+                setAdvanceProcessKey(e.target.value);
+                setAdvanceInputEdits([]);
+                setEditingAdvanceLineKey(null);
+              }}
+            >
+              {advanceProcessOptions.length === 0 ? (
+                <option value="">거래처·품목 선택 후 조회</option>
+              ) : (
+                advanceProcessOptions.map((option) => {
+                  const key = processOptionKey(option);
+                  return (
+                    <option key={key} value={key}>
+                      {option.beginProcessName} ~ {option.endProcessName}
+                    </option>
+                  );
+                })
+              )}
+            </select>
+          </label>
+          <label>
+            기준수량
+            <input
+              type="number"
+              min={0}
+              step="any"
+              value={advanceReferenceQty}
+              onChange={(e) => {
+                setAdvanceReferenceQty(e.target.value);
+                setAdvanceInputEdits([]);
+                setEditingAdvanceLineKey(null);
+              }}
+            />
+          </label>
+        </div>
+        <div className="action-bar">
+          <button
+            type="button"
+            className="secondary"
+            disabled={loadingAdvancePreview || submitting}
+            onClick={() => void loadAdvancePreview()}
+          >
+            {loadingAdvancePreview ? '미리보기…' : '투입 미리보기'}
+          </button>
+          <button type="button" disabled={submitting} onClick={() => void onCreateAdvanceShipment()}>
+            {submitting ? '등록 중…' : '선출고 등록'}
+          </button>
+        </div>
+        {advanceInputEdits.length > 0 && (
+          <div className="table-wrap">
+            <p className="hint">투입수량은 더블클릭하여 수정할 수 있습니다.</p>
+            <table className="nested-table">
+              <thead>
+                <tr>
+                  <th>투입품목</th>
+                  <th>분류</th>
+                  <th>창고</th>
+                  <th>투입수량</th>
+                  <th>현재고</th>
+                </tr>
+              </thead>
+              <tbody>
+                {advanceInputEdits.map((line) => (
+                  <tr key={line.lineKey}>
+                    <td>
+                      {line.itemNo} {line.itemName}
+                    </td>
+                    <td>{line.propertyClassification}</td>
+                    <td>{formatInventoryLocation(line.sourceLocationCode)}</td>
+                    <td className="issue-qty-cell">
+                      {editingAdvanceLineKey === line.lineKey ? (
+                        <input
+                          ref={advanceQtyInputRef}
+                          type="number"
+                          min={0.0001}
+                          step="any"
+                          className="issue-qty-input"
+                          value={editAdvanceQtyDraft}
+                          disabled={submitting}
+                          onChange={(e) => setEditAdvanceQtyDraft(e.target.value)}
+                          onBlur={commitEditAdvanceIssueQty}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                            if (e.key === 'Escape') setEditingAdvanceLineKey(null);
+                          }}
+                        />
+                      ) : (
+                        <span
+                          className="issue-qty-label"
+                          onDoubleClick={() => startEditAdvanceIssueQty(line)}
+                          title="더블클릭하여 수정"
+                        >
+                          {formatQty(Number(line.issueQtyText))}
+                        </span>
+                      )}
+                    </td>
+                    <td>{formatQty(line.onHandQty)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <section className="panel">
         <h2>발주 출고 후보</h2>
@@ -318,7 +660,7 @@ export default function OutsourcingShipmentPage() {
                             }}
                           />
                         </td>
-                        <td>{row.shippable ? '출고가능' : row.shippableMessage ?? '불가'}</td>
+                        <td>{translateInventoryLocationInText(row.shippableMessage) || (row.shippable ? '출고가능' : '불가')}</td>
                       </tr>
                       {expanded && (
                         <tr>
@@ -343,7 +685,7 @@ export default function OutsourcingShipmentPage() {
                                         {line.itemNo} {line.itemName}
                                       </td>
                                       <td>{line.propertyClassification}</td>
-                                      <td>{line.sourceLocationCode}</td>
+                                      <td>{formatInventoryLocation(line.sourceLocationCode)}</td>
                                       <td>{formatQty(line.issueQty)}</td>
                                       <td>{formatQty(line.onHandQty)}</td>
                                     </tr>
@@ -414,6 +756,7 @@ export default function OutsourcingShipmentPage() {
               <thead>
                 <tr>
                   <th>출고번호</th>
+                  <th>유형</th>
                   <th>출고일</th>
                   <th>거래처</th>
                   <th>품목·공정</th>
@@ -426,8 +769,15 @@ export default function OutsourcingShipmentPage() {
                 {shipments.map((shipment) => (
                   <tr key={shipment.id}>
                     <td>{shipment.shipmentNo}</td>
+                    <td>{shipment.shipmentTypeLabel}</td>
                     <td>{shipment.shipmentDate}</td>
-                    <td>{shipment.lines.map((line) => line.partnerName).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</td>
+                    <td>
+                      {shipment.partnerName ??
+                        shipment.lines
+                          .map((line) => line.partnerName)
+                          .filter((v, i, a) => a.indexOf(v) === i)
+                          .join(', ')}
+                    </td>
                     <td>
                       {shipment.lines.map((line) => (
                         <div key={line.id}>
