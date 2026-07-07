@@ -11,7 +11,7 @@ INSERT INTO inventory_location (location_code, location_name) VALUES
 ('RAW', '원자재창고'),
 ('SALES', '영업창고'),
 ('DELIVERY', '납품창고'),
-('WIP', '공정창고'),
+('WIP', '생산창고'),
 ('OUTSOURCE', '외주창고')
 ON DUPLICATE KEY UPDATE location_name = VALUES(location_name);
 
