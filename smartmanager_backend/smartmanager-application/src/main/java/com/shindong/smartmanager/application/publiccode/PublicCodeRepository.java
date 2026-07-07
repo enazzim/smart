@@ -15,6 +15,8 @@ public interface PublicCodeRepository {
 
     Optional<PublicCodeSmallView> findActiveSmallById(long id);
 
+    Optional<PublicCodeSmallView> findActiveSmallBySmallCode(String smallCode, String usageType);
+
     long saveLarge(CreateLargeCommand command, String actorUserId);
 
     long saveSmall(CreateSmallCommand command, PublicCodeLargeView header, String actorUserId);

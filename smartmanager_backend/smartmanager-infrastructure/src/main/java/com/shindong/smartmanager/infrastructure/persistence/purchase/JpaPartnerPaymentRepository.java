@@ -68,11 +68,6 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                        COALESCE(oh.outsource_amount, 0) AS outsource_amount,
                        COALESCE(pp.paid_amount, 0) AS paid_amount
                 FROM company c
-                WHERE c.recording_state = 1
-                  AND EXISTS (
-                    SELECT 1 FROM company_role cr
-                    WHERE cr.company_id = c.id AND cr.role_type IN ('PURCHASE', 'OUTSOURCE')
-                  )
                 LEFT JOIN (
                     SELECT company_id, SUM(amount) AS purchase_amount
                     FROM purchase_history
@@ -91,7 +86,12 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                     WHERE recording_state = 1 AND status = 'ISSUED'
                     GROUP BY partner_id
                 ) pp ON pp.partner_id = c.id
-                WHERE (COALESCE(ph.purchase_amount, 0) + COALESCE(oh.outsource_amount, 0)
+                WHERE c.recording_state = 1
+                  AND EXISTS (
+                    SELECT 1 FROM company_role cr
+                    WHERE cr.company_id = c.id AND cr.role_type IN ('PURCHASE', 'OUTSOURCE')
+                  )
+                  AND (COALESCE(ph.purchase_amount, 0) + COALESCE(oh.outsource_amount, 0)
                        - COALESCE(pp.paid_amount, 0)) > 0
                 """);
         Map<String, Object> params = new HashMap<>();

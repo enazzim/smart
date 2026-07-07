@@ -11,4 +11,6 @@ public interface SpringDataCompanyRepository extends JpaRepository<CompanyJpaEnt
     List<CompanyJpaEntity> findByRecordingStateOrderByIdDesc(int recordingState);
 
     Optional<CompanyJpaEntity> findByIdAndRecordingState(Long id, int recordingState);
+
+    Optional<CompanyJpaEntity> findByBusinessRegNoAndRecordingState(String businessRegNo, int recordingState);
 }

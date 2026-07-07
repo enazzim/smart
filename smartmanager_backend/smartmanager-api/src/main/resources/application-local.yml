@@ -37,3 +37,6 @@ smartmanager:
     files-dir: ../../filedownload
     max-file-size-bytes: 104857600
     allowed-extensions: pdf,doc,docx,xls,xlsx,png,jpg,jpeg,zip
+  backup:
+    dir: ../../backup
+    mariadb-bin-dir: "C:/Program Files/MariaDB 11.4/bin"

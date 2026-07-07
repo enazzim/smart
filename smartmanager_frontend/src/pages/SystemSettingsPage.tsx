@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
+  createBackup,
+  deleteBackup,
+  downloadBackup,
+  fetchBackups,
+  restoreBackup,
+  type BackupFileInfo,
+} from '../api/systemBackup';
+import {
   fetchSystemSettings,
   MATERIAL_ISSUE_ENABLED_LABELS,
   MRP_GROUPING_MODE_LABELS,
@@ -129,6 +137,156 @@ function SettingsTable({
   );
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function BackupPanel() {
+  const [backups, setBackups] = useState<BackupFileInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setBackups(await fetchBackups());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '백업 목록 조회 실패');
+      setBackups([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const onCreate = async () => {
+    setSubmitting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const created = await createBackup();
+      setMessage(`백업을 저장했습니다: ${created.fileName}`);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '백업 저장 실패');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onDownload = async (fileName: string) => {
+    setSubmitting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await downloadBackup(fileName);
+      setMessage(`PC에 저장했습니다: ${fileName}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '백업 파일 저장 실패');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onDelete = async (fileName: string) => {
+    if (!window.confirm(`백업 파일을 삭제하시겠습니까?\n${fileName}`)) return;
+    setSubmitting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await deleteBackup(fileName);
+      setMessage(`삭제했습니다: ${fileName}`);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '삭제 실패');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onRestore = async (fileName: string) => {
+    if (
+      !window.confirm(
+        `현재 데이터베이스가 백업 시점으로 덮어씌워집니다.\n복구 후 재로그인이 필요할 수 있습니다.\n\n적용하시겠습니까?\n${fileName}`,
+      )
+    ) {
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await restoreBackup(fileName);
+      setMessage(`복구를 적용했습니다. 재로그인해 주세요. (${fileName})`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '복구 실패');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <section className="panel">
+      <h2>데이터 백업 및 복구</h2>
+      <p className="hint-text">
+        백업 파일은 프로젝트 <code>backup</code> 폴더에 저장됩니다. 복구(적용)는 현재 DB 전체를 덮어쓰므로
+        로컬 개발 환경에서만 사용하세요.
+      </p>
+      <div className="form-actions">
+        <button type="button" disabled={submitting} onClick={() => void onCreate()}>
+          {submitting ? '처리 중…' : '백업 저장'}
+        </button>
+      </div>
+      {message && <p>{message}</p>}
+      {error && <div className="error">{error}</div>}
+      {loading ? (
+        <p>불러오는 중…</p>
+      ) : backups.length === 0 ? (
+        <p>저장된 백업이 없습니다.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>파일명</th>
+              <th>크기</th>
+              <th>생성일시</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody>
+            {backups.map((file) => (
+              <tr key={file.fileName}>
+                <td>{file.fileName}</td>
+                <td>{formatFileSize(file.fileSizeBytes)}</td>
+                <td>{formatDateTime(file.createdAt)}</td>
+                <td className="actions">
+                  <button type="button" disabled={submitting} onClick={() => void onDownload(file.fileName)}>
+                    저장
+                  </button>
+                  <button type="button" disabled={submitting} onClick={() => void onRestore(file.fileName)}>
+                    적용
+                  </button>
+                  <button type="button" disabled={submitting} onClick={() => void onDelete(file.fileName)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
 export default function SystemSettingsPage() {
   const { setMaterialIssueEnabled, setNegativeStockAllowed } = useMaterialIssueSetting();
   const [settings, setSettings] = useState<SystemSetting[]>([]);
@@ -242,6 +400,8 @@ export default function SystemSettingsPage() {
           />
         )}
       </section>
+
+      <BackupPanel />
     </div>
   );
 }

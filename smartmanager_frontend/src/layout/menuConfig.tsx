@@ -14,6 +14,7 @@ import UserPage from '../pages/UserPage';
 import PublicCodePage from '../pages/PublicCodePage';
 import MonthClosingPage from '../pages/MonthClosingPage';
 import SystemSettingsPage from '../pages/SystemSettingsPage';
+import MasterImportPage from '../pages/MasterImportPage';
 import SalesOrderPage from '../pages/SalesOrderPage';
 import ProductionPlanPage from '../pages/ProductionPlanPage';
 import MrpPage from '../pages/MrpPage';
@@ -59,7 +60,7 @@ export type BasisTab =
   | 'workCenterCalendar'
   | 'user';
 
-export type SystemPage = 'publicCode' | 'role' | 'monthClosing' | 'systemSettings';
+export type SystemPage = 'publicCode' | 'masterImport' | 'role' | 'monthClosing' | 'systemSettings';
 
 export type SalesPageId = 'sales-order' | 'sales-shipment' | 'sales-revenue' | 'sales-collection';
 
@@ -156,6 +157,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     label: '시스템정보',
     children: [
       { id: 'publicCode', label: '공용코드' },
+      { id: 'masterImport', label: '초기정보 일괄입력' },
       { id: 'role', label: '권한' },
       { id: 'systemSettings', label: '시스템 설정' },
       { id: 'monthClosing', label: '월마감' },
@@ -195,7 +197,7 @@ const PLACEHOLDER_LABELS: Record<PlaceholderPageId | 'sales-order', string> = {
   'sales-revenue': '매출',
 };
 
-const SYSTEM_PLACEHOLDER_LABELS: Record<Exclude<SystemPage, 'publicCode' | 'monthClosing' | 'systemSettings'>, string> = {
+const SYSTEM_PLACEHOLDER_LABELS: Record<Exclude<SystemPage, 'publicCode' | 'masterImport' | 'monthClosing' | 'systemSettings'>, string> = {
   role: '권한',
 };
 
@@ -220,6 +222,9 @@ export function renderBasisPage(tab: BasisTab, ctx?: BasisPageContext) {
 export function renderSystemPage(page: SystemPage) {
   if (page === 'publicCode') {
     return <PublicCodePage />;
+  }
+  if (page === 'masterImport') {
+    return <MasterImportPage />;
   }
   if (page === 'monthClosing') {
     return <MonthClosingPage />;

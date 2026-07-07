@@ -17,8 +17,8 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Local secrets (use config/local-db.env locally)
-config/local-db.env
+# Local data (DB dump files at repo root only)
+/backup/
 
 # Logs
 *.log

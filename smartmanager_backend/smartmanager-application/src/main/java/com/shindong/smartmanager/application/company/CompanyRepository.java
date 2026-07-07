@@ -18,6 +18,8 @@ public interface CompanyRepository {
 
     Optional<CompanyView> findActiveById(long id);
 
+    Optional<CompanyView> findActiveByBusinessRegNo(String businessRegNo);
+
     void update(long id, CompanyUpdateCommand command, String actorUserId);
 
     void softDelete(long id, String actorUserId);

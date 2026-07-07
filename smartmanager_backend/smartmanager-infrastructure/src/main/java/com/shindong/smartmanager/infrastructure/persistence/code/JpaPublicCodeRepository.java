@@ -64,6 +64,13 @@ public class JpaPublicCodeRepository implements PublicCodeRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<PublicCodeSmallView> findActiveSmallBySmallCode(String smallCode, String usageType) {
+        return publicCodeRepository.findBySmallCodeAndUsageTypeAndRecordingState(smallCode, usageType, 1)
+                .map(this::toSmallView);
+    }
+
+    @Override
     @Transactional
     public long saveLarge(CreateLargeCommand command, String actorUserId) {
         Instant now = Instant.now();

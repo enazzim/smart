@@ -30,3 +30,10 @@ tasks.register<JavaExec>("flywayRepairLocal") {
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("com.shindong.smartmanager.infrastructure.flyway.FlywayRepairLocal")
 }
+
+tasks.register<JavaExec>("flywayMigrateLocal") {
+    group = "flyway"
+    description = "Apply pending Flyway migrations to local smartmanager database"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("com.shindong.smartmanager.infrastructure.flyway.FlywayMigrateLocal")
+}

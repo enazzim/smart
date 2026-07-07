@@ -91,6 +91,12 @@ public class JpaCompanyRepository implements CompanyRepository {
     }
 
     @Override
+    public Optional<CompanyView> findActiveByBusinessRegNo(String businessRegNo) {
+        return companyRepository.findByBusinessRegNoAndRecordingState(businessRegNo, 1)
+                .map(entity -> toView(entity, findRoles(entity.getId())));
+    }
+
+    @Override
     @Transactional
     public void update(long id, CompanyUpdateCommand command, String actorUserId) {
         CompanyJpaEntity entity = companyRepository.findByIdAndRecordingState(id, 1)
