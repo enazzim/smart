@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import type { AuthenticatedUser } from '../api/auth';
+import { changeMyPassword } from '../api/auth';
 import type { CodeOption, CreateUserRequest, Role, User } from '../api/user';
 import {
   checkLoginId,
@@ -20,15 +22,28 @@ const emptyForm: CreateUserRequest & { passwordConfirm: string } = {
   roleIds: [],
 };
 
+const emptyPasswordForm = {
+  currentPassword: '',
+  password: '',
+  passwordConfirm: '',
+};
+
 function toggleRole(roleIds: number[], roleId: number): number[] {
   return roleIds.includes(roleId) ? roleIds.filter((id) => id !== roleId) : [...roleIds, roleId];
 }
 
-export default function UserPage() {
+interface UserPageProps {
+  currentUser: AuthenticatedUser | null;
+  canManageUsers: boolean;
+}
+
+export default function UserPage({ currentUser, canManageUsers }: UserPageProps) {
   const [roles, setRoles] = useState<Role[]>([]);
   const [workDiaryGroups, setWorkDiaryGroups] = useState<CodeOption[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [selfUser, setSelfUser] = useState<User | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [passwordForm, setPasswordForm] = useState(emptyPasswordForm);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingLoginId, setEditingLoginId] = useState<string | null>(null);
@@ -37,14 +52,21 @@ export default function UserPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const isEditing = editingId !== null;
+  const isSelfService = !canManageUsers;
 
   const load = async (query = searchQuery) => {
     setLoading(true);
     setError(null);
     try {
-      setUsers(await fetchUsers(query || undefined));
+      const rows = await fetchUsers(query || undefined);
+      if (isSelfService) {
+        setSelfUser(rows[0] ?? null);
+      } else {
+        setUsers(rows);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록 조회 실패');
     } finally {
@@ -55,15 +77,17 @@ export default function UserPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const [roleList, diaryGroups] = await Promise.all([fetchRoles(), fetchWorkDiaryGroups()]);
-        setRoles(roleList);
-        setWorkDiaryGroups(diaryGroups);
+        if (canManageUsers) {
+          const [roleList, diaryGroups] = await Promise.all([fetchRoles(), fetchWorkDiaryGroups()]);
+          setRoles(roleList);
+          setWorkDiaryGroups(diaryGroups);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : '초기 로드 실패');
       }
     })();
     void load();
-  }, []);
+  }, [canManageUsers]);
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -161,6 +185,31 @@ export default function UserPage() {
     }
   };
 
+  const onPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSuccess(null);
+    if (passwordForm.password.length < 8) {
+      setError('새 비밀번호는 8자 이상이어야 합니다.');
+      return;
+    }
+    if (passwordForm.password !== passwordForm.passwordConfirm) {
+      setError('새 비밀번호 확인이 일치하지 않습니다.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await changeMyPassword(passwordForm.currentPassword, passwordForm.password);
+      setPasswordForm(emptyPasswordForm);
+      setSuccess('비밀번호가 변경되었습니다.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '비밀번호 변경 실패');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const onDelete = async (user: User) => {
     if (!window.confirm(`「${user.name} (${user.loginId})」 사용자를 삭제하시겠습니까?`)) {
       return;
@@ -181,6 +230,100 @@ export default function UserPage() {
     e.preventDefault();
     void load(searchQuery);
   };
+
+  if (isSelfService) {
+    const profile = selfUser;
+    const roleLabel =
+      profile?.roleCodes.join(', ') || currentUser?.roleCodes.join(', ') || '—';
+
+    return (
+      <>
+        <header>
+          <h1>내 계정</h1>
+          <p>본인 정보 확인 및 비밀번호 변경</p>
+        </header>
+
+        {error && <div className="error">{error}</div>}
+        {success && <div className="success-banner">{success}</div>}
+
+        <section className="panel">
+          <h2>계정 정보</h2>
+          {loading ? (
+            <p>로딩 중…</p>
+          ) : (
+            <dl className="profile-dl">
+              <div>
+                <dt>로그인 아이디</dt>
+                <dd>{profile?.loginId ?? currentUser?.loginId ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>사원명</dt>
+                <dd>{profile?.name ?? currentUser?.name ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>연락처</dt>
+                <dd>{profile?.contact ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>이메일</dt>
+                <dd>{profile?.email ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>사용권한</dt>
+                <dd>{roleLabel}</dd>
+              </div>
+              <div>
+                <dt>업무일지그룹</dt>
+                <dd>{profile?.workDiaryGroupName ?? '—'}</dd>
+              </div>
+            </dl>
+          )}
+        </section>
+
+        <section className="panel">
+          <h2>비밀번호 변경</h2>
+          <form onSubmit={onPasswordSubmit} className="form-grid form-grid-wide">
+            <label>
+              현재 비밀번호 *
+              <input
+                type="password"
+                required
+                value={passwordForm.currentPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                autoComplete="current-password"
+              />
+            </label>
+            <label>
+              새 비밀번호 *
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={passwordForm.password}
+                onChange={(e) => setPasswordForm({ ...passwordForm, password: e.target.value })}
+                autoComplete="new-password"
+              />
+            </label>
+            <label>
+              새 비밀번호 확인 *
+              <input
+                type="password"
+                required
+                value={passwordForm.passwordConfirm}
+                onChange={(e) => setPasswordForm({ ...passwordForm, passwordConfirm: e.target.value })}
+                autoComplete="new-password"
+              />
+            </label>
+            <div className="form-actions">
+              <button type="submit" disabled={submitting}>
+                {submitting ? '변경 중…' : '비밀번호 변경'}
+              </button>
+            </div>
+          </form>
+        </section>
+      </>
+    );
+  }
 
   return (
     <>

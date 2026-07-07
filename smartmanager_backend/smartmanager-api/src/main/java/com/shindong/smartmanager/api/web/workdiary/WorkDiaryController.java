@@ -5,6 +5,7 @@ import com.shindong.smartmanager.application.workdiary.ApproveWorkDiaryCommand;
 import com.shindong.smartmanager.application.workdiary.CancelWorkDiaryApprovalCommand;
 import com.shindong.smartmanager.application.workdiary.CreateWorkDiaryCommand;
 import com.shindong.smartmanager.application.workdiary.SubmitWorkDiaryCommand;
+import com.shindong.smartmanager.application.workdiary.UpdateWorkDiaryTemplateCommand;
 import com.shindong.smartmanager.application.workdiary.UpdateWorkDiaryCommand;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryApplicationService;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryDetailView;
@@ -14,6 +15,7 @@ import com.shindong.smartmanager.application.workdiary.WorkDiaryPageView;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryTemplateView;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,6 +40,44 @@ public class WorkDiaryController {
 
     public WorkDiaryController(WorkDiaryApplicationService workDiaryApplicationService) {
         this.workDiaryApplicationService = workDiaryApplicationService;
+    }
+
+    @GetMapping("/templates")
+    @PreAuthorize("hasAnyAuthority('community:workdiary:read','community:workdiary:write','community:workdiary:approve')")
+    public List<WorkDiaryTemplateResponse> templates() {
+        return workDiaryApplicationService.listTemplates().stream()
+                .map(view -> new WorkDiaryTemplateResponse(
+                        view.templateCode(),
+                        view.workDiaryGroupId(),
+                        view.workDiaryGroupName(),
+                        view.templateName(),
+                        view.fieldSchema()
+                ))
+                .toList();
+    }
+
+    @PutMapping("/templates/{workDiaryGroupId}")
+    @PreAuthorize("hasAnyAuthority('community:workdiary:read','community:workdiary:write','community:workdiary:approve')")
+    public WorkDiaryTemplateResponse updateTemplate(
+            @PathVariable long workDiaryGroupId,
+            @Valid @RequestBody UpdateWorkDiaryTemplateRequest request
+    ) {
+        var principal = SecurityUtils.requirePrincipal();
+        WorkDiaryTemplateView view = workDiaryApplicationService.updateTemplate(new UpdateWorkDiaryTemplateCommand(
+                workDiaryGroupId,
+                request.templateName(),
+                request.legacyFields(),
+                principal.userId(),
+                principal.loginId(),
+                String.valueOf(principal.userId())
+        ));
+        return new WorkDiaryTemplateResponse(
+                view.templateCode(),
+                view.workDiaryGroupId(),
+                view.workDiaryGroupName(),
+                view.templateName(),
+                view.fieldSchema()
+        );
     }
 
     @GetMapping("/my-template")

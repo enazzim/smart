@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import AppShell, { type AppSelection } from './layout/AppShell';
 import type { BoardScreen } from './pages/BoardPage';
 import { MaterialIssueSettingProvider } from './context/MaterialIssueSettingContext';
+import { isSelectionVisible } from './layout/menuAccess';
 import {
   defaultChildId,
   type MenuCategory,
@@ -131,6 +132,16 @@ export default function App() {
   }, [authed]);
 
   useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+    if (!isSelectionVisible(selection, currentUser.roleCodes)) {
+      setSelection({ category: 'home' });
+      setExpandedCategory('home');
+    }
+  }, [currentUser, selection]);
+
+  useEffect(() => {
     if (
       materialIssueEnabled ||
       selection.category !== 'production' ||
@@ -219,6 +230,33 @@ export default function App() {
     });
   };
 
+  const onOpenWorkDiaryList = () => {
+    setSelection({ category: 'workdiary', screen: { mode: 'list' } });
+    setExpandedCategory('home');
+  };
+
+  const onOpenWorkDiaryDetail = (id: number) => {
+    setSelection({ category: 'workdiary', screen: { mode: 'detail', id } });
+    setExpandedCategory('home');
+  };
+
+  const onWorkDiaryNavigateList = () => {
+    setSelection({ category: 'workdiary', screen: { mode: 'list' } });
+  };
+
+  const onWorkDiaryNavigateDetail = (id: number) => {
+    setSelection({ category: 'workdiary', screen: { mode: 'detail', id } });
+  };
+
+  const onWorkDiaryNavigateCompose = (compose: { workDate?: string; editId?: number }) => {
+    setSelection({
+      category: 'workdiary',
+      screen: compose.editId != null
+        ? { mode: 'compose', editId: compose.editId }
+        : { mode: 'compose', workDate: compose.workDate },
+    });
+  };
+
   const onSelectChild = (category: MenuCategory, childId: string) => {
     setExpandedCategory(category);
     setSelection(toSelection(category, childId));
@@ -251,6 +289,11 @@ export default function App() {
         onBoardNavigateList={onBoardNavigateList}
         onBoardNavigateDetail={onBoardNavigateDetail}
         onBoardNavigateCompose={onBoardNavigateCompose}
+        onOpenWorkDiaryList={onOpenWorkDiaryList}
+        onOpenWorkDiaryDetail={onOpenWorkDiaryDetail}
+        onWorkDiaryNavigateList={onWorkDiaryNavigateList}
+        onWorkDiaryNavigateDetail={onWorkDiaryNavigateDetail}
+        onWorkDiaryNavigateCompose={onWorkDiaryNavigateCompose}
       />
     </MaterialIssueSettingProvider>
   );

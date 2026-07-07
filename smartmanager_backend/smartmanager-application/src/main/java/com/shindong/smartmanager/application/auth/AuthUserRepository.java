@@ -13,6 +13,8 @@ public interface AuthUserRepository {
 
     long createAdmin(String loginId, String passwordHash, String name);
 
+    void updatePassword(long userId, String passwordHash, String actorUserId);
+
     record AuthUserRecord(
             long id,
             String loginId,

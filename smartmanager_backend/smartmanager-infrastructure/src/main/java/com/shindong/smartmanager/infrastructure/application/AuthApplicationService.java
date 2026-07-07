@@ -3,6 +3,7 @@ package com.shindong.smartmanager.infrastructure.application;
 import com.shindong.smartmanager.application.auth.AuthService;
 import com.shindong.smartmanager.application.auth.AuthTokenView;
 import com.shindong.smartmanager.application.auth.AuthenticatedUserView;
+import com.shindong.smartmanager.application.auth.ChangePasswordCommand;
 import com.shindong.smartmanager.application.auth.LoginCommand;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,5 +25,10 @@ public class AuthApplicationService {
     @Transactional(readOnly = true)
     public AuthenticatedUserView me(long userId) {
         return authService.me(userId);
+    }
+
+    @Transactional
+    public void changePassword(long userId, ChangePasswordCommand command) {
+        authService.changePassword(userId, command);
     }
 }

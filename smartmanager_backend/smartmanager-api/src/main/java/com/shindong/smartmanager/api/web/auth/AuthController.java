@@ -3,12 +3,14 @@ package com.shindong.smartmanager.api.web.auth;
 import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.auth.AuthTokenView;
 import com.shindong.smartmanager.application.auth.AuthenticatedUserView;
+import com.shindong.smartmanager.application.auth.ChangePasswordCommand;
 import com.shindong.smartmanager.application.auth.LoginCommand;
 import com.shindong.smartmanager.infrastructure.application.AuthApplicationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,9 +40,23 @@ public class AuthController {
         );
     }
 
+    @PutMapping("/me/password")
+    public void changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authApplicationService.changePassword(
+                SecurityUtils.requireUserId(),
+                new ChangePasswordCommand(request.currentPassword(), request.newPassword())
+        );
+    }
+
     public record LoginRequest(
             @NotBlank String loginId,
             @NotBlank String password
+    ) {
+    }
+
+    public record ChangePasswordRequest(
+            @NotBlank String currentPassword,
+            @NotBlank String newPassword
     ) {
     }
 

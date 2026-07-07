@@ -49,6 +49,19 @@ public class JpaAuthUserRepository implements AuthUserRepository {
 
     @Override
     @Transactional
+    public void updatePassword(long userId, String passwordHash, String actorUserId) {
+        UserJpaEntity entity = userRepository.findByIdAndRecordingState(userId, 1)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+        Instant now = Instant.now();
+        entity.setPasswordHash(passwordHash);
+        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedAt(now);
+        userRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
     public long createAdmin(String loginId, String passwordHash, String name) {
         Instant now = Instant.now();
         UserJpaEntity entity = new UserJpaEntity();

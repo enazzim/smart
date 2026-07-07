@@ -541,6 +541,28 @@ th {
   margin-bottom: 1rem;
 }
 
+.profile-dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem 1.5rem;
+  margin: 0;
+}
+
+.profile-dl > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.profile-dl dt {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.profile-dl dd {
+  margin: 0;
+  font-weight: 500;
+}
+
 .toast {
   background: #ecfdf5;
   color: #047857;
@@ -1174,6 +1196,179 @@ table.nested-table td {
 
 .rich-text-body:focus {
   box-shadow: inset 0 0 0 1px #93c5fd;
+}
+
+.success-banner {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.detail-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem 1rem;
+  margin: 0;
+}
+
+.detail-grid dt {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.detail-grid dd {
+  margin: 0.15rem 0 0;
+}
+
+.detail-full {
+  grid-column: 1 / -1;
+}
+
+.pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background: #f9fafb;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.meta-text {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.work-diary-field,
+.work-diary-field-readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.work-diary-field textarea,
+.work-diary-field input {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+
+.work-diary-field-readonly h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.work-diary-field-readonly pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: inherit;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 0.65rem 0.75rem;
+}
+
+.work-diary-template-panel--compact h2 {
+  font-size: 1rem;
+}
+
+.work-diary-template-field-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.work-diary-template-field-list li {
+  margin-bottom: 0.25rem;
+}
+
+.work-diary-templates-modal {
+  max-width: 960px;
+  width: min(96vw, 960px);
+  max-height: 85vh;
+  overflow: auto;
+}
+
+.work-diary-templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.work-diary-template-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.75rem;
+  background: #fafafa;
+}
+
+.work-diary-template-card h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.work-diary-template-card ol {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.work-diary-template-card--editable {
+  cursor: pointer;
+}
+
+.work-diary-template-card--editable:hover {
+  border-color: #93c5fd;
+  background: #f8fafc;
+}
+
+.work-diary-template-editor-modal {
+  max-width: 720px;
+  width: min(96vw, 720px);
+}
+
+.work-diary-template-editor-row {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 0.5rem;
+  align-items: end;
+  margin-bottom: 0.65rem;
+}
+
+.work-diary-template-editor-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
 }
 
 @media (max-width: 900px) {

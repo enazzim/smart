@@ -38,8 +38,13 @@ public class UserApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public UserView getActive(long id) {
-        return userService.getActive(id);
+    public List<UserView> listActiveForActor(String query, long actorUserId, List<String> authorities) {
+        return userService.listActiveForActor(query, actorUserId, authorities);
+    }
+
+    @Transactional(readOnly = true)
+    public UserView getActiveForActor(long id, long actorUserId, List<String> authorities) {
+        return userService.getActiveForActor(id, actorUserId, authorities);
     }
 
     @Transactional(readOnly = true)

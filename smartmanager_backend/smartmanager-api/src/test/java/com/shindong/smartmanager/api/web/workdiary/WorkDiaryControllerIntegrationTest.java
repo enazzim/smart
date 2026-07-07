@@ -127,6 +127,26 @@ class WorkDiaryControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fieldValues.01").value("수정-결재전"));
 
+        mockMvc.perform(post(BASE + "/{id}/submit", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + writerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SUBMITTED"));
+
+        mockMvc.perform(put(BASE + "/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + writerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "fieldValues": {"01": "제출후 수정시도"},
+                                  "listed": true,
+                                  "closingNote": ""
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("제출된 업무일지는 수정/삭제할 수 없습니다."));
+
         mockMvc.perform(post(BASE + "/{id}/approve", id)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -184,13 +204,15 @@ class WorkDiaryControllerIntegrationTest {
         mockMvc.perform(post(BASE + "/{id}/cancel-approval", id)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "reason": "보완 필요"
-                                }
-                                """))
+                        .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SUBMITTED"));
+
+        mockMvc.perform(get(BASE + "/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + writerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.canEdit").value(true))
+                .andExpect(jsonPath("$.canDelete").value(true));
 
         mockMvc.perform(put(BASE + "/{id}", id)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + writerToken)
@@ -353,6 +375,61 @@ class WorkDiaryControllerIntegrationTest {
         mockMvc.perform(get(BASE + "/{id}", id)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void systemAdminCanUpdateTemplateAndWriterUsesUpdatedFields() throws Exception {
+        String writerLogin = "wd-tpl-" + UUID.randomUUID().toString().substring(0, 8);
+        String writerName = "양식작성-" + UUID.randomUUID().toString().substring(0, 4);
+        UserView writer = registerViewer(writerLogin, writerName);
+        String writerToken = tokenWithAuthorities(writer.id(), writer.loginId(), List.of(
+                "community:workdiary:read", "community:workdiary:write"
+        ));
+        String adminToken = adminToken();
+        long groupId = writer.workDiaryGroupId();
+        LocalDate workDate = LocalDate.of(2099, 2, 1);
+
+        mockMvc.perform(put(BASE + "/templates/{groupId}", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "templateName": "커스텀 업무일지",
+                                  "legacyFields": {
+                                    "01": "1. 커스텀 항목 A",
+                                    "02": "2. 커스텀 항목 B"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.templateName").value("커스텀 업무일지"))
+                .andExpect(jsonPath("$.fieldSchema.legacyFields.01").value("1. 커스텀 항목 A"));
+
+        mockMvc.perform(put(BASE + "/templates/{groupId}", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + writerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "templateName": "권한 없음",
+                                  "legacyFields": {"01": "실패"}
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("업무일지 양식은 시스템 관리자만 수정할 수 있습니다."));
+
+        mockMvc.perform(get(BASE + "/my-template")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + writerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.templateName").value("커스텀 업무일지"))
+                .andExpect(jsonPath("$.fieldSchema.legacyFields.01").value("1. 커스텀 항목 A"));
+
+        long id = createDiary(writerToken, workDate, Map.of("01", "값A", "02", "값B"));
+
+        mockMvc.perform(get(BASE + "/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + writerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fieldValues.01").value("값A"))
+                .andExpect(jsonPath("$.fieldValues.02").value("값B"));
     }
 
     private UserView registerViewer(String loginId, String name) {

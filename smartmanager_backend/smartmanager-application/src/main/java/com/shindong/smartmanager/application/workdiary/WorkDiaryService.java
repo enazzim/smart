@@ -1,20 +1,33 @@
 package com.shindong.smartmanager.application.workdiary;
 
+import com.shindong.smartmanager.application.code.CodeGroupOptionsRepository;
+import com.shindong.smartmanager.application.code.CodeOptionView;
 import com.shindong.smartmanager.application.user.UserRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class WorkDiaryService {
 
+    private static final String WORK_DIARY_GROUP = "WORK_DIARY_GROUP";
+
     private final WorkDiaryRepository workDiaryRepository;
     private final UserRepository userRepository;
+    private final CodeGroupOptionsRepository codeGroupOptionsRepository;
 
-    public WorkDiaryService(WorkDiaryRepository workDiaryRepository, UserRepository userRepository) {
+    public WorkDiaryService(
+            WorkDiaryRepository workDiaryRepository,
+            UserRepository userRepository,
+            CodeGroupOptionsRepository codeGroupOptionsRepository
+    ) {
         this.workDiaryRepository = workDiaryRepository;
         this.userRepository = userRepository;
+        this.codeGroupOptionsRepository = codeGroupOptionsRepository;
     }
 
     public WorkDiaryTemplateView getMyTemplate(long userId) {
@@ -31,7 +44,50 @@ public class WorkDiaryService {
                 template.workDiaryGroupId(),
                 user.workDiaryGroupName(),
                 template.templateName(),
-                template.fieldSchema()
+                WorkDiaryFieldSchemaSupport.forWriter(template.fieldSchema())
+        );
+    }
+
+    public List<WorkDiaryTemplateView> listTemplates() {
+        Map<Long, String> groupNames = codeGroupOptionsRepository.findActiveOptions(WORK_DIARY_GROUP).stream()
+                .collect(Collectors.toMap(CodeOptionView::id, CodeOptionView::name, (a, b) -> a));
+        return workDiaryRepository.findAllActiveTemplates().stream()
+                .map(template -> new WorkDiaryTemplateView(
+                        template.templateCode(),
+                        template.workDiaryGroupId(),
+                        groupNames.getOrDefault(template.workDiaryGroupId(), ""),
+                        template.templateName(),
+                        WorkDiaryFieldSchemaSupport.forWriter(template.fieldSchema())
+                ))
+                .sorted(Comparator.comparing(WorkDiaryTemplateView::templateCode))
+                .toList();
+    }
+
+    public WorkDiaryTemplateView updateTemplate(UpdateWorkDiaryTemplateCommand command) {
+        var user = userRepository.findActiveById(command.actorUserId())
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + command.actorUserId()));
+        if (!user.roleCodes().contains("SYSTEM_ADMIN")) {
+            throw new IllegalStateException("업무일지 양식은 시스템 관리자만 수정할 수 있습니다.");
+        }
+        var template = workDiaryRepository.findActiveTemplateByGroupId(command.workDiaryGroupId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "업무일지 템플릿을 찾을 수 없습니다. groupId=" + command.workDiaryGroupId()));
+        Map<String, Object> fieldSchema = WorkDiaryFieldSchemaSupport.buildFieldSchema(command.legacyFields());
+        workDiaryRepository.updateTemplate(
+                command.workDiaryGroupId(),
+                command.templateName().trim(),
+                fieldSchema,
+                command.actorLoginId(),
+                command.actorUserIdText()
+        );
+        Map<Long, String> groupNames = codeGroupOptionsRepository.findActiveOptions(WORK_DIARY_GROUP).stream()
+                .collect(Collectors.toMap(CodeOptionView::id, CodeOptionView::name, (a, b) -> a));
+        return new WorkDiaryTemplateView(
+                template.templateCode(),
+                template.workDiaryGroupId(),
+                groupNames.getOrDefault(template.workDiaryGroupId(), ""),
+                command.templateName().trim(),
+                WorkDiaryFieldSchemaSupport.forWriter(fieldSchema)
         );
     }
 
@@ -197,9 +253,22 @@ public class WorkDiaryService {
 
     private void assertCanEdit(WorkDiaryRepository.WorkDiaryEntryRecord entry, long actorUserId) {
         assertOwner(entry, actorUserId);
-        if (entry.status() == WorkDiaryStatus.APPROVED) {
-            throw new IllegalStateException("결재 완료된 업무일지는 수정/삭제할 수 없습니다.");
+        if (!canAuthorEdit(entry)) {
+            if (entry.status() == WorkDiaryStatus.APPROVED) {
+                throw new IllegalStateException("결재 완료된 업무일지는 수정/삭제할 수 없습니다.");
+            }
+            throw new IllegalStateException("제출된 업무일지는 수정/삭제할 수 없습니다.");
         }
+    }
+
+    private boolean canAuthorEdit(WorkDiaryRepository.WorkDiaryEntryRecord entry) {
+        if (entry.status() == WorkDiaryStatus.APPROVED) {
+            return false;
+        }
+        if (entry.status() == WorkDiaryStatus.SUBMITTED) {
+            return entry.approvalCanceledAt() != null;
+        }
+        return entry.status() == WorkDiaryStatus.DRAFT || entry.status() == WorkDiaryStatus.REJECTED;
     }
 
     private void assertOwner(WorkDiaryRepository.WorkDiaryEntryRecord entry, long actorUserId) {
@@ -240,6 +309,7 @@ public class WorkDiaryService {
                 .orElse("");
         Map<String, Object> fieldSchema = workDiaryRepository.findActiveTemplateByGroupId(record.workDiaryGroupId())
                 .map(WorkDiaryRepository.WorkDiaryTemplateRecord::fieldSchema)
+                .map(WorkDiaryFieldSchemaSupport::forWriter)
                 .orElse(Map.of());
         String approvedByName = record.approvedByUserId() != null
                 ? userRepository.findActiveById(record.approvedByUserId()).map(u -> u.name()).orElse("")
@@ -247,7 +317,7 @@ public class WorkDiaryService {
         String canceledByName = record.approvalCanceledByUserId() != null
                 ? userRepository.findActiveById(record.approvalCanceledByUserId()).map(u -> u.name()).orElse("")
                 : null;
-        boolean canEdit = record.authorUserId() == actorUserId && record.status() != WorkDiaryStatus.APPROVED;
+        boolean canEdit = record.authorUserId() == actorUserId && canAuthorEdit(record);
         boolean canDelete = canEdit;
         boolean canApprove = approver && record.status() != WorkDiaryStatus.APPROVED;
         boolean canCancelApproval = approver && record.status() == WorkDiaryStatus.APPROVED;

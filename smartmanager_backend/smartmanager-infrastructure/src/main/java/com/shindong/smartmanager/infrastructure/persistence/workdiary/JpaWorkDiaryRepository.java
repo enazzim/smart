@@ -40,6 +40,30 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public List<WorkDiaryTemplateRecord> findAllActiveTemplates() {
+        return templateRepository.findAllActive().stream().map(this::toTemplateRecord).toList();
+    }
+
+    @Override
+    @Transactional
+    public void updateTemplate(
+            long workDiaryGroupId,
+            String templateName,
+            Map<String, Object> fieldSchema,
+            String actorLoginId,
+            String actorUserIdText
+    ) {
+        WorkDiaryTemplateJpaEntity entity = templateRepository.findActiveByGroupId(workDiaryGroupId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "업무일지 템플릿을 찾을 수 없습니다. groupId=" + workDiaryGroupId));
+        entity.setTemplateName(templateName);
+        entity.setFieldSchema(writeJson(fieldSchema));
+        entity.setUpdatedAt(Instant.now());
+        templateRepository.save(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<WorkDiaryEntryRecord> findActiveEntryById(long id) {
         return entryRepository.findActiveById(id).map(this::toEntryRecord);
     }

@@ -3,6 +3,7 @@ package com.shindong.smartmanager.application.workdiary;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -41,6 +42,16 @@ public interface WorkDiaryRepository {
     }
 
     Optional<WorkDiaryTemplateRecord> findActiveTemplateByGroupId(long workDiaryGroupId);
+
+    List<WorkDiaryTemplateRecord> findAllActiveTemplates();
+
+    void updateTemplate(
+            long workDiaryGroupId,
+            String templateName,
+            Map<String, Object> fieldSchema,
+            String actorLoginId,
+            String actorUserIdText
+    );
 
     Optional<WorkDiaryEntryRecord> findActiveEntryById(long id);
 

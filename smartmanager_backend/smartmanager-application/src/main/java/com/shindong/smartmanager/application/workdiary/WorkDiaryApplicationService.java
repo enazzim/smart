@@ -1,10 +1,15 @@
 package com.shindong.smartmanager.application.workdiary;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public interface WorkDiaryApplicationService {
 
     WorkDiaryTemplateView getMyTemplate(long userId);
+
+    List<WorkDiaryTemplateView> listTemplates();
+
+    WorkDiaryTemplateView updateTemplate(UpdateWorkDiaryTemplateCommand command);
 
     WorkDiaryPageView list(WorkDiaryListCriteria criteria);
 

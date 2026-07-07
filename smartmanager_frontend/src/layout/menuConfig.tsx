@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import type { AuthenticatedUser } from '../api/auth';
 import CompanyPage from '../pages/CompanyPage';
 import ItemPage from '../pages/ItemPage';
 import ItemCompositionPage from '../pages/ItemCompositionPage';
@@ -174,7 +175,7 @@ export const BASIS_TABS: { id: BasisTab; label: string }[] = [
   { id: 'user', label: '사용자' },
 ];
 
-const BASIS_PAGE_MAP: Record<BasisTab, ComponentType> = {
+const BASIS_PAGE_MAP: Record<Exclude<BasisTab, 'user'>, ComponentType> = {
   company: CompanyPage,
   item: ItemPage,
   bom: ItemCompositionPage,
@@ -185,7 +186,6 @@ const BASIS_PAGE_MAP: Record<BasisTab, ComponentType> = {
   equipment: EquipmentPage,
   productionCalendar: ProductionCalendarPage,
   workCenterCalendar: WorkCenterCalendarPage,
-  user: UserPage,
 };
 
 const PLACEHOLDER_LABELS: Record<PlaceholderPageId | 'sales-order', string> = {
@@ -197,7 +197,20 @@ const SYSTEM_PLACEHOLDER_LABELS: Record<Exclude<SystemPage, 'publicCode' | 'mont
   role: '권한',
 };
 
-export function renderBasisPage(tab: BasisTab) {
+export interface BasisPageContext {
+  currentUser: AuthenticatedUser | null;
+  canManageUsers: boolean;
+}
+
+export function renderBasisPage(tab: BasisTab, ctx?: BasisPageContext) {
+  if (tab === 'user') {
+    return (
+      <UserPage
+        currentUser={ctx?.currentUser ?? null}
+        canManageUsers={ctx?.canManageUsers ?? false}
+      />
+    );
+  }
   const Page = BASIS_PAGE_MAP[tab];
   return <Page />;
 }

@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.api.web.user;
 
 import com.shindong.smartmanager.api.security.BasisAuthorize;
+import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.user.UserCommand;
 import com.shindong.smartmanager.application.user.UserUpdateCommand;
 import com.shindong.smartmanager.infrastructure.application.UserApplicationService;
@@ -34,7 +35,8 @@ public class UserController {
 
     @GetMapping
     public List<UserResponse> list(@RequestParam(required = false) String q) {
-        return userApplicationService.listActive(q).stream()
+        var principal = SecurityUtils.requirePrincipal();
+        return userApplicationService.listActiveForActor(q, principal.userId(), principal.authorities()).stream()
                 .map(UserResponse::from)
                 .toList();
     }
@@ -51,7 +53,10 @@ public class UserController {
 
     @GetMapping("/{id}")
     public UserResponse get(@PathVariable long id) {
-        return UserResponse.from(userApplicationService.getActive(id));
+        var principal = SecurityUtils.requirePrincipal();
+        return UserResponse.from(
+                userApplicationService.getActiveForActor(id, principal.userId(), principal.authorities())
+        );
     }
 
     @PostMapping

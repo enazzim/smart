@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.infrastructure.persistence.workdiary;
 
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -14,5 +15,12 @@ public interface SpringDataWorkDiaryTemplateRepository extends JpaRepository<Wor
             ORDER BY t.id DESC
             """)
     Optional<WorkDiaryTemplateJpaEntity> findActiveByGroupId(@Param("groupId") long groupId);
+
+    @Query("""
+            SELECT t FROM WorkDiaryTemplateJpaEntity t
+            WHERE t.recordingState = 1
+            ORDER BY t.templateCode ASC
+            """)
+    List<WorkDiaryTemplateJpaEntity> findAllActive();
 }
 

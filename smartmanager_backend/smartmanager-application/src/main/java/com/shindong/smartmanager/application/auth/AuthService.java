@@ -42,6 +42,32 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
     }
 
+    public void changePassword(long userId, ChangePasswordCommand command) {
+        if (command.currentPassword() == null || command.currentPassword().isBlank()) {
+            throw new IllegalArgumentException("현재 비밀번호는 필수입니다.");
+        }
+        validateNewPassword(command.newPassword());
+
+        AuthUserRepository.AuthUserRecord user = authUserRepository.findActiveById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
+
+        if (!passwordHasher.matches(command.currentPassword(), user.passwordHash())) {
+            throw new IllegalArgumentException("현재 비밀번호가 올바르지 않습니다.");
+        }
+
+        String passwordHash = passwordHasher.hash(command.newPassword());
+        authUserRepository.updatePassword(userId, passwordHash, String.valueOf(userId));
+    }
+
+    private void validateNewPassword(String password) {
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("새 비밀번호는 필수입니다.");
+        }
+        if (password.length() < 8) {
+            throw new IllegalArgumentException("비밀번호는 8자 이상이어야 합니다.");
+        }
+    }
+
     public AuthenticatedUserView authenticateToken(String token) {
         JwtTokenPort.JwtClaims claims = jwtTokenPort.parseToken(token);
         return authUserRepository.findActiveById(claims.userId())

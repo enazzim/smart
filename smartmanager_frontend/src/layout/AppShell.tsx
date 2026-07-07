@@ -16,13 +16,16 @@ import {
   renderSalesPage,
   renderSystemPage,
 } from './menuConfig';
+import { getVisibleMenuCategories } from './menuAccess';
 import BasisInfoPage from '../pages/BasisInfoPage';
 import BoardPage, { type BoardScreen } from '../pages/BoardPage';
 import DashboardPage from '../pages/DashboardPage';
+import WorkDiaryPage, { type WorkDiaryScreen } from '../pages/WorkDiaryPage';
 
 export type AppSelection =
   | { category: 'home' }
   | { category: 'board'; boardType: BoardType; screen: BoardScreen }
+  | { category: 'workdiary'; screen: WorkDiaryScreen }
   | { category: 'basis' }
   | { category: 'system'; page: SystemPage }
   | { category: 'sales'; page: SalesPageId }
@@ -49,6 +52,11 @@ interface AppShellProps {
     postId?: number;
     parentPostId?: number;
   }) => void;
+  onOpenWorkDiaryList: () => void;
+  onOpenWorkDiaryDetail: (id: number) => void;
+  onWorkDiaryNavigateList: () => void;
+  onWorkDiaryNavigateDetail: (id: number) => void;
+  onWorkDiaryNavigateCompose: (compose: { workDate?: string; editId?: number }) => void;
 }
 
 export default function AppShell({
@@ -65,7 +73,16 @@ export default function AppShell({
   onBoardNavigateList,
   onBoardNavigateDetail,
   onBoardNavigateCompose,
+  onOpenWorkDiaryList,
+  onOpenWorkDiaryDetail,
+  onWorkDiaryNavigateList,
+  onWorkDiaryNavigateDetail,
+  onWorkDiaryNavigateCompose,
 }: AppShellProps) {
+  const visibleCategories = new Set(
+    currentUser ? getVisibleMenuCategories(currentUser.roleCodes) : ['home'],
+  );
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -83,12 +100,12 @@ export default function AppShell({
 
       <div className="app-body">
         <aside className="app-sidebar" aria-label="메인 메뉴">
-          {MENU_GROUPS.map((group) => {
+          {MENU_GROUPS.filter((group) => visibleCategories.has(group.id)).map((group) => {
             const expanded = expandedCategory === group.id;
             const isDirect = group.direct === true;
             const isActive =
               selection.category === group.id ||
-              (group.id === 'home' && (selection.category === 'home' || selection.category === 'board')) ||
+              (group.id === 'home' && (selection.category === 'home' || selection.category === 'board' || selection.category === 'workdiary')) ||
               (group.id === 'basis' && selection.category === 'basis');
 
             return (
@@ -140,6 +157,11 @@ export default function AppShell({
             onBoardNavigateList,
             onBoardNavigateDetail,
             onBoardNavigateCompose,
+            onOpenWorkDiaryList,
+            onOpenWorkDiaryDetail,
+            onWorkDiaryNavigateList,
+            onWorkDiaryNavigateDetail,
+            onWorkDiaryNavigateCompose,
           })}
         </main>
       </div>
@@ -159,6 +181,11 @@ interface RenderContext {
     postId?: number;
     parentPostId?: number;
   }) => void;
+  onOpenWorkDiaryList: () => void;
+  onOpenWorkDiaryDetail: (id: number) => void;
+  onWorkDiaryNavigateList: () => void;
+  onWorkDiaryNavigateDetail: (id: number) => void;
+  onWorkDiaryNavigateCompose: (compose: { workDate?: string; editId?: number }) => void;
 }
 
 function renderContent(selection: AppSelection, ctx: RenderContext) {
@@ -167,6 +194,20 @@ function renderContent(selection: AppSelection, ctx: RenderContext) {
       <DashboardPage
         onOpenBoardList={ctx.onOpenBoardList}
         onOpenBoardPost={ctx.onOpenBoardPost}
+        onOpenWorkDiaryList={ctx.onOpenWorkDiaryList}
+        onOpenWorkDiaryDetail={ctx.onOpenWorkDiaryDetail}
+      />
+    );
+  }
+  if (selection.category === 'workdiary') {
+    return (
+      <WorkDiaryPage
+        screen={selection.screen}
+        currentUser={ctx.currentUser}
+        onNavigateHome={ctx.onNavigateHome}
+        onNavigateList={ctx.onWorkDiaryNavigateList}
+        onNavigateDetail={ctx.onWorkDiaryNavigateDetail}
+        onNavigateCompose={ctx.onWorkDiaryNavigateCompose}
       />
     );
   }
@@ -184,7 +225,7 @@ function renderContent(selection: AppSelection, ctx: RenderContext) {
     );
   }
   if (selection.category === 'basis') {
-    return <BasisInfoPage />;
+    return <BasisInfoPage currentUser={ctx.currentUser} />;
   }
   if (selection.category === 'system') {
     return renderSystemPage(selection.page);

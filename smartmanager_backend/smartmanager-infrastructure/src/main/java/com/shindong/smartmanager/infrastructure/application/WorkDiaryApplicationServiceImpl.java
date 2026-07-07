@@ -4,6 +4,7 @@ import com.shindong.smartmanager.application.workdiary.ApproveWorkDiaryCommand;
 import com.shindong.smartmanager.application.workdiary.CancelWorkDiaryApprovalCommand;
 import com.shindong.smartmanager.application.workdiary.CreateWorkDiaryCommand;
 import com.shindong.smartmanager.application.workdiary.SubmitWorkDiaryCommand;
+import com.shindong.smartmanager.application.workdiary.UpdateWorkDiaryTemplateCommand;
 import com.shindong.smartmanager.application.workdiary.UpdateWorkDiaryCommand;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryApplicationService;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryApproveResult;
@@ -15,6 +16,7 @@ import com.shindong.smartmanager.application.workdiary.WorkDiarySubmitResult;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryService;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryTemplateView;
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +33,18 @@ public class WorkDiaryApplicationServiceImpl implements WorkDiaryApplicationServ
     @Transactional(readOnly = true)
     public WorkDiaryTemplateView getMyTemplate(long userId) {
         return workDiaryService.getMyTemplate(userId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<WorkDiaryTemplateView> listTemplates() {
+        return workDiaryService.listTemplates();
+    }
+
+    @Override
+    @Transactional
+    public WorkDiaryTemplateView updateTemplate(UpdateWorkDiaryTemplateCommand command) {
+        return workDiaryService.updateTemplate(command);
     }
 
     @Override

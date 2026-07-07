@@ -97,6 +97,27 @@ public class UserService {
         return userRepository.findAllActive(query);
     }
 
+    public List<UserView> listActiveForActor(String query, long actorUserId, List<String> authorities) {
+        if (canManageUsers(authorities)) {
+            return listActive(query);
+        }
+        UserView self = getActive(actorUserId);
+        if (query == null || query.isBlank()) {
+            return List.of(self);
+        }
+        String normalized = query.trim().toLowerCase();
+        boolean matches = self.loginId().toLowerCase().contains(normalized)
+                || self.name().toLowerCase().contains(normalized);
+        return matches ? List.of(self) : List.of();
+    }
+
+    public UserView getActiveForActor(long id, long actorUserId, List<String> authorities) {
+        if (!canManageUsers(authorities) && id != actorUserId) {
+            throw new IllegalArgumentException("다른 사용자 정보는 조회할 수 없습니다.");
+        }
+        return getActive(id);
+    }
+
     public UserView getActive(long id) {
         return userRepository.findActiveById(id)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + id));
@@ -180,5 +201,9 @@ public class UserService {
 
     private static String escape(String value) {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static boolean canManageUsers(List<String> authorities) {
+        return authorities != null && authorities.contains("basis:user:write");
     }
 }

@@ -41,3 +41,13 @@ export async function fetchCurrentUser(): Promise<AuthenticatedUser> {
 export function logout(): void {
   clearAccessToken();
 }
+
+export async function changeMyPassword(currentPassword: string, newPassword: string): Promise<void> {
+  await handleResponse<void>(
+    await apiFetch(`${AUTH_BASE}/me/password`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  );
+}
