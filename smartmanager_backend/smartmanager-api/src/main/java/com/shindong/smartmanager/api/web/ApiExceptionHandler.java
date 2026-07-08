@@ -62,4 +62,21 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ApiErrorResponse("VALIDATION_FAILED", message));
     }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception ex) {
+        Throwable root = ex;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        String detail = root.getClass().getSimpleName();
+        if (root.getMessage() != null && !root.getMessage().isBlank()) {
+            detail = detail + ": " + root.getMessage();
+        }
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiErrorResponse(
+                        "INTERNAL_ERROR",
+                        "요청 처리 중 오류가 발생했습니다: " + detail
+                ));
+    }
 }

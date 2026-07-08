@@ -336,7 +336,11 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
         List<PurchaseOrderLineView> lineViews = new ArrayList<>();
         for (PurchaseOrderLineJpaEntity line : lines) {
             ItemJpaEntity item = items.get(line.getItemId());
-            RequirementMeta requirementMeta = requirementContext.metaByLineId().get(line.getRequirementLineId());
+            // Map.of()/emptyMap()는 null 키 get 시 NPE — 직접발주(requirementLineId=null)에서 발생한다.
+            Long requirementLineId = line.getRequirementLineId();
+            RequirementMeta requirementMeta = requirementLineId == null
+                    ? null
+                    : requirementContext.metaByLineId().get(requirementLineId);
             lineViews.add(new PurchaseOrderLineView(
                     line.getId(),
                     line.getLineNo(),
@@ -377,7 +381,7 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
                 .filter(id -> id != null && id > 0)
                 .collect(Collectors.toSet());
         if (requirementIds.isEmpty()) {
-            return new RequirementContext(Map.of());
+            return new RequirementContext(new HashMap<>());
         }
 
         Map<Long, MaterialRequirementLineJpaEntity> requirements = requirementLineRepository.findAllById(requirementIds).stream()

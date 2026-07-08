@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { AuthenticatedUser } from '../api/auth';
 import type { BoardType } from '../api/board';
 import {
@@ -79,16 +80,66 @@ export default function AppShell({
   onWorkDiaryNavigateDetail,
   onWorkDiaryNavigateCompose,
 }: AppShellProps) {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const visibleCategories = new Set(
     currentUser ? getVisibleMenuCategories(currentUser.roleCodes) : ['home'],
   );
 
+  useEffect(() => {
+    if (!mobileNavOpen) {
+      return;
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileNavOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [mobileNavOpen]);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [selection]);
+
+  const handleSelectCategory = (category: MenuCategory) => {
+    onSelectCategory(category);
+    const group = MENU_GROUPS.find((item) => item.id === category);
+    if (group?.direct) {
+      setMobileNavOpen(false);
+    }
+  };
+
+  const handleSelectChild = (category: MenuCategory, childId: string) => {
+    onSelectChild(category, childId);
+    setMobileNavOpen(false);
+  };
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell${mobileNavOpen ? ' mobile-nav-open' : ''}`}>
       <header className="app-header">
-        <div className="app-brand">
-          <strong>SmartManager</strong>
-          <span>ERP</span>
+        <div className="app-header-left">
+          <button
+            type="button"
+            className="mobile-nav-toggle"
+            aria-label={mobileNavOpen ? '메뉴 닫기' : '메뉴 열기'}
+            aria-expanded={mobileNavOpen}
+            aria-controls="app-sidebar"
+            onClick={() => setMobileNavOpen((open) => !open)}
+          >
+            <span className="mobile-nav-toggle-bar" aria-hidden="true" />
+            <span className="mobile-nav-toggle-bar" aria-hidden="true" />
+            <span className="mobile-nav-toggle-bar" aria-hidden="true" />
+          </button>
+          <div className="app-brand">
+            <strong>SmartManager</strong>
+            <span>ERP</span>
+          </div>
         </div>
         <div className="app-header-user">
           <span>{currentUser ? `${currentUser.name} (${currentUser.loginId})` : '…'}</span>
@@ -99,7 +150,15 @@ export default function AppShell({
       </header>
 
       <div className="app-body">
-        <aside className="app-sidebar" aria-label="메인 메뉴">
+        {mobileNavOpen && (
+          <button
+            type="button"
+            className="mobile-nav-backdrop"
+            aria-label="메뉴 닫기"
+            onClick={() => setMobileNavOpen(false)}
+          />
+        )}
+        <aside id="app-sidebar" className="app-sidebar" aria-label="메인 메뉴">
           {MENU_GROUPS.filter((group) => visibleCategories.has(group.id)).map((group) => {
             const expanded = expandedCategory === group.id;
             const isDirect = group.direct === true;
@@ -113,7 +172,7 @@ export default function AppShell({
                 <button
                   type="button"
                   className={`menu-group-title${isActive ? ' menu-active' : ''}`}
-                  onClick={() => onSelectCategory(group.id)}
+                  onClick={() => handleSelectCategory(group.id)}
                 >
                   {group.label}
                 </button>
@@ -134,7 +193,7 @@ export default function AppShell({
                           <button
                             type="button"
                             className={childActive ? 'menu-child-active' : undefined}
-                            onClick={() => onSelectChild(group.id, child.id)}
+                            onClick={() => handleSelectChild(group.id, child.id)}
                           >
                             {child.label}
                           </button>

@@ -12,12 +12,14 @@ import {
   type PurchaseOrder,
   type PurchaseOrderListParams,
 } from '../api/purchaseOrder';
-import type { PropertyClassification } from '../api/item';
-import { lookupPurchaseUnitPrice } from '../api/unitPrice';
+import { fetchUnitPrices } from '../api/unitPrice';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
-
-const MANUAL_PURCHASE_ITEM_CLASSES: PropertyClassification[] = ['원자재', '상품'];
+import {
+  isUnitPriceEffective,
+  toPartnerPriceItems,
+  type PartnerPriceItem,
+} from '../utils/unitPriceHelpers';
 
 type ManualPurchaseLine = {
   key: string;
@@ -25,6 +27,14 @@ type ManualPurchaseLine = {
   orderQty: string;
   unitPrice: string;
 };
+
+function toItemSearchSelection(item: PartnerPriceItem): ItemSearchSelection {
+  return {
+    id: item.itemId,
+    itemNo: item.itemNo,
+    itemName: item.itemName,
+  };
+}
 
 function newManualLine(): ManualPurchaseLine {
   return {
@@ -108,6 +118,11 @@ export default function PurchaseOrderPage() {
   const [orderError, setOrderError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [manualPartner, setManualPartner] = useState<CompanySearchSelection | null>(null);
+  const [partnerPriceItems, setPartnerPriceItems] = useState<PartnerPriceItem[]>([]);
+  const partnerItemOptions = useMemo(
+    () => partnerPriceItems.map(toItemSearchSelection),
+    [partnerPriceItems],
+  );
   const [manualLines, setManualLines] = useState<ManualPurchaseLine[]>(() => [newManualLine()]);
   const [manualError, setManualError] = useState<string | null>(null);
 
@@ -214,55 +229,46 @@ export default function PurchaseOrderPage() {
     }
   };
 
-  const applyManualLineUnitPrice = useCallback(
-    async (index: number, item: ItemSearchSelection | null, partner: CompanySearchSelection | null) => {
-      if (!item || !partner) {
-        setManualLines((prev) =>
-          prev.map((row, i) => (i === index ? { ...row, item, unitPrice: item ? row.unitPrice : '' } : row)),
-        );
-        return;
-      }
-      let unitPrice = '';
-      try {
-        const resolved = await lookupPurchaseUnitPrice(partner.id, item.id, item.itemNo, orderDate);
-        if (resolved != null) {
-          unitPrice = String(resolved);
-        }
-      } catch {
-        // 단가 조회 실패 시 수동 입력 유지
-      }
-      setManualLines((prev) =>
-        prev.map((row, i) => (i === index ? { ...row, item, unitPrice } : row)),
-      );
-    },
-    [orderDate],
-  );
+  const loadPartnerPriceItems = useCallback(async (companyId: number, refDate: string): Promise<PartnerPriceItem[]> => {
+    const allPrices = await fetchUnitPrices('PURCHASE');
+    const filtered = allPrices.filter(
+      (unitPrice) => unitPrice.companyId === companyId && isUnitPriceEffective(unitPrice, refDate),
+    );
+    const items = toPartnerPriceItems(filtered);
+    setPartnerPriceItems(items);
+    return items;
+  }, []);
 
   useEffect(() => {
-    if (!manualPartner) return;
-    void (async () => {
-      const updates = await Promise.all(
-        manualLines.map(async (line) => {
-          if (!line.item) return line;
-          try {
-            const resolved = await lookupPurchaseUnitPrice(
-              manualPartner.id,
-              line.item.id,
-              line.item.itemNo,
-              orderDate,
-            );
-            if (resolved == null) return line;
-            return { ...line, unitPrice: String(resolved) };
-          } catch {
-            return line;
-          }
-        }),
+    if (!manualPartner) {
+      setPartnerPriceItems([]);
+      setManualLines([newManualLine()]);
+      return;
+    }
+    void loadPartnerPriceItems(manualPartner.id, orderDate);
+    setManualLines([newManualLine()]);
+  }, [manualPartner, orderDate, loadPartnerPriceItems]);
+
+  const selectManualLineItem = (index: number, item: ItemSearchSelection | null) => {
+    if (!item) {
+      setManualLines((prev) =>
+        prev.map((row, i) => (i === index ? { ...row, item: null, unitPrice: '' } : row)),
       );
-      setManualLines(updates);
-    })();
-    // 거래처·발주일 변경 시에만 기존 라인 단가를 다시 조회한다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [manualPartner?.id, orderDate]);
+      return;
+    }
+    const priceItem = partnerPriceItems.find((p) => p.itemId === item.id);
+    setManualLines((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              item,
+              unitPrice: priceItem != null ? String(priceItem.unitPrice) : '',
+            }
+          : row,
+      ),
+    );
+  };
 
   const onCreateFromMrp = async () => {
     const selections = [...selectedVendorKeys].map(parseVendorSelectionKey);
@@ -435,7 +441,7 @@ export default function PurchaseOrderPage() {
       <section className="panel">
         <h2>직접 발주</h2>
         <p className="hint-text">
-          MRP·수주 없이 <strong>원자재·상품</strong>을 거래처에 직접 발주합니다. 등록 시 자동으로 확정됩니다.
+          MRP·수주 없이 거래처 구매단가에 등록된 품목을 직접 발주합니다. 등록 시 자동으로 확정됩니다.
         </p>
         {manualError && <div className="error">{manualError}</div>}
         <div className="form-grid-wide">
@@ -450,6 +456,12 @@ export default function PurchaseOrderPage() {
             <input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
           </label>
         </div>
+        {!manualPartner && (
+          <p className="hint-text">구매 거래처를 먼저 선택하면 구매단가 품목이 표시됩니다.</p>
+        )}
+        {manualPartner && partnerPriceItems.length === 0 && (
+          <p className="hint-text">선택한 거래처·발주일에 유효한 구매단가 품목이 없습니다.</p>
+        )}
         <table>
           <thead>
             <tr>
@@ -465,9 +477,11 @@ export default function PurchaseOrderPage() {
                 <td>
                   <ItemSearchField
                     label=""
-                    allowedClassifications={MANUAL_PURCHASE_ITEM_CLASSES}
+                    items={partnerItemOptions}
                     selectedItem={line.item}
-                    onSelect={(item) => void applyManualLineUnitPrice(index, item, manualPartner)}
+                    disabled={!manualPartner}
+                    emptyMessage="일치하는 구매단가 품목이 없습니다."
+                    onSelect={(item) => selectManualLineItem(index, item)}
                   />
                 </td>
                 <td>

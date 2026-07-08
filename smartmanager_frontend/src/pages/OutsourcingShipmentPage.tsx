@@ -512,6 +512,8 @@ export default function OutsourcingShipmentPage() {
               <thead>
                 <tr>
                   <th>투입품목</th>
+                  <th>공정순서</th>
+                  <th>공정</th>
                   <th>분류</th>
                   <th>창고</th>
                   <th>투입수량</th>
@@ -524,6 +526,8 @@ export default function OutsourcingShipmentPage() {
                     <td>
                       {line.itemNo} {line.itemName}
                     </td>
+                    <td>{line.processSequenceNum ?? '-'}</td>
+                    <td>{line.inputProcessName || '-'}</td>
                     <td>{line.propertyClassification}</td>
                     <td>{formatInventoryLocation(line.sourceLocationCode)}</td>
                     <td className="issue-qty-cell">
@@ -672,6 +676,8 @@ export default function OutsourcingShipmentPage() {
                                 <thead>
                                   <tr>
                                     <th>투입품목</th>
+                                    <th>공정순서</th>
+                                    <th>공정</th>
                                     <th>분류</th>
                                     <th>창고</th>
                                     <th>투입수량</th>
@@ -684,6 +690,8 @@ export default function OutsourcingShipmentPage() {
                                       <td>
                                         {line.itemNo} {line.itemName}
                                       </td>
+                                      <td>{line.processSequenceNum ?? '-'}</td>
+                                      <td>{line.inputProcessName || '-'}</td>
                                       <td>{line.propertyClassification}</td>
                                       <td>{formatInventoryLocation(line.sourceLocationCode)}</td>
                                       <td>{formatQty(line.issueQty)}</td>

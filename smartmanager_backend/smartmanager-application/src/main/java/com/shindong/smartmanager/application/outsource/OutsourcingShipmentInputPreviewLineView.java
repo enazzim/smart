@@ -13,6 +13,7 @@ public record OutsourcingShipmentInputPreviewLineView(
         String sourceLocationCode,
         Long sourceProcessId,
         long inputProcessId,
+        Short processSequenceNum,
         String inputProcessName,
         BigDecimal onHandQty
 ) {

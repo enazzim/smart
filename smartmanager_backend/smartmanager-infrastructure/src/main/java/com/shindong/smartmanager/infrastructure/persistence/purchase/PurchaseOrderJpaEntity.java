@@ -35,7 +35,11 @@ public class PurchaseOrderJpaEntity {
     private PurchaseOrderSourceType sourceType = PurchaseOrderSourceType.MANUAL;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "ENUM('DRAFT','CONFIRMED','CANCELLED')")
+    @Column(
+            name = "status",
+            nullable = false,
+            columnDefinition = "ENUM('DRAFT','CONFIRMED','IN_PROGRESS','RECEIVED','CANCELLED')"
+    )
     private PurchaseOrderStatus status = PurchaseOrderStatus.DRAFT;
 
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")

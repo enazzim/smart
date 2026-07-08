@@ -58,10 +58,12 @@ export async function handleResponse<T>(response: Response): Promise<T> {
     const body = await response.clone().json().catch(() => ({ message: '' }));
     const message = typeof body.message === 'string' ? body.message : '';
     const hadToken = getAccessToken() !== null;
+    // "인증이 필요합니다"는 미인증/권한 선검증 실패에도 쓰이므로 만료로 보지 않는다.
+    // 만료 문구가 명확할 때만 토큰을 지우고 로그인 화면으로 보낸다.
     const isSessionExpired =
       message.includes('인증이 만료') ||
       message.includes('만료되었습니다') ||
-      message.includes('expired');
+      message.toLowerCase().includes('expired');
     if (hadToken && isSessionExpired) {
       notifySessionExpired();
       throw new Error(apiErrorMessage(message, '인증이 만료되었습니다. 다시 로그인해 주세요.'));

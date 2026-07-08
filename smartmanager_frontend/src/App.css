@@ -29,6 +29,43 @@
   border-bottom: 1px solid var(--sm-blue-800);
 }
 
+.app-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.mobile-nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+}
+
+.mobile-nav-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.mobile-nav-toggle-bar {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 1px;
+  background: #f9fafb;
+}
+
+.mobile-nav-backdrop {
+  display: none;
+}
+
 .app-brand {
   display: flex;
   align-items: baseline;
@@ -45,15 +82,26 @@
   align-items: center;
   gap: 0.75rem;
   font-size: 0.9rem;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.app-header-user > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 12rem;
 }
 
 .app-header-user .secondary {
+  flex-shrink: 0;
   padding: 0.4rem 0.85rem;
   background: rgba(255, 255, 255, 0.12);
   color: #f9fafb;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 6px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .app-header-user .secondary:hover {
@@ -752,7 +800,25 @@ th.num {
 .app-main .panel > table {
   border: 1px solid var(--sm-blue-100);
   border-radius: 8px;
-  overflow: hidden;
+  /* 품목 콤보 목록이 잘리지 않도록 visible 유지 */
+  overflow: visible;
+  position: relative;
+  z-index: 2;
+}
+
+.app-main .panel > table td {
+  overflow: visible;
+  position: relative;
+}
+
+.app-main .panel > table .item-combobox-list {
+  z-index: 50;
+}
+
+.app-main .panel > table + .form-actions,
+.app-main .panel > table + .action-bar {
+  position: relative;
+  z-index: 0;
 }
 
 .app-main .panel > p:only-child,
@@ -1858,11 +1924,66 @@ table.nested-table td {
 
   .app-body {
     grid-template-columns: 1fr;
+    position: relative;
+  }
+
+  .mobile-nav-toggle {
+    display: inline-flex;
+  }
+
+  .app-header {
+    gap: 0.5rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .app-header-user {
+    gap: 0.45rem;
+  }
+
+  .app-header-user > span {
+    max-width: 6.5rem;
+    font-size: 0.8rem;
+  }
+
+  .app-header-user .secondary {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+  }
+
+  .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: rgba(15, 23, 42, 0.45);
+    cursor: pointer;
   }
 
   .app-sidebar {
-    border-right: none;
-    border-bottom: 1px solid #e5e7eb;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    width: min(280px, 86vw);
+    height: 100vh;
+    padding-top: 0.75rem;
+    border-right: 1px solid #e5e7eb;
+    border-bottom: none;
+    box-shadow: 8px 0 24px rgba(15, 23, 42, 0.18);
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+    overflow-y: auto;
+  }
+
+  .app-shell.mobile-nav-open .app-sidebar {
+    transform: translateX(0);
+  }
+
+  .app-shell.mobile-nav-open {
+    overflow: hidden;
   }
 
   .master-detail {

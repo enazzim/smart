@@ -380,10 +380,11 @@ public class OutsourcingShipmentService {
             LocalDate stockDate,
             List<OutsourcingShipmentInputSaveCommand> inputs
     ) {
-        Map<Long, String> processNames = loadProcessNames(parentItemId);
+        Map<Long, ProcessView> processesById = loadProcessesById(parentItemId);
         List<OutsourcingShipmentInputPreviewLineView> lines = inputs.stream()
                 .map(input -> {
                     var item = itemRepository.findActiveById(input.itemId()).orElseThrow();
+                    ProcessView inputProcess = processesById.get(input.inputProcessId());
                     BigDecimal onHand = inventoryBalanceService.currentStockQty(
                             input.itemId(),
                             input.sourceLocationCode(),
@@ -406,7 +407,8 @@ public class OutsourcingShipmentService {
                             input.sourceLocationCode(),
                             input.sourceProcessId(),
                             input.inputProcessId(),
-                            processNames.getOrDefault(input.inputProcessId(), ""),
+                            inputProcess != null ? inputProcess.processSequenceNum() : null,
+                            inputProcess != null ? inputProcess.processName() : "",
                             onHand
                     );
                 })
@@ -473,9 +475,9 @@ public class OutsourcingShipmentService {
         return new OrderLineContext(order, refreshed);
     }
 
-    private Map<Long, String> loadProcessNames(long itemId) {
+    private Map<Long, ProcessView> loadProcessesById(long itemId) {
         return processRepository.findAllActiveByItemId(itemId, ProcessVariant.plan).stream()
-                .collect(Collectors.toMap(ProcessView::id, ProcessView::processName, (left, right) -> left));
+                .collect(Collectors.toMap(ProcessView::id, process -> process, (left, right) -> left));
     }
 
     private String nextShipmentNo(LocalDate shipmentDate) {

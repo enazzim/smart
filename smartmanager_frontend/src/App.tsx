@@ -114,9 +114,13 @@ export default function App() {
     }
     void fetchCurrentUser()
       .then(setCurrentUser)
-      .catch(() => {
-        logout();
-        setAuthed(false);
+      .catch((error: unknown) => {
+        // /me 실패가 곧바로 로그인 화면으로 보내지 않도록, 세션 만료(토큰 제거)만 로그아웃 처리한다.
+        if (!isAuthenticated()) {
+          setAuthed(false);
+          return;
+        }
+        console.error('현재 사용자 조회 실패', error);
       });
     void fetchSystemSettings()
       .then((rows) => {

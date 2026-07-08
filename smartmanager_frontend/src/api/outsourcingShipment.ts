@@ -34,6 +34,7 @@ export interface OutsourcingShipmentInputPreviewLine {
   sourceLocationCode: string;
   sourceProcessId?: number | null;
   inputProcessId: number;
+  processSequenceNum?: number | null;
   inputProcessName: string;
   onHandQty: number;
 }

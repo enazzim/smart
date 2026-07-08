@@ -182,7 +182,7 @@ export default function ItemSearchField({
 
   const resolvedPlaceholder =
     isLocalMode && items!.length === 0
-      ? '판매단가 품목 없음'
+      ? '단가 품목 없음'
       : placeholder;
 
   const resolvedEmptyMessage =
@@ -190,7 +190,7 @@ export default function ItemSearchField({
     (isLocalMode
       ? query.trim()
         ? '일치하는 품목이 없습니다.'
-        : '판매단가 품목이 없습니다.'
+        : '단가 품목이 없습니다.'
       : query.trim()
         ? '일치하는 품목이 없습니다.'
         : '등록된 품목이 없습니다.');

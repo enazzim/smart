@@ -26,6 +26,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.authUserRepository = authUserRepository;
     }
 
+    /**
+     * 컨트롤러 미처리 예외가 ERROR 디스패치로 재유입될 때도 JWT를 복원한다.
+     * 기본값(true)이면 ERROR 요청에 인증이 비어 실제 예외가 401로 가려진다.
+     */
+    @Override
+    protected boolean shouldNotFilterErrorDispatch() {
+        return false;
+    }
+
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,

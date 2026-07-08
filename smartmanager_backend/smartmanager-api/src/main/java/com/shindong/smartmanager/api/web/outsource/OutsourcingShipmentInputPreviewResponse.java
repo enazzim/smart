@@ -34,6 +34,7 @@ record OutsourcingShipmentInputPreviewLineResponse(
         String sourceLocationCode,
         Long sourceProcessId,
         long inputProcessId,
+        Short processSequenceNum,
         String inputProcessName,
         BigDecimal onHandQty
 ) {
@@ -49,6 +50,7 @@ record OutsourcingShipmentInputPreviewLineResponse(
                 view.sourceLocationCode(),
                 view.sourceProcessId(),
                 view.inputProcessId(),
+                view.processSequenceNum(),
                 view.inputProcessName(),
                 view.onHandQty()
         );
