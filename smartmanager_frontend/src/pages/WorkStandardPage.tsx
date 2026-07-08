@@ -231,8 +231,8 @@ export default function WorkStandardPage() {
   };
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>작업표준 (Work Standard)</h1>
         <p>plan 9필드 CRUD · 자가·혼합 공정 · 표준복사</p>
       </header>
@@ -504,6 +504,6 @@ export default function WorkStandardPage() {
           </table>
         )}
       </section>
-    </>
+    </div>
   );
 }

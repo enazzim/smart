@@ -221,8 +221,8 @@ export default function PublicCodePage() {
   };
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>공용코드 관리</h1>
         <p>시스템정보 — 대분류·소분류 마스터-디테일 CRUD</p>
       </header>
@@ -423,6 +423,6 @@ export default function PublicCodePage() {
           )}
         </section>
       </div>
-    </>
+    </div>
   );
 }

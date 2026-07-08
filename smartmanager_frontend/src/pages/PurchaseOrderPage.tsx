@@ -425,7 +425,12 @@ export default function PurchaseOrderPage() {
 
   return (
     <div className="page">
-      <h1>구매발주</h1>
+      <header className="page-header">
+        <div>
+          <h1>구매발주</h1>
+          <p>MRP·수주 연동 발주와 직접 발주를 등록·확정합니다.</p>
+        </div>
+      </header>
 
       <section className="panel">
         <h2>직접 발주</h2>

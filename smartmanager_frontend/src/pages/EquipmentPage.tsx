@@ -141,8 +141,8 @@ export default function EquipmentPage() {
   };
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>설비 (Equipment)</h1>
         <p>6필드 CRUD · 샷 수명·교체 필요 표시</p>
       </header>
@@ -330,6 +330,6 @@ export default function EquipmentPage() {
           </table>
         )}
       </section>
-    </>
+    </div>
   );
 }

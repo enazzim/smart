@@ -292,8 +292,8 @@ export default function ItemCompositionPage() {
   }, [toast]);
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>품목구성 (BOM plan)</h1>
         <p>모·자품목 4필드 CRUD · 정전개 · 역전개 · BOM 복사</p>
       </header>
@@ -588,6 +588,6 @@ export default function ItemCompositionPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

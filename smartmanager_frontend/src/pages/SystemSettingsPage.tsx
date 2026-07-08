@@ -348,11 +348,15 @@ export default function SystemSettingsPage() {
 
   return (
     <div className="page">
-      <h1>시스템 설정</h1>
-      <p className="hint-text">
-        전역 비즈니스 정책(Feature Flags)을 관리합니다. 자재투입 여부는 생산 워크플로에, 마이너스 재고 허용은
-        모든 창고 입·출고 처리에 반영됩니다.
-      </p>
+      <header className="page-header">
+        <div>
+          <h1>시스템 설정</h1>
+          <p>
+            전역 비즈니스 정책(Feature Flags)을 관리합니다. 자재투입 여부는 생산 워크플로에, 마이너스 재고 허용은
+            모든 창고 입·출고 처리에 반영됩니다.
+          </p>
+        </div>
+      </header>
       {message && <p>{message}</p>}
       {error && <div className="error">{error}</div>}
 

@@ -237,8 +237,8 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
       profile?.roleCodes.join(', ') || currentUser?.roleCodes.join(', ') || '—';
 
     return (
-      <>
-        <header>
+      <div className="page">
+        <header className="page-header">
           <h1>내 계정</h1>
           <p>본인 정보 확인 및 비밀번호 변경</p>
         </header>
@@ -321,13 +321,13 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
             </div>
           </form>
         </section>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>사용자 (User)</h1>
         <p>7필드 CRUD — RBAC 역할·업무일지그룹</p>
       </header>
@@ -508,6 +508,6 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
           </table>
         )}
       </section>
-    </>
+    </div>
   );
 }

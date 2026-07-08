@@ -126,8 +126,8 @@ export default function CompanyPage() {
   };
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>거래처 (Company)</h1>
         <p>등록·수정·삭제 — PartnerLedger 원장 연동</p>
       </header>
@@ -251,6 +251,6 @@ export default function CompanyPage() {
           </table>
         )}
       </section>
-    </>
+    </div>
   );
 }

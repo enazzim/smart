@@ -284,7 +284,12 @@ export default function MrpPage() {
 
   return (
     <div className="page">
-      <h1>자재소요</h1>
+      <header className="page-header">
+        <div>
+          <h1>자재소요</h1>
+          <p>BOM 정전개 기준으로 생산계획별 자재 소요량을 산출합니다.</p>
+        </div>
+      </header>
 
       <section className="panel">
         <h2>산출 대상</h2>

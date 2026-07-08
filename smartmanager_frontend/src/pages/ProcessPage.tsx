@@ -193,8 +193,8 @@ export default function ProcessPage() {
   };
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>공정 (Process Plan)</h1>
         <p>제품·공정품 7필드 CRUD — 등록 시 공정창고 잔고 Lazy 생성</p>
       </header>
@@ -396,6 +396,6 @@ export default function ProcessPage() {
           </table>
         )}
       </section>
-    </>
+    </div>
   );
 }

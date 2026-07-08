@@ -124,8 +124,8 @@ export default function ItemPage() {
   };
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>품목 (Item)</h1>
         <p>11필드 CRUD — 등록 시 재고 행 미생성 (Lazy)</p>
       </header>
@@ -327,6 +327,6 @@ export default function ItemPage() {
           </table>
         )}
       </section>
-    </>
+    </div>
   );
 }

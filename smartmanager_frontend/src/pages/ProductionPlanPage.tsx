@@ -259,7 +259,12 @@ export default function ProductionPlanPage() {
 
   return (
     <div className="page">
-      <h1>생산계획</h1>
+      <header className="page-header">
+        <div>
+          <h1>생산계획</h1>
+          <p>수주·직접 등록 생산계획을 관리하고 MRP 산출 대상을 선정합니다.</p>
+        </div>
+      </header>
 
       <section className="panel">
         <h2>계획 직접 추가</h2>

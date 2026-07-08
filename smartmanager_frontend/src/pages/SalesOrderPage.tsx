@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SalesOrderLineListRow, SalesOrderLineSearchParams, SalesOrderRequest } from '../api/salesOrder';
 import type { SalesLineDeliveryStatus, SalesLineFulfillmentStatus } from '../api/salesOrder';
 import {
@@ -87,6 +87,21 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function UploadIcon() {
+  return (
+    <svg className="import-upload-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 16V4m0 0L7 9m5-5 5 5M4 20h16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function toRequest(
   orderNo: string,
   partner: CompanySearchSelection,
@@ -142,6 +157,8 @@ export default function SalesOrderPage() {
   const [excelPreview, setExcelPreview] = useState<ParsedSalesOrderRow[]>([]);
   const [excelErrors, setExcelErrors] = useState<{ rowNumber: number; message: string }[]>([]);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
+  const [excelDragOver, setExcelDragOver] = useState(false);
+  const excelInputRef = useRef<HTMLInputElement>(null);
 
   const isEditing = editingId !== null;
 
@@ -397,6 +414,21 @@ export default function SalesOrderPage() {
     }
   };
 
+  const clearExcelFile = () => {
+    setExcelFile(null);
+    setExcelPreview([]);
+    setExcelErrors([]);
+    setBulkMessage(null);
+    if (excelInputRef.current) {
+      excelInputRef.current.value = '';
+    }
+  };
+
+  const handleExcelFiles = (files: FileList | null) => {
+    const file = files?.[0] ?? null;
+    void onExcelFileChange(file);
+  };
+
   const onBulkUpload = async () => {
     if (!excelFile || excelPreview.length === 0) {
       setExcelErrors([{ rowNumber: 0, message: '업로드할 엑셀 파일을 선택해 주세요.' }]);
@@ -454,28 +486,32 @@ export default function SalesOrderPage() {
     });
   };
 
+  const orderTotal = lines.reduce((sum, line) => sum + lineAmount(line.orderQty, line.unitPrice), 0);
+
   return (
-    <>
-      <header>
-        <h1>수주</h1>
-        <p>
-          거래처 선택 시 해당 거래처의 판매단가 품목이 바인딩되며, 단가는 수정할 수 있습니다. 건별 등록과
-          엑셀 일괄 등록을 지원합니다.
-        </p>
+    <div className="page">
+      <header className="page-header">
+        <div>
+          <h1>수주</h1>
+          <p>
+            거래처 선택 시 해당 거래처의 판매단가 품목이 바인딩되며, 단가는 수정할 수 있습니다. 건별 등록과
+            엑셀 일괄 등록을 지원합니다.
+          </p>
+        </div>
       </header>
 
       <section className="panel">
-        <div className="form-actions" style={{ marginBottom: '1rem' }}>
+        <div className="tab-row">
           <button
             type="button"
-            className={registerMode === 'single' ? 'btn-action' : 'secondary'}
+            className={registerMode === 'single' ? 'tab-active' : ''}
             onClick={() => setRegisterMode('single')}
           >
             건별 등록
           </button>
           <button
             type="button"
-            className={registerMode === 'excel' ? 'btn-action' : 'secondary'}
+            className={registerMode === 'excel' ? 'tab-active' : ''}
             onClick={() => setRegisterMode('excel')}
           >
             엑셀 일괄 등록
@@ -483,10 +519,10 @@ export default function SalesOrderPage() {
         </div>
 
         {registerMode === 'single' ? (
-          <>
-            <h2>{isEditing ? '수주 수정' : '수주 등록'}</h2>
-            <form onSubmit={(e) => void onSubmit(e)}>
-              <div className="form-grid-wide">
+          <form className="sales-order-form" onSubmit={(e) => void onSubmit(e)}>
+            <div className="ui-section">
+              <h2>{isEditing ? '수주 수정' : '수주 등록'}</h2>
+              <div className="sales-order-header-grid">
                 <label>
                   수주번호
                   <input
@@ -501,12 +537,14 @@ export default function SalesOrderPage() {
                     placeholder="비우면 자동 채번"
                   />
                 </label>
-                <CompanySearchField
-                  label="수주거래처"
-                  partnerType="SALES"
-                  selectedCompany={partner}
-                  onSelect={setPartner}
-                />
+                <div className="sales-order-field-span-2">
+                  <CompanySearchField
+                    label="수주거래처"
+                    partnerType="SALES"
+                    selectedCompany={partner}
+                    onSelect={setPartner}
+                  />
+                </div>
                 <label>
                   수주일
                   <input
@@ -525,133 +563,195 @@ export default function SalesOrderPage() {
                     required
                   />
                 </label>
-                <label>
+                <label className="sales-order-field-full">
                   비고
                   <input type="text" value={remark} onChange={(e) => setRemark(e.target.value)} />
                 </label>
               </div>
+            </div>
 
+            <div className="ui-section">
               <h3>수주 품목</h3>
-              {!partner && <p>수주거래처를 먼저 선택하면 판매단가 품목이 표시됩니다.</p>}
+              {!partner && (
+                <p className="hint-text sales-order-hint">
+                  수주거래처를 먼저 선택하면 판매단가 품목이 표시됩니다.
+                </p>
+              )}
               {lines.map((line, index) => (
-                <div key={`${partner?.id ?? 'none'}-${index}`} className="form-grid-wide line-block">
-                  <ItemSearchField
-                    label={`품목 ${index + 1}`}
-                    items={partnerItemOptions}
-                    selectedItem={lineSelectedItem(line)}
-                    disabled={!partner}
-                    onSelect={(item) => {
-                      if (!item) {
+                <div key={`${partner?.id ?? 'none'}-${index}`} className="ui-line-card line-block">
+                  <div className="sales-order-line-grid">
+                    <ItemSearchField
+                      label={`품목 ${index + 1}`}
+                      items={partnerItemOptions}
+                      selectedItem={lineSelectedItem(line)}
+                      disabled={!partner}
+                      onSelect={(item) => {
+                        if (!item) {
+                          updateLine(index, {
+                            item: null,
+                            itemId: 0,
+                            unitPrice: 0,
+                          });
+                          return;
+                        }
+                        const priceItem = partnerPriceItems.find((p) => p.itemId === item.id);
                         updateLine(index, {
-                          item: null,
-                          itemId: 0,
-                          unitPrice: 0,
-                        });
-                        return;
-                      }
-                      const priceItem = partnerPriceItems.find((p) => p.itemId === item.id);
-                      updateLine(index, {
-                        item: priceItem ?? {
+                          item: priceItem ?? {
+                            itemId: item.id,
+                            itemNo: item.itemNo,
+                            itemName: item.itemName,
+                            unitPrice: 0,
+                          },
                           itemId: item.id,
-                          itemNo: item.itemNo,
-                          itemName: item.itemName,
-                          unitPrice: 0,
-                        },
-                        itemId: item.id,
-                        unitPrice: priceItem?.unitPrice ?? 0,
-                      });
-                    }}
-                  />
-                  <label>
-                    수주수량
-                    <input
-                      type="number"
-                      min={0.0001}
-                      step="any"
-                      value={line.orderQty}
-                      onChange={(e) => updateLine(index, { orderQty: Number(e.target.value) })}
-                      required
+                          unitPrice: priceItem?.unitPrice ?? 0,
+                        });
+                      }}
                     />
-                  </label>
-                  <label>
-                    단가
-                    <input
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={line.unitPrice}
-                      onChange={(e) => updateLine(index, { unitPrice: Number(e.target.value) })}
-                    />
-                  </label>
-                  <label>
-                    금액
-                    <input
-                      type="text"
-                      className="readonly"
-                      readOnly
-                      value={formatAmount(lineAmount(line.orderQty, line.unitPrice))}
-                    />
-                  </label>
-                  {lines.length > 1 && (
-                    <button
-                      type="button"
-                      className="btn-action danger"
-                      onClick={() => setLines(lines.filter((_, i) => i !== index))}
-                    >
-                      라인 삭제
-                    </button>
-                  )}
+                    <label>
+                      수주수량
+                      <input
+                        type="number"
+                        min={0.0001}
+                        step="any"
+                        value={line.orderQty}
+                        onChange={(e) => updateLine(index, { orderQty: Number(e.target.value) })}
+                        required
+                      />
+                    </label>
+                    <label>
+                      단가
+                      <input
+                        type="number"
+                        min={0}
+                        step="any"
+                        value={line.unitPrice}
+                        onChange={(e) => updateLine(index, { unitPrice: Number(e.target.value) })}
+                      />
+                    </label>
+                    <label>
+                      금액
+                      <input
+                        type="text"
+                        className="readonly"
+                        readOnly
+                        value={formatAmount(lineAmount(line.orderQty, line.unitPrice))}
+                      />
+                    </label>
+                    {lines.length > 1 && (
+                      <button
+                        type="button"
+                        className="btn-action danger sales-order-line-remove"
+                        onClick={() => setLines(lines.filter((_, i) => i !== index))}
+                      >
+                        라인 삭제
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
 
-              <p>
-                합계:{' '}
-                {formatAmount(
-                  lines.reduce((sum, line) => sum + lineAmount(line.orderQty, line.unitPrice), 0),
-                )}
-              </p>
-
-              <div className="form-actions">
-                <button type="button" disabled={!partner} onClick={() => setLines([...lines, emptyLine()])}>
-                  라인 추가
-                </button>
-                <button type="submit" disabled={submitting}>
-                  {submitting ? '저장 중…' : isEditing ? '수정 저장' : '등록'}
-                </button>
-                {isEditing && (
-                  <button type="button" className="secondary" onClick={resetForm}>
-                    취소
+              <div className="sales-order-footer">
+                <p className="sales-order-total">
+                  합계 <span>{formatAmount(orderTotal)}</span>
+                </p>
+                <div className="form-actions sales-order-form-actions">
+                  <button type="button" className="secondary" disabled={!partner} onClick={() => setLines([...lines, emptyLine()])}>
+                    라인 추가
                   </button>
-                )}
+                  <button type="submit" disabled={submitting}>
+                    {submitting ? '저장 중…' : isEditing ? '수정 저장' : '등록'}
+                  </button>
+                  {isEditing && (
+                    <button type="button" className="secondary" onClick={resetForm}>
+                      취소
+                    </button>
+                  )}
+                </div>
               </div>
-            </form>
-          </>
+            </div>
+          </form>
         ) : (
-          <>
-            <h2>엑셀 일괄 등록</h2>
-            <p>
+          <div className="ui-section sales-order-excel-section">
+            <div className="import-card__header sales-order-excel-header">
+              <h2 className="sales-order-excel-title">엑셀 일괄 등록</h2>
+              <button
+                type="button"
+                className="import-template-btn"
+                disabled={submitting}
+                onClick={downloadSalesOrderTemplate}
+              >
+                ↓ 수주 양식 다운로드
+              </button>
+            </div>
+            <p className="hint-text sales-order-excel-hint">
               양식을 내려받아 작성 후 업로드하세요. 동일한 수주번호는 한 건의 수주로 묶이며, 수주번호가
               비어 있으면 행마다 별도 수주가 생성됩니다.
             </p>
-            <div className="form-actions">
-              <button type="button" onClick={downloadSalesOrderTemplate}>
-                수주 양식 다운로드
-              </button>
+
+            <div
+              className={`import-dropzone${excelDragOver ? ' import-dropzone--active' : ''}${excelFile ? ' import-dropzone--filled' : ''}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => !submitting && excelInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (!submitting && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  excelInputRef.current?.click();
+                }
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (!submitting) {
+                  setExcelDragOver(true);
+                }
+              }}
+              onDragLeave={() => setExcelDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setExcelDragOver(false);
+                if (!submitting) {
+                  handleExcelFiles(e.dataTransfer.files);
+                }
+              }}
+            >
+              <input
+                ref={excelInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                hidden
+                disabled={submitting}
+                onChange={(e) => handleExcelFiles(e.target.files)}
+              />
+              <UploadIcon />
+              {excelFile ? (
+                <div className="import-dropzone__file">
+                  <strong>{excelFile.name}</strong>
+                  <span>{excelPreview.length}행</span>
+                  {!submitting && (
+                    <button
+                      type="button"
+                      className="import-clear-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearExcelFile();
+                      }}
+                    >
+                      제거
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <p className="import-dropzone__title">수주 엑셀 업로드</p>
+                  <p className="import-dropzone__hint">클릭하거나 파일을 여기로 드래그하세요 (.xlsx, .xls)</p>
+                </>
+              )}
             </div>
-            <div className="form-grid-wide">
-              <label>
-                엑셀 파일
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={(e) => void onExcelFileChange(e.target.files?.[0] ?? null)}
-                />
-              </label>
-            </div>
+
             {excelPreview.length > 0 && (
-              <p>미리보기: {excelPreview.length}행 (헤더 제외)</p>
+              <p className="hint-text sales-order-excel-preview">미리보기: {excelPreview.length}행 (헤더 제외)</p>
             )}
-            <div className="form-actions">
+            <div className="form-actions sales-order-form-actions">
               <button
                 type="button"
                 disabled={submitting || excelPreview.length === 0}
@@ -660,163 +760,165 @@ export default function SalesOrderPage() {
                 {submitting ? '등록 중…' : '엑셀 일괄 등록'}
               </button>
             </div>
-            {bulkMessage && <p>{bulkMessage}</p>}
+            {bulkMessage && <p className="success-banner">{bulkMessage}</p>}
             {excelErrors.length > 0 && (
-              <div className="error">
-                <ul>
-                  {excelErrors.map((entry, index) => (
-                    <li key={`${entry.rowNumber}-${index}`}>
-                      {entry.rowNumber > 0 ? `${entry.rowNumber}행: ` : ''}
-                      {entry.message}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <ul className="import-card__errors">
+                {excelErrors.map((entry, index) => (
+                  <li key={`${entry.rowNumber}-${index}`}>
+                    {entry.rowNumber > 0 ? `${entry.rowNumber}행: ` : ''}
+                    {entry.message}
+                  </li>
+                ))}
+              </ul>
             )}
-          </>
+          </div>
         )}
 
-        {message && <p>{message}</p>}
-        {error && <div className="error">{error}</div>}
+        {message && <p className="success-banner sales-order-feedback">{message}</p>}
+        {error && <div className="error sales-order-feedback">{error}</div>}
       </section>
 
       <section className="panel">
         <h2>수주 목록</h2>
-        <div className="form-grid-wide">
-          <CompanySearchField
-            label="거래처"
-            partnerType="SALES"
-            selectedCompany={searchPartner}
-            onSelect={setSearchPartner}
-          />
-          <ItemSearchField
-            label="품목"
-            allowedClassifications={SALES_ITEM_CLASSES}
-            selectedItem={searchItem}
-            onSelect={setSearchItem}
-          />
-          <label>
-            납기요구일(부터)
-            <input
-              type="date"
-              value={searchDeliveryFrom}
-              onChange={(e) => setSearchDeliveryFrom(e.target.value)}
+        <div className="ui-filter-panel">
+          <div className="sales-order-search-grid">
+            <CompanySearchField
+              label="거래처"
+              partnerType="SALES"
+              selectedCompany={searchPartner}
+              onSelect={setSearchPartner}
             />
-          </label>
-          <label>
-            납기요구일(까지)
-            <input
-              type="date"
-              value={searchDeliveryTo}
-              onChange={(e) => setSearchDeliveryTo(e.target.value)}
+            <ItemSearchField
+              label="품목"
+              allowedClassifications={SALES_ITEM_CLASSES}
+              selectedItem={searchItem}
+              onSelect={setSearchItem}
             />
-          </label>
-          <label>
-            이행상태
-            <select
-              value={searchFulfillmentStatus}
-              onChange={(e) => setSearchFulfillmentStatus(e.target.value as SalesLineFulfillmentStatus | '')}
-            >
-              {FULFILLMENT_STATUS_OPTIONS.map((option) => (
-                <option key={option.value || 'all'} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            납품상태
-            <select
-              value={searchDeliveryStatus}
-              onChange={(e) => setSearchDeliveryStatus(e.target.value as SalesLineDeliveryStatus | '')}
-            >
-              {DELIVERY_STATUS_OPTIONS.map((option) => (
-                <option key={option.value || 'all'} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="form-actions">
-          <button type="button" onClick={handleSearch}>
-            검색
-          </button>
-          <button type="button" className="secondary" onClick={handleResetSearch}>
-            초기화
-          </button>
+            <label>
+              납기요구일(부터)
+              <input
+                type="date"
+                value={searchDeliveryFrom}
+                onChange={(e) => setSearchDeliveryFrom(e.target.value)}
+              />
+            </label>
+            <label>
+              납기요구일(까지)
+              <input
+                type="date"
+                value={searchDeliveryTo}
+                onChange={(e) => setSearchDeliveryTo(e.target.value)}
+              />
+            </label>
+            <label>
+              이행상태
+              <select
+                value={searchFulfillmentStatus}
+                onChange={(e) => setSearchFulfillmentStatus(e.target.value as SalesLineFulfillmentStatus | '')}
+              >
+                {FULFILLMENT_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value || 'all'} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              납품상태
+              <select
+                value={searchDeliveryStatus}
+                onChange={(e) => setSearchDeliveryStatus(e.target.value as SalesLineDeliveryStatus | '')}
+              >
+                {DELIVERY_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value || 'all'} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="form-actions sales-order-search-actions">
+            <button type="button" onClick={handleSearch}>
+              검색
+            </button>
+            <button type="button" className="secondary" onClick={handleResetSearch}>
+              초기화
+            </button>
+          </div>
         </div>
 
         {listError && <div className="error">{listError}</div>}
 
         {loading ? (
-          <p>불러오는 중…</p>
+          <p className="hint-text">불러오는 중…</p>
         ) : lineRows.length === 0 ? (
-          <p>등록된 수주가 없습니다.</p>
+          <p className="ui-empty">등록된 수주가 없습니다.</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>수주번호</th>
-                <th>거래처</th>
-                <th>수주일</th>
-                <th>납기요구일</th>
-                <th>단가</th>
-                <th>수량</th>
-                <th>총금액</th>
-                <th>상태(생산·구매)</th>
-                <th>납품상태</th>
-                <th>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lineRows.map((row) => (
-                <tr key={row.lineId}>
-                  <td>{row.orderNo}</td>
-                  <td>{row.partnerName}</td>
-                  <td>{row.orderDate}</td>
-                  <td>{row.requestedDeliveryDate ?? '-'}</td>
-                  <td>{formatAmount(row.unitPrice)}</td>
-                  <td>{row.orderQty}</td>
-                  <td>{formatAmount(row.amount)}</td>
-                  <td>{row.executionStatusLabel}</td>
-                  <td>{row.deliveryStatusLabel}</td>
-                  <td className="actions">
-                    {row.orderStatus === 'DRAFT' && row.orderEditable && (
-                      <>
-                        <button type="button" className="btn-action" onClick={() => void startEdit(row.orderId)}>
-                          수정
-                        </button>
-                        <button type="button" className="btn-action danger" onClick={() => void onCancel(row.orderId)}>
-                          취소
-                        </button>
-                      </>
-                    )}
-                    {row.orderStatus === 'CONFIRMED' && row.fulfillmentStatus === 'IN_PROGRESS' && (
-                      <button
-                        type="button"
-                        className="btn-action"
-                        onClick={() => void onLineAction(() => completeSalesOrderLine(row.lineId))}
-                      >
-                        완료
-                      </button>
-                    )}
-                    {row.deliveryStatus !== 'COMPLETED' && (
-                      <button
-                        type="button"
-                        className="btn-action"
-                        onClick={() => void onLineAction(() => forceCompleteSalesOrderLine(row.lineId))}
-                      >
-                        강제완료
-                      </button>
-                    )}
-                  </td>
+          <div className="ui-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>수주번호</th>
+                  <th>거래처</th>
+                  <th>수주일</th>
+                  <th>납기요구일</th>
+                  <th className="num">단가</th>
+                  <th className="num">수량</th>
+                  <th className="num">총금액</th>
+                  <th>상태(생산·구매)</th>
+                  <th>납품상태</th>
+                  <th>관리</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {lineRows.map((row) => (
+                  <tr key={row.lineId}>
+                    <td>{row.orderNo}</td>
+                    <td>{row.partnerName}</td>
+                    <td>{row.orderDate}</td>
+                    <td>{row.requestedDeliveryDate ?? '-'}</td>
+                    <td className="num">{formatAmount(row.unitPrice)}</td>
+                    <td className="num">{row.orderQty}</td>
+                    <td className="num sales-order-amount">{formatAmount(row.amount)}</td>
+                    <td>{row.executionStatusLabel}</td>
+                    <td>{row.deliveryStatusLabel}</td>
+                    <td className="actions">
+                      {row.orderStatus === 'DRAFT' && row.orderEditable && (
+                        <>
+                          <button type="button" className="btn-action" onClick={() => void startEdit(row.orderId)}>
+                            수정
+                          </button>
+                          <button type="button" className="btn-action danger" onClick={() => void onCancel(row.orderId)}>
+                            취소
+                          </button>
+                        </>
+                      )}
+                      {row.orderStatus === 'CONFIRMED' && row.fulfillmentStatus === 'IN_PROGRESS' && (
+                        <button
+                          type="button"
+                          className="btn-action"
+                          onClick={() => void onLineAction(() => completeSalesOrderLine(row.lineId))}
+                        >
+                          완료
+                        </button>
+                      )}
+                      {row.deliveryStatus !== 'COMPLETED' && (
+                        <button
+                          type="button"
+                          className="btn-action"
+                          onClick={() => void onLineAction(() => forceCompleteSalesOrderLine(row.lineId))}
+                        >
+                          강제완료
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
-    </>
+    </div>
   );
 }

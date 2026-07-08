@@ -211,8 +211,8 @@ export default function UnitPricePage() {
   };
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>단가</h1>
         <div className="tab-row">
           {TAB_CONFIG.map((tab) => (
@@ -464,6 +464,6 @@ export default function UnitPricePage() {
           </table>
         )}
       </section>
-    </>
+    </div>
   );
 }

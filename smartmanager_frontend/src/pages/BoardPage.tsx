@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import RichTextEditor from '../components/board/RichTextEditor';
 import {
   BOARD_TYPE_LABELS,
@@ -42,6 +42,22 @@ interface BoardPageProps {
 }
 
 const PAGE_SIZE = 20;
+const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
+
+function UploadIcon() {
+  return (
+    <svg className="import-upload-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 16V4m0 0L7 9m5-5 5 5M4 20h16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export default function BoardPage({
   boardType,
@@ -516,6 +532,45 @@ function BoardComposeView({
   const [loading, setLoading] = useState(composeMode !== 'create');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const appendFiles = (incoming: FileList | null) => {
+    if (!incoming || incoming.length === 0) {
+      return;
+    }
+    const oversize: string[] = [];
+    setFiles((prev) => {
+      const next = [...prev];
+      for (const file of Array.from(incoming)) {
+        if (file.size > MAX_ATTACHMENT_BYTES) {
+          oversize.push(file.name);
+          continue;
+        }
+        const duplicate = next.some((f) => f.name === file.name && f.size === file.size);
+        if (!duplicate) {
+          next.push(file);
+        }
+      }
+      return next;
+    });
+    if (oversize.length > 0) {
+      setError(`${oversize.join(', ')} — 파일당 100MB 이하만 첨부할 수 있습니다.`);
+    } else {
+      setError(null);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const clearFiles = () => {
+    setFiles([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -616,26 +671,93 @@ function BoardComposeView({
           <RichTextEditor value={content} onChange={setContent} disabled={submitting} />
         </label>
 
-        <label>
-          첨부파일 (복수 선택 가능, 파일당 100MB 이하)
-          <input
-            type="file"
-            multiple
-            disabled={submitting}
-            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-          />
-        </label>
-        {files.length > 0 && (
-          <ul className="board-selected-files">
-            {files.map((file) => (
-              <li key={`${file.name}-${file.size}`}>
-                {file.name} ({formatFileSize(file.size)})
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="board-compose-attachments">
+          <span className="board-compose-label">첨부파일 (복수 선택 가능, 파일당 100MB 이하)</span>
+          <div
+            className={`import-dropzone board-attachment-dropzone${dragOver ? ' import-dropzone--active' : ''}${files.length > 0 ? ' import-dropzone--filled' : ''}`}
+            role="button"
+            tabIndex={0}
+            onClick={() => !submitting && fileInputRef.current?.click()}
+            onKeyDown={(e) => {
+              if (!submitting && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (!submitting) {
+                setDragOver(true);
+              }
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              if (!submitting) {
+                appendFiles(e.dataTransfer.files);
+              }
+            }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              hidden
+              disabled={submitting}
+              onChange={(e) => {
+                appendFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
+            <UploadIcon />
+            {files.length > 0 ? (
+              <div className="import-dropzone__file">
+                <strong>{files.length}개 파일 선택됨</strong>
+                <span>클릭하거나 드래그하여 파일을 추가할 수 있습니다</span>
+                {!submitting && (
+                  <button
+                    type="button"
+                    className="import-clear-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearFiles();
+                    }}
+                  >
+                    전체 제거
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                <p className="import-dropzone__title">첨부파일 업로드</p>
+                <p className="import-dropzone__hint">클릭하거나 파일을 여기로 드래그하세요</p>
+              </>
+            )}
+          </div>
+          {files.length > 0 && (
+            <ul className="board-selected-files">
+              {files.map((file, index) => (
+                <li key={`${file.name}-${file.size}-${index}`}>
+                  <span>
+                    {file.name} ({formatFileSize(file.size)})
+                  </span>
+                  {!submitting && (
+                    <button
+                      type="button"
+                      className="import-clear-btn"
+                      onClick={() => removeFile(index)}
+                    >
+                      제거
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
-        <div className="board-actions">
+        <div className="form-actions">
           <button type="button" disabled={submitting} onClick={() => void onSubmit()}>
             저장
           </button>

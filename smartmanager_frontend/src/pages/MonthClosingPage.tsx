@@ -95,8 +95,8 @@ export default function MonthClosingPage() {
   };
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>월마감</h1>
         <p>
           회계월 25일 규칙(1~25일 → 해당 월, 26일~ → 다음 월)으로 거래일을 판정하고, 마감된 회계월에는
@@ -197,6 +197,6 @@ export default function MonthClosingPage() {
           </table>
         )}
       </section>
-    </>
+    </div>
   );
 }

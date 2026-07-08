@@ -124,8 +124,8 @@ export default function WorkCenterPage() {
   };
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>작업장 (Work Center)</h1>
         <p>3필드 CRUD — 대표공정·일일 가동시간(분)</p>
       </header>
@@ -247,6 +247,6 @@ export default function WorkCenterPage() {
           </table>
         )}
       </section>
-    </>
+    </div>
   );
 }

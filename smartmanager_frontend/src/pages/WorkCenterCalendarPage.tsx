@@ -115,8 +115,8 @@ export default function WorkCenterCalendarPage() {
   };
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>작업장별 생산달력</h1>
         <p>Override sparse — 기본달력 상속 + 예외만 저장</p>
       </header>
@@ -224,6 +224,6 @@ export default function WorkCenterCalendarPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

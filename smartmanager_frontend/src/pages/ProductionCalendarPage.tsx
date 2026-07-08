@@ -96,8 +96,8 @@ export default function ProductionCalendarPage() {
   };
 
   return (
-    <>
-      <header>
+    <div className="page">
+      <header className="page-header">
         <h1>기본생산달력</h1>
         <p>공장 전체 가동일·휴무일 — 주말·공휴일 자동 휴무, 일자별 upsert (평일 기본 480분)</p>
       </header>
@@ -197,6 +197,6 @@ export default function ProductionCalendarPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
