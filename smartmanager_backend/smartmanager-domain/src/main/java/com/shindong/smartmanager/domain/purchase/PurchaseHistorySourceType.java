@@ -2,5 +2,6 @@ package com.shindong.smartmanager.domain.purchase;
 
 public enum PurchaseHistorySourceType {
     PURCHASE_RECEIPT,
-    QUALITY_INSPECTION
+    QUALITY_INSPECTION,
+    ETC_PURCHASE_RECEIPT
 }

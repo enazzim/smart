@@ -23,6 +23,7 @@ public class JpaPurchaseHistoryRepository implements PurchaseHistoryRepository {
         PurchaseHistoryJpaEntity entity = new PurchaseHistoryJpaEntity();
         entity.setCompanyId(command.companyId());
         entity.setItemId(command.itemId());
+        entity.setItemName(command.itemName());
         entity.setPurchaseQty(command.purchaseQty());
         entity.setUnitPrice(command.unitPrice());
         entity.setAmount(command.amount());

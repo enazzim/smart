@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
+import { formatFiscalPeriodFromInstant } from '../utils/fiscalCalendar';
 import {
   cancelQualityInspection,
   completeQualityInspection,
@@ -357,6 +359,7 @@ export default function QualityInspectionPage() {
                 <thead>
                   <tr>
                     <th>검사완료일</th>
+                    <th>매입월</th>
                     <th>입고일</th>
                     <th>구분</th>
                     <th>거래처</th>
@@ -371,12 +374,13 @@ export default function QualityInspectionPage() {
                 <tbody>
                   {history.length === 0 ? (
                     <tr>
-                      <td colSpan={10}>검사 이력이 없습니다.</td>
+                      <td colSpan={11}>검사 이력이 없습니다.</td>
                     </tr>
                   ) : (
                     history.map((row) => (
                       <tr key={row.id}>
                         <td>{formatInstantDate(row.completedAt)}</td>
+                        <td>{formatFiscalPeriodFromInstant(row.completedAt)}</td>
                         <td>{row.receiptDate ?? '—'}</td>
                         <td>{sourceLabel(row.sourceType)}</td>
                         <td>{row.companyName}</td>
@@ -428,6 +432,7 @@ export default function QualityInspectionPage() {
               검사완료일
               <input type="date" value={completedDate} onChange={(e) => setCompletedDate(e.target.value)} />
             </label>
+            <FiscalPeriodDisplay baseDate={completedDate} />
             <div className="modal-actions">
               <button type="button" className="secondary" onClick={closeModal} disabled={submitting}>
                 닫기

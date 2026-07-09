@@ -89,6 +89,7 @@ public class JpaItemRepository implements ItemRepository {
     private void applyCommand(ItemJpaEntity entity, ItemCommand command) {
         entity.setItemName(command.itemName());
         entity.setPropertyClassification(command.propertyClassification());
+        entity.setModelType(command.modelType());
         entity.setUnit(command.unit());
         entity.setStandard(command.standard());
         entity.setStandardUnitCost(command.standardUnitCost());
@@ -102,6 +103,7 @@ public class JpaItemRepository implements ItemRepository {
     private void applyUpdate(ItemJpaEntity entity, ItemUpdateCommand command) {
         entity.setItemName(command.itemName());
         entity.setPropertyClassification(command.propertyClassification());
+        entity.setModelType(command.modelType());
         entity.setUnit(command.unit());
         entity.setStandard(command.standard());
         entity.setStandardUnitCost(command.standardUnitCost());
@@ -118,6 +120,7 @@ public class JpaItemRepository implements ItemRepository {
                 entity.getItemNo(),
                 entity.getItemName(),
                 entity.getPropertyClassification(),
+                entity.getModelType(),
                 entity.getUnit(),
                 entity.getStandard(),
                 entity.getStandardUnitCost(),

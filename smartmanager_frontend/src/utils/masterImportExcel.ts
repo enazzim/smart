@@ -44,11 +44,11 @@ export const IMPORT_DOMAINS: ImportDomainConfig[] = [
     uploadTitle: '품목 업로드',
     order: 2,
     headers: [
-      '품목번호', '품목명', '자산분류', '단위', '규격', '표준원가', '검사구분',
+      '품목번호', '품목명', '자산분류', '기종', '단위', '규격', '표준원가', '검사구분',
       '리드타임', '안전재고', '발주간격', '최소발주량',
     ],
     sampleRow: {
-      품목번호: 'ITEM-001', 품목명: '샘플품목', 자산분류: '제품', 단위: 'EA', 규격: '',
+      품목번호: 'ITEM-001', 품목명: '샘플품목', 자산분류: '제품', 기종: '', 단위: 'EA', 규격: '',
       표준원가: 1000, 검사구분: 'NONE', 리드타임: 0, 안전재고: '', 발주간격: '', 최소발주량: '',
     },
     fileName: '품목일괄등록양식.xlsx',
@@ -197,6 +197,7 @@ function mapRow(domain: ImportDomain, row: Record<string, unknown>): Record<stri
         itemNo: cellString(row['품목번호']),
         itemName: cellString(row['품목명']),
         propertyClassification: cellString(row['자산분류']),
+        modelType: cellString(row['기종']) || null,
         unit: cellString(row['단위']),
         standard: cellString(row['규격']) || null,
         standardUnitCost: cellNumber(row['표준원가']) ?? null,

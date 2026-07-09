@@ -274,7 +274,7 @@ function BackupPanel() {
                   <button type="button" disabled={submitting} onClick={() => void onRestore(file.fileName)}>
                     적용
                   </button>
-                  <button type="button" disabled={submitting} onClick={() => void onDelete(file.fileName)}>
+                  <button type="button" className="danger" disabled={submitting} onClick={() => void onDelete(file.fileName)}>
                     삭제
                   </button>
                 </td>

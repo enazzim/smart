@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
+import { formatFiscalPeriodFromIso } from '../utils/fiscalCalendar';
 import {
   cancelOutsourcingReceipt,
   createOutsourcingReceipt,
@@ -288,6 +290,7 @@ export default function OutsourcingReceiptPage() {
               입고일
               <input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} />
             </label>
+            <FiscalPeriodDisplay baseDate={receiptDate} />
             <button type="button" disabled={submitting || linesToSubmit.length === 0} onClick={() => void onSubmit()}>
               {submitting ? '등록 중…' : `입고 등록 (${linesToSubmit.length}건)`}
             </button>
@@ -429,6 +432,7 @@ export default function OutsourcingReceiptPage() {
                     <th>입고번호</th>
                     <th>거래처</th>
                     <th>입고일</th>
+                    <th>매입월</th>
                     <th>상태</th>
                     <th>품목</th>
                     <th>수량</th>
@@ -439,7 +443,7 @@ export default function OutsourcingReceiptPage() {
                 <tbody>
                   {receipts.length === 0 ? (
                     <tr>
-                      <td colSpan={8}>입고 이력이 없습니다.</td>
+                      <td colSpan={9}>입고 이력이 없습니다.</td>
                     </tr>
                   ) : (
                     receipts.flatMap((receipt) =>
@@ -450,6 +454,9 @@ export default function OutsourcingReceiptPage() {
                               <td rowSpan={receipt.lines.length}>{receipt.receiptNo}</td>
                               <td rowSpan={receipt.lines.length}>{receipt.partnerName}</td>
                               <td rowSpan={receipt.lines.length}>{receipt.receiptDate}</td>
+                              <td rowSpan={receipt.lines.length}>
+                                {formatFiscalPeriodFromIso(receipt.receiptDate)}
+                              </td>
                               <td rowSpan={receipt.lines.length}>{receiptStatusLabel(receipt.status)}</td>
                             </>
                           )}

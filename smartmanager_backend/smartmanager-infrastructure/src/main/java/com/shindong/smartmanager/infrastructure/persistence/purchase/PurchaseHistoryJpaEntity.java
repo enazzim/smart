@@ -24,8 +24,11 @@ public class PurchaseHistoryJpaEntity {
     @Column(name = "company_id", nullable = false)
     private Long companyId;
 
-    @Column(name = "item_id", nullable = false)
+    @Column(name = "item_id")
     private Long itemId;
+
+    @Column(name = "item_name", length = 200)
+    private String itemName;
 
     @Column(name = "purchase_qty", nullable = false, precision = 18, scale = 4)
     private BigDecimal purchaseQty;
@@ -73,6 +76,10 @@ public class PurchaseHistoryJpaEntity {
 
     public void setItemId(Long itemId) {
         this.itemId = itemId;
+    }
+
+    public void setItemName(String itemName) {
+        this.itemName = itemName;
     }
 
     public void setPurchaseQty(BigDecimal purchaseQty) {

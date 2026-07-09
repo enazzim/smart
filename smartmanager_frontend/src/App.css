@@ -500,6 +500,42 @@ td.row-actions {
   white-space: nowrap;
 }
 
+.app-main td.actions > button:not(.secondary):not(.btn-action):not(.danger),
+.app-main td.row-actions > button:not(.secondary):not(.btn-action):not(.danger) {
+  padding: 0.35rem 0.65rem;
+  margin-right: 0.25rem;
+  background: var(--sm-blue-600);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.app-main td.actions > button:not(.secondary):not(.btn-action):not(.danger):hover:not(:disabled),
+.app-main td.row-actions > button:not(.secondary):not(.btn-action):not(.danger):hover:not(:disabled) {
+  background: var(--sm-blue-700);
+}
+
+.app-main td.actions > button.danger:not(.btn-action),
+.app-main td.row-actions > button.danger:not(.btn-action) {
+  padding: 0.35rem 0.65rem;
+  margin-right: 0.25rem;
+  background: #fff;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.app-main td.actions > button.danger:not(.btn-action):hover:not(:disabled),
+.app-main td.row-actions > button.danger:not(.btn-action):hover:not(:disabled) {
+  background: #fef2f2;
+}
+
 td input.qty-input {
   width: 6rem;
   min-width: 5rem;
@@ -791,6 +827,40 @@ th.num {
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
+}
+
+.fiscal-period-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.fiscal-period-display label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.fiscal-period-display input.readonly {
+  width: 5.5rem;
+  text-align: center;
+  background: #eef4fc;
+  cursor: default;
+}
+
+.fiscal-period-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--sm-text-muted, #64748b);
+  align-self: center;
+}
+
+.modal .fiscal-period-display {
+  width: 100%;
+  margin-top: 0.25rem;
 }
 
 .action-bar > button:not(.secondary):hover:not(:disabled) {
@@ -1279,6 +1349,26 @@ th.num {
 
 .panel-header-row h2 {
   margin: 0;
+}
+
+.panel-header-row > button:not(.secondary) {
+  padding: 0.52rem 1.1rem;
+  background: var(--sm-blue-600);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.panel-header-row > button:not(.secondary):hover:not(:disabled) {
+  background: var(--sm-blue-700);
+}
+
+.panel-header-row > button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .inline-form {

@@ -31,6 +31,33 @@ const emptySmallForm: Omit<CreateSmallPublicCodeRequest, 'largeCode'> = {
   smallName: '',
 };
 
+function extractSmallSuffix(fullCode: string, largeCode: string): string {
+  const normalized = fullCode.trim();
+  if (normalized.startsWith(largeCode) && normalized.length > largeCode.length) {
+    return normalized.slice(largeCode.length);
+  }
+  return normalized.length > 4 ? normalized.slice(-4) : normalized;
+}
+
+function buildFullSmallCode(largeCode: string, suffixInput: string): string {
+  const digits = suffixInput.trim().replace(/\D/g, '');
+  if (digits.length === 0) {
+    throw new Error('소분류 코드 4자리를 입력해 주세요.');
+  }
+  if (digits.length > 4) {
+    throw new Error('소분류 코드는 4자리만 입력해 주세요.');
+  }
+  return `${largeCode}${digits.padStart(4, '0')}`;
+}
+
+function previewFullSmallCode(largeCode: string, suffixInput: string): string {
+  const digits = suffixInput.trim().replace(/\D/g, '');
+  if (!digits) {
+    return '';
+  }
+  return `${largeCode}${digits.padStart(4, '0')}`;
+}
+
 function formatLargeLabel(row: PublicCodeLarge): string {
   return `${row.largeCode} ${row.largeName}`;
 }
@@ -127,7 +154,7 @@ export default function PublicCodePage() {
   const startEditSmall = (row: PublicCodeSmall) => {
     setEditingSmallId(row.id);
     setSmallForm({
-      smallCode: row.smallCode,
+      smallCode: extractSmallSuffix(row.smallCode, row.largeCode),
       smallName: row.smallName,
     });
     setShowSmallForm(true);
@@ -170,9 +197,10 @@ export default function PublicCodePage() {
         const payload: UpdateSmallPublicCodeRequest = { smallName: smallForm.smallName };
         await updateSmallPublicCode(editingSmallId, payload);
       } else {
+        const fullSmallCode = buildFullSmallCode(selectedLargeCode, smallForm.smallCode);
         await createSmallPublicCode({
           largeCode: selectedLargeCode,
-          smallCode: smallForm.smallCode,
+          smallCode: fullSmallCode,
           smallName: smallForm.smallName,
         });
       }
@@ -240,7 +268,7 @@ export default function PublicCodePage() {
                 setShowLargeForm(true);
               }}
             >
-              등록
+              추가
             </button>
           </div>
 
@@ -350,7 +378,7 @@ export default function PublicCodePage() {
                 setShowSmallForm(true);
               }}
             >
-              등록
+              추가
             </button>
           </div>
 
@@ -361,13 +389,25 @@ export default function PublicCodePage() {
                 <input value={selectedLargeCode} disabled />
               </label>
               <label>
-                소분류 코드 *
+                소분류 코드 (4자리) *
                 <input
                   required
                   disabled={isEditingSmall}
+                  inputMode="numeric"
+                  maxLength={4}
+                  pattern="\d{1,4}"
+                  placeholder="예: 0010"
                   value={smallForm.smallCode}
-                  onChange={(e) => setSmallForm({ ...smallForm, smallCode: e.target.value })}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    setSmallForm({ ...smallForm, smallCode: digits });
+                  }}
                 />
+                {selectedLargeCode && smallForm.smallCode.trim() !== '' && (
+                  <span className="hint-text">
+                    전체 코드: {previewFullSmallCode(selectedLargeCode, smallForm.smallCode)}
+                  </span>
+                )}
               </label>
               <label>
                 소분류명 *

@@ -6,7 +6,8 @@ import java.time.LocalDate;
 
 public record PurchaseHistoryCommand(
         long companyId,
-        long itemId,
+        Long itemId,
+        String itemName,
         BigDecimal purchaseQty,
         BigDecimal unitPrice,
         BigDecimal amount,

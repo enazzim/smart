@@ -174,6 +174,18 @@ public class JpaPublicCodeRepository implements PublicCodeRepository {
         return publicCodeRepository.existsByLargeCodeAndSmallCodeAndRecordingState(largeCode, smallCode, 1);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsActiveLargeHeaderByName(String largeName, String excludeLargeCode) {
+        return publicCodeRepository.existsActiveLargeHeaderByName(largeName.trim(), excludeLargeCode);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsActiveSmallByName(String largeCode, String smallName, Long excludeId) {
+        return publicCodeRepository.existsActiveSmallByName(largeCode, smallName.trim(), excludeId);
+    }
+
     private PublicCodeJpaEntity getActiveHeaderEntity(String largeCode) {
         return publicCodeRepository.findByLargeCodeAndSmallCodeIsNullAndRecordingState(largeCode, 1)
                 .orElseThrow(() -> new IllegalArgumentException("대분류를 찾을 수 없습니다: " + largeCode));

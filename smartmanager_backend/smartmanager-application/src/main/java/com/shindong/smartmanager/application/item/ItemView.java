@@ -10,6 +10,7 @@ public record ItemView(
         String itemNo,
         String itemName,
         PropertyClassification propertyClassification,
+        String modelType,
         String unit,
         String standard,
         BigDecimal standardUnitCost,

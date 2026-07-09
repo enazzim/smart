@@ -20,6 +20,8 @@ import ProductionPlanPage from '../pages/ProductionPlanPage';
 import MrpPage from '../pages/MrpPage';
 import PurchaseOrderPage from '../pages/PurchaseOrderPage';
 import PurchaseReceiptPage from '../pages/PurchaseReceiptPage';
+import EtcPurchaseOrderPage from '../pages/EtcPurchaseOrderPage';
+import EtcPurchaseReceiptPage from '../pages/EtcPurchaseReceiptPage';
 import PartnerPaymentPage from '../pages/PartnerPaymentPage';
 import InventoryLedgerPage from '../pages/InventoryLedgerPage';
 import WorkPlanPage from '../pages/WorkPlanPage';
@@ -73,7 +75,13 @@ export type ProductionPageId =
   | 'prod-material-issue'
   | 'prod-work-diary';
 
-export type PurchasePageId = 'purchase-order' | 'purchase-receipt' | 'purchase-payment' | 'inventory-ledger';
+export type PurchasePageId =
+  | 'purchase-order'
+  | 'purchase-receipt'
+  | 'purchase-etc-order'
+  | 'purchase-etc-receipt'
+  | 'purchase-payment'
+  | 'inventory-ledger';
 
 export type OutsourcePageId = 'outsource-order' | 'outsource-shipment' | 'outsource-receipt';
 
@@ -129,6 +137,8 @@ export const MENU_GROUPS: MenuGroup[] = [
     children: [
       { id: 'purchase-order', label: '구매발주' },
       { id: 'purchase-receipt', label: '구매입고' },
+      { id: 'purchase-etc-order', label: '기타구매발주' },
+      { id: 'purchase-etc-receipt', label: '기타구매입고' },
       { id: 'purchase-payment', label: '지급' },
       { id: 'inventory-ledger', label: '재고·원장' },
     ],
@@ -279,6 +289,12 @@ export function renderSalesPage(page: SalesPageId) {
 export function renderPurchasePage(page: PurchasePageId) {
   if (page === 'purchase-order') {
     return <PurchaseOrderPage />;
+  }
+  if (page === 'purchase-etc-order') {
+    return <EtcPurchaseOrderPage />;
+  }
+  if (page === 'purchase-etc-receipt') {
+    return <EtcPurchaseReceiptPage />;
   }
   if (page === 'purchase-payment') {
     return <PartnerPaymentPage />;

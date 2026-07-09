@@ -31,6 +31,9 @@ public class ItemJpaEntity {
     @Column(name = "property_classification", nullable = false, length = 20)
     private PropertyClassification propertyClassification;
 
+    @Column(name = "model_type", length = 100)
+    private String modelType;
+
     @Column(name = "unit", nullable = false, length = 20)
     private String unit;
 
@@ -106,6 +109,14 @@ public class ItemJpaEntity {
 
     public void setPropertyClassification(PropertyClassification propertyClassification) {
         this.propertyClassification = propertyClassification;
+    }
+
+    public String getModelType() {
+        return modelType;
+    }
+
+    public void setModelType(String modelType) {
+        this.modelType = modelType;
     }
 
     public String getUnit() {

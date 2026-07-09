@@ -67,9 +67,11 @@ public class PublicCodeService {
     public PublicCodeLargeView createLarge(CreateLargeCommand command, String actorUserId) {
         validateLargeCommand(command);
         String largeCode = command.largeCode().trim();
+        String largeName = command.largeName().trim();
         if (publicCodeRepository.existsActiveLargeHeader(largeCode)) {
             throw new IllegalArgumentException("이미 등록된 대분류 코드입니다: " + largeCode);
         }
+        assertUniqueLargeName(largeName, null);
         publicCodeRepository.saveLarge(command, actorUserId);
         return publicCodeRepository.findActiveLargeHeader(largeCode)
                 .orElseThrow(() -> new IllegalStateException("대분류 등록 후 조회에 실패했습니다: " + largeCode));
@@ -80,9 +82,12 @@ public class PublicCodeService {
         String largeCode = command.largeCode().trim();
         PublicCodeLargeView header = publicCodeRepository.findActiveLargeHeader(largeCode)
                 .orElseThrow(() -> new IllegalArgumentException("대분류를 찾을 수 없습니다: " + largeCode));
-        if (publicCodeRepository.existsActiveSmall(largeCode, command.smallCode().trim())) {
-            throw new IllegalArgumentException("이미 등록된 소분류 코드입니다: " + command.smallCode().trim());
+        String smallCode = command.smallCode().trim();
+        String smallName = command.smallName().trim();
+        if (publicCodeRepository.existsActiveSmall(largeCode, smallCode)) {
+            throw new IllegalArgumentException("이미 등록된 소분류 코드입니다: " + smallCode);
         }
+        assertUniqueSmallName(largeCode, smallName, null);
         long id = publicCodeRepository.saveSmall(command, header, actorUserId);
         return getActiveSmall(id);
     }
@@ -98,6 +103,7 @@ public class PublicCodeService {
         if (!existing.usageType().equals(nextUsageType) && isTier2(existing.usageType())) {
             assertNoReferencesForLarge(largeCode.trim(), existing.usageType());
         }
+        assertUniqueLargeName(nextLargeName, largeCode.trim());
 
         publicCodeRepository.updateLarge(largeCode.trim(), command, actorUserId);
         return publicCodeRepository.findActiveLargeHeader(largeCode.trim())
@@ -105,8 +111,9 @@ public class PublicCodeService {
     }
 
     public PublicCodeSmallView updateSmall(long id, UpdateSmallCommand command, String actorUserId) {
-        getActiveSmall(id);
+        PublicCodeSmallView existing = getActiveSmall(id);
         String smallName = requireText(command.smallName(), "소분류명");
+        assertUniqueSmallName(existing.largeCode(), smallName, id);
         publicCodeRepository.updateSmall(id, new UpdateSmallCommand(smallName), actorUserId);
         return getActiveSmall(id);
     }
@@ -184,5 +191,17 @@ public class PublicCodeService {
             throw new IllegalArgumentException(label + "은(는) 필수입니다.");
         }
         return value.trim();
+    }
+
+    private void assertUniqueLargeName(String largeName, String excludeLargeCode) {
+        if (publicCodeRepository.existsActiveLargeHeaderByName(largeName, excludeLargeCode)) {
+            throw new IllegalArgumentException("이미 등록된 대분류명입니다: " + largeName);
+        }
+    }
+
+    private void assertUniqueSmallName(String largeCode, String smallName, Long excludeId) {
+        if (publicCodeRepository.existsActiveSmallByName(largeCode, smallName, excludeId)) {
+            throw new IllegalArgumentException("이미 등록된 소분류명입니다: " + smallName);
+        }
     }
 }

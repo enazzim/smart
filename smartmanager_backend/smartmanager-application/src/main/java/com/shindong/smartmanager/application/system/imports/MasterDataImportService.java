@@ -118,6 +118,7 @@ public class MasterDataImportService {
                             row.itemNo().trim(),
                             row.itemName().trim(),
                             row.propertyClassification(),
+                            blankToNull(row.modelType()),
                             row.unit().trim(),
                             blankToNull(row.standard()),
                             row.standardUnitCost(),

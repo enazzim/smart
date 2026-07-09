@@ -658,6 +658,8 @@ public class PurchaseReceiptService {
 
                 ctx.itemId(),
 
+                null,
+
                 qty,
 
                 ctx.unitPrice(),

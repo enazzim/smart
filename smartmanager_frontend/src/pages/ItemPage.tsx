@@ -27,6 +27,7 @@ function toUpdatePayload(item: Item): UpdateItemRequest {
   return {
     itemName: item.itemName,
     propertyClassification: item.propertyClassification,
+    modelType: item.modelType ?? undefined,
     unit: item.unit,
     standard: item.standard ?? undefined,
     standardUnitCost: item.standardUnitCost ?? undefined,
@@ -127,7 +128,7 @@ export default function ItemPage() {
     <div className="page">
       <header className="page-header">
         <h1>품목 (Item)</h1>
-        <p>11필드 CRUD — 등록 시 재고 행 미생성 (Lazy)</p>
+        <p>12필드 CRUD — 등록 시 재고 행 미생성 (Lazy)</p>
       </header>
 
       {error && <div className="error">{error}</div>}
@@ -168,6 +169,13 @@ export default function ItemPage() {
                 </option>
               ))}
             </select>
+          </label>
+          <label>
+            기종
+            <input
+              value={form.modelType ?? ''}
+              onChange={(e) => setForm({ ...form, modelType: e.target.value || undefined })}
+            />
           </label>
           <label>
             단위 *
@@ -299,6 +307,7 @@ export default function ItemPage() {
                 <th>품목번호</th>
                 <th>품목명</th>
                 <th>자산분류</th>
+                <th>기종</th>
                 <th>단위</th>
                 <th>규격</th>
                 <th>작업</th>
@@ -311,6 +320,7 @@ export default function ItemPage() {
                   <td>{item.itemNo}</td>
                   <td>{item.itemName}</td>
                   <td>{item.propertyClassification}</td>
+                  <td>{item.modelType ?? ''}</td>
                   <td>{item.unit}</td>
                   <td>{item.standard ?? ''}</td>
                   <td className="actions">

@@ -58,4 +58,30 @@ public interface SpringDataPublicCodeRepository extends JpaRepository<PublicCode
     );
 
     List<PublicCodeJpaEntity> findByLargeCodeAndRecordingState(String largeCode, int recordingState);
+
+    @Query("""
+            SELECT COUNT(p) > 0 FROM PublicCodeJpaEntity p
+            WHERE p.smallCode IS NULL
+              AND p.recordingState = 1
+              AND p.largeName = :largeName
+              AND (:excludeLargeCode IS NULL OR p.largeCode <> :excludeLargeCode)
+            """)
+    boolean existsActiveLargeHeaderByName(
+            @Param("largeName") String largeName,
+            @Param("excludeLargeCode") String excludeLargeCode
+    );
+
+    @Query("""
+            SELECT COUNT(p) > 0 FROM PublicCodeJpaEntity p
+            WHERE p.largeCode = :largeCode
+              AND p.smallCode IS NOT NULL
+              AND p.recordingState = 1
+              AND p.smallName = :smallName
+              AND (:excludeId IS NULL OR p.id <> :excludeId)
+            """)
+    boolean existsActiveSmallByName(
+            @Param("largeCode") String largeCode,
+            @Param("smallName") String smallName,
+            @Param("excludeId") Long excludeId
+    );
 }

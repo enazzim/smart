@@ -8,6 +8,7 @@ public record ItemCommand(
         String itemNo,
         String itemName,
         PropertyClassification propertyClassification,
+        String modelType,
         String unit,
         String standard,
         BigDecimal standardUnitCost,

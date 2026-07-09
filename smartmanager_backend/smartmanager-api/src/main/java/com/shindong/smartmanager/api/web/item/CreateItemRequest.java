@@ -10,6 +10,7 @@ public record CreateItemRequest(
         @NotBlank String itemNo,
         @NotBlank String itemName,
         @NotNull PropertyClassification propertyClassification,
+        String modelType,
         @NotBlank String unit,
         String standard,
         BigDecimal standardUnitCost,

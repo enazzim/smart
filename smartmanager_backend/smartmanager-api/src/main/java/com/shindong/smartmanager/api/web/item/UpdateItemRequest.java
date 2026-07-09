@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 public record UpdateItemRequest(
         @NotBlank String itemName,
         @NotNull PropertyClassification propertyClassification,
+        String modelType,
         @NotBlank String unit,
         String standard,
         BigDecimal standardUnitCost,

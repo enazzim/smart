@@ -32,4 +32,8 @@ public interface PublicCodeRepository {
     boolean existsActiveLargeHeader(String largeCode);
 
     boolean existsActiveSmall(String largeCode, String smallCode);
+
+    boolean existsActiveLargeHeaderByName(String largeName, String excludeLargeCode);
+
+    boolean existsActiveSmallByName(String largeCode, String smallName, Long excludeId);
 }

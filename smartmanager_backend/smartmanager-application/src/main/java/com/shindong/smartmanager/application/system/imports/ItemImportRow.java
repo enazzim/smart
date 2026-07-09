@@ -8,6 +8,7 @@ public record ItemImportRow(
         String itemNo,
         String itemName,
         PropertyClassification propertyClassification,
+        String modelType,
         String unit,
         String standard,
         BigDecimal standardUnitCost,

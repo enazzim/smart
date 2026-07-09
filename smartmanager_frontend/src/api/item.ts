@@ -8,6 +8,7 @@ export interface Item {
   itemNo: string;
   itemName: string;
   propertyClassification: PropertyClassification;
+  modelType?: string | null;
   unit: string;
   standard?: string | null;
   standardUnitCost?: number | null;
@@ -23,6 +24,7 @@ export interface CreateItemRequest {
   itemNo: string;
   itemName: string;
   propertyClassification: PropertyClassification;
+  modelType?: string;
   unit: string;
   standard?: string;
   standardUnitCost?: number;

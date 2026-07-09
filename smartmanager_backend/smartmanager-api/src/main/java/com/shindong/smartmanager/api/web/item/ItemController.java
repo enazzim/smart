@@ -64,6 +64,7 @@ public class ItemController {
                 request.itemNo(),
                 request.itemName(),
                 request.propertyClassification(),
+                request.modelType(),
                 request.unit(),
                 request.standard(),
                 request.standardUnitCost(),
@@ -87,6 +88,7 @@ public class ItemController {
         ItemUpdateCommand command = new ItemUpdateCommand(
                 request.itemName(),
                 request.propertyClassification(),
+                request.modelType(),
                 request.unit(),
                 request.standard(),
                 request.standardUnitCost(),

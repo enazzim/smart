@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
+import { formatFiscalPeriodFromIso } from '../utils/fiscalCalendar';
 import {
 
   cancelPurchaseReceipt,
@@ -580,6 +582,8 @@ export default function PurchaseReceiptPage() {
 
             </label>
 
+            <FiscalPeriodDisplay baseDate={receiptDate} />
+
             <button type="button" disabled={submitting || linesToSubmit.length === 0} onClick={() => void onSubmit()}>
 
               {submitting ? '등록 중…' : `입고 등록 (${linesToSubmit.length}건)`}
@@ -890,6 +894,8 @@ export default function PurchaseReceiptPage() {
 
                 <th>입고일</th>
 
+                <th>매입월</th>
+
                 <th>거래처</th>
 
                 <th>상태</th>
@@ -908,7 +914,7 @@ export default function PurchaseReceiptPage() {
 
                 <tr>
 
-                  <td colSpan={6}>입고 이력이 없습니다.</td>
+                  <td colSpan={7}>입고 이력이 없습니다.</td>
 
                 </tr>
 
@@ -921,6 +927,8 @@ export default function PurchaseReceiptPage() {
                     <td>{receipt.receiptNo}</td>
 
                     <td>{receipt.receiptDate}</td>
+
+                    <td>{formatFiscalPeriodFromIso(receipt.receiptDate)}</td>
 
                     <td>{receipt.partnerName}</td>
 
