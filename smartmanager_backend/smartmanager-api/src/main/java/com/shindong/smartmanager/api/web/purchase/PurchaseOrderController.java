@@ -10,6 +10,7 @@ import com.shindong.smartmanager.domain.purchase.PurchaseOrderSourceType;
 import com.shindong.smartmanager.domain.purchase.PurchaseOrderStatus;
 import com.shindong.smartmanager.infrastructure.application.PurchaseOrderApplicationService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -85,6 +86,15 @@ public class PurchaseOrderController {
         return ResponseEntity.ok()
                 .contentType(MediaType.TEXT_HTML)
                 .body(html);
+    }
+
+    @PostMapping("/print")
+    @PreAuthorize("hasAuthority('purchase:order:read')")
+    public ResponseEntity<String> printBatch(@Valid @RequestBody PurchaseOrderPrintRequest request) {
+        String html = PurchaseOrderPrintHtmlRenderer.renderBatch(
+                purchaseOrderApplicationService.getBatchPrintViews(request.orderIds())
+        );
+        return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(html);
     }
 
     @GetMapping("/{id}")
@@ -171,5 +181,8 @@ public class PurchaseOrderController {
                 sourceType,
                 lines
         );
+    }
+
+    public record PurchaseOrderPrintRequest(@NotEmpty List<Long> orderIds) {
     }
 }

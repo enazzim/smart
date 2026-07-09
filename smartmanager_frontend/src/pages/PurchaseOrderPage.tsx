@@ -108,6 +108,7 @@ export default function PurchaseOrderPage() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [expandedRequirementIds, setExpandedRequirementIds] = useState<Set<number>>(new Set());
   const [selectedVendorKeys, setSelectedVendorKeys] = useState<Set<string>>(new Set());
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<number>>(new Set());
   const [orderDate, setOrderDate] = useState(todayIso());
   const [listFilters, setListFilters] = useState<PurchaseOrderListParams>(() => defaultListFilters());
   const [lastCreatedOrders, setLastCreatedOrders] = useState<PurchaseOrder[]>([]);
@@ -144,6 +145,7 @@ export default function PurchaseOrderPage() {
     setOrderError(null);
     try {
       setOrders(await fetchPurchaseOrders(listFilters));
+      setSelectedOrderIds(new Set());
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : '구매발주 목록 조회 실패');
       setOrders([]);
@@ -183,10 +185,34 @@ export default function PurchaseOrderPage() {
     allSelectableVendorKeys.size > 0 &&
     [...allSelectableVendorKeys].every((key) => selectedVendorKeys.has(key));
 
-  const handlePrint = async (orderId: number) => {
+  const printableOrders = useMemo(
+    () => orders.filter((order) => order.status !== 'CANCELLED'),
+    [orders],
+  );
+
+  const allOrdersSelected =
+    printableOrders.length > 0 && printableOrders.every((order) => selectedOrderIds.has(order.id));
+
+  const toggleOrderSelection = (orderId: number, checked: boolean) => {
+    setSelectedOrderIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(orderId);
+      } else {
+        next.delete(orderId);
+      }
+      return next;
+    });
+  };
+
+  const handlePrint = async (orderIds: number[]) => {
+    if (orderIds.length === 0) {
+      setOrderError('출력할 발주를 1건 이상 선택해 주세요.');
+      return;
+    }
     setOrderError(null);
     try {
-      await openPurchaseOrderPrint(orderId);
+      await openPurchaseOrderPrint(orderIds);
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : '발주서 출력 실패');
     }
@@ -726,7 +752,7 @@ export default function PurchaseOrderPage() {
               className="secondary"
               onClick={() => {
                 for (const order of lastCreatedOrders) {
-                  void handlePrint(order.id);
+                  void handlePrint([order.id]);
                 }
               }}
             >
@@ -754,7 +780,7 @@ export default function PurchaseOrderPage() {
                   <td>{order.orderDate}</td>
                   <td>{order.lines.length}</td>
                   <td>
-                    <button type="button" className="btn-action" onClick={() => void handlePrint(order.id)}>
+                    <button type="button" className="btn-action" onClick={() => void handlePrint([order.id])}>
                       발주서 출력
                     </button>
                   </td>
@@ -766,7 +792,17 @@ export default function PurchaseOrderPage() {
       )}
 
       <section className="panel">
-        <h2>발주 목록</h2>
+        <div className="panel-header-row">
+          <h2>발주 목록</h2>
+          <button
+            type="button"
+            className="btn-action"
+            disabled={submitting || selectedOrderIds.size === 0}
+            onClick={() => void handlePrint([...selectedOrderIds])}
+          >
+            발주서 발행
+          </button>
+        </div>
         {message && <p>{message}</p>}
         {orderError && <div className="error">{orderError}</div>}
         <div className="form-grid-wide">
@@ -825,6 +861,27 @@ export default function PurchaseOrderPage() {
           <table>
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    aria-label="전체 발주 선택"
+                    checked={allOrdersSelected}
+                    disabled={printableOrders.length === 0 || submitting}
+                    ref={(el) => {
+                      if (el) {
+                        el.indeterminate =
+                          !allOrdersSelected && printableOrders.some((order) => selectedOrderIds.has(order.id));
+                      }
+                    }}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedOrderIds(new Set(printableOrders.map((order) => order.id)));
+                      } else {
+                        setSelectedOrderIds(new Set());
+                      }
+                    }}
+                  />
+                </th>
                 <th>발주번호</th>
                 <th>거래처</th>
                 <th>발주일</th>
@@ -836,8 +893,19 @@ export default function PurchaseOrderPage() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => (
+              {orders.map((order) => {
+                const printable = order.status !== 'CANCELLED';
+                return (
                 <tr key={order.id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label={`${order.orderNo} 선택`}
+                      checked={selectedOrderIds.has(order.id)}
+                      disabled={!printable || submitting}
+                      onChange={(e) => toggleOrderSelection(order.id, e.target.checked)}
+                    />
+                  </td>
                   <td>{order.orderNo}</td>
                   <td>{order.partnerName}</td>
                   <td>{order.orderDate}</td>
@@ -846,14 +914,16 @@ export default function PurchaseOrderPage() {
                   <td>{order.lines.length}</td>
                   <td>{formatDateTime(order.createdAt)}</td>
                   <td className="actions">
-                    <button
-                      type="button"
-                      className="btn-action"
-                      disabled={submitting}
-                      onClick={() => void handlePrint(order.id)}
-                    >
-                      발주서 출력
-                    </button>
+                    {printable && (
+                      <button
+                        type="button"
+                        className="btn-action"
+                        disabled={submitting}
+                        onClick={() => void handlePrint([order.id])}
+                      >
+                        발주서 출력
+                      </button>
+                    )}
                     {order.cancelable && (
                       <button
                         type="button"
@@ -866,7 +936,8 @@ export default function PurchaseOrderPage() {
                     )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}

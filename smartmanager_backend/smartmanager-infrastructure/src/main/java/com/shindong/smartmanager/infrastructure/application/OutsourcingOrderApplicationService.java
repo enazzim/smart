@@ -3,6 +3,7 @@ package com.shindong.smartmanager.infrastructure.application;
 import com.shindong.smartmanager.application.outsource.CreateOutsourcingOrderFromWorkPlanCommand;
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderCommand;
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderListCriteria;
+import com.shindong.smartmanager.application.outsource.OutsourcingOrderPrintView;
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderService;
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderView;
 import com.shindong.smartmanager.application.outsource.WorkPlanOutsourceCandidateView;
@@ -28,6 +29,16 @@ public class OutsourcingOrderApplicationService {
     @Transactional(readOnly = true)
     public OutsourcingOrderView get(long id) {
         return outsourcingOrderService.get(id);
+    }
+
+    @Transactional(readOnly = true)
+    public OutsourcingOrderPrintView getPrintView(long id) {
+        return outsourcingOrderService.getPrintView(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OutsourcingOrderPrintView> getBatchPrintViews(List<Long> orderIds) {
+        return outsourcingOrderService.getBatchPrintViews(orderIds);
     }
 
     @Transactional(readOnly = true)

@@ -142,3 +142,40 @@ export async function cancelOutsourcingOrder(id: number): Promise<void> {
     await apiFetch(`/api/v1/outsource/orders/${id}/cancel`, { method: 'POST' }),
   );
 }
+
+export async function fetchOutsourcingOrderPrintHtml(orderId: number): Promise<string> {
+  const res = await apiFetch(`/api/v1/outsource/orders/${orderId}/print`);
+  if (!res.ok) {
+    await handleResponse(res);
+  }
+  return res.text();
+}
+
+export async function fetchOutsourcingOrdersPrintHtml(orderIds: number[]): Promise<string> {
+  const res = await apiFetch('/api/v1/outsource/orders/print', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderIds }),
+  });
+  if (!res.ok) {
+    await handleResponse(res);
+  }
+  return res.text();
+}
+
+export async function openOutsourcingOrderPrint(orderIds: number[]): Promise<void> {
+  if (orderIds.length === 0) {
+    throw new Error('출력할 발주를 1건 이상 선택해 주세요.');
+  }
+  const html =
+    orderIds.length === 1
+      ? await fetchOutsourcingOrderPrintHtml(orderIds[0])
+      : await fetchOutsourcingOrdersPrintHtml(orderIds);
+  const printWindow = window.open('', '_blank', 'width=980,height=760');
+  if (!printWindow) {
+    throw new Error('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.');
+  }
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+}

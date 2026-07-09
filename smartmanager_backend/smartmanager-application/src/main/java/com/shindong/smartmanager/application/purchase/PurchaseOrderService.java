@@ -84,33 +84,87 @@ public class PurchaseOrderService {
         if (order.status() == PurchaseOrderStatus.CANCELLED) {
             throw new IllegalArgumentException("취소된 발주는 출력할 수 없습니다.");
         }
+        return buildPrintView(List.of(order));
+    }
+
+    public List<PurchaseOrderPrintView> getBatchPrintViews(List<Long> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            throw new IllegalArgumentException("출력할 발주를 1건 이상 선택해 주세요.");
+        }
+        List<PurchaseOrderView> orders = new ArrayList<>();
+        for (Long orderId : orderIds) {
+            if (orderId == null) {
+                continue;
+            }
+            PurchaseOrderView order = get(orderId);
+            if (order.status() == PurchaseOrderStatus.CANCELLED) {
+                throw new IllegalArgumentException("취소된 발주는 출력할 수 없습니다: " + order.orderNo());
+            }
+            orders.add(order);
+        }
+        if (orders.isEmpty()) {
+            throw new IllegalArgumentException("출력할 발주를 1건 이상 선택해 주세요.");
+        }
+        Map<Long, List<PurchaseOrderView>> byPartner = orders.stream()
+                .collect(Collectors.groupingBy(PurchaseOrderView::partnerId));
+        List<PurchaseOrderPrintView> views = new ArrayList<>();
+        for (List<PurchaseOrderView> partnerOrders : byPartner.values()) {
+            views.add(buildPrintView(partnerOrders));
+        }
+        views.sort((left, right) -> left.partnerName().compareToIgnoreCase(right.partnerName()));
+        return views;
+    }
+
+    private PurchaseOrderPrintView buildPrintView(List<PurchaseOrderView> orders) {
+        if (orders.isEmpty()) {
+            throw new IllegalArgumentException("출력할 발주가 없습니다.");
+        }
+        PurchaseOrderView first = orders.get(0);
+        String orderNos = orders.stream()
+                .map(PurchaseOrderView::orderNo)
+                .distinct()
+                .collect(Collectors.joining(", "));
+        LocalDate orderDate = orders.stream()
+                .map(PurchaseOrderView::orderDate)
+                .min(LocalDate::compareTo)
+                .orElse(first.orderDate());
+        String orderManagerName = orders.stream()
+                .map(PurchaseOrderView::createdBy)
+                .filter(name -> name != null && !name.isBlank())
+                .findFirst()
+                .orElse("—");
+
         List<PurchaseOrderPrintLineView> lines = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
-        for (PurchaseOrderLineView line : order.lines()) {
-            ItemView item = itemRepository.findActiveById(line.itemId()).orElse(null);
-            lines.add(new PurchaseOrderPrintLineView(
-                    line.lineNo(),
-                    line.itemNo(),
-                    line.itemName(),
-                    item != null ? item.standard() : null,
-                    item != null ? item.unit() : "",
-                    line.orderQty(),
-                    line.unitPrice(),
-                    line.amount(),
-                    line.requestedDeliveryDate()
-            ));
-            totalAmount = totalAmount.add(line.amount() != null ? line.amount() : BigDecimal.ZERO);
+        int lineNo = 1;
+        for (PurchaseOrderView order : orders) {
+            for (PurchaseOrderLineView line : order.lines()) {
+                ItemView item = itemRepository.findActiveById(line.itemId()).orElse(null);
+                BigDecimal amount = line.amount() != null ? line.amount() : BigDecimal.ZERO;
+                lines.add(new PurchaseOrderPrintLineView(
+                        lineNo++,
+                        line.itemNo(),
+                        line.itemName(),
+                        item != null ? item.standard() : null,
+                        item != null ? item.unit() : "",
+                        line.orderQty(),
+                        line.unitPrice(),
+                        amount,
+                        line.requestedDeliveryDate()
+                ));
+                totalAmount = totalAmount.add(amount);
+            }
         }
         return new PurchaseOrderPrintView(
-                order.orderNo(),
-                order.orderDate(),
-                order.partnerName(),
-                order.partnerBusinessRegNo(),
+                orderNos,
+                orderDate,
+                first.partnerName(),
+                first.partnerBusinessRegNo(),
                 DEFAULT_ISSUER_COMPANY_NAME,
                 DEFAULT_ISSUER_ADDRESS,
                 DEFAULT_ISSUER_PHONE,
                 DEFAULT_ISSUER_FAX,
-                order.createdBy(),
+                orderManagerName,
                 lines,
                 totalAmount
         );

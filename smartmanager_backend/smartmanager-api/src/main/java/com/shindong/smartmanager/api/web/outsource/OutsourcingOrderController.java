@@ -11,6 +11,8 @@ import com.shindong.smartmanager.infrastructure.application.OutsourcingOrderAppl
 import com.shindong.smartmanager.api.security.SecurityUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -73,6 +75,22 @@ public class OutsourcingOrderController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDate
     ) {
         return new NextOutsourcingOrderNoResponse(outsourcingOrderApplicationService.previewNextOrderNo(orderDate));
+    }
+
+    @GetMapping("/{id}/print")
+    @PreAuthorize("hasAuthority('outsource:order:read')")
+    public ResponseEntity<String> print(@PathVariable long id) {
+        String html = OutsourcingOrderPrintHtmlRenderer.render(outsourcingOrderApplicationService.getPrintView(id));
+        return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(html);
+    }
+
+    @PostMapping("/print")
+    @PreAuthorize("hasAuthority('outsource:order:read')")
+    public ResponseEntity<String> printBatch(@Valid @RequestBody OutsourcingOrderPrintRequest request) {
+        String html = OutsourcingOrderPrintHtmlRenderer.renderBatch(
+                outsourcingOrderApplicationService.getBatchPrintViews(request.orderIds())
+        );
+        return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(html);
     }
 
     @GetMapping("/{id}")
@@ -146,6 +164,9 @@ public class OutsourcingOrderController {
     }
 
     public record NextOutsourcingOrderNoResponse(String orderNo) {
+    }
+
+    public record OutsourcingOrderPrintRequest(@NotEmpty List<Long> orderIds) {
     }
 
     public record OutsourcingOrderRequest(

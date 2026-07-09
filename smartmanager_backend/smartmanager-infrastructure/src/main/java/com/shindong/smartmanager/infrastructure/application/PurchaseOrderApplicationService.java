@@ -37,6 +37,11 @@ public class PurchaseOrderApplicationService {
     }
 
     @Transactional(readOnly = true)
+    public List<PurchaseOrderPrintView> getBatchPrintViews(List<Long> orderIds) {
+        return purchaseOrderService.getBatchPrintViews(orderIds);
+    }
+
+    @Transactional(readOnly = true)
     public PurchaseOrderView get(long id) {
         return purchaseOrderService.get(id);
     }

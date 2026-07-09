@@ -132,8 +132,26 @@ export async function fetchPurchaseOrderPrintHtml(orderId: number): Promise<stri
   return res.text();
 }
 
-export async function openPurchaseOrderPrint(orderId: number): Promise<void> {
-  const html = await fetchPurchaseOrderPrintHtml(orderId);
+export async function fetchPurchaseOrdersPrintHtml(orderIds: number[]): Promise<string> {
+  const res = await apiFetch('/api/v1/purchase/orders/print', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderIds }),
+  });
+  if (!res.ok) {
+    await handleResponse(res);
+  }
+  return res.text();
+}
+
+export async function openPurchaseOrderPrint(orderIds: number[]): Promise<void> {
+  if (orderIds.length === 0) {
+    throw new Error('출력할 발주를 1건 이상 선택해 주세요.');
+  }
+  const html =
+    orderIds.length === 1
+      ? await fetchPurchaseOrderPrintHtml(orderIds[0])
+      : await fetchPurchaseOrdersPrintHtml(orderIds);
   const printWindow = window.open('', '_blank', 'width=920,height=720');
   if (!printWindow) {
     throw new Error('팝업이 차단되었습니다. 브라우저에서 팝업을 허용해 주세요.');

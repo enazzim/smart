@@ -4,6 +4,7 @@ import {
   createOutsourcingOrderFromWorkPlan,
   fetchOutsourcingOrders,
   fetchWorkPlanOutsourceCandidates,
+  openOutsourcingOrderPrint,
   type OutsourcingOrder,
   type OutsourcingOrderListParams,
   type WorkPlanOutsourceCandidate,
@@ -60,6 +61,7 @@ export default function OutsourcingOrderPage() {
   }));
   const [expandedWorkPlanIds, setExpandedWorkPlanIds] = useState<Set<number>>(new Set());
   const [selectedVendorKeys, setSelectedVendorKeys] = useState<Set<string>>(new Set());
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<number>>(new Set());
   const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -85,6 +87,7 @@ export default function OutsourcingOrderPage() {
     setOrderError(null);
     try {
       setOrders(await fetchOutsourcingOrders(listFilters));
+      setSelectedOrderIds(new Set());
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : '외주발주 목록 조회 실패');
       setOrders([]);
@@ -117,6 +120,49 @@ export default function OutsourcingOrderPage() {
   const allVendorsSelected =
     allSelectableVendorKeys.size > 0 &&
     [...allSelectableVendorKeys].every((key) => selectedVendorKeys.has(key));
+
+  const printableOrders = useMemo(
+    () => orders.filter((order) => order.status !== 'CANCELLED'),
+    [orders],
+  );
+
+  const allOrdersSelected =
+    printableOrders.length > 0 && printableOrders.every((order) => selectedOrderIds.has(order.id));
+
+  const toggleOrderSelection = (orderId: number, checked: boolean) => {
+    setSelectedOrderIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(orderId);
+      } else {
+        next.delete(orderId);
+      }
+      return next;
+    });
+  };
+
+  const handlePrintSelected = async () => {
+    const orderIds = [...selectedOrderIds];
+    if (orderIds.length === 0) {
+      setOrderError('출력할 발주를 1건 이상 선택해 주세요.');
+      return;
+    }
+    setOrderError(null);
+    try {
+      await openOutsourcingOrderPrint(orderIds);
+    } catch (e) {
+      setOrderError(e instanceof Error ? e.message : '외주발주서 출력 실패');
+    }
+  };
+
+  const handlePrintOrder = async (orderId: number) => {
+    setOrderError(null);
+    try {
+      await openOutsourcingOrderPrint([orderId]);
+    } catch (e) {
+      setOrderError(e instanceof Error ? e.message : '외주발주서 출력 실패');
+    }
+  };
 
   const toggleExpand = (workPlanId: number) => {
     setExpandedWorkPlanIds((prev) => {
@@ -388,7 +434,18 @@ export default function OutsourcingOrderPage() {
       </section>
 
       <section className="panel">
-        <h2>외주발주 목록</h2>
+        <div className="panel-header-row">
+          <h2>외주발주 목록</h2>
+          <button
+            type="button"
+            className="btn-action"
+            disabled={submitting || selectedOrderIds.size === 0}
+            onClick={() => void handlePrintSelected()}
+          >
+            발주서 발행
+          </button>
+        </div>
+        {orderError && <div className="error">{orderError}</div>}
         <div className="filter-row">
           <label>
             발주일 From
@@ -435,18 +492,50 @@ export default function OutsourcingOrderPage() {
             <table>
               <thead>
                 <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      aria-label="전체 발주 선택"
+                      checked={allOrdersSelected}
+                      disabled={printableOrders.length === 0 || submitting}
+                      ref={(el) => {
+                        if (el) {
+                          el.indeterminate =
+                            !allOrdersSelected && printableOrders.some((order) => selectedOrderIds.has(order.id));
+                        }
+                      }}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedOrderIds(new Set(printableOrders.map((order) => order.id)));
+                        } else {
+                          setSelectedOrderIds(new Set());
+                        }
+                      }}
+                    />
+                  </th>
                   <th>발주번호</th>
                   <th>발주일</th>
                   <th>거래처</th>
                   <th>출처</th>
                   <th>상태</th>
                   <th>라인</th>
-                  <th />
+                  <th>관리</th>
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
+                {orders.map((order) => {
+                  const printable = order.status !== 'CANCELLED';
+                  return (
                   <tr key={order.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`${order.orderNo} 선택`}
+                        checked={selectedOrderIds.has(order.id)}
+                        disabled={!printable || submitting}
+                        onChange={(e) => toggleOrderSelection(order.id, e.target.checked)}
+                      />
+                    </td>
                     <td>{order.orderNo}</td>
                     <td>{order.orderDate}</td>
                     <td>{order.partnerName}</td>
@@ -459,15 +548,26 @@ export default function OutsourcingOrderPage() {
                         </div>
                       ))}
                     </td>
-                    <td>
+                    <td className="actions">
+                      {printable && (
+                        <button
+                          type="button"
+                          className="btn-action"
+                          disabled={submitting}
+                          onClick={() => void handlePrintOrder(order.id)}
+                        >
+                          발주서 출력
+                        </button>
+                      )}
                       {order.cancelable && (
-                        <button type="button" className="secondary" disabled={submitting} onClick={() => void onCancel(order)}>
+                        <button type="button" className="btn-action danger" disabled={submitting} onClick={() => void onCancel(order)}>
                           취소
                         </button>
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

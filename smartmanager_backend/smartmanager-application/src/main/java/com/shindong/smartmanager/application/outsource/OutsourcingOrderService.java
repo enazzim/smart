@@ -38,6 +38,11 @@ public class OutsourcingOrderService {
 
     private static final BigDecimal HUNDRED = new BigDecimal("100");
 
+    private static final String DEFAULT_ISSUER_COMPANY_NAME = "유한책임회사 신동공업";
+    private static final String DEFAULT_ISSUER_ADDRESS = "경상남도 사천시 곤양면 곤북로 82";
+    private static final String DEFAULT_ISSUER_PHONE = "055) 855-0145";
+    private static final String DEFAULT_ISSUER_FAX = "055-762-9251";
+
     private final OutsourcingOrderRepository outsourcingOrderRepository;
     private final WorkPlanRepository workPlanRepository;
     private final CompanyRepository companyRepository;
@@ -72,6 +77,110 @@ public class OutsourcingOrderService {
     public OutsourcingOrderView get(long id) {
         return outsourcingOrderRepository.findActiveById(id)
                 .orElseThrow(() -> new IllegalArgumentException("외주발주를 찾을 수 없습니다: " + id));
+    }
+
+    public OutsourcingOrderPrintView getPrintView(long id) {
+        OutsourcingOrderView order = get(id);
+        if (order.status() == OutsourcingOrderStatus.CANCELLED) {
+            throw new IllegalArgumentException("취소된 발주는 출력할 수 없습니다.");
+        }
+        return buildPrintView(List.of(order));
+    }
+
+    public List<OutsourcingOrderPrintView> getBatchPrintViews(List<Long> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            throw new IllegalArgumentException("출력할 발주를 1건 이상 선택해 주세요.");
+        }
+        List<OutsourcingOrderView> orders = new ArrayList<>();
+        for (Long orderId : orderIds) {
+            if (orderId == null) {
+                continue;
+            }
+            OutsourcingOrderView order = get(orderId);
+            if (order.status() == OutsourcingOrderStatus.CANCELLED) {
+                throw new IllegalArgumentException("취소된 발주는 출력할 수 없습니다: " + order.orderNo());
+            }
+            orders.add(order);
+        }
+        if (orders.isEmpty()) {
+            throw new IllegalArgumentException("출력할 발주를 1건 이상 선택해 주세요.");
+        }
+        Map<Long, List<OutsourcingOrderView>> byPartner = orders.stream()
+                .collect(Collectors.groupingBy(OutsourcingOrderView::partnerId));
+        List<OutsourcingOrderPrintView> views = new ArrayList<>();
+        for (List<OutsourcingOrderView> partnerOrders : byPartner.values()) {
+            views.add(buildPrintView(partnerOrders));
+        }
+        views.sort((left, right) -> left.partnerName().compareToIgnoreCase(right.partnerName()));
+        return views;
+    }
+
+    private OutsourcingOrderPrintView buildPrintView(List<OutsourcingOrderView> orders) {
+        if (orders.isEmpty()) {
+            throw new IllegalArgumentException("출력할 발주가 없습니다.");
+        }
+        OutsourcingOrderView first = orders.get(0);
+        var partner = companyRepository.findActiveById(first.partnerId())
+                .orElseThrow(() -> new IllegalStateException("거래처를 찾을 수 없습니다: " + first.partnerId()));
+
+        String orderNos = orders.stream()
+                .map(OutsourcingOrderView::orderNo)
+                .distinct()
+                .collect(Collectors.joining(", "));
+        LocalDate orderDate = orders.stream()
+                .map(OutsourcingOrderView::orderDate)
+                .min(LocalDate::compareTo)
+                .orElse(first.orderDate());
+        String orderManagerName = orders.stream()
+                .map(OutsourcingOrderView::createdBy)
+                .filter(name -> name != null && !name.isBlank())
+                .findFirst()
+                .orElse("—");
+
+        List<OutsourcingOrderPrintLineView> lines = new ArrayList<>();
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        int lineNo = 1;
+        for (OutsourcingOrderView order : orders) {
+            for (OutsourcingOrderLineView line : order.lines()) {
+                ItemView item = itemRepository.findActiveById(line.itemId()).orElse(null);
+                BigDecimal amount = line.amount() != null ? line.amount() : BigDecimal.ZERO;
+                lines.add(new OutsourcingOrderPrintLineView(
+                        lineNo++,
+                        line.itemName(),
+                        line.itemNo(),
+                        item != null ? nullToEmpty(item.modelType()) : "",
+                        item != null ? nullToEmpty(item.standard()) : "",
+                        line.beginProcessName(),
+                        line.endProcessName(),
+                        item != null ? nullToEmpty(item.unit()) : "EA",
+                        line.orderQty(),
+                        line.unitPrice(),
+                        amount,
+                        line.requestedDeliveryDate(),
+                        line.planNo() != null ? line.planNo() : order.orderNo()
+                ));
+                totalAmount = totalAmount.add(amount);
+            }
+        }
+
+        return new OutsourcingOrderPrintView(
+                orderNos,
+                orderDate,
+                first.partnerName(),
+                partner.telephone(),
+                partner.fax(),
+                DEFAULT_ISSUER_COMPANY_NAME,
+                DEFAULT_ISSUER_ADDRESS,
+                DEFAULT_ISSUER_PHONE,
+                DEFAULT_ISSUER_FAX,
+                orderManagerName,
+                lines,
+                totalAmount
+        );
+    }
+
+    private static String nullToEmpty(String value) {
+        return value != null ? value : "";
     }
 
     public List<WorkPlanOutsourceCandidateView> listWorkPlanCandidates() {
