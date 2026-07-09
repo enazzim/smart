@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
+import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
 import { formatFiscalPeriodFromIso } from '../utils/fiscalCalendar';
 import {
   cancelOutsourcingReceipt,
@@ -55,6 +56,7 @@ export default function OutsourcingReceiptPage() {
   const [receiptQtyByLineId, setReceiptQtyByLineId] = useState<Record<number, string>>({});
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
   const [receiptDate, setReceiptDate] = useState(todayIso());
+  const fiscalPeriod = useFiscalPeriod(receiptDate);
   const [filters, setFilters] = useState<OutsourcingReceiptCandidateParams>(() => ({
     orderDateFrom: addDaysIso(todayIso(), -30),
     orderDateTo: todayIso(),
@@ -183,6 +185,8 @@ export default function OutsourcingReceiptPage() {
     try {
       const result = await createOutsourcingReceipt({
         receiptDate,
+        fiscalYear: fiscalPeriod.period.fiscalYear,
+        fiscalMonth: fiscalPeriod.period.fiscalMonth,
         lines: linesToSubmit.map(({ row, qty }) => ({
           outsourcingOrderLineId: row.outsourcingOrderLineId,
           receiptQty: qty,
@@ -290,7 +294,11 @@ export default function OutsourcingReceiptPage() {
               입고일
               <input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} />
             </label>
-            <FiscalPeriodDisplay baseDate={receiptDate} />
+            <FiscalPeriodDisplay
+              baseDate={receiptDate}
+              period={fiscalPeriod.period}
+              onPeriodChange={fiscalPeriod.onPeriodChange}
+            />
             <button type="button" disabled={submitting || linesToSubmit.length === 0} onClick={() => void onSubmit()}>
               {submitting ? '등록 중…' : `입고 등록 (${linesToSubmit.length}건)`}
             </button>

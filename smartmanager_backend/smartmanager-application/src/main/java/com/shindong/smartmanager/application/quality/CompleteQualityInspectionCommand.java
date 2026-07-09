@@ -9,7 +9,9 @@ public record CompleteQualityInspectionCommand(
         Long inspectionDecisionCodeId,
         Long unsuitabilityCauseCodeId,
         Long unsuitabilityStatusCodeId,
-        LocalDate completedDate
+        LocalDate completedDate,
+        Integer fiscalYear,
+        Integer fiscalMonth
 ) {
     public CompleteQualityInspectionCommand {
         if (passedQty == null || failedQty == null) {

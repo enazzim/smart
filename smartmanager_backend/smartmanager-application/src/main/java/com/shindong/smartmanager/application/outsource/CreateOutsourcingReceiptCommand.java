@@ -5,6 +5,8 @@ import java.time.LocalDate;
 
 public record CreateOutsourcingReceiptCommand(
         LocalDate receiptDate,
+        Integer fiscalYear,
+        Integer fiscalMonth,
         java.util.List<CreateOutsourcingReceiptLineCommand> lines
 ) {
 }

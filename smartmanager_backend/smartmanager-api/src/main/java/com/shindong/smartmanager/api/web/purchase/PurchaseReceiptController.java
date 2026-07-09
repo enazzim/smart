@@ -80,6 +80,8 @@ public class PurchaseReceiptController {
         return PurchaseReceiptResponse.from(purchaseReceiptApplicationService.register(
                 new CreatePurchaseReceiptCommand(
                         request.receiptDate(),
+                        request.fiscalYear(),
+                        request.fiscalMonth(),
                         request.lines().stream()
                                 .map(line -> new CreatePurchaseReceiptLineCommand(
                                         line.purchaseOrderLineId(),

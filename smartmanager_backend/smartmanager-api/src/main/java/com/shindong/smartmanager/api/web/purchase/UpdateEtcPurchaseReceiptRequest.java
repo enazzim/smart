@@ -7,6 +7,8 @@ import java.time.LocalDate;
 
 public record UpdateEtcPurchaseReceiptRequest(
         @NotNull LocalDate receiptDate,
-        @NotNull @DecimalMin("0.0001") BigDecimal receiptQty
+        @NotNull @DecimalMin("0.0001") BigDecimal receiptQty,
+        Integer fiscalYear,
+        Integer fiscalMonth
 ) {
 }

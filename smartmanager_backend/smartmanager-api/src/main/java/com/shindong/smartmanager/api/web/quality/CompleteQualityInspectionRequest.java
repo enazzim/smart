@@ -10,6 +10,8 @@ public record CompleteQualityInspectionRequest(
         Long inspectionDecisionCodeId,
         Long unsuitabilityCauseCodeId,
         Long unsuitabilityStatusCodeId,
-        @NotNull LocalDate completedDate
+        @NotNull LocalDate completedDate,
+        Integer fiscalYear,
+        Integer fiscalMonth
 ) {
 }

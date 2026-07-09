@@ -146,6 +146,13 @@ public class PurchaseReceiptService {
 
         monthClosingService.assertTransactionOpen(command.receiptDate());
 
+        FiscalPeriod fiscalPeriod = fiscalCalendarService.resolvePeriod(
+                command.receiptDate(),
+                command.fiscalYear(),
+                command.fiscalMonth()
+        );
+        monthClosingService.assertPeriodOpen(fiscalPeriod.fiscalYear(), fiscalPeriod.fiscalMonth());
+
 
 
         Map<Long, List<CreatePurchaseReceiptLineCommand>> linesByPartner = new LinkedHashMap<>();
@@ -180,6 +187,8 @@ public class PurchaseReceiptService {
 
                     command.receiptDate(),
 
+                    fiscalPeriod,
+
                     entry.getKey(),
 
                     entry.getValue(),
@@ -209,6 +218,8 @@ public class PurchaseReceiptService {
     private PurchaseReceiptView registerForPartner(
 
             LocalDate receiptDate,
+
+            FiscalPeriod fiscalPeriod,
 
             long partnerId,
 
@@ -369,6 +380,8 @@ public class PurchaseReceiptService {
                         receiptLine.id(),
 
                         "PURCHASE_RECEIPT",
+
+                        fiscalPeriod,
 
                         actorUserId
 
@@ -609,6 +622,43 @@ public class PurchaseReceiptService {
             String actorUserId
 
     ) {
+        applyStockAndLedger(
+                receiptLine,
+                ctx,
+                partnerId,
+                movementDate,
+                qty,
+                historySourceType,
+                historySourceId,
+                movementReferenceType,
+                null,
+                actorUserId
+        );
+    }
+
+    public void applyStockAndLedger(
+
+            PurchaseReceiptLineView receiptLine,
+
+            PurchaseOrderLineReceiptContext ctx,
+
+            long partnerId,
+
+            LocalDate movementDate,
+
+            BigDecimal qty,
+
+            PurchaseHistorySourceType historySourceType,
+
+            long historySourceId,
+
+            String movementReferenceType,
+
+            FiscalPeriod fiscalPeriodOverride,
+
+            String actorUserId
+
+    ) {
 
         String locationCode = resolveLocationCode(ctx.propertyClassification());
 
@@ -650,7 +700,9 @@ public class PurchaseReceiptService {
 
 
 
-        FiscalPeriod period = fiscalCalendarService.resolvePeriod(movementDate);
+        FiscalPeriod period = fiscalPeriodOverride != null
+                ? fiscalPeriodOverride
+                : fiscalCalendarService.resolvePeriod(movementDate);
 
         purchaseHistoryRepository.save(new PurchaseHistoryCommand(
 

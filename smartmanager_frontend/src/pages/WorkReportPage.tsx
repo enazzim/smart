@@ -451,7 +451,7 @@ export default function WorkReportPage() {
                         <td>{row.processName}</td>
                         <td>{row.workCenterName ?? '—'}</td>
                         <td>{formatQty(row.remainingQty)}</td>
-                        <td>
+                        <td className="actions">
                           <button type="button" disabled={submitting} onClick={() => openRegister(row)}>
                             등록
                           </button>

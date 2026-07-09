@@ -78,7 +78,9 @@ public class QualityInspectionController {
                         request.inspectionDecisionCodeId(),
                         request.unsuitabilityCauseCodeId(),
                         request.unsuitabilityStatusCodeId(),
-                        request.completedDate()
+                        request.completedDate(),
+                        request.fiscalYear(),
+                        request.fiscalMonth()
                 ),
                 principal.loginId()
         ));

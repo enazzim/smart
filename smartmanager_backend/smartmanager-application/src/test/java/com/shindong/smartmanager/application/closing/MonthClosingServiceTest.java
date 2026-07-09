@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +55,19 @@ class MonthClosingServiceTest {
     }
 
     @Test
+    void closeReopenCloseReopenCycle() {
+        service.close(new CloseMonthCommand(2026, 6), "admin", "admin");
+        service.reopen(new CloseMonthCommand(2026, 6));
+        assertTrue(!repository.isClosed(2026, 6));
+
+        service.close(new CloseMonthCommand(2026, 6), "admin", "admin");
+        assertTrue(repository.isClosed(2026, 6));
+
+        service.reopen(new CloseMonthCommand(2026, 6));
+        assertTrue(!repository.isClosed(2026, 6));
+    }
+
+    @Test
     void reopenOnlyLatestClosedMonth() {
         repository.saveClose(2026, 4, "admin", "admin");
         repository.saveClose(2026, 5, "admin", "admin");
@@ -74,30 +86,43 @@ class MonthClosingServiceTest {
     private static final class InMemoryMonthClosingRepository implements MonthClosingRepository {
 
         private long nextId = 1;
-        private final Map<String, MonthClosingView> store = new HashMap<>();
+        private final Map<String, MonthClosingRecord> store = new HashMap<>();
 
         @Override
         public List<MonthClosingView> findAllClosed() {
-            return new ArrayList<>(store.values());
+            return store.values().stream()
+                    .filter(MonthClosingRecord::active)
+                    .map(MonthClosingRecord::view)
+                    .toList();
         }
 
         @Override
         public Optional<MonthClosingView> findClosed(int fiscalYear, int fiscalMonth) {
-            return Optional.ofNullable(store.get(key(fiscalYear, fiscalMonth)));
+            MonthClosingRecord record = store.get(key(fiscalYear, fiscalMonth));
+            if (record == null || !record.active()) {
+                return Optional.empty();
+            }
+            return Optional.of(record.view());
         }
 
         @Override
         public boolean isClosed(int fiscalYear, int fiscalMonth) {
-            return store.containsKey(key(fiscalYear, fiscalMonth));
+            MonthClosingRecord record = store.get(key(fiscalYear, fiscalMonth));
+            return record != null && record.active();
         }
 
         @Override
         public boolean hasAnyClosed() {
-            return !store.isEmpty();
+            return store.values().stream().anyMatch(MonthClosingRecord::active);
         }
 
         @Override
         public MonthClosingView saveClose(int fiscalYear, int fiscalMonth, String closedBy, String closedById) {
+            String key = key(fiscalYear, fiscalMonth);
+            MonthClosingRecord existing = store.get(key);
+            if (existing != null && existing.active()) {
+                return existing.view();
+            }
             MonthClosingView view = new MonthClosingView(
                     nextId++,
                     fiscalYear,
@@ -106,13 +131,15 @@ class MonthClosingServiceTest {
                     closedBy,
                     closedById
             );
-            store.put(key(fiscalYear, fiscalMonth), view);
+            store.put(key, new MonthClosingRecord(view, true));
             return view;
         }
 
         @Override
         public Optional<MonthClosingView> findLatestClosed() {
             return store.values().stream()
+                    .filter(MonthClosingRecord::active)
+                    .map(MonthClosingRecord::view)
                     .sorted((a, b) -> {
                         if (a.fiscalYear() != b.fiscalYear()) {
                             return Integer.compare(b.fiscalYear(), a.fiscalYear());
@@ -124,11 +151,19 @@ class MonthClosingServiceTest {
 
         @Override
         public void reopen(int fiscalYear, int fiscalMonth) {
-            store.remove(key(fiscalYear, fiscalMonth));
+            String key = key(fiscalYear, fiscalMonth);
+            MonthClosingRecord existing = store.get(key);
+            if (existing == null || !existing.active()) {
+                throw new IllegalArgumentException("마감 정보를 찾을 수 없습니다.");
+            }
+            store.remove(key);
         }
 
         private String key(int fiscalYear, int fiscalMonth) {
             return fiscalYear + "-" + fiscalMonth;
+        }
+
+        private record MonthClosingRecord(MonthClosingView view, boolean active) {
         }
     }
 }

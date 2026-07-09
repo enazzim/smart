@@ -15,5 +15,5 @@ public interface EtcPurchaseReceiptRepository {
 
     void update(long id, EtcPurchaseReceiptSaveCommand command, String actorUserId);
 
-    void softDelete(long id, String actorUserId);
+    void delete(long id);
 }

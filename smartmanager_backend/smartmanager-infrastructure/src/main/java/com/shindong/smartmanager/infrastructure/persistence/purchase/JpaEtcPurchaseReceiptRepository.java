@@ -142,13 +142,9 @@ public class JpaEtcPurchaseReceiptRepository implements EtcPurchaseReceiptReposi
 
     @Override
     @Transactional
-    public void softDelete(long id, String actorUserId) {
+    public void delete(long id) {
         EtcPurchaseReceiptJpaEntity entity = requireActive(id);
-        entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
-        entity.setUpdatedAt(Instant.now());
-        receiptRepository.save(entity);
+        receiptRepository.delete(entity);
     }
 
     private EtcPurchaseReceiptJpaEntity requireActive(long id) {

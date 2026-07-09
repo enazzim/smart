@@ -77,6 +77,8 @@ public class OutsourcingReceiptController {
         return OutsourcingReceiptResponse.from(outsourcingReceiptApplicationService.register(
                 new CreateOutsourcingReceiptCommand(
                         request.receiptDate(),
+                        request.fiscalYear(),
+                        request.fiscalMonth(),
                         request.lines().stream()
                                 .map(line -> new CreateOutsourcingReceiptLineCommand(
                                         line.outsourcingOrderLineId(),
@@ -98,6 +100,8 @@ public class OutsourcingReceiptController {
 
     public record CreateOutsourcingReceiptRequest(
             @NotNull LocalDate receiptDate,
+            Integer fiscalYear,
+            Integer fiscalMonth,
             @NotEmpty List<CreateOutsourcingReceiptLineRequest> lines
     ) {
     }

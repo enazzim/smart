@@ -421,20 +421,18 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
               ))}
             </select>
           </label>
-          <fieldset className="role-fieldset">
+          <fieldset className="roles">
             <legend>사용권한 *</legend>
-            <div className="role-checkboxes">
-              {roles.map((role) => (
-                <label key={role.id} className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={form.roleIds.includes(role.id)}
-                    onChange={() => setForm({ ...form, roleIds: toggleRole(form.roleIds, role.id) })}
-                  />
-                  {role.roleName} ({role.roleCode})
-                </label>
-              ))}
-            </div>
+            {roles.map((role) => (
+              <label key={role.id} className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={form.roleIds.includes(role.id)}
+                  onChange={() => setForm({ ...form, roleIds: toggleRole(form.roleIds, role.id) })}
+                />
+                {role.roleName} ({role.roleCode})
+              </label>
+            ))}
           </fieldset>
           <div className="form-actions">
             <button type="submit" disabled={submitting || roles.length === 0}>

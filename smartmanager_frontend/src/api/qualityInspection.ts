@@ -42,6 +42,8 @@ export interface CompleteQualityInspectionRequest {
   unsuitabilityCauseCodeId?: number | null;
   unsuitabilityStatusCodeId?: number | null;
   completedDate: string;
+  fiscalYear?: number;
+  fiscalMonth?: number;
 }
 
 function buildQuery(params?: QualityInspectionListParams): string {

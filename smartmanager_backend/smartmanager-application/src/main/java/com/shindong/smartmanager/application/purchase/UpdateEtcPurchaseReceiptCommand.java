@@ -5,6 +5,8 @@ import java.time.LocalDate;
 
 public record UpdateEtcPurchaseReceiptCommand(
         LocalDate receiptDate,
-        BigDecimal receiptQty
+        BigDecimal receiptQty,
+        Integer fiscalYear,
+        Integer fiscalMonth
 ) {
 }

@@ -17,6 +17,19 @@ public class FiscalCalendarService {
         return new FiscalPeriod(nextMonth.getYear(), nextMonth.getMonthValue());
     }
 
+    public FiscalPeriod resolvePeriod(LocalDate date, Integer fiscalYear, Integer fiscalMonth) {
+        if (fiscalYear != null || fiscalMonth != null) {
+            if (fiscalYear == null || fiscalMonth == null) {
+                throw new IllegalArgumentException("매입년도와 매입월을 함께 지정해야 합니다.");
+            }
+            if (fiscalYear < 2000 || fiscalYear > 2100) {
+                throw new IllegalArgumentException("매입년도가 올바르지 않습니다.");
+            }
+            return new FiscalPeriod(fiscalYear, fiscalMonth);
+        }
+        return resolvePeriod(date);
+    }
+
     public int compare(FiscalPeriod left, FiscalPeriod right) {
         if (left.fiscalYear() != right.fiscalYear()) {
             return Integer.compare(left.fiscalYear(), right.fiscalYear());

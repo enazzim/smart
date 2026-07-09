@@ -37,6 +37,8 @@ export interface CreatePurchaseReceiptLineRequest {
 
 export interface CreatePurchaseReceiptRequest {
   receiptDate: string;
+  fiscalYear?: number;
+  fiscalMonth?: number;
   lines: CreatePurchaseReceiptLineRequest[];
 }
 

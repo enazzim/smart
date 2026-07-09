@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
-import { formatFiscalPeriodFromIso } from '../utils/fiscalCalendar';
+import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
+import { formatFiscalPeriodLabel } from '../utils/fiscalCalendar';
 import {
   cancelEtcPurchaseReceipt,
   createEtcPurchaseReceipts,
@@ -32,6 +33,9 @@ export default function EtcPurchaseReceiptPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [receiptQty, setReceiptQty] = useState('');
   const [receiptDate, setReceiptDate] = useState(todayIso());
+  const [editReceiptDate, setEditReceiptDate] = useState(todayIso());
+  const receiptFiscal = useFiscalPeriod(receiptDate);
+  const editFiscal = useFiscalPeriod(editReceiptDate);
   const [candidateFilters, setCandidateFilters] = useState<EtcPurchaseReceiptCandidateParams>({});
   const [historyFilters, setHistoryFilters] = useState<EtcPurchaseReceiptListParams>(() => ({
     receiptFrom: addDaysIso(todayIso(), -30),
@@ -43,7 +47,6 @@ export default function EtcPurchaseReceiptPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [editingReceipt, setEditingReceipt] = useState<EtcPurchaseReceipt | null>(null);
-  const [editReceiptDate, setEditReceiptDate] = useState(todayIso());
   const [editReceiptQty, setEditReceiptQty] = useState('');
 
   const selectedCandidate = useMemo(
@@ -115,6 +118,8 @@ export default function EtcPurchaseReceiptPage() {
     try {
       const created = await createEtcPurchaseReceipts({
         receiptDate,
+        fiscalYear: receiptFiscal.period.fiscalYear,
+        fiscalMonth: receiptFiscal.period.fiscalMonth,
         lines: [{ etcPurchaseOrderId: selectedCandidate.etcPurchaseOrderId, receiptQty: qty }],
       });
       setSuccess(`입고 등록 완료: ${created.map((r) => r.receiptNo).join(', ')}`);
@@ -132,6 +137,7 @@ export default function EtcPurchaseReceiptPage() {
     setEditingReceipt(receipt);
     setEditReceiptDate(receipt.receiptDate);
     setEditReceiptQty(String(receipt.receiptQty));
+    editFiscal.setFromStored(receipt.fiscalYear, receipt.fiscalMonth);
   };
 
   const onSaveEditReceipt = async () => {
@@ -149,6 +155,8 @@ export default function EtcPurchaseReceiptPage() {
       await updateEtcPurchaseReceipt(editingReceipt.id, {
         receiptDate: editReceiptDate,
         receiptQty: qty,
+        fiscalYear: editFiscal.period.fiscalYear,
+        fiscalMonth: editFiscal.period.fiscalMonth,
       });
       setSuccess('입고 내역을 수정했습니다.');
       setEditingReceipt(null);
@@ -301,7 +309,11 @@ export default function EtcPurchaseReceiptPage() {
                 납품일
                 <input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} />
               </label>
-              <FiscalPeriodDisplay baseDate={receiptDate} />
+              <FiscalPeriodDisplay
+                baseDate={receiptDate}
+                period={receiptFiscal.period}
+                onPeriodChange={receiptFiscal.onPeriodChange}
+              />
               <label>
                 납품수량
                 <input
@@ -392,7 +404,7 @@ export default function EtcPurchaseReceiptPage() {
                         <td>{formatQty(row.receiptQty)}</td>
                         <td>{formatAmount(row.amount)}</td>
                         <td>{row.receiptDate}</td>
-                        <td>{formatFiscalPeriodFromIso(row.receiptDate)}</td>
+                        <td>{formatFiscalPeriodLabel({ fiscalYear: row.fiscalYear, fiscalMonth: row.fiscalMonth })}</td>
                         <td className="actions">
                           <button type="button" className="secondary" onClick={() => openEditReceipt(row)}>
                             수정
@@ -422,7 +434,11 @@ export default function EtcPurchaseReceiptPage() {
               납입일자
               <input type="date" value={editReceiptDate} onChange={(e) => setEditReceiptDate(e.target.value)} />
             </label>
-            <FiscalPeriodDisplay baseDate={editReceiptDate} />
+            <FiscalPeriodDisplay
+              baseDate={editReceiptDate}
+              period={editFiscal.period}
+              onPeriodChange={editFiscal.onPeriodChange}
+            />
             <label>
               납품수량
               <input

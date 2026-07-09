@@ -6,6 +6,8 @@ import java.util.List;
 
 public record CreateEtcPurchaseReceiptCommand(
         LocalDate receiptDate,
+        Integer fiscalYear,
+        Integer fiscalMonth,
         List<CreateEtcPurchaseReceiptLineCommand> lines
 ) {
 }

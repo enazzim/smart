@@ -111,6 +111,8 @@ export async function fetchOutsourcingReceipts(
 
 export async function createOutsourcingReceipt(payload: {
   receiptDate: string;
+  fiscalYear?: number;
+  fiscalMonth?: number;
   lines: Array<{ outsourcingOrderLineId: number; receiptQty: number }>;
 }): Promise<OutsourcingReceipt> {
   return handleResponse(

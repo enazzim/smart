@@ -17,4 +17,6 @@ public interface SpringDataMonthClosingRepository extends JpaRepository<MonthClo
     boolean existsByRecordingState(int recordingState);
 
     Optional<MonthClosingJpaEntity> findFirstByRecordingStateOrderByFiscalYearDescFiscalMonthDesc(int recordingState);
+
+    List<MonthClosingJpaEntity> findByFiscalYearAndFiscalMonth(int fiscalYear, int fiscalMonth);
 }

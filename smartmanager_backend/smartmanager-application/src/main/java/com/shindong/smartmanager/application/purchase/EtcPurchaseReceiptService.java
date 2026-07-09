@@ -57,7 +57,12 @@ public class EtcPurchaseReceiptService {
         }
         LocalDate receiptDate = requireDate(command.receiptDate(), "납품일");
         monthClosingService.assertTransactionOpen(receiptDate);
-        FiscalPeriod period = fiscalCalendarService.resolvePeriod(receiptDate);
+        FiscalPeriod period = fiscalCalendarService.resolvePeriod(
+                receiptDate,
+                command.fiscalYear(),
+                command.fiscalMonth()
+        );
+        monthClosingService.assertPeriodOpen(period.fiscalYear(), period.fiscalMonth());
 
         List<EtcPurchaseReceiptView> created = new ArrayList<>();
         for (CreateEtcPurchaseReceiptLineCommand line : command.lines()) {
@@ -78,7 +83,12 @@ public class EtcPurchaseReceiptService {
         reversePayable(existing, actorUserId);
         adjustOrderRemainOnUpdate(existing, newQty, actorUserId);
 
-        FiscalPeriod period = fiscalCalendarService.resolvePeriod(newDate);
+        FiscalPeriod period = fiscalCalendarService.resolvePeriod(
+                newDate,
+                command.fiscalYear(),
+                command.fiscalMonth()
+        );
+        monthClosingService.assertPeriodOpen(period.fiscalYear(), period.fiscalMonth());
         receiptRepository.update(id, new EtcPurchaseReceiptSaveCommand(
                 existing.etcPurchaseOrderId(),
                 existing.partnerId(),
@@ -105,7 +115,7 @@ public class EtcPurchaseReceiptService {
                 .orElseThrow(() -> new IllegalStateException("기타구매발주를 찾을 수 없습니다."));
         BigDecimal newRemain = order.remainQty().add(existing.receiptQty());
         orderRepository.updateRemainQtyAndStatus(existing.etcPurchaseOrderId(), newRemain, actorUserId);
-        receiptRepository.softDelete(id, actorUserId);
+        receiptRepository.delete(id);
     }
 
     private EtcPurchaseReceiptView registerLine(

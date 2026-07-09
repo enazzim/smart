@@ -354,7 +354,7 @@ export default function MaterialIssuePage() {
                         </td>
                         <td>{row.processName}</td>
                         <td>{formatQty(row.remainingQty)}</td>
-                        <td>
+                        <td className="actions">
                           <button type="button" disabled={submitting} onClick={() => openRegister(row)}>
                             투입
                           </button>

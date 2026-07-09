@@ -85,4 +85,11 @@ public class MonthClosingJpaEntity {
     public void deactivate() {
         this.recordingState = 0;
     }
+
+    public void reactivate(String closedBy, String closedById, Instant closedAt) {
+        this.recordingState = 1;
+        this.closedBy = closedBy;
+        this.closedById = closedById;
+        this.closedAt = closedAt;
+    }
 }

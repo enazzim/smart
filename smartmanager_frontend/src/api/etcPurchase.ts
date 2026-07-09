@@ -187,6 +187,8 @@ export async function fetchEtcPurchaseReceipts(
 
 export async function createEtcPurchaseReceipts(request: {
   receiptDate: string;
+  fiscalYear?: number;
+  fiscalMonth?: number;
   lines: { etcPurchaseOrderId: number; receiptQty: number }[];
 }): Promise<EtcPurchaseReceipt[]> {
   return handleResponse<EtcPurchaseReceipt[]>(
@@ -200,7 +202,7 @@ export async function createEtcPurchaseReceipts(request: {
 
 export async function updateEtcPurchaseReceipt(
   id: number,
-  request: { receiptDate: string; receiptQty: number },
+  request: { receiptDate: string; receiptQty: number; fiscalYear?: number; fiscalMonth?: number },
 ): Promise<EtcPurchaseReceipt> {
   return handleResponse<EtcPurchaseReceipt>(
     await apiFetch(`${API_BASE}/receipts/${id}`, {

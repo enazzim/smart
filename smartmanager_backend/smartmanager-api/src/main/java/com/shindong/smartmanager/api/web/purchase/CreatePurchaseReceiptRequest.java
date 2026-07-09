@@ -8,6 +8,8 @@ import java.util.List;
 
 public record CreatePurchaseReceiptRequest(
         @NotNull LocalDate receiptDate,
+        Integer fiscalYear,
+        Integer fiscalMonth,
         @NotEmpty List<@Valid CreatePurchaseReceiptLineRequest> lines
 ) {
 }

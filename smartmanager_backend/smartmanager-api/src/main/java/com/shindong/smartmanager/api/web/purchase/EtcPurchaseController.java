@@ -153,6 +153,8 @@ public class EtcPurchaseController {
         return etcPurchaseApplicationService.registerReceipts(
                 new CreateEtcPurchaseReceiptCommand(
                         request.receiptDate(),
+                        request.fiscalYear(),
+                        request.fiscalMonth(),
                         request.lines().stream()
                                 .map(line -> new CreateEtcPurchaseReceiptLineCommand(
                                         line.etcPurchaseOrderId(),
@@ -173,7 +175,12 @@ public class EtcPurchaseController {
         var principal = SecurityUtils.requirePrincipal();
         return EtcPurchaseReceiptResponse.from(etcPurchaseApplicationService.updateReceipt(
                 id,
-                new UpdateEtcPurchaseReceiptCommand(request.receiptDate(), request.receiptQty()),
+                new UpdateEtcPurchaseReceiptCommand(
+                        request.receiptDate(),
+                        request.receiptQty(),
+                        request.fiscalYear(),
+                        request.fiscalMonth()
+                ),
                 principal.loginId()
         ));
     }

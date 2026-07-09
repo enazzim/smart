@@ -79,6 +79,13 @@ public class OutsourcingReceiptService {
         }
         monthClosingService.assertTransactionOpen(command.receiptDate());
 
+        FiscalPeriod fiscalPeriod = fiscalCalendarService.resolvePeriod(
+                command.receiptDate(),
+                command.fiscalYear(),
+                command.fiscalMonth()
+        );
+        monthClosingService.assertPeriodOpen(fiscalPeriod.fiscalYear(), fiscalPeriod.fiscalMonth());
+
         Map<Long, List<CreateOutsourcingReceiptLineCommand>> linesByPartner = new LinkedHashMap<>();
         Map<Long, OutsourcingOrderLineReceiptContext> contextByLineId = new LinkedHashMap<>();
         Set<Long> affectedOrderIds = new HashSet<>();
@@ -95,6 +102,7 @@ public class OutsourcingReceiptService {
         for (Map.Entry<Long, List<CreateOutsourcingReceiptLineCommand>> entry : linesByPartner.entrySet()) {
             lastReceipt = registerForPartner(
                     command.receiptDate(),
+                    fiscalPeriod,
                     entry.getKey(),
                     entry.getValue(),
                     contextByLineId,
@@ -202,6 +210,36 @@ public class OutsourcingReceiptService {
                 qty,
                 historySourceType,
                 historySourceId,
+                null,
+                actorUserId
+        );
+    }
+
+    public void applyStockAndLedger(
+            OutsourcingReceiptLineView receiptLine,
+            OutsourcingOrderLineReceiptContext ctx,
+            OutsourcingOrderView order,
+            OutsourcingOrderLineView orderLine,
+            long partnerId,
+            LocalDate movementDate,
+            BigDecimal qty,
+            OutsourceHistorySourceType historySourceType,
+            long historySourceId,
+            FiscalPeriod fiscalPeriodOverride,
+            String actorUserId
+    ) {
+        applyStockAndLedger(
+                receiptLine,
+                ctx,
+                order,
+                orderLine,
+                partnerId,
+                movementDate,
+                qty,
+                qty,
+                historySourceType,
+                historySourceId,
+                fiscalPeriodOverride,
                 actorUserId
         );
     }
@@ -217,6 +255,7 @@ public class OutsourcingReceiptService {
             BigDecimal inboundQty,
             OutsourceHistorySourceType historySourceType,
             long historySourceId,
+            FiscalPeriod fiscalPeriodOverride,
             String actorUserId
     ) {
         BigDecimal amount = lineAmount(inboundQty, ctx.unitPrice());
@@ -233,7 +272,9 @@ public class OutsourcingReceiptService {
                 actorUserId
         );
 
-        FiscalPeriod period = fiscalCalendarService.resolvePeriod(movementDate);
+        FiscalPeriod period = fiscalPeriodOverride != null
+                ? fiscalPeriodOverride
+                : fiscalCalendarService.resolvePeriod(movementDate);
         outsourceHistoryRepository.save(new OutsourceHistoryCommand(
                 partnerId,
                 ctx.itemId(),
@@ -313,6 +354,7 @@ public class OutsourcingReceiptService {
 
     private OutsourcingReceiptView registerForPartner(
             LocalDate receiptDate,
+            FiscalPeriod fiscalPeriod,
             long partnerId,
             List<CreateOutsourcingReceiptLineCommand> lines,
             Map<Long, OutsourcingOrderLineReceiptContext> contextByLineId,
@@ -403,6 +445,7 @@ public class OutsourcingReceiptService {
                         receiptLine.receiptQty(),
                         OutsourceHistorySourceType.OUTSOURCING_RECEIPT,
                         receiptLine.id(),
+                        fiscalPeriod,
                         actorUserId
                 );
                 receiptRepository.addReceivedQty(ctx.outsourcingOrderLineId(), receiptLine.receiptQty(), actorUserId);

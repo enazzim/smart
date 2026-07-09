@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
+import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
 import { formatFiscalPeriodFromIso } from '../utils/fiscalCalendar';
 import {
 
@@ -109,6 +110,8 @@ export default function PurchaseReceiptPage() {
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
 
   const [receiptDate, setReceiptDate] = useState(todayIso());
+
+  const fiscalPeriod = useFiscalPeriod(receiptDate);
 
   const [filters, setFilters] = useState<PurchaseReceiptCandidateParams>(() => ({
 
@@ -368,6 +371,10 @@ export default function PurchaseReceiptPage() {
 
         receiptDate,
 
+        fiscalYear: fiscalPeriod.period.fiscalYear,
+
+        fiscalMonth: fiscalPeriod.period.fiscalMonth,
+
         lines: linesToSubmit.map(({ row, qty }) => ({
 
           purchaseOrderLineId: row.purchaseOrderLineId,
@@ -582,7 +589,11 @@ export default function PurchaseReceiptPage() {
 
             </label>
 
-            <FiscalPeriodDisplay baseDate={receiptDate} />
+            <FiscalPeriodDisplay
+              baseDate={receiptDate}
+              period={fiscalPeriod.period}
+              onPeriodChange={fiscalPeriod.onPeriodChange}
+            />
 
             <button type="button" disabled={submitting || linesToSubmit.length === 0} onClick={() => void onSubmit()}>
 

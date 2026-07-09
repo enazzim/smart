@@ -47,14 +47,19 @@ public class JpaMonthClosingRepository implements MonthClosingRepository {
 
     @Override
     public MonthClosingView saveClose(int fiscalYear, int fiscalMonth, String closedBy, String closedById) {
-        MonthClosingJpaEntity entity = MonthClosingJpaEntity.create(
-                fiscalYear,
-                fiscalMonth,
-                closedBy,
-                closedById,
-                Instant.now()
-        );
-        return toView(springDataMonthClosingRepository.save(entity));
+        return springDataMonthClosingRepository
+                .findByFiscalYearAndFiscalMonthAndRecordingState(fiscalYear, fiscalMonth, ACTIVE)
+                .map(this::toView)
+                .orElseGet(() -> {
+                    MonthClosingJpaEntity entity = MonthClosingJpaEntity.create(
+                            fiscalYear,
+                            fiscalMonth,
+                            closedBy,
+                            closedById,
+                            Instant.now()
+                    );
+                    return toView(springDataMonthClosingRepository.save(entity));
+                });
     }
 
     @Override
@@ -66,11 +71,13 @@ public class JpaMonthClosingRepository implements MonthClosingRepository {
 
     @Override
     public void reopen(int fiscalYear, int fiscalMonth) {
-        MonthClosingJpaEntity entity = springDataMonthClosingRepository
-                .findByFiscalYearAndFiscalMonthAndRecordingState(fiscalYear, fiscalMonth, ACTIVE)
-                .orElseThrow(() -> new IllegalArgumentException("마감 정보를 찾을 수 없습니다."));
-        entity.deactivate();
-        springDataMonthClosingRepository.save(entity);
+        List<MonthClosingJpaEntity> rows = springDataMonthClosingRepository
+                .findByFiscalYearAndFiscalMonth(fiscalYear, fiscalMonth);
+        boolean hasActive = rows.stream().anyMatch(entity -> entity.getRecordingState() == ACTIVE);
+        if (!hasActive) {
+            throw new IllegalArgumentException("마감 정보를 찾을 수 없습니다.");
+        }
+        springDataMonthClosingRepository.deleteAll(rows);
     }
 
     private MonthClosingView toView(MonthClosingJpaEntity entity) {

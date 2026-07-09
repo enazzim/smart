@@ -6,6 +6,8 @@ import java.util.List;
 
 public record CreatePurchaseReceiptCommand(
         LocalDate receiptDate,
+        Integer fiscalYear,
+        Integer fiscalMonth,
         List<CreatePurchaseReceiptLineCommand> lines
 ) {
     public CreatePurchaseReceiptCommand {

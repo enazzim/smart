@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.infrastructure.config;
 
+import com.shindong.smartmanager.application.closing.FiscalCalendarService;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderRepository;
 import com.shindong.smartmanager.application.outsource.OutsourcingReceiptRepository;
@@ -22,7 +23,8 @@ public class QualityApplicationConfig {
             OutsourcingReceiptRepository outsourcingReceiptRepository,
             OutsourcingReceiptService outsourcingReceiptService,
             OutsourcingOrderRepository outsourcingOrderRepository,
-            MonthClosingService monthClosingService
+            MonthClosingService monthClosingService,
+            FiscalCalendarService fiscalCalendarService
     ) {
         return new QualityInspectionService(
                 inspectionRepository,
@@ -31,7 +33,8 @@ public class QualityApplicationConfig {
                 outsourcingReceiptRepository,
                 outsourcingReceiptService,
                 outsourcingOrderRepository,
-                monthClosingService
+                monthClosingService,
+                fiscalCalendarService
         );
     }
 }

@@ -34,6 +34,8 @@ public class ApiExceptionHandler {
             message = "동일 생산계획·공정의 작업계획이 이미 존재합니다. 목록에서 취소 후 다시 시도해 주세요.";
         } else if (detail != null && detail.contains("uk_work_order")) {
             message = "동일 작업계획의 작업지시가 이미 존재합니다. 목록에서 취소 후 다시 시도해 주세요.";
+        } else if (detail != null && detail.contains("uk_month_closing_period")) {
+            message = "동일 회계월 마감 데이터가 중복되어 처리할 수 없습니다. 마감해제 후 다시 시도해 주세요.";
         } else {
             message = "이미 등록된 데이터와 충돌하여 요청을 처리할 수 없습니다.";
         }

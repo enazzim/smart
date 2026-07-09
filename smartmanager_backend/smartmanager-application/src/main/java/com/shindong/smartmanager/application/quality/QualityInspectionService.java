@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.application.quality;
 
+import com.shindong.smartmanager.application.closing.FiscalCalendarService;
+import com.shindong.smartmanager.application.closing.FiscalPeriod;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderLineReceiptContext;
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderLineView;
@@ -33,6 +35,7 @@ public class QualityInspectionService {
     private final OutsourcingReceiptService outsourcingReceiptService;
     private final OutsourcingOrderRepository outsourcingOrderRepository;
     private final MonthClosingService monthClosingService;
+    private final FiscalCalendarService fiscalCalendarService;
 
     public QualityInspectionService(
             QualityInspectionRepository inspectionRepository,
@@ -41,7 +44,8 @@ public class QualityInspectionService {
             OutsourcingReceiptRepository outsourcingReceiptRepository,
             OutsourcingReceiptService outsourcingReceiptService,
             OutsourcingOrderRepository outsourcingOrderRepository,
-            MonthClosingService monthClosingService
+            MonthClosingService monthClosingService,
+            FiscalCalendarService fiscalCalendarService
     ) {
         this.inspectionRepository = inspectionRepository;
         this.purchaseReceiptRepository = purchaseReceiptRepository;
@@ -50,6 +54,7 @@ public class QualityInspectionService {
         this.outsourcingReceiptService = outsourcingReceiptService;
         this.outsourcingOrderRepository = outsourcingOrderRepository;
         this.monthClosingService = monthClosingService;
+        this.fiscalCalendarService = fiscalCalendarService;
     }
 
     public List<QualityInspectionView> list(QualityInspectionListCriteria criteria) {
@@ -63,6 +68,12 @@ public class QualityInspectionService {
 
     public QualityInspectionView complete(long id, CompleteQualityInspectionCommand command, String actorUserId) {
         monthClosingService.assertTransactionOpen(command.completedDate());
+        FiscalPeriod fiscalPeriod = fiscalCalendarService.resolvePeriod(
+                command.completedDate(),
+                command.fiscalYear(),
+                command.fiscalMonth()
+        );
+        monthClosingService.assertPeriodOpen(fiscalPeriod.fiscalYear(), fiscalPeriod.fiscalMonth());
 
         QualityInspectionView inspection = get(id);
         if (inspection.status() != QualityInspectionStatus.PENDING) {
@@ -90,9 +101,9 @@ public class QualityInspectionService {
         );
 
         if (inspection.sourceType() == QualityInspectionSourceType.OUTSOURCE) {
-            completeOutsourceInspection(inspection, command, actorUserId);
+            completeOutsourceInspection(inspection, command, fiscalPeriod, actorUserId);
         } else {
-            completePurchaseInspection(inspection, command, actorUserId);
+            completePurchaseInspection(inspection, command, fiscalPeriod, actorUserId);
         }
 
         return get(id);
@@ -192,6 +203,7 @@ public class QualityInspectionService {
     private void completePurchaseInspection(
             QualityInspectionView inspection,
             CompleteQualityInspectionCommand command,
+            FiscalPeriod fiscalPeriod,
             String actorUserId
     ) {
         PurchaseReceiptView receipt = findPurchaseReceiptByLineId(inspection.sourceReceiptLineId());
@@ -215,6 +227,7 @@ public class QualityInspectionService {
                     PurchaseHistorySourceType.QUALITY_INSPECTION,
                     inspection.id(),
                     "QUALITY_INSPECTION",
+                    fiscalPeriod,
                     actorUserId
             );
             purchaseReceiptRepository.addReceivedQty(orderLine.purchaseOrderLineId(), command.passedQty(), actorUserId);
@@ -228,6 +241,7 @@ public class QualityInspectionService {
     private void completeOutsourceInspection(
             QualityInspectionView inspection,
             CompleteQualityInspectionCommand command,
+            FiscalPeriod fiscalPeriod,
             String actorUserId
     ) {
         OutsourcingReceiptView receipt = findOutsourcingReceiptByLineId(inspection.sourceReceiptLineId());
@@ -260,6 +274,7 @@ public class QualityInspectionService {
                     command.passedQty(),
                     OutsourceHistorySourceType.QUALITY_INSPECTION,
                     inspection.id(),
+                    fiscalPeriod,
                     actorUserId
             );
             if (command.passedQty().compareTo(BigDecimal.ZERO) > 0) {

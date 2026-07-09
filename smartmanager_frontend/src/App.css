@@ -844,11 +844,46 @@ th.num {
   font-weight: 500;
 }
 
-.fiscal-period-display input.readonly {
+.fiscal-period-display input.readonly.fiscal-period-field {
   width: 5.5rem;
   text-align: center;
   background: #eef4fc;
-  cursor: default;
+  cursor: pointer;
+}
+
+.fiscal-period-display input.readonly.fiscal-period-field:hover {
+  background: #e0ecfa;
+}
+
+.fiscal-period-field-editing {
+  width: 5.5rem;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.modal-actions > button:not(.secondary) {
+  padding: 0.52rem 1.1rem;
+  background: var(--sm-blue-600);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.modal-actions > button:not(.secondary):hover:not(:disabled) {
+  background: var(--sm-blue-700);
+}
+
+.modal-actions > button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .fiscal-period-hint {

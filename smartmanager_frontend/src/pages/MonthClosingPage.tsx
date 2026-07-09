@@ -117,7 +117,7 @@ export default function MonthClosingPage() {
 
       <section className="panel">
         <h2>회계월 마감</h2>
-        <div className="form-grid">
+        <div className="action-bar">
           <label>
             회계연도
             <input
@@ -141,8 +141,6 @@ export default function MonthClosingPage() {
               ))}
             </select>
           </label>
-        </div>
-        <div className="form-actions">
           <button type="button" onClick={() => void onSubmit()} disabled={submitting}>
             {submitting ? '처리 중…' : '마감 실행'}
           </button>

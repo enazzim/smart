@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
+import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
 import { formatFiscalPeriodFromInstant } from '../utils/fiscalCalendar';
 import {
   cancelQualityInspection,
@@ -55,6 +56,7 @@ export default function QualityInspectionPage() {
   const [passedQty, setPassedQty] = useState('');
   const [failedQty, setFailedQty] = useState('');
   const [completedDate, setCompletedDate] = useState(todayIso());
+  const fiscalPeriod = useFiscalPeriod(completedDate);
   const [submitting, setSubmitting] = useState(false);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
 
@@ -137,6 +139,8 @@ export default function QualityInspectionPage() {
         passedQty: passed,
         failedQty: failed,
         completedDate,
+        fiscalYear: fiscalPeriod.period.fiscalYear,
+        fiscalMonth: fiscalPeriod.period.fiscalMonth,
       });
       setSuccess('검사 완료 처리되었습니다. 합격 수량이 창고에 반영되었습니다.');
       closeModal();
@@ -432,7 +436,11 @@ export default function QualityInspectionPage() {
               검사완료일
               <input type="date" value={completedDate} onChange={(e) => setCompletedDate(e.target.value)} />
             </label>
-            <FiscalPeriodDisplay baseDate={completedDate} />
+            <FiscalPeriodDisplay
+              baseDate={completedDate}
+              period={fiscalPeriod.period}
+              onPeriodChange={fiscalPeriod.onPeriodChange}
+            />
             <div className="modal-actions">
               <button type="button" className="secondary" onClick={closeModal} disabled={submitting}>
                 닫기
