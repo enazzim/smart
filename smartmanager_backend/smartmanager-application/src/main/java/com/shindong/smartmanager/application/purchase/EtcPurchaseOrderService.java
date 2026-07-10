@@ -8,9 +8,17 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class EtcPurchaseOrderService {
+
+    private static final String DEFAULT_ISSUER_COMPANY_NAME = "유한책임회사 신동공업";
+    private static final String DEFAULT_ISSUER_ADDRESS = "경상남도 사천시 곤양면 곤북로 82";
+    private static final String DEFAULT_ISSUER_PHONE = "055) 855-0145";
+    private static final String DEFAULT_ISSUER_FAX = "855-0143";
 
     private final EtcPurchaseOrderRepository orderRepository;
     private final CompanyRepository companyRepository;
@@ -33,6 +41,81 @@ public class EtcPurchaseOrderService {
     public EtcPurchaseOrderView get(long id) {
         return orderRepository.findActiveById(id)
                 .orElseThrow(() -> new IllegalArgumentException("기타구매발주를 찾을 수 없습니다: " + id));
+    }
+
+    public PurchaseOrderPrintView getPrintView(long id) {
+        return buildPrintView(List.of(get(id)));
+    }
+
+    public List<PurchaseOrderPrintView> getBatchPrintViews(List<Long> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            throw new IllegalArgumentException("출력할 발주를 1건 이상 선택해 주세요.");
+        }
+        List<EtcPurchaseOrderView> orders = new ArrayList<>();
+        for (Long orderId : orderIds) {
+            if (orderId == null) {
+                continue;
+            }
+            orders.add(get(orderId));
+        }
+        if (orders.isEmpty()) {
+            throw new IllegalArgumentException("출력할 발주를 1건 이상 선택해 주세요.");
+        }
+        Map<Long, List<EtcPurchaseOrderView>> byPartner = orders.stream()
+                .collect(Collectors.groupingBy(EtcPurchaseOrderView::partnerId));
+        List<PurchaseOrderPrintView> views = new ArrayList<>();
+        for (List<EtcPurchaseOrderView> partnerOrders : byPartner.values()) {
+            views.add(buildPrintView(partnerOrders));
+        }
+        views.sort((left, right) -> left.partnerName().compareToIgnoreCase(right.partnerName()));
+        return views;
+    }
+
+    private PurchaseOrderPrintView buildPrintView(List<EtcPurchaseOrderView> orders) {
+        if (orders.isEmpty()) {
+            throw new IllegalArgumentException("출력할 발주가 없습니다.");
+        }
+        EtcPurchaseOrderView first = orders.get(0);
+        String orderNos = orders.stream()
+                .map(EtcPurchaseOrderView::orderNo)
+                .distinct()
+                .collect(Collectors.joining(", "));
+        LocalDate orderDate = orders.stream()
+                .map(EtcPurchaseOrderView::orderDate)
+                .min(LocalDate::compareTo)
+                .orElse(first.orderDate());
+
+        List<PurchaseOrderPrintLineView> lines = new ArrayList<>();
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        int lineNo = 1;
+        for (EtcPurchaseOrderView order : orders) {
+            BigDecimal amount = order.amount() != null ? order.amount() : BigDecimal.ZERO;
+            lines.add(new PurchaseOrderPrintLineView(
+                    lineNo++,
+                    "—",
+                    order.itemName(),
+                    order.categoryName(),
+                    "—",
+                    order.orderQty(),
+                    order.unitPrice(),
+                    amount,
+                    order.requestedDeliveryDate()
+            ));
+            totalAmount = totalAmount.add(amount);
+        }
+        return new PurchaseOrderPrintView(
+                orderNos,
+                orderDate,
+                first.partnerName(),
+                first.partnerBusinessRegNo(),
+                DEFAULT_ISSUER_COMPANY_NAME,
+                DEFAULT_ISSUER_ADDRESS,
+                DEFAULT_ISSUER_PHONE,
+                DEFAULT_ISSUER_FAX,
+                "—",
+                lines,
+                totalAmount
+        );
     }
 
     public EtcPurchaseOrderView create(CreateEtcPurchaseOrderCommand command, String actorUserId) {

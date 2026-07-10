@@ -10,6 +10,7 @@ import {
   type SalesRevenueListParams,
 } from '../api/salesRevenue';
 import { INVENTORY_LOCATION_LABEL, translateInventoryLocationInText } from '../utils/inventoryLocation';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -55,6 +56,20 @@ export default function SalesRevenuePage() {
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [revenueError, setRevenueError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const revenueExportRows = useMemo(
+    () =>
+      revenues.map((revenue) => ({
+        매출번호: revenue.revenueNo,
+        매출일: revenue.revenueDate,
+        거래처: revenue.partnerName,
+        품목: revenue.lines.map((line) => `${line.shipmentNo} — ${line.itemNo} ${line.itemName}`).join(' / '),
+        매출수량: revenue.lines.map((line) => formatQty(line.revenueQty)).join(' / '),
+        금액: revenue.lines.map((line) => formatAmount(line.amount)).join(' / '),
+        상태: revenue.statusLabel,
+      })),
+    [revenues],
+  );
 
   const loadCandidates = useCallback(async () => {
     setLoadingCandidates(true);
@@ -321,7 +336,10 @@ export default function SalesRevenuePage() {
       </section>
 
       <section className="panel">
-        <h2>매출 목록</h2>
+        <div className="panel-header-row">
+          <h2>매출 목록</h2>
+          <GridExcelExportButton fileBaseName="매출목록" disabled={loadingRevenues} rows={revenueExportRows} />
+        </div>
         <div className="filter-row">
           <label>
             매출일 From

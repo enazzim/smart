@@ -53,7 +53,7 @@ public class JpaEtcPurchaseOrderRepository implements EtcPurchaseOrderRepository
         if (criteria != null && Boolean.TRUE.equals(criteria.openOnly())) {
             sql.append(" AND o.status <> 'COMPLETED'");
         }
-        sql.append(" ORDER BY o.requested_delivery_date DESC, o.id DESC");
+        sql.append(" ORDER BY o.order_date DESC, o.id DESC");
         return mapOrderViews(sql, params);
     }
 
@@ -248,6 +248,18 @@ public class JpaEtcPurchaseOrderRepository implements EtcPurchaseOrderRepository
         if (criteria.partnerName() != null && !criteria.partnerName().isBlank()) {
             sql.append(" AND c.company_name LIKE :partnerName");
             params.put("partnerName", "%" + criteria.partnerName().trim() + "%");
+        }
+        if (criteria.orderNo() != null && !criteria.orderNo().isBlank()) {
+            sql.append(" AND o.order_no LIKE :orderNo");
+            params.put("orderNo", "%" + criteria.orderNo().trim() + "%");
+        }
+        if (criteria.orderDateFrom() != null) {
+            sql.append(" AND o.order_date >= :orderDateFrom");
+            params.put("orderDateFrom", criteria.orderDateFrom());
+        }
+        if (criteria.orderDateTo() != null) {
+            sql.append(" AND o.order_date <= :orderDateTo");
+            params.put("orderDateTo", criteria.orderDateTo());
         }
         if (criteria.deliveryFrom() != null) {
             sql.append(" AND o.requested_delivery_date >= :deliveryFrom");

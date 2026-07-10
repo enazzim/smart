@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { SalesOrderLineListRow } from '../api/salesOrder';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import type { PropertyClassification } from '../api/item';
 import {
@@ -216,6 +217,24 @@ export default function ProductionPlanPage() {
     return true;
   });
 
+  const planExportRows = useMemo(
+    () =>
+      filteredPlans.map((plan) => ({
+        계획번호: plan.planNo,
+        출처: plan.sourceTypeLabel,
+        수주번호: plan.orderNo ?? '',
+        거래처: plan.partnerName ?? '',
+        품목: `${plan.itemNo} — ${plan.itemName}`,
+        계획수량: plan.plannedQty,
+        생산수량: plan.producedQty,
+        납기요구일: plan.requestedDeliveryDate ?? '',
+        자재소요: plan.mrpStatusLabel,
+        작업계획: plan.workPlanStatusLabel,
+        수주일: plan.orderDate ?? '',
+      })),
+    [filteredPlans],
+  );
+
   const handleSearchPlans = () => {
     void loadPlans(buildPlanSearchParams());
   };
@@ -399,7 +418,10 @@ export default function ProductionPlanPage() {
       </section>
 
       <section className="panel">
-        <h2>생산계획 목록</h2>
+        <div className="panel-header-row">
+          <h2>생산계획 목록</h2>
+          <GridExcelExportButton fileBaseName="생산계획목록" disabled={loadingPlans} rows={planExportRows} />
+        </div>
         <p className="hint-text">
           취소는 <strong>자재소요 미산출</strong>이고 <strong>작업계획 미수립</strong>인 경우에만 가능합니다.
         </p>

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   fetchInventoryBalances,
   fetchStockMovements,
   type InventoryBalance,
   type StockMovement,
 } from '../api/inventoryLedger';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import {
   formatInventoryLocation,
   INVENTORY_LOCATION_FILTER_OPTIONS,
@@ -83,6 +84,44 @@ export default function InventoryLedgerPage() {
     }
   };
 
+  const movementExportRows = useMemo(
+    () =>
+      movements.map((row) => ({
+        일자: row.movementDate,
+        품목: `${row.itemNo} ${row.itemName}`,
+        창고: formatInventoryLocation(row.locationCode, {
+          outputProcessSequence: row.outputProcessSequence,
+          outputProcessName: row.outputProcessName,
+        }),
+        구분: movementTypeLabel(row.movementType),
+        수량: row.qty,
+        원장유형: row.referenceType,
+        원장ID: row.referenceId,
+      })),
+    [movements],
+  );
+
+  const balanceExportRows = useMemo(
+    () =>
+      balances.map((row) => {
+        const activeMonths = row.months.filter((m) => m.inQty > 0 || m.outQty > 0 || m.stockQty > 0);
+        const monthSummary = activeMonths.length > 0 ? activeMonths : row.months;
+        return {
+          품목: `${row.itemNo} ${row.itemName}`,
+          창고: formatInventoryLocation(row.locationCode, {
+            outputProcessSequence: row.outputProcessSequence,
+            outputProcessName: row.outputProcessName,
+          }),
+          연도: row.fiscalYear,
+          현재고: row.stockQty,
+          '월별 입고': monthSummary.map((m) => `${m.monthNum}월:${m.inQty}`).join(' '),
+          '월별 출고': monthSummary.map((m) => `${m.monthNum}월:${m.outQty}`).join(' '),
+          '월말 재고': monthSummary.map((m) => `${m.monthNum}월:${m.stockQty}`).join(' '),
+        };
+      }),
+    [balances],
+  );
+
   return (
     <div className="page">
       <header className="page-header">
@@ -126,6 +165,16 @@ export default function InventoryLedgerPage() {
       </section>
 
       {error && <p className="error-banner">{error}</p>}
+
+      <div className="panel-header-row">
+        <h2>{tab === 'movements' ? '입출고 이력' : '재고 잔고'}</h2>
+        <GridExcelExportButton
+          fileBaseName={tab === 'movements' ? '입출고이력' : '재고잔고'}
+          disabled={loading}
+          rows={tab === 'movements' ? movementExportRows : balanceExportRows}
+        />
+      </div>
+
       {loading ? (
         <p>불러오는 중…</p>
       ) : tab === 'movements' ? (

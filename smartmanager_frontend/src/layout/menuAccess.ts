@@ -4,6 +4,7 @@ const TRANSACTION_CATEGORIES: MenuCategory[] = [
   'sales',
   'production',
   'purchase',
+  'inventory',
   'outsource',
   'quality',
 ];
@@ -26,6 +27,7 @@ export function getVisibleMenuCategories(roleCodes: string[]): MenuCategory[] {
       'sales',
       'production',
       'purchase',
+      'inventory',
       'outsource',
       'quality',
       'basis',
@@ -45,11 +47,13 @@ export function getVisibleMenuCategories(roleCodes: string[]): MenuCategory[] {
   }
   if (roleCodes.includes('PRODUCTION_OPERATOR')) {
     visible.add('production');
+    visible.add('inventory');
     visible.add('outsource');
     visible.add('quality');
   }
   if (roleCodes.includes('PURCHASE_OPERATOR')) {
     visible.add('purchase');
+    visible.add('inventory');
     visible.add('quality');
   }
 

@@ -12,6 +12,7 @@ import {
   type MaterialRequirementLine,
   type MrpRun,
 } from '../api/mrp';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 
 function formatQty(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
@@ -88,6 +89,22 @@ export default function MrpPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const flatLines = useMemo(() => flattenGroupedLines(grouped), [grouped]);
+
+  const lineExportRows = useMemo(
+    () =>
+      flatLines.map((line) => ({
+        산출번호: line.runNo,
+        계획번호: line.planNo,
+        상위품목: `${line.parentItemNo} — ${line.parentItemName}`,
+        자재품목: `${line.componentItemNo} — ${line.componentItemName}`,
+        자산분류: line.componentPropertyClassificationLabel,
+        단위: line.unit,
+        BOM단위수량: line.bomUnitQty,
+        계획수량: line.plannedQty,
+        총소요량: line.grossQty,
+      })),
+    [flatLines],
+  );
 
   const loadTargets = useCallback(async () => {
     setLoadingTargets(true);
@@ -418,7 +435,10 @@ export default function MrpPage() {
       </section>
 
       <section className="panel">
-        <h2>소요 자재 목록{selectedRunId != null ? ` (산출 #${selectedRunId})` : ''}</h2>
+        <div className="panel-header-row">
+          <h2>소요 자재 목록{selectedRunId != null ? ` (산출 #${selectedRunId})` : ''}</h2>
+          <GridExcelExportButton fileBaseName="소요자재목록" disabled={loadingLines} rows={lineExportRows} />
+        </div>
         <p className="hint-text">
           집계 모드: <strong>{grouped?.groupingModeLabel ?? '—'}</strong> (시스템정보 &gt; 시스템 설정에서
           변경). 라인 1건 취소 시 해당 생산계획에 잔여 소요가 있으면 <strong>산출완료</strong>를 유지합니다

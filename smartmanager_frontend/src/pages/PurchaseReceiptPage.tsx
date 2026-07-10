@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
 import { formatFiscalPeriodFromIso } from '../utils/fiscalCalendar';
 import {
@@ -151,6 +152,19 @@ export default function PurchaseReceiptPage() {
 
     [candidates],
 
+  );
+
+  const historyExportRows = useMemo(
+    () =>
+      receipts.map((receipt) => ({
+        입고번호: receipt.receiptNo,
+        입고일: receipt.receiptDate,
+        매입월: formatFiscalPeriodFromIso(receipt.receiptDate),
+        거래처: receipt.partnerName,
+        상태: receiptStatusLabel(receipt.status),
+        품목수량: receipt.lines.map((line) => `${line.itemNum} × ${line.receiptQty}`).join(' / '),
+      })),
+    [receipts],
   );
 
 
@@ -884,6 +898,16 @@ export default function PurchaseReceiptPage() {
             </button>
 
           </section>
+
+
+
+          <div className="panel-header-row">
+
+            <h2>입고 이력</h2>
+
+            <GridExcelExportButton fileBaseName="구매입고이력" disabled={historyLoading} rows={historyExportRows} />
+
+          </div>
 
 
 

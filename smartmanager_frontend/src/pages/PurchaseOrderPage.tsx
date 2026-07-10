@@ -14,6 +14,7 @@ import {
 } from '../api/purchaseOrder';
 import { fetchUnitPrices } from '../api/unitPrice';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import {
   isUnitPriceEffective,
@@ -187,6 +188,20 @@ export default function PurchaseOrderPage() {
 
   const printableOrders = useMemo(
     () => orders.filter((order) => order.status !== 'CANCELLED'),
+    [orders],
+  );
+
+  const orderExportRows = useMemo(
+    () =>
+      orders.map((order) => ({
+        발주번호: order.orderNo,
+        거래처: order.partnerName,
+        발주일: order.orderDate,
+        출처: order.sourceTypeLabel,
+        상태: order.statusLabel,
+        라인수: order.lines.length,
+        등록일시: formatDateTime(order.createdAt),
+      })),
     [orders],
   );
 
@@ -794,14 +809,17 @@ export default function PurchaseOrderPage() {
       <section className="panel">
         <div className="panel-header-row">
           <h2>발주 목록</h2>
-          <button
-            type="button"
-            className="btn-action"
-            disabled={submitting || selectedOrderIds.size === 0}
-            onClick={() => void handlePrint([...selectedOrderIds])}
-          >
-            발주서 발행
-          </button>
+          <div className="inline-actions">
+            <button
+              type="button"
+              className="btn-action"
+              disabled={submitting || selectedOrderIds.size === 0}
+              onClick={() => void handlePrint([...selectedOrderIds])}
+            >
+              발주서 발행
+            </button>
+            <GridExcelExportButton fileBaseName="구매발주목록" disabled={loadingOrders} rows={orderExportRows} />
+          </div>
         </div>
         {message && <p>{message}</p>}
         {orderError && <div className="error">{orderError}</div>}

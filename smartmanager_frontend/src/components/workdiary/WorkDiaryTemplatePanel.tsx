@@ -169,7 +169,7 @@ function WorkDiaryTemplateEditor({
   };
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+    <div className="modal-backdrop work-diary-template-editor-backdrop" role="presentation" onClick={onClose}>
       <div
         className="modal-panel work-diary-template-editor-modal"
         role="dialog"
@@ -177,126 +177,137 @@ function WorkDiaryTemplateEditor({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="modal-header">
-          <h2 id="work-diary-template-editor-title">{template.workDiaryGroupName} 양식 수정</h2>
+          <div className="modal-header-text">
+            <h2 id="work-diary-template-editor-title">{template.workDiaryGroupName} 양식 수정</h2>
+            <p className="meta-text">{template.templateCode} · {rows.length}개 입력 항목</p>
+          </div>
           <button type="button" className="secondary" onClick={onClose}>
             닫기
           </button>
         </header>
 
-        {error && <p className="error-banner">{error}</p>}
+        <div className="modal-body">
+          {error && <p className="error-banner">{error}</p>}
 
-        <label className="work-diary-field">
-          템플릿명
-          <input value={templateName} onChange={(e) => setTemplateName(e.target.value)} maxLength={100} />
-        </label>
+          <label className="work-diary-field work-diary-template-name-field">
+            템플릿명
+            <input value={templateName} onChange={(e) => setTemplateName(e.target.value)} maxLength={100} />
+          </label>
 
-        <section className="detail-panel">
-          <div className="inline-actions">
-            <h3>입력 항목</h3>
-            <button type="button" className="secondary" onClick={addFieldRow}>
-              항목 추가
-            </button>
-          </div>
+          <section className="work-diary-template-editor-fields">
+            <div className="inline-actions work-diary-template-editor-toolbar">
+              <h3>입력 항목</h3>
+              <button type="button" className="secondary" onClick={addFieldRow}>
+                항목 추가
+              </button>
+            </div>
 
-          {rows.map((row, index) => (
-            <article key={`${row.key}-${index}`} className="work-diary-template-editor-block">
-              <div className="work-diary-template-editor-row">
-                <label>
-                  키
-                  <input
-                    value={row.key}
-                    onChange={(e) => updateRow(index, { key: e.target.value })}
-                    maxLength={2}
-                  />
-                </label>
-                <label className="work-diary-field">
-                  항목명
-                  <input
-                    value={row.label}
-                    onChange={(e) => updateRow(index, { label: e.target.value })}
-                    maxLength={200}
-                  />
-                </label>
-                <label>
-                  유형
-                  <select
-                    value={row.type}
-                    onChange={(e) =>
-                      updateRow(index, {
-                        type: e.target.value as EditorFieldRow['type'],
-                        items: e.target.value === 'checklist' ? row.items : [],
-                      })
-                    }
-                  >
-                    <option value="textarea">자유 입력</option>
-                    <option value="checklist">체크리스트</option>
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={rows.length <= 1}
-                  onClick={() => setRows((prev) => prev.filter((_, rowIndex) => rowIndex !== index))}
-                >
-                  삭제
-                </button>
-              </div>
-
-              {row.type === 'checklist' && (
-                <div className="work-diary-template-checklist-editor">
-                  <div className="inline-actions">
-                    <h4>체크리스트 항목</h4>
-                    <button type="button" className="secondary" onClick={() => addChecklistItem(index)}>
-                      체크 항목 추가
+            {rows.map((row, index) => (
+              <article key={`${row.key}-${index}`} className="work-diary-template-editor-block">
+                <div className="work-diary-template-editor-row">
+                  <label className="work-diary-editor-col-key">
+                    키
+                    <input
+                      value={row.key}
+                      onChange={(e) => updateRow(index, { key: e.target.value })}
+                      maxLength={2}
+                    />
+                  </label>
+                  <label className="work-diary-editor-col-label">
+                    항목명
+                    <input
+                      value={row.label}
+                      onChange={(e) => updateRow(index, { label: e.target.value })}
+                      maxLength={200}
+                    />
+                  </label>
+                  <label className="work-diary-editor-col-type">
+                    유형
+                    <select
+                      value={row.type}
+                      onChange={(e) =>
+                        updateRow(index, {
+                          type: e.target.value as EditorFieldRow['type'],
+                          items: e.target.value === 'checklist' ? row.items : [],
+                        })
+                      }
+                    >
+                      <option value="textarea">자유 입력</option>
+                      <option value="checklist">체크리스트</option>
+                    </select>
+                  </label>
+                  <div className="work-diary-editor-col-actions">
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={rows.length <= 1}
+                      onClick={() => setRows((prev) => prev.filter((_, rowIndex) => rowIndex !== index))}
+                    >
+                      삭제
                     </button>
                   </div>
-                  {row.items.length === 0 && (
-                    <p className="meta-text">체크리스트 항목을 추가해 주세요.</p>
-                  )}
-                  {row.items.map((item, itemIndex) => (
-                    <div key={`${item.id}-${itemIndex}`} className="work-diary-template-checklist-item-row">
-                      <label>
-                        그룹
-                        <input
-                          value={item.group}
-                          onChange={(e) => updateChecklistItem(index, itemIndex, { group: e.target.value })}
-                          maxLength={100}
-                          placeholder="예: 전기"
-                        />
-                      </label>
-                      <label className="work-diary-field">
-                        점검 내용
-                        <input
-                          value={item.text}
-                          onChange={(e) => updateChecklistItem(index, itemIndex, { text: e.target.value })}
-                          maxLength={500}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => removeChecklistItem(index, itemIndex)}
-                      >
-                        삭제
+                </div>
+
+                {row.type === 'checklist' && (
+                  <div className="work-diary-template-checklist-editor">
+                    <div className="inline-actions work-diary-template-editor-toolbar">
+                      <h4>체크리스트 항목</h4>
+                      <button type="button" className="secondary" onClick={() => addChecklistItem(index)}>
+                        체크 항목 추가
                       </button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </article>
-          ))}
-        </section>
+                    {row.items.length === 0 && (
+                      <p className="meta-text">체크리스트 항목을 추가해 주세요.</p>
+                    )}
+                    {row.items.map((item, itemIndex) => (
+                      <div key={`${item.id}-${itemIndex}`} className="work-diary-template-checklist-item-row">
+                        <label className="work-diary-editor-col-group">
+                          그룹
+                          <input
+                            value={item.group}
+                            onChange={(e) => updateChecklistItem(index, itemIndex, { group: e.target.value })}
+                            maxLength={100}
+                            placeholder="예: 전기"
+                          />
+                        </label>
+                        <label className="work-diary-editor-col-text">
+                          점검 내용
+                          <input
+                            value={item.text}
+                            onChange={(e) => updateChecklistItem(index, itemIndex, { text: e.target.value })}
+                            maxLength={500}
+                          />
+                        </label>
+                        <div className="work-diary-editor-col-actions">
+                          <button
+                            type="button"
+                            className="secondary"
+                            onClick={() => removeChecklistItem(index, itemIndex)}
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </article>
+            ))}
+          </section>
 
-        <p className="meta-text">지시사항(키 06·「지시사항」 문구)은 저장 시 자동 제외됩니다.</p>
+          <p className="meta-text work-diary-template-editor-note">
+            지시사항(키 06·「지시사항」 문구)은 저장 시 자동 제외됩니다.
+          </p>
+        </div>
 
-        <div className="form-actions">
+        <footer className="modal-footer form-actions">
           <button type="button" disabled={submitting} onClick={() => void save()}>
             {submitting ? '저장 중…' : '저장'}
           </button>
           <button type="button" className="secondary" onClick={onClose}>
             취소
           </button>
-        </div>
+        </footer>
       </div>
     </div>
   );
@@ -312,7 +323,7 @@ export function WorkDiaryTemplatesCatalog({
 
   return (
     <>
-      <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div className="modal-backdrop work-diary-templates-backdrop" role="presentation" onClick={onClose}>
         <div
           className="modal-panel work-diary-templates-modal"
           role="dialog"
@@ -320,15 +331,18 @@ export function WorkDiaryTemplatesCatalog({
           onClick={(e) => e.stopPropagation()}
         >
           <header className="modal-header">
-            <h2 id="work-diary-templates-title">업무일지 그룹 양식</h2>
+            <div className="modal-header-text">
+              <h2 id="work-diary-templates-title">업무일지 그룹 양식</h2>
+              {canManageTemplates && (
+                <p className="meta-text">시스템 관리자: 그룹 카드를 더블클릭하면 양식을 수정할 수 있습니다.</p>
+              )}
+            </div>
             <button type="button" className="secondary" onClick={onClose}>
               닫기
             </button>
           </header>
-          {canManageTemplates && (
-            <p className="meta-text">시스템 관리자: 그룹 카드를 더블클릭하면 양식을 수정할 수 있습니다.</p>
-          )}
-          <div className="work-diary-templates-grid">
+          <div className="modal-body">
+            <div className="work-diary-templates-grid">
             {templates.map((template) => (
               <article
                 key={`${template.workDiaryGroupId}-${template.templateCode}`}
@@ -350,6 +364,7 @@ export function WorkDiaryTemplatesCatalog({
                 </ol>
               </article>
             ))}
+            </div>
           </div>
         </div>
       </div>

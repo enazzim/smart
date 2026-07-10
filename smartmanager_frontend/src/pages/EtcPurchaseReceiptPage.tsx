@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import CompanySearchField, {
-  PURCHASE_OUTSOURCE_PARTNER_ROLES,
-  type CompanySearchSelection,
-} from '../components/CompanySearchField';
+import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
 import { formatFiscalPeriodLabel, currentCalendarYearMonth } from '../utils/fiscalCalendar';
 import {
@@ -78,11 +76,77 @@ export default function EtcPurchaseReceiptPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [editingReceipt, setEditingReceipt] = useState<EtcPurchaseReceipt | null>(null);
   const [editReceiptQty, setEditReceiptQty] = useState('');
+  const [selectedReceiptIds, setSelectedReceiptIds] = useState<Set<number>>(new Set());
 
   const selectedCandidate = useMemo(
     () => candidates.find((row) => row.etcPurchaseOrderId === selectedOrderId) ?? null,
     [candidates, selectedOrderId],
   );
+
+  const historyExportRows = useMemo(
+    () =>
+      receipts.map((row) => ({
+        입고번호: row.receiptNo,
+        발주번호: row.orderNo,
+        품목명: row.itemName,
+        거래처: row.partnerName,
+        납품수량: row.receiptQty,
+        금액: row.amount,
+        납입일자: row.receiptDate,
+        매입월: formatFiscalPeriodLabel({ fiscalYear: row.fiscalYear, fiscalMonth: row.fiscalMonth }),
+      })),
+    [receipts],
+  );
+
+  const allReceiptsSelected =
+    receipts.length > 0 && receipts.every((row) => selectedReceiptIds.has(row.id));
+
+  const toggleReceiptSelection = (receiptId: number, checked: boolean) => {
+    setSelectedReceiptIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(receiptId);
+      } else {
+        next.delete(receiptId);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkCancelReceipts = async () => {
+    const targets = receipts.filter((row) => selectedReceiptIds.has(row.id));
+    if (targets.length === 0) {
+      setError('삭제할 입고 내역을 1건 이상 선택해 주세요.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `선택한 입고 내역 ${targets.length}건을 삭제하시겠습니까?\n삭제 시 매입·미지급 원장 반영이 취소됩니다.`,
+      )
+    ) {
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    setSuccess(null);
+    const cancelledNos: string[] = [];
+    try {
+      for (const receipt of targets) {
+        await cancelEtcPurchaseReceipt(receipt.id);
+        cancelledNos.push(receipt.receiptNo);
+      }
+      setSelectedReceiptIds(new Set());
+      setSuccess(`입고 ${cancelledNos.length}건 삭제 완료: ${cancelledNos.join(', ')}`);
+      await loadReceipts();
+      await loadCandidates();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '입고 일괄 삭제 실패');
+      await loadReceipts();
+      await loadCandidates();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const loadCandidates = useCallback(async () => {
     setLoadingCandidates(true);
@@ -111,6 +175,7 @@ export default function EtcPurchaseReceiptPage() {
           partnerName: appliedHistoryPartner?.companyName,
         }),
       );
+      setSelectedReceiptIds(new Set());
     } catch (e) {
       setError(e instanceof Error ? e.message : '입고 내역 조회 실패');
       setReceipts([]);
@@ -271,7 +336,7 @@ export default function EtcPurchaseReceiptPage() {
             </label>
             <CompanySearchField
               label="거래처"
-              partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
+              partnerType="PURCHASE"
               selectedCompany={candidateFilterPartner}
               onSelect={setCandidateFilterPartner}
               placeholder="전체 조회 — 상호 또는 사업자번호 입력"
@@ -441,7 +506,7 @@ export default function EtcPurchaseReceiptPage() {
               </label>
               <CompanySearchField
                 label="거래처"
-                partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
+                partnerType="PURCHASE"
                 selectedCompany={historyFilterPartner}
                 onSelect={setHistoryFilterPartner}
                 placeholder="전체 조회 — 상호 또는 사업자번호 입력"
@@ -479,6 +544,21 @@ export default function EtcPurchaseReceiptPage() {
             </form>
           </section>
 
+          <div className="panel-header-row">
+            <h2>입고 내역</h2>
+            <div className="inline-actions">
+              <button
+                type="button"
+                className="btn-action danger"
+                disabled={submitting || selectedReceiptIds.size === 0}
+                onClick={() => void handleBulkCancelReceipts()}
+              >
+                {submitting ? '삭제 중…' : '삭제'}
+              </button>
+              <GridExcelExportButton fileBaseName="기타구매입고내역" disabled={loadingHistory} rows={historyExportRows} />
+            </div>
+          </div>
+
           {loadingHistory ? (
             <p>불러오는 중…</p>
           ) : (
@@ -486,6 +566,28 @@ export default function EtcPurchaseReceiptPage() {
               <table>
                 <thead>
                   <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        aria-label="전체 입고 내역 선택"
+                        checked={allReceiptsSelected}
+                        disabled={receipts.length === 0 || submitting}
+                        ref={(el) => {
+                          if (el) {
+                            el.indeterminate =
+                              !allReceiptsSelected &&
+                              receipts.some((row) => selectedReceiptIds.has(row.id));
+                          }
+                        }}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedReceiptIds(new Set(receipts.map((row) => row.id)));
+                          } else {
+                            setSelectedReceiptIds(new Set());
+                          }
+                        }}
+                      />
+                    </th>
                     <th>입고번호</th>
                     <th>발주번호</th>
                     <th>품목명</th>
@@ -500,11 +602,20 @@ export default function EtcPurchaseReceiptPage() {
                 <tbody>
                   {receipts.length === 0 ? (
                     <tr>
-                      <td colSpan={9}>입고 내역이 없습니다.</td>
+                      <td colSpan={10}>입고 내역이 없습니다.</td>
                     </tr>
                   ) : (
                     receipts.map((row) => (
                       <tr key={row.id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            aria-label={`${row.receiptNo} 선택`}
+                            checked={selectedReceiptIds.has(row.id)}
+                            disabled={submitting}
+                            onChange={(e) => toggleReceiptSelection(row.id, e.target.checked)}
+                          />
+                        </td>
                         <td>{row.receiptNo}</td>
                         <td>{row.orderNo}</td>
                         <td>{row.itemName}</td>

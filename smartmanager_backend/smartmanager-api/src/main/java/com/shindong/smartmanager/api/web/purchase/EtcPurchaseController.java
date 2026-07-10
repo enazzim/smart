@@ -13,10 +13,13 @@ import com.shindong.smartmanager.infrastructure.application.EtcPurchaseApplicati
 import com.shindong.smartmanager.infrastructure.application.PublicCodeApplicationService;
 import com.shindong.smartmanager.api.web.system.publiccode.PublicCodeSmallResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -57,12 +60,33 @@ public class EtcPurchaseController {
     public List<EtcPurchaseOrderResponse> listOrders(
             @RequestParam(required = false) String itemName,
             @RequestParam(required = false) String partnerName,
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDateTo,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate deliveryFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate deliveryTo
     ) {
         return etcPurchaseApplicationService.listOrders(
-                new EtcPurchaseOrderListCriteria(itemName, partnerName, deliveryFrom, deliveryTo, null)
+                new EtcPurchaseOrderListCriteria(
+                        itemName, partnerName, orderNo, orderDateFrom, orderDateTo, deliveryFrom, deliveryTo, null
+                )
         ).stream().map(EtcPurchaseOrderResponse::from).toList();
+    }
+
+    @GetMapping("/orders/{id}/print")
+    @PreAuthorize("hasAuthority('purchase:etc-order:read') or hasAuthority('purchase:etc-receipt:read')")
+    public ResponseEntity<String> printOrder(@PathVariable long id) {
+        String html = PurchaseOrderPrintHtmlRenderer.render(etcPurchaseApplicationService.getOrderPrintView(id));
+        return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(html);
+    }
+
+    @PostMapping("/orders/print")
+    @PreAuthorize("hasAuthority('purchase:etc-order:read') or hasAuthority('purchase:etc-receipt:read')")
+    public ResponseEntity<String> printOrders(@Valid @RequestBody EtcPurchaseOrderPrintRequest request) {
+        String html = PurchaseOrderPrintHtmlRenderer.renderBatch(
+                etcPurchaseApplicationService.getOrderBatchPrintViews(request.orderIds())
+        );
+        return ResponseEntity.ok().contentType(MediaType.TEXT_HTML).body(html);
     }
 
     @GetMapping("/orders/{id}")
@@ -193,5 +217,8 @@ public class EtcPurchaseController {
     public void cancelReceipt(@PathVariable long id) {
         var principal = SecurityUtils.requirePrincipal();
         etcPurchaseApplicationService.cancelReceipt(id, principal.loginId());
+    }
+
+    public record EtcPurchaseOrderPrintRequest(@NotEmpty List<Long> orderIds) {
     }
 }

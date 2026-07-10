@@ -13,6 +13,7 @@ import {
   INVENTORY_LOCATION_LABEL,
   translateInventoryLocationInText,
 } from '../utils/inventoryLocation';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -54,6 +55,19 @@ export default function SalesShipmentPage() {
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [shipmentError, setShipmentError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const shipmentExportRows = useMemo(
+    () =>
+      shipments.map((shipment) => ({
+        출고번호: shipment.shipmentNo,
+        출고일: shipment.shipmentDate,
+        거래처: shipment.partnerName,
+        품목: shipment.lines.map((line) => `${line.orderNo} — ${line.itemNo} ${line.itemName}`).join(' / '),
+        출고수량: shipment.lines.map((line) => formatQty(line.shipmentQty)).join(' / '),
+        상태: shipment.statusLabel,
+      })),
+    [shipments],
+  );
 
   const loadCandidates = useCallback(async () => {
     setLoadingCandidates(true);
@@ -308,7 +322,10 @@ export default function SalesShipmentPage() {
       </section>
 
       <section className="panel">
-        <h2>출고·납품 목록</h2>
+        <div className="panel-header-row">
+          <h2>출고·납품 목록</h2>
+          <GridExcelExportButton fileBaseName="출고납품목록" disabled={loadingShipments} rows={shipmentExportRows} />
+        </div>
         <div className="filter-row">
           <label>
             출고일 From

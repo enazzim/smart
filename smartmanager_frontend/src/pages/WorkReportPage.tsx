@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   cancelWorkReport,
   createWorkReport,
@@ -14,6 +14,7 @@ import type { WorkOrder } from '../api/workOrder';
 import { fetchWorkStandards } from '../api/workStandard';
 import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import WorkerSearchField from '../components/WorkerSearchField';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -75,6 +76,23 @@ export default function WorkReportPage() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [tab, setTab] = useState<'targets' | 'reports'>('targets');
+
+  const reportExportRows = useMemo(
+    () =>
+      reports.map((row) => ({
+        일보번호: row.reportNum,
+        지시번호: row.orderNum,
+        품목: `${row.itemNo} ${row.itemName}`,
+        공정: row.processName,
+        실적일: row.reportDate,
+        작업수량: row.goodQty + row.scrapQty,
+        양품: row.goodQty,
+        불량: row.scrapQty,
+        상태: row.statusLabel,
+      })),
+    [reports],
+  );
+
   const [selected, setSelected] = useState<WorkOrder | null>(null);
   const [workQty, setWorkQty] = useState('');
   const [goodQty, setGoodQty] = useState('');
@@ -489,6 +507,10 @@ export default function WorkReportPage() {
               검색
             </button>
           </section>
+          <div className="panel-header-row">
+            <h2>작업일보 목록</h2>
+            <GridExcelExportButton fileBaseName="작업일보목록" disabled={loadingReports} rows={reportExportRows} />
+          </div>
           {loadingReports ? (
             <p>불러오는 중…</p>
           ) : (

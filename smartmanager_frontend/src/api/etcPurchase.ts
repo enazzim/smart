@@ -66,6 +66,9 @@ export interface EtcPurchaseReceipt {
 export interface EtcPurchaseOrderListParams {
   itemName?: string;
   partnerName?: string;
+  orderNo?: string;
+  orderDateFrom?: string;
+  orderDateTo?: string;
   deliveryFrom?: string;
   deliveryTo?: string;
 }
@@ -126,6 +129,9 @@ export async function fetchEtcPurchaseOrders(params?: EtcPurchaseOrderListParams
   const query = buildQuery({
     itemName: params?.itemName,
     partnerName: params?.partnerName,
+    orderNo: params?.orderNo,
+    orderDateFrom: params?.orderDateFrom,
+    orderDateTo: params?.orderDateTo,
     deliveryFrom: params?.deliveryFrom,
     deliveryTo: params?.deliveryTo,
   });
@@ -221,4 +227,42 @@ export async function cancelEtcPurchaseReceipt(id: number): Promise<void> {
   await handleResponse<void>(
     await apiFetch(`${API_BASE}/receipts/${id}`, { method: 'DELETE' }),
   );
+}
+
+export async function fetchEtcPurchaseOrderPrintHtml(orderId: number): Promise<string> {
+  const res = await apiFetch(`${API_BASE}/orders/${orderId}/print`);
+  if (!res.ok) {
+    await handleResponse(res);
+  }
+  return res.text();
+}
+
+export async function fetchEtcPurchaseOrdersPrintHtml(orderIds: number[]): Promise<string> {
+  const res = await apiFetch(`${API_BASE}/orders/print`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderIds }),
+  });
+  if (!res.ok) {
+    await handleResponse(res);
+  }
+  return res.text();
+}
+
+export async function openEtcPurchaseOrderPrint(orderIds: number[]): Promise<void> {
+  if (orderIds.length === 0) {
+    throw new Error('출력할 발주를 1건 이상 선택해 주세요.');
+  }
+  const uniqueOrderIds = [...new Set(orderIds)];
+  const html =
+    uniqueOrderIds.length === 1
+      ? await fetchEtcPurchaseOrderPrintHtml(uniqueOrderIds[0])
+      : await fetchEtcPurchaseOrdersPrintHtml(uniqueOrderIds);
+  const printWindow = window.open('', '_blank', 'width=920,height=720');
+  if (!printWindow) {
+    throw new Error('팝업이 차단되었습니다. 브라우저에서 팝업을 허용해 주세요.');
+  }
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
 }

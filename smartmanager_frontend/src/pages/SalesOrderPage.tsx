@@ -13,6 +13,7 @@ import {
   updateSalesOrder,
 } from '../api/salesOrder';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import type { PropertyClassification } from '../api/item';
 import type { PartnerPriceItem } from '../utils/unitPriceHelpers';
@@ -48,7 +49,10 @@ const DELIVERY_STATUS_OPTIONS: { value: SalesLineDeliveryStatus | ''; label: str
 ];
 
 function formatAmount(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  if (!Number.isFinite(value)) {
+    return '0';
+  }
+  return value.toLocaleString('ko-KR', { maximumFractionDigits: 2 });
 }
 
 function lineAmount(qty: number, unitPrice: number): number {
@@ -161,6 +165,22 @@ export default function SalesOrderPage() {
   const excelInputRef = useRef<HTMLInputElement>(null);
 
   const isEditing = editingId !== null;
+
+  const listExportRows = useMemo(
+    () =>
+      lineRows.map((row) => ({
+        수주번호: row.orderNo,
+        거래처: row.partnerName,
+        수주일: row.orderDate,
+        납기요구일: row.requestedDeliveryDate ?? '',
+        단가: row.unitPrice,
+        수량: row.orderQty,
+        총금액: row.amount,
+        '상태(생산·구매)': row.executionStatusLabel,
+        납품상태: row.deliveryStatusLabel,
+      })),
+    [lineRows],
+  );
 
   const buildSearchParams = useCallback(
     (): SalesOrderLineSearchParams => ({
@@ -523,7 +543,7 @@ export default function SalesOrderPage() {
             <div className="ui-section">
               <h2>{isEditing ? '수주 수정' : '수주 등록'}</h2>
               <div className="sales-order-header-grid">
-                <label>
+                <label className="sales-order-field-order-no">
                   수주번호
                   <input
                     type="text"
@@ -537,7 +557,7 @@ export default function SalesOrderPage() {
                     placeholder="비우면 자동 채번"
                   />
                 </label>
-                <div className="sales-order-field-span-2">
+                <div className="sales-order-field-partner">
                   <CompanySearchField
                     label="수주거래처"
                     partnerType="SALES"
@@ -545,7 +565,7 @@ export default function SalesOrderPage() {
                     onSelect={setPartner}
                   />
                 </div>
-                <label>
+                <label className="sales-order-field-date">
                   수주일
                   <input
                     type="date"
@@ -554,7 +574,7 @@ export default function SalesOrderPage() {
                     required
                   />
                 </label>
-                <label>
+                <label className="sales-order-field-date">
                   납기요구일
                   <input
                     type="date"
@@ -618,21 +638,22 @@ export default function SalesOrderPage() {
                         required
                       />
                     </label>
-                    <label>
+                    <label className="sales-order-money-field">
                       단가
                       <input
                         type="number"
+                        className="sales-order-money-input"
                         min={0}
                         step="any"
                         value={line.unitPrice}
                         onChange={(e) => updateLine(index, { unitPrice: Number(e.target.value) })}
                       />
                     </label>
-                    <label>
+                    <label className="sales-order-money-field">
                       금액
                       <input
                         type="text"
-                        className="readonly"
+                        className="readonly sales-order-money-display"
                         readOnly
                         value={formatAmount(lineAmount(line.orderQty, line.unitPrice))}
                       />
@@ -779,7 +800,10 @@ export default function SalesOrderPage() {
       </section>
 
       <section className="panel">
-        <h2>수주 목록</h2>
+        <div className="panel-header-row">
+          <h2>수주 목록</h2>
+          <GridExcelExportButton fileBaseName="수주목록" disabled={loading} rows={listExportRows} />
+        </div>
         <div className="ui-filter-panel">
           <div className="sales-order-search-grid">
             <CompanySearchField

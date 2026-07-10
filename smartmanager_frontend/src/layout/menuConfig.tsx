@@ -25,6 +25,7 @@ import EtcPurchaseReceiptPage from '../pages/EtcPurchaseReceiptPage';
 import PartnerPaymentPage from '../pages/PartnerPaymentPage';
 import PayableApprovalPage from '../pages/PayableApprovalPage';
 import InventoryLedgerPage from '../pages/InventoryLedgerPage';
+import MiscStockMovementPage from '../pages/MiscStockMovementPage';
 import WorkPlanPage from '../pages/WorkPlanPage';
 import WorkCenterLoadPage from '../pages/WorkCenterLoadPage';
 import WorkOrderPage from '../pages/WorkOrderPage';
@@ -45,6 +46,7 @@ export type MenuCategory =
   | 'sales'
   | 'production'
   | 'purchase'
+  | 'inventory'
   | 'outsource'
   | 'quality'
   | 'basis'
@@ -82,8 +84,9 @@ export type PurchasePageId =
   | 'purchase-etc-order'
   | 'purchase-etc-receipt'
   | 'purchase-payable-approval'
-  | 'purchase-payment'
-  | 'inventory-ledger';
+  | 'purchase-payment';
+
+export type InventoryPageId = 'inventory-misc-movement' | 'inventory-ledger';
 
 export type OutsourcePageId = 'outsource-order' | 'outsource-shipment' | 'outsource-receipt';
 
@@ -143,6 +146,13 @@ export const MENU_GROUPS: MenuGroup[] = [
       { id: 'purchase-etc-receipt', label: '기타구매입고' },
       { id: 'purchase-payable-approval', label: '승인처리' },
       { id: 'purchase-payment', label: '지급' },
+    ],
+  },
+  {
+    id: 'inventory',
+    label: '재고',
+    children: [
+      { id: 'inventory-misc-movement', label: '기타 입출고' },
       { id: 'inventory-ledger', label: '재고·원장' },
     ],
   },
@@ -305,10 +315,14 @@ export function renderPurchasePage(page: PurchasePageId) {
   if (page === 'purchase-payment') {
     return <PartnerPaymentPage />;
   }
-  if (page === 'inventory-ledger') {
-    return <InventoryLedgerPage />;
-  }
   return <PurchaseReceiptPage />;
+}
+
+export function renderInventoryPage(page: InventoryPageId) {
+  if (page === 'inventory-misc-movement') {
+    return <MiscStockMovementPage />;
+  }
+  return <InventoryLedgerPage />;
 }
 
 export function renderOutsourcePage(page: OutsourcePageId) {
@@ -340,6 +354,8 @@ export function defaultChildId(category: MenuCategory): string {
       return 'prod-plan';
     case 'purchase':
       return 'purchase-order';
+    case 'inventory':
+      return 'inventory-misc-movement';
     case 'outsource':
       return 'outsource-order';
     case 'quality':

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
 import { formatFiscalPeriodFromInstant } from '../utils/fiscalCalendar';
 import {
@@ -104,6 +105,23 @@ export default function QualityInspectionPage() {
       void loadHistory();
     }
   }, [tab, loadHistory]);
+
+  const historyExportRows = useMemo(
+    () =>
+      history.map((row) => ({
+        검사완료일: formatInstantDate(row.completedAt),
+        매입월: formatFiscalPeriodFromInstant(row.completedAt),
+        입고일: row.receiptDate ?? '',
+        구분: sourceLabel(row.sourceType),
+        거래처: row.companyName,
+        발주번호: row.orderNo ?? '',
+        품목: `${row.itemNum} ${row.itemName}`,
+        의뢰: formatQty(row.requestQty),
+        합격: formatQty(row.passedQty),
+        불량: formatQty(row.failedQty),
+      })),
+    [history],
+  );
 
   const openComplete = (inspection: QualityInspection) => {
     setSelected(inspection);
@@ -354,6 +372,15 @@ export default function QualityInspectionPage() {
               조회
             </button>
           </section>
+
+          <div className="panel-header-row">
+            <h2>검사 이력</h2>
+            <GridExcelExportButton
+              fileBaseName="품질검사이력"
+              disabled={historyLoading}
+              rows={historyExportRows}
+            />
+          </div>
 
           {historyLoading ? (
             <p>불러오는 중…</p>

@@ -12,6 +12,7 @@ import { isSelectionVisible } from './layout/menuAccess';
 import {
   defaultChildId,
   type MenuCategory,
+  type InventoryPageId,
   type OutsourcePageId,
   type ProductionPageId,
   type PurchasePageId,
@@ -24,13 +25,34 @@ import './App.css';
 const DEFAULT_SELECTION: AppSelection = { category: 'home' };
 const NAV_STORAGE_KEY = 'smartmanager.nav';
 
+function getLegacyInventoryPageFromPurchase(selection: AppSelection): InventoryPageId | null {
+  if (selection.category !== 'purchase' || !('page' in selection)) {
+    return null;
+  }
+  const page = selection.page as string;
+  if (page === 'inventory-misc-movement' || page === 'inventory-ledger') {
+    return page as InventoryPageId;
+  }
+  return null;
+}
+
 function readSavedNavigation(): { selection: AppSelection; expandedCategory: MenuCategory | null } | null {
   try {
     const raw = sessionStorage.getItem(NAV_STORAGE_KEY);
     if (!raw) {
       return null;
     }
-    return JSON.parse(raw) as { selection: AppSelection; expandedCategory: MenuCategory | null };
+    const parsed = JSON.parse(raw) as { selection: AppSelection; expandedCategory: MenuCategory | null };
+    const legacyPage = getLegacyInventoryPageFromPurchase(parsed.selection);
+    const selection = legacyPage
+      ? { category: 'inventory' as const, page: legacyPage }
+      : parsed.selection;
+    const expandedCategory =
+      parsed.expandedCategory === 'purchase' &&
+      selection.category === 'inventory'
+        ? 'inventory'
+        : parsed.expandedCategory;
+    return { selection, expandedCategory };
   } catch {
     return null;
   }
@@ -54,6 +76,9 @@ function toSelection(category: MenuCategory, childId?: string): AppSelection {
   }
   if (category === 'purchase') {
     return { category: 'purchase', page: (childId ?? defaultChildId(category)) as PurchasePageId };
+  }
+  if (category === 'inventory') {
+    return { category: 'inventory', page: (childId ?? defaultChildId(category)) as InventoryPageId };
   }
   if (category === 'quality') {
     return { category: 'quality', page: (childId ?? defaultChildId(category)) as QualityPageId };
@@ -140,11 +165,19 @@ export default function App() {
     if (!currentUser) {
       return;
     }
+    const legacyPage = getLegacyInventoryPageFromPurchase(selection);
+    if (legacyPage) {
+      setSelection({ category: 'inventory', page: legacyPage });
+      if (expandedCategory === 'purchase') {
+        setExpandedCategory('inventory');
+      }
+      return;
+    }
     if (!isSelectionVisible(selection, currentUser.roleCodes, currentUser.authorities)) {
       setSelection({ category: 'home' });
       setExpandedCategory('home');
     }
-  }, [currentUser, selection]);
+  }, [currentUser, selection, expandedCategory]);
 
   useEffect(() => {
     if (

@@ -12,6 +12,7 @@ import com.shindong.smartmanager.application.purchase.EtcPurchaseReceiptService;
 import com.shindong.smartmanager.application.purchase.EtcPurchaseReceiptView;
 import com.shindong.smartmanager.application.purchase.UpdateEtcPurchaseOrderCommand;
 import com.shindong.smartmanager.application.purchase.UpdateEtcPurchaseReceiptCommand;
+import com.shindong.smartmanager.application.purchase.PurchaseOrderPrintView;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,16 @@ public class EtcPurchaseApplicationService {
     @Transactional(readOnly = true)
     public EtcPurchaseOrderView getOrder(long id) {
         return orderService.get(id);
+    }
+
+    @Transactional(readOnly = true)
+    public PurchaseOrderPrintView getOrderPrintView(long id) {
+        return orderService.getPrintView(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderPrintView> getOrderBatchPrintViews(List<Long> orderIds) {
+        return orderService.getBatchPrintViews(orderIds);
     }
 
     @Transactional

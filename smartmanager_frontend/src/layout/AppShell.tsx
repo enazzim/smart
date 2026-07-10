@@ -4,12 +4,14 @@ import type { BoardType } from '../api/board';
 import {
   MENU_GROUPS,
   type MenuCategory,
+  type InventoryPageId,
   type OutsourcePageId,
   type ProductionPageId,
   type PurchasePageId,
   type QualityPageId,
   type SalesPageId,
   type SystemPage,
+  renderInventoryPage,
   renderProductionPage,
   renderOutsourcePage,
   renderPurchasePage,
@@ -33,6 +35,7 @@ export type AppSelection =
   | { category: 'sales'; page: SalesPageId }
   | { category: 'production'; page: ProductionPageId }
   | { category: 'purchase'; page: PurchasePageId }
+  | { category: 'inventory'; page: InventoryPageId }
   | { category: 'quality'; page: QualityPageId }
   | { category: 'outsource'; page: OutsourcePageId };
 
@@ -311,6 +314,9 @@ function renderContent(selection: AppSelection, ctx: RenderContext) {
   }
   if (selection.category === 'purchase') {
     return renderPurchasePage(selection.page);
+  }
+  if (selection.category === 'inventory') {
+    return renderInventoryPage(selection.page);
   }
   if (selection.category === 'quality') {
     return renderQualityPage(selection.page);

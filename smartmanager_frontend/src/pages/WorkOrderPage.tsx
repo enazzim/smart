@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   cancelWorkOrder,
   createWorkOrders,
@@ -7,6 +7,7 @@ import {
   type WorkOrder,
   type WorkOrderListParams,
 } from '../api/workOrder';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 
 function formatQty(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
@@ -26,6 +27,22 @@ export default function WorkOrderPage() {
 
   const allSelected = targets.length > 0 && targets.every((row) => selectedPlanIds.has(row.workPlanId));
   const selectedCount = selectedPlanIds.size;
+
+  const orderExportRows = useMemo(
+    () =>
+      orders.map((row) => ({
+        지시번호: row.orderNum,
+        계획번호: row.planNo,
+        품목: `${row.itemNo} ${row.itemName}`,
+        공정: row.processName,
+        작업장: row.workCenterName ?? '',
+        지시수량: row.orderedQty,
+        실적수량: row.reportedQty,
+        잔량: row.remainingQty,
+        상태: row.statusLabel,
+      })),
+    [orders],
+  );
 
   const loadTargets = useCallback(async () => {
     setLoadingTargets(true);
@@ -217,6 +234,10 @@ export default function WorkOrderPage() {
               검색
             </button>
           </section>
+          <div className="panel-header-row">
+            <h2>작업지시 목록</h2>
+            <GridExcelExportButton fileBaseName="작업지시목록" disabled={loadingOrders} rows={orderExportRows} />
+          </div>
           {loadingOrders ? (
             <p>불러오는 중…</p>
           ) : (

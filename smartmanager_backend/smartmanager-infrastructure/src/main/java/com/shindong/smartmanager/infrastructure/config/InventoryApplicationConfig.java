@@ -8,7 +8,14 @@ import com.shindong.smartmanager.application.inventory.InventoryLedgerQueryServi
 import com.shindong.smartmanager.application.inventory.InventoryLedgerRepository;
 import com.shindong.smartmanager.application.inventory.InventoryLocationQueryRepository;
 import com.shindong.smartmanager.application.inventory.InventoryStockBalanceRepository;
+import com.shindong.smartmanager.application.inventory.MiscStockMovementInventoryService;
+import com.shindong.smartmanager.application.inventory.MiscStockMovementRepository;
+import com.shindong.smartmanager.application.inventory.MiscStockMovementResolver;
+import com.shindong.smartmanager.application.inventory.MiscStockMovementService;
 import com.shindong.smartmanager.application.inventory.StockMovementRepository;
+import com.shindong.smartmanager.application.item.ItemRepository;
+import com.shindong.smartmanager.application.process.ProcessRepository;
+import com.shindong.smartmanager.application.process.WipBalanceProjector;
 import com.shindong.smartmanager.application.system.SystemSettingService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,5 +49,35 @@ public class InventoryApplicationConfig {
             InventoryLedgerRepository ledgerRepository
     ) {
         return new InventoryLedgerQueryService(ledgerRepository);
+    }
+
+    @Bean
+    public MiscStockMovementResolver miscStockMovementResolver(ProcessRepository processRepository) {
+        return new MiscStockMovementResolver(processRepository);
+    }
+
+    @Bean
+    public MiscStockMovementInventoryService miscStockMovementInventoryService(
+            InventoryBalanceService inventoryBalanceService,
+            WipBalanceProjector wipBalanceProjector
+    ) {
+        return new MiscStockMovementInventoryService(inventoryBalanceService, wipBalanceProjector);
+    }
+
+    @Bean
+    public MiscStockMovementService miscStockMovementService(
+            MiscStockMovementRepository miscStockMovementRepository,
+            ItemRepository itemRepository,
+            MiscStockMovementResolver miscStockMovementResolver,
+            MiscStockMovementInventoryService miscStockMovementInventoryService,
+            MonthClosingService monthClosingService
+    ) {
+        return new MiscStockMovementService(
+                miscStockMovementRepository,
+                itemRepository,
+                miscStockMovementResolver,
+                miscStockMovementInventoryService,
+                monthClosingService
+        );
     }
 }

@@ -17,6 +17,7 @@ import {
 } from '../api/outsourcingShipment';
 import type { PropertyClassification } from '../api/item';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import {
   formatInventoryLocation,
@@ -142,6 +143,27 @@ export default function OutsourcingShipmentPage() {
   useEffect(() => {
     void loadShipments();
   }, [loadShipments]);
+
+  const shipmentExportRows = useMemo(
+    () =>
+      shipments.map((shipment) => ({
+        출고번호: shipment.shipmentNo,
+        유형: shipment.shipmentTypeLabel,
+        출고일: shipment.shipmentDate,
+        거래처:
+          shipment.partnerName ??
+          shipment.lines
+            .map((line) => line.partnerName)
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .join(', '),
+        '품목·공정': shipment.lines
+          .map((line) => `${line.itemNo} ${line.processName} × ${formatQty(line.shipmentQty)}`)
+          .join(' / '),
+        출고수량: formatQty(shipment.lines.reduce((sum, line) => sum + line.shipmentQty, 0)),
+        상태: shipment.statusLabel,
+      })),
+    [shipments],
+  );
 
   useEffect(() => {
     if (!advancePartner || !advanceParentItem) {
@@ -716,7 +738,14 @@ export default function OutsourcingShipmentPage() {
       </section>
 
       <section className="panel">
-        <h2>외주출고 목록</h2>
+        <div className="panel-header-row">
+          <h2>외주출고 목록</h2>
+          <GridExcelExportButton
+            fileBaseName="외주출고목록"
+            disabled={loadingShipments}
+            rows={shipmentExportRows}
+          />
+        </div>
         <div className="filter-row">
           <label>
             출고일 From
