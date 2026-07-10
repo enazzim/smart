@@ -149,6 +149,8 @@ function BackupPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [backupReason, setBackupReason] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -167,13 +169,33 @@ function BackupPanel() {
     void load();
   }, []);
 
+  const openCreateModal = () => {
+    setBackupReason('');
+    setError(null);
+    setCreateModalOpen(true);
+  };
+
+  const closeCreateModal = () => {
+    if (submitting) return;
+    setCreateModalOpen(false);
+    setBackupReason('');
+    setError(null);
+  };
+
   const onCreate = async () => {
+    const reason = backupReason.trim();
+    if (!reason) {
+      setError('백업 사유를 입력해 주세요.');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     setMessage(null);
     try {
-      const created = await createBackup();
+      const created = await createBackup(reason);
       setMessage(`백업을 저장했습니다: ${created.fileName}`);
+      setCreateModalOpen(false);
+      setBackupReason('');
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : '백업 저장 실패');
@@ -241,7 +263,7 @@ function BackupPanel() {
         로컬 개발 환경에서만 사용하세요.
       </p>
       <div className="form-actions">
-        <button type="button" disabled={submitting} onClick={() => void onCreate()}>
+        <button type="button" disabled={submitting} onClick={openCreateModal}>
           {submitting ? '처리 중…' : '백업 저장'}
         </button>
       </div>
@@ -256,6 +278,7 @@ function BackupPanel() {
           <thead>
             <tr>
               <th>파일명</th>
+              <th>백업 사유</th>
               <th>크기</th>
               <th>생성일시</th>
               <th>관리</th>
@@ -265,6 +288,7 @@ function BackupPanel() {
             {backups.map((file) => (
               <tr key={file.fileName}>
                 <td>{file.fileName}</td>
+                <td>{file.reason?.trim() || '—'}</td>
                 <td>{formatFileSize(file.fileSizeBytes)}</td>
                 <td>{formatDateTime(file.createdAt)}</td>
                 <td className="actions">
@@ -282,6 +306,34 @@ function BackupPanel() {
             ))}
           </tbody>
         </table>
+      )}
+      {createModalOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={closeCreateModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>백업 저장</h2>
+            <div className="form-grid">
+              <label>
+                백업 사유 *
+                <input
+                  value={backupReason}
+                  maxLength={500}
+                  placeholder="예: P0 E2E 검증 전, 마이그레이션 적용 전"
+                  onChange={(e) => setBackupReason(e.target.value)}
+                  autoFocus
+                />
+              </label>
+            </div>
+            {error && <div className="error">{error}</div>}
+            <div className="form-actions">
+              <button type="button" disabled={submitting} onClick={() => void onCreate()}>
+                {submitting ? '저장 중…' : '저장'}
+              </button>
+              <button type="button" className="secondary" disabled={submitting} onClick={closeCreateModal}>
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

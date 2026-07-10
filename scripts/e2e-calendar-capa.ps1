@@ -1,103 +1,101 @@
-# Calendar · Capa E2E — EffectiveMinutes + 주말/공휴일 자동 휴무
-$ErrorActionPreference = "Continue"
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$base = "http://localhost:8080"
-$basis = "$base/api/v1/basis"
-$auth = "$base/api/v1/auth"
-$results = [System.Collections.Generic.List[object]]::new()
-$tmpJson = Join-Path $env:TEMP "sm-e2e-calendar.json"
-$token = $null
+# Calendar / Capa E2E — EffectiveMinutes + weekend/holiday auto off
+# Run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/e2e-calendar-capa.ps1
 
-function Add-Result([string]$Id, [string]$Status, [string]$Detail) {
-    $results.Add([pscustomobject]@{ Id = $Id; Status = $Status; Detail = $Detail })
-    $c = if ($Status -eq "PASS") { "Green" } elseif ($Status -eq "FAIL") { "Red" } else { "Yellow" }
-    Write-Host "[$Status] $Id — $Detail" -ForegroundColor $c
+$ErrorActionPreference = 'Stop'
+. "$PSScriptRoot/e2e-common.ps1"
+
+$tracker = New-E2EResultTracker
+
+if (-not (Test-ApiHealth)) {
+    throw "API not responding: $Script:E2E_BaseUrl"
 }
 
-function Invoke-Api {
-    param([string]$Method = "GET", [string]$Url, [string]$Body = $null)
-    $args = @("-s", "-m", "30", "-w", "`n%{http_code}", "-X", $Method, "-H", "Content-Type: application/json; charset=utf-8")
-    if ($token) { $args += @("-H", "Authorization: Bearer $token") }
-    if ($Body) { $args += @("-d", $Body) }
-    $args += $Url
-    $raw = & curl.exe @args
-    $lines = $raw -split "`n"
-    $code = $lines[-1].Trim()
-    $body = ($lines[0..([Math]::Max(0, $lines.Length - 2))] -join "`n").Trim()
-    if ($body) {
-        [System.IO.File]::WriteAllText($tmpJson, $body, [System.Text.UTF8Encoding]::new($false))
+$headers = Login-E2E
+Add-E2EPass $tracker 'AUTH admin login'
+
+function Remove-E2EProductionCalendarDate {
+    param([hashtable]$Hdr, [string]$Date)
+    $year = [int]$Date.Substring(0, 4)
+    $month = [int]$Date.Substring(5, 2)
+    $eff = Unwrap-ApiArray (Invoke-RestJson -Path "/api/v1/basis/production-calendars/effective?year=$year&month=$month" -Headers $Hdr)
+    $day = $eff | Where-Object { $_.calendarDate -eq $Date } | Select-Object -First 1
+    if ($day -and $day.registered) {
+        Invoke-RestJson -Method DELETE -Path "/api/v1/basis/production-calendars/by-date/$Date" -Headers $Hdr | Out-Null
     }
-    return @{ Code = $code; Body = $body; JsonFile = $tmpJson }
 }
 
-function Read-Json([hashtable]$Response) {
-    if (-not $Response.Body) { return $null }
-    try { return Get-Content -Path $Response.JsonFile -Raw -Encoding UTF8 | ConvertFrom-Json }
-    catch { return $null }
-}
+# Ensure 2026-07-04 has no explicit override from prior E2E runs
+Remove-E2EProductionCalendarDate $headers '2026-07-04'
 
-# Login
-$loginBody = '{"loginId":"admin","password":"Admin123!"}'
-$login = Invoke-Api -Method POST -Url "$auth/login" -Body $loginBody
-$loginJson = Read-Json $login
-if ($login.Code -eq "200" -and $loginJson.accessToken) {
-    $token = $loginJson.accessToken
-    Add-Result "AUTH" "PASS" "admin login"
+Write-Host "`n=== Calendar / Capa checks ===" -ForegroundColor Cyan
+
+# CAL-1: Saturday auto off (2026-07-04)
+$eff = Unwrap-ApiArray (Invoke-RestJson -Path '/api/v1/basis/production-calendars/effective?year=2026&month=7' -Headers $headers)
+$sat = $eff | Where-Object { $_.calendarDate -eq '2026-07-04' } | Select-Object -First 1
+if ($sat -and $sat.effectiveWorkTime -eq 0 -and $sat.autoOffDay) {
+    Add-E2EPass $tracker 'CAL-1 weekend'
 } else {
-    Add-Result "AUTH" "FAIL" "HTTP $($login.Code)"
-    exit 1
+    Add-E2EFail $tracker "CAL-1 weekend effective=$($sat.effectiveWorkTime)"
 }
-
-# CAL-1: Saturday auto off (2026-07-04 is Saturday)
-$eff = Read-Json (Invoke-Api -Url "$basis/production-calendars/effective?year=2026&month=7")
-$sat = $eff | Where-Object { $_.calendarDate -eq "2026-07-04" } | Select-Object -First 1
-Add-Result "CAL-1 weekend" $(if ($sat -and $sat.effectiveWorkTime -eq 0 -and $sat.autoOffDay) { "PASS" } else { "FAIL" }) "effective=$($sat.effectiveWorkTime)"
 
 # CAL-2: Weekday default 480 (2026-07-06 Monday)
-$mon = $eff | Where-Object { $_.calendarDate -eq "2026-07-06" } | Select-Object -First 1
-Add-Result "CAL-2 weekday" $(if ($mon -and $mon.effectiveWorkTime -eq 480) { "PASS" } else { "FAIL" }) "effective=$($mon.effectiveWorkTime)"
+$mon = $eff | Where-Object { $_.calendarDate -eq '2026-07-06' } | Select-Object -First 1
+if ($mon -and $mon.effectiveWorkTime -eq 480) {
+    Add-E2EPass $tracker 'CAL-2 weekday'
+} else {
+    Add-E2EFail $tracker "CAL-2 weekday effective=$($mon.effectiveWorkTime)"
+}
 
 # CAL-3: Public holiday (2026-08-15)
-$effAug = Read-Json (Invoke-Api -Url "$basis/production-calendars/effective?year=2026&month=8")
-$holiday = $effAug | Where-Object { $_.calendarDate -eq "2026-08-15" } | Select-Object -First 1
-Add-Result "CAL-3 holiday" $(if ($holiday -and $holiday.effectiveWorkTime -eq 0) { "PASS" } else { "FAIL" }) "effective=$($holiday.effectiveWorkTime)"
+$effAug = Unwrap-ApiArray (Invoke-RestJson -Path '/api/v1/basis/production-calendars/effective?year=2026&month=8' -Headers $headers)
+$holiday = $effAug | Where-Object { $_.calendarDate -eq '2026-08-15' } | Select-Object -First 1
+if ($holiday -and $holiday.effectiveWorkTime -eq 0) {
+    Add-E2EPass $tracker 'CAL-3 holiday'
+} else {
+    Add-E2EFail $tracker "CAL-3 holiday effective=$($holiday.effectiveWorkTime)"
+}
 
 # CAL-4: Explicit upsert overrides auto off
-$put = Invoke-Api -Method PUT -Url "$basis/production-calendars/by-date/2026-07-04" -Body '{"workTime":720,"content":"특근"}'
-$eff2 = Read-Json (Invoke-Api -Url "$basis/production-calendars/effective?year=2026&month=7")
-$sat2 = $eff2 | Where-Object { $_.calendarDate -eq "2026-07-04" } | Select-Object -First 1
-Add-Result "CAL-4 override" $(if ($put.Code -eq "200" -and $sat2.effectiveWorkTime -eq 720) { "PASS" } else { "FAIL" }) "effective=$($sat2.effectiveWorkTime)"
+Invoke-RestJson -Method PUT -Path '/api/v1/basis/production-calendars/by-date/2026-07-04' -Headers $headers -Body @{
+    workTime = 720
+    content = 'overtime'
+} | Out-Null
+$eff2 = Unwrap-ApiArray (Invoke-RestJson -Path '/api/v1/basis/production-calendars/effective?year=2026&month=7' -Headers $headers)
+$sat2 = $eff2 | Where-Object { $_.calendarDate -eq '2026-07-04' } | Select-Object -First 1
+if ($sat2 -and $sat2.effectiveWorkTime -eq 720) {
+    Add-E2EPass $tracker 'CAL-4 override'
+} else {
+    Add-E2EFail $tracker "CAL-4 override effective=$($sat2.effectiveWorkTime)"
+}
+Remove-E2EProductionCalendarDate $headers '2026-07-04'
 
-# Cleanup CAL-4
-Invoke-Api -Method DELETE -Url "$basis/production-calendars/by-date/2026-07-04" | Out-Null
-
-# CAL-5: Work center effective inherits auto off
-$wcs = Read-Json (Invoke-Api -Url "$basis/work-centers")
+# CAL-5 + CAPA: work center effective / capa
+$wcs = Unwrap-ApiArray (Invoke-RestJson -Path '/api/v1/basis/work-centers' -Headers $headers)
 $wcId = ($wcs | Select-Object -First 1).id
 if ($wcId) {
-    $wcEff = Read-Json (Invoke-Api -Url "$basis/work-center-calendars/effective?workCenterId=$wcId&year=2026&month=7")
-    $wcSat = $wcEff | Where-Object { $_.calendarDate -eq "2026-07-04" } | Select-Object -First 1
-    Add-Result "CAL-5 wc-effective" $(if ($wcSat -and $wcSat.effectiveWorkTime -eq 0) { "PASS" } else { "FAIL" }) "wc=$wcId effective=$($wcSat.effectiveWorkTime)"
+    $wcEff = Unwrap-ApiArray (Invoke-RestJson -Path "/api/v1/basis/work-center-calendars/effective?workCenterId=$wcId&year=2026&month=7" -Headers $headers)
+    $wcSat = $wcEff | Where-Object { $_.calendarDate -eq '2026-07-04' } | Select-Object -First 1
+    if ($wcSat -and $wcSat.effectiveWorkTime -eq 0) {
+        Add-E2EPass $tracker 'CAL-5 wc-effective'
+    } else {
+        Add-E2EFail $tracker "CAL-5 wc-effective effective=$($wcSat.effectiveWorkTime)"
+    }
+
+    $capa = Invoke-RestJson -Path "/api/v1/basis/work-centers/$wcId/capa?date=2026-07-06" -Headers $headers
+    if ($capa -and $capa.effectiveMinutes -eq 480 -and $capa.capaMinutes -eq 480) {
+        Add-E2EPass $tracker 'CAPA-1 time'
+    } else {
+        Add-E2EFail $tracker "CAPA-1 time eff=$($capa.effectiveMinutes) capa=$($capa.capaMinutes)"
+    }
+
+    $capa0 = Invoke-RestJson -Path "/api/v1/basis/work-centers/$wcId/capa?date=2026-07-04" -Headers $headers
+    if ($capa0 -and $capa0.capaMinutes -eq 0) {
+        Add-E2EPass $tracker 'CAPA-2 off'
+    } else {
+        Add-E2EFail $tracker "CAPA-2 off capa=$($capa0.capaMinutes)"
+    }
 } else {
-    Add-Result "CAL-5 wc-effective" "SKIP" "no work center"
+    Add-E2EFail $tracker 'CAL-5/CAPA no work center'
 }
 
-# CAPA-1: Capa equals effective on TIME
-if ($wcId) {
-    $capa = Read-Json (Invoke-Api -Url "$basis/work-centers/$wcId/capa?date=2026-07-06")
-    Add-Result "CAPA-1 time" $(if ($capa -and $capa.effectiveMinutes -eq 480 -and $capa.capaMinutes -eq 480) { "PASS" } else { "FAIL" }) "eff=$($capa.effectiveMinutes) capa=$($capa.capaMinutes)"
-} else {
-    Add-Result "CAPA-1 time" "SKIP" "no work center"
-}
-
-# CAPA-2: Capa zero on auto off day
-if ($wcId) {
-    $capa0 = Read-Json (Invoke-Api -Url "$basis/work-centers/$wcId/capa?date=2026-07-04")
-    Add-Result "CAPA-2 off" $(if ($capa0 -and $capa0.capaMinutes -eq 0) { "PASS" } else { "FAIL" }) "capa=$($capa0.capaMinutes)"
-} else {
-    Add-Result "CAPA-2 off" "SKIP" "no work center"
-}
-
-$pass = ($results | Where-Object { $_.Status -eq "PASS" }).Count
-$fail = ($results | Where-Object { $_.Status -eq "FAIL" }).Count
-Write-Host "`nSummary: PASS=$pass FAIL=$fail TOTAL=$($results.Count)"
+Write-E2ESummary $tracker 'Calendar / Capa E2E'

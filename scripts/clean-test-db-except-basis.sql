@@ -47,6 +47,19 @@ TRUNCATE TABLE inventory_balance;
 
 TRUNCATE TABLE partner_ledger_monthly;
 TRUNCATE TABLE month_closing;
+
+TRUNCATE TABLE partner_payment;
+
+TRUNCATE TABLE etc_purchase_receipt;
+TRUNCATE TABLE etc_purchase_order;
+
+TRUNCATE TABLE misc_stock_movement;
+
+TRUNCATE TABLE board_attachment;
+TRUNCATE TABLE board_post;
+
+TRUNCATE TABLE work_diary_entry;
+
 TRUNCATE TABLE domain_event;
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -2,6 +2,9 @@ package com.shindong.smartmanager.api.web.system.backup;
 
 import com.shindong.smartmanager.application.system.backup.BackupFileView;
 import com.shindong.smartmanager.infrastructure.application.DatabaseBackupApplicationService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,8 +45,8 @@ public class SystemBackupController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('system:backup:execute')")
-    public BackupFileResponse create() {
-        return BackupFileResponse.from(databaseBackupApplicationService.createBackup());
+    public BackupFileResponse create(@Valid @RequestBody CreateBackupRequest request) {
+        return BackupFileResponse.from(databaseBackupApplicationService.createBackup(request.reason()));
     }
 
     @DeleteMapping("/{fileName:.+}")
@@ -70,9 +74,19 @@ public class SystemBackupController {
                 .body(resource);
     }
 
-    public record BackupFileResponse(String fileName, long fileSizeBytes, Instant createdAt) {
+    public record CreateBackupRequest(
+            @NotBlank @Size(max = 500) String reason
+    ) {
+    }
+
+    public record BackupFileResponse(String fileName, long fileSizeBytes, Instant createdAt, String reason) {
         static BackupFileResponse from(BackupFileView view) {
-            return new BackupFileResponse(view.fileName(), view.fileSizeBytes(), view.createdAt());
+            return new BackupFileResponse(
+                    view.fileName(),
+                    view.fileSizeBytes(),
+                    view.createdAt(),
+                    view.reason()
+            );
         }
     }
 }

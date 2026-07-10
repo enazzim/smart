@@ -28,18 +28,28 @@ public class JpaProductionCalendarRepository implements ProductionCalendarReposi
             String actorUserId
     ) {
         Instant now = Instant.now();
-        ProductionCalendarJpaEntity entity = calendarRepository
-                .findByCalendarDateAndRecordingState(calendarDate, 1)
+        Optional<ProductionCalendarJpaEntity> active = calendarRepository
+                .findByCalendarDateAndRecordingState(calendarDate, 1);
+        Optional<ProductionCalendarJpaEntity> inactive = calendarRepository
+                .findByCalendarDateAndRecordingState(calendarDate, 0);
+
+        if (active.isPresent() && inactive.isPresent()) {
+            calendarRepository.delete(inactive.get());
+            calendarRepository.flush();
+        }
+
+        ProductionCalendarJpaEntity entity = active
+                .or(() -> inactive)
                 .orElseGet(ProductionCalendarJpaEntity::new);
 
         if (entity.getId() == null) {
             entity.setCalendarDate(calendarDate);
-            entity.setRecordingState(1);
             entity.setCreatedBy(actorUserId);
             entity.setCreatedById(actorUserId);
             entity.setCreatedAt(now);
         }
 
+        entity.setRecordingState(1);
         entity.setWorkTime(command.workTime());
         entity.setContent(normalizeContent(command.content()));
         entity.setUpdatedBy(actorUserId);
@@ -54,6 +64,11 @@ public class JpaProductionCalendarRepository implements ProductionCalendarReposi
         ProductionCalendarJpaEntity entity = calendarRepository
                 .findByCalendarDateAndRecordingState(calendarDate, 1)
                 .orElseThrow(() -> new IllegalArgumentException("기본생산달력을 찾을 수 없습니다: " + calendarDate));
+        calendarRepository.findByCalendarDateAndRecordingState(calendarDate, 0)
+                .ifPresent(inactive -> {
+                    calendarRepository.delete(inactive);
+                    calendarRepository.flush();
+                });
         Instant now = Instant.now();
         entity.setRecordingState(0);
         entity.setUpdatedBy(actorUserId);

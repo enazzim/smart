@@ -1603,6 +1603,20 @@ td.num .fiscal-period-field-editing {
   align-items: start;
 }
 
+.public-code-page .master-detail {
+  grid-template-columns: minmax(400px, 0.95fr) minmax(360px, 1.05fr);
+}
+
+.public-code-page .master-panel .table-wrap > table th:nth-child(1),
+.public-code-page .master-panel .table-wrap > table td:nth-child(1) {
+  width: 4.5rem;
+}
+
+.public-code-page .master-panel .table-wrap > table th:nth-child(2),
+.public-code-page .master-panel .table-wrap > table td:nth-child(2) {
+  min-width: 8.5rem;
+}
+
 .panel-header-row {
   display: flex;
   align-items: center;

@@ -18,8 +18,8 @@ public class DatabaseBackupApplicationService {
         return mariaDbBackupService.listBackups();
     }
 
-    public BackupFileView createBackup() {
-        return mariaDbBackupService.createBackup();
+    public BackupFileView createBackup(String reason) {
+        return mariaDbBackupService.createBackup(reason);
     }
 
     public void deleteBackup(String fileName) {

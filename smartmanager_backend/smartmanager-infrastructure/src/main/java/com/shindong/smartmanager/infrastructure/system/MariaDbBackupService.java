@@ -1,10 +1,12 @@
 package com.shindong.smartmanager.infrastructure.system;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shindong.smartmanager.application.system.backup.BackupFileView;
 import com.shindong.smartmanager.infrastructure.config.BackupProperties;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -23,12 +25,14 @@ public class MariaDbBackupService {
             "jdbc:mariadb://([^:/]+)(?::(\\d+))?/([^?;]+)"
     );
     private static final DateTimeFormatter FILE_NAME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+    private static final int MAX_REASON_LENGTH = 500;
 
     private final Path backupDirectory;
     private final String jdbcUrl;
     private final String username;
     private final String password;
     private final String mariadbBinDir;
+    private final ObjectMapper objectMapper;
 
     public MariaDbBackupService(
             BackupProperties backupProperties,
@@ -41,6 +45,7 @@ public class MariaDbBackupService {
         this.username = username;
         this.password = password;
         this.mariadbBinDir = backupProperties.mariadbBinDir();
+        this.objectMapper = new ObjectMapper();
         createDirectoryIfNeeded();
     }
 
@@ -61,7 +66,8 @@ public class MariaDbBackupService {
         }
     }
 
-    public BackupFileView createBackup() {
+    public BackupFileView createBackup(String reason) {
+        String normalizedReason = normalizeReason(reason);
         String fileName = "smartmanager_" + LocalDateTime.now().format(FILE_NAME_FORMAT) + ".sql";
         Path target = backupDirectory.resolve(fileName);
         JdbcTarget targetDb = parseJdbcUrl(jdbcUrl);
@@ -84,10 +90,12 @@ public class MariaDbBackupService {
         command.add(targetDb.database());
         try {
             runToFile(command, target);
+            writeMetadata(target, normalizedReason);
             return toView(target);
         } catch (RuntimeException ex) {
             try {
                 Files.deleteIfExists(target);
+                Files.deleteIfExists(metadataPath(target));
             } catch (IOException ignored) {
                 // ignore cleanup failure
             }
@@ -99,6 +107,7 @@ public class MariaDbBackupService {
         Path path = resolveBackupFile(fileName);
         try {
             Files.deleteIfExists(path);
+            Files.deleteIfExists(metadataPath(path));
         } catch (IOException ex) {
             throw new IllegalStateException("백업 파일 삭제에 실패했습니다: " + fileName, ex);
         }
@@ -306,11 +315,56 @@ public class MariaDbBackupService {
             return new BackupFileView(
                     path.getFileName().toString(),
                     Files.size(path),
-                    Files.getLastModifiedTime(path).toInstant()
+                    Files.getLastModifiedTime(path).toInstant(),
+                    readReason(path).orElse(null)
             );
         } catch (IOException ex) {
             throw new IllegalStateException("백업 파일 정보를 읽을 수 없습니다.", ex);
         }
+    }
+
+    private static String normalizeReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("백업 사유를 입력해 주세요.");
+        }
+        String trimmed = reason.trim();
+        if (trimmed.length() > MAX_REASON_LENGTH) {
+            throw new IllegalArgumentException("백업 사유는 " + MAX_REASON_LENGTH + "자 이하여야 합니다.");
+        }
+        return trimmed;
+    }
+
+    private Path metadataPath(Path sqlPath) {
+        return sqlPath.resolveSibling(sqlPath.getFileName().toString() + ".meta.json");
+    }
+
+    private void writeMetadata(Path sqlPath, String reason) {
+        Path metaPath = metadataPath(sqlPath);
+        BackupMetadata metadata = new BackupMetadata(reason, Instant.now());
+        try {
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(metaPath.toFile(), metadata);
+        } catch (IOException ex) {
+            throw new IllegalStateException("백업 메타데이터 저장에 실패했습니다.", ex);
+        }
+    }
+
+    private java.util.Optional<String> readReason(Path sqlPath) {
+        Path metaPath = metadataPath(sqlPath);
+        if (!Files.isRegularFile(metaPath)) {
+            return java.util.Optional.empty();
+        }
+        try {
+            BackupMetadata metadata = objectMapper.readValue(metaPath.toFile(), BackupMetadata.class);
+            if (metadata.reason() == null || metadata.reason().isBlank()) {
+                return java.util.Optional.empty();
+            }
+            return java.util.Optional.of(metadata.reason().trim());
+        } catch (IOException ex) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    private record BackupMetadata(String reason, Instant createdAt) {
     }
 
     private static JdbcTarget parseJdbcUrl(String url) {

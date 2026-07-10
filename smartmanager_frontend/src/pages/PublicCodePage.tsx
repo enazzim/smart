@@ -249,7 +249,7 @@ export default function PublicCodePage() {
   };
 
   return (
-    <div className="page">
+    <div className="page public-code-page">
       <header className="page-header">
         <h1>공용코드 관리</h1>
         <p>시스템정보 — 대분류·소분류 마스터-디테일 CRUD</p>
@@ -323,43 +323,45 @@ export default function PublicCodePage() {
           ) : largeRows.length === 0 ? (
             <p>등록된 대분류가 없습니다.</p>
           ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>코드</th>
-                  <th>명칭</th>
-                  <th>용도</th>
-                  <th>작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {largeRows.map((row) => (
-                  <tr
-                    key={row.largeCode}
-                    className={
-                      selectedLargeCode === row.largeCode
-                        ? 'row-selected'
-                        : editingLargeCode === row.largeCode
-                          ? 'row-editing'
-                          : undefined
-                    }
-                    onClick={() => setSelectedLargeCode(row.largeCode)}
-                  >
-                    <td>{row.largeCode}</td>
-                    <td>{row.largeName}</td>
-                    <td>{row.usageType}</td>
-                    <td className="actions" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" className="btn-action" onClick={() => startEditLarge(row)}>
-                        수정
-                      </button>
-                      <button type="button" className="btn-action danger" onClick={() => void onDeleteLarge(row)}>
-                        삭제
-                      </button>
-                    </td>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>코드</th>
+                    <th>명칭</th>
+                    <th>용도</th>
+                    <th>작업</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {largeRows.map((row) => (
+                    <tr
+                      key={row.largeCode}
+                      className={
+                        selectedLargeCode === row.largeCode
+                          ? 'row-selected'
+                          : editingLargeCode === row.largeCode
+                            ? 'row-editing'
+                            : undefined
+                      }
+                      onClick={() => setSelectedLargeCode(row.largeCode)}
+                    >
+                      <td>{row.largeCode}</td>
+                      <td>{row.largeName}</td>
+                      <td>{row.usageType}</td>
+                      <td className="actions" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" className="btn-action" onClick={() => startEditLarge(row)}>
+                          수정
+                        </button>
+                        <button type="button" className="btn-action danger" onClick={() => void onDeleteLarge(row)}>
+                          삭제
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
 
@@ -435,31 +437,33 @@ export default function PublicCodePage() {
           ) : smallRows.length === 0 ? (
             <p>등록된 소분류가 없습니다.</p>
           ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>코드</th>
-                  <th>명칭</th>
-                  <th>작업</th>
-                </tr>
-              </thead>
-              <tbody>
-                {smallRows.map((row) => (
-                  <tr key={row.id} className={editingSmallId === row.id ? 'row-editing' : undefined}>
-                    <td>{row.smallCode}</td>
-                    <td>{row.smallName}</td>
-                    <td className="actions">
-                      <button type="button" className="btn-action" onClick={() => startEditSmall(row)}>
-                        수정
-                      </button>
-                      <button type="button" className="btn-action danger" onClick={() => void onDeleteSmall(row)}>
-                        삭제
-                      </button>
-                    </td>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>코드</th>
+                    <th>명칭</th>
+                    <th>작업</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {smallRows.map((row) => (
+                    <tr key={row.id} className={editingSmallId === row.id ? 'row-editing' : undefined}>
+                      <td>{row.smallCode}</td>
+                      <td>{row.smallName}</td>
+                      <td className="actions">
+                        <button type="button" className="btn-action" onClick={() => startEditSmall(row)}>
+                          수정
+                        </button>
+                        <button type="button" className="btn-action danger" onClick={() => void onDeleteSmall(row)}>
+                          삭제
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       </div>

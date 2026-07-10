@@ -6,6 +6,7 @@ export interface BackupFileInfo {
   fileName: string;
   fileSizeBytes: number;
   createdAt: string;
+  reason?: string | null;
 }
 
 async function parseError(response: Response, fallback: string): Promise<string> {
@@ -21,9 +22,13 @@ export async function fetchBackups(): Promise<BackupFileInfo[]> {
   return handleResponse<BackupFileInfo[]>(await apiFetch(API));
 }
 
-export async function createBackup(): Promise<BackupFileInfo> {
+export async function createBackup(reason: string): Promise<BackupFileInfo> {
   return handleResponse<BackupFileInfo>(
-    await apiFetch(API, { method: 'POST' }),
+    await apiFetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    }),
   );
 }
 
