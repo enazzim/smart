@@ -14,6 +14,7 @@ import {
   translateInventoryLocationInText,
 } from '../utils/inventoryLocation';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import { formatQty } from '../utils/numberFormat';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -23,10 +24,6 @@ function addDaysIso(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
 function parseQty(value: string): number | null {
@@ -271,10 +268,10 @@ export default function SalesShipmentPage() {
                   <th>수주번호</th>
                   <th>거래처</th>
                   <th>품목</th>
-                  <th>수주수량</th>
-                  <th>출고누적</th>
-                  <th>잔량</th>
-                  <th>{INVENTORY_LOCATION_LABEL.SALES} 재고</th>
+                  <th className="num">수주수량</th>
+                  <th className="num">출고누적</th>
+                  <th className="num">잔량</th>
+                  <th className="num">{INVENTORY_LOCATION_LABEL.SALES} 재고</th>
                   <th>출고수량 입력</th>
                   <th>비고</th>
                 </tr>
@@ -296,10 +293,10 @@ export default function SalesShipmentPage() {
                     <td>
                       {row.itemNo} {row.itemName}
                     </td>
-                    <td>{formatQty(row.orderQty)}</td>
-                    <td>{formatQty(row.shippedQty)}</td>
-                    <td>{formatQty(row.remainingQty)}</td>
-                    <td>{formatQty(row.salesOnHandQty)}</td>
+                    <td className="num">{formatQty(row.orderQty)}</td>
+                    <td className="num">{formatQty(row.shippedQty)}</td>
+                    <td className="num">{formatQty(row.remainingQty)}</td>
+                    <td className="num">{formatQty(row.salesOnHandQty)}</td>
                     <td>
                       <input
                         type="number"
@@ -376,7 +373,7 @@ export default function SalesShipmentPage() {
                   <th>출고일</th>
                   <th>거래처</th>
                   <th>품목</th>
-                  <th>출고수량</th>
+                  <th className="num">출고수량</th>
                   <th>상태</th>
                   <th />
                 </tr>
@@ -394,7 +391,7 @@ export default function SalesShipmentPage() {
                         </div>
                       ))}
                     </td>
-                    <td>
+                    <td className="num">
                       {shipment.lines.map((line) => (
                         <div key={line.id}>{formatQty(line.shipmentQty)}</div>
                       ))}

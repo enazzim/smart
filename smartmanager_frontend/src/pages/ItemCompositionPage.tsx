@@ -17,6 +17,7 @@ import {
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { downloadExplosionExcel, downloadReverseExcel } from '../utils/bomExcelExport';
+import { formatQty } from '../utils/numberFormat';
 
 const PARENT_CLASSES: PropertyClassification[] = ['제품', '상품', '공정품'];
 const CHILD_CLASSES: PropertyClassification[] = ['원자재', '공정품'];
@@ -443,6 +444,7 @@ export default function ItemCompositionPage() {
         ) : rows.length === 0 ? (
           <p>등록된 BOM이 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -450,8 +452,8 @@ export default function ItemCompositionPage() {
                 <th>모품목명</th>
                 <th>자품목</th>
                 <th>자품목명</th>
-                <th>모품수량</th>
-                <th>자품수량</th>
+                <th className="num">모품수량</th>
+                <th className="num">자품수량</th>
                 <th>작업</th>
               </tr>
             </thead>
@@ -462,8 +464,8 @@ export default function ItemCompositionPage() {
                   <td>{row.parentItemName}</td>
                   <td>{row.childItemNo}</td>
                   <td>{row.childItemName}</td>
-                  <td>{row.parentQuantity}</td>
-                  <td>{row.childQuantity}</td>
+                  <td className="num">{formatQty(row.parentQuantity)}</td>
+                  <td className="num">{formatQty(row.childQuantity)}</td>
                   <td className="actions">
                     <button type="button" className="btn-action" onClick={() => startEdit(row)}>
                       수정
@@ -476,6 +478,7 @@ export default function ItemCompositionPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 

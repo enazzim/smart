@@ -9,6 +9,9 @@
   --sm-blue-900: #1e3a8a;
   --bg: #f0f4fa;
   --surface: #fff;
+  --scrollbar-track: #eceef1;
+  --scrollbar-thumb: #c9ced6;
+  --scrollbar-thumb-hover: #b3bac4;
 }
 
 .app-shell {
@@ -678,8 +681,74 @@ button[disabled] {
 .app-main .table-wrap,
 .ui-table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--sm-blue-100);
   border-radius: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.app-main .table-wrap::-webkit-scrollbar:horizontal,
+.ui-table-wrap::-webkit-scrollbar:horizontal {
+  height: 10px;
+}
+
+.app-main .table-wrap::-webkit-scrollbar-track:horizontal,
+.ui-table-wrap::-webkit-scrollbar-track:horizontal {
+  background: var(--scrollbar-track);
+  border-radius: 0 0 10px 10px;
+}
+
+.app-main .table-wrap::-webkit-scrollbar-thumb:horizontal,
+.ui-table-wrap::-webkit-scrollbar-thumb:horizontal {
+  background: var(--scrollbar-thumb);
+  border-radius: 5px;
+  border: 2px solid var(--scrollbar-track);
+}
+
+.app-main .table-wrap::-webkit-scrollbar-thumb:horizontal:hover,
+.ui-table-wrap::-webkit-scrollbar-thumb:horizontal:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* 앱 전역 가로 스크롤바 — 밝은 회색 */
+.app-shell *::-webkit-scrollbar:horizontal {
+  height: 10px;
+}
+
+.app-shell *::-webkit-scrollbar-track:horizontal {
+  background: var(--scrollbar-track);
+}
+
+.app-shell *::-webkit-scrollbar-thumb:horizontal {
+  background: var(--scrollbar-thumb);
+  border-radius: 5px;
+  border: 2px solid var(--scrollbar-track);
+}
+
+.app-shell *::-webkit-scrollbar-thumb:horizontal:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.app-main,
+.modal-panel,
+.modal-body,
+.work-diary-templates-modal .modal-body,
+.work-diary-template-editor-modal .modal-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.app-main .table-wrap > table:not(.nested-table),
+.ui-table-wrap > table:not(.nested-table) {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.app-main .table-wrap > table:not(.nested-table) td,
+.ui-table-wrap > table:not(.nested-table) td {
+  white-space: nowrap;
 }
 
 table {
@@ -977,6 +1046,11 @@ th.num {
 
 .fiscal-period-field-table:hover {
   background: #e0ecfa;
+}
+
+td.num .fiscal-period-field-table,
+td.num .fiscal-period-field-editing {
+  text-align: right;
 }
 
 .modal-actions {
@@ -2762,6 +2836,25 @@ table.nested-table td {
 .import-result-block h3 {
   margin: 0 0 0.35rem;
   font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .app-main .table-wrap,
+  .ui-table-wrap {
+    margin-left: -0.25rem;
+    margin-right: -0.25rem;
+    border-left: none;
+    border-right: none;
+    border-radius: 8px;
+  }
+
+  .app-main .table-wrap th,
+  .app-main .table-wrap td,
+  .ui-table-wrap th,
+  .ui-table-wrap td {
+    padding: 0.45rem 0.55rem;
+    font-size: 0.82rem;
+  }
 }
 
 @media (max-width: 768px) {

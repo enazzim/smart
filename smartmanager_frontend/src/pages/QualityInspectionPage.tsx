@@ -11,6 +11,7 @@ import {
   type QualityInspectionListParams,
   type QualityInspectionSourceType,
 } from '../api/qualityInspection';
+import { formatQty } from '../utils/numberFormat';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -20,10 +21,6 @@ function addDaysIso(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
 function sourceLabel(value: QualityInspectionSourceType): string {
@@ -284,7 +281,7 @@ export default function QualityInspectionPage() {
                     <th>거래처</th>
                     <th>발주번호</th>
                     <th>품목</th>
-                    <th>의뢰수량</th>
+                    <th className="num">의뢰수량</th>
                     <th />
                   </tr>
                 </thead>
@@ -303,7 +300,7 @@ export default function QualityInspectionPage() {
                         <td>
                           {row.itemNum} {row.itemName}
                         </td>
-                        <td>{formatQty(row.requestQty)}</td>
+                        <td className="num">{formatQty(row.requestQty)}</td>
                         <td>
                           <button type="button" onClick={() => openComplete(row)}>
                             검사완료
@@ -396,9 +393,9 @@ export default function QualityInspectionPage() {
                     <th>거래처</th>
                     <th>발주번호</th>
                     <th>품목</th>
-                    <th>의뢰</th>
-                    <th>합격</th>
-                    <th>불량</th>
+                    <th className="num">의뢰</th>
+                    <th className="num">합격</th>
+                    <th className="num">불량</th>
                     <th />
                   </tr>
                 </thead>
@@ -419,9 +416,9 @@ export default function QualityInspectionPage() {
                         <td>
                           {row.itemNum} {row.itemName}
                         </td>
-                        <td>{formatQty(row.requestQty)}</td>
-                        <td>{formatQty(row.passedQty)}</td>
-                        <td>{formatQty(row.failedQty)}</td>
+                        <td className="num">{formatQty(row.requestQty)}</td>
+                        <td className="num">{formatQty(row.passedQty)}</td>
+                        <td className="num">{formatQty(row.failedQty)}</td>
                         <td>
                           {row.passedQty > 0 && (
                             <button

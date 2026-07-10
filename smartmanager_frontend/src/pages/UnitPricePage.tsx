@@ -13,6 +13,7 @@ import {
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import { formatAmount, formatQty } from '../utils/numberFormat';
 
 const TAB_CONFIG: {
   type: CostType;
@@ -443,6 +444,7 @@ export default function UnitPricePage() {
         ) : prices.length === 0 ? (
           <p>등록된 단가가 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -454,8 +456,8 @@ export default function UnitPricePage() {
                     <th>종료공정</th>
                   </>
                 )}
-                {!tabConfig.orderRateDisabled && <th>발주비율</th>}
-                <th>기준단가</th>
+                {!tabConfig.orderRateDisabled && <th className="num">발주비율</th>}
+                <th className="num">기준단가</th>
                 <th>적용기간</th>
                 <th>작업</th>
               </tr>
@@ -475,8 +477,10 @@ export default function UnitPricePage() {
                       <td>{price.endProcessName ?? '—'}</td>
                     </>
                   )}
-                  {!tabConfig.orderRateDisabled && <td>{price.orderRate}%</td>}
-                  <td>{price.standardUnitCost.toLocaleString()}</td>
+                  {!tabConfig.orderRateDisabled && (
+                    <td className="num">{formatQty(price.orderRate)}%</td>
+                  )}
+                  <td className="num">{formatAmount(price.standardUnitCost)}</td>
                   <td>
                     {price.beginDate}
                     {price.endDate ? ` ~ ${price.endDate}` : ' ~'}
@@ -493,6 +497,7 @@ export default function UnitPricePage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>

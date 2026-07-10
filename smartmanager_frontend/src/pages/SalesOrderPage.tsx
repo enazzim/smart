@@ -30,6 +30,7 @@ import {
 import { fetchCompanies } from '../api/company';
 import { fetchItems } from '../api/item';
 import { fetchUnitPrices } from '../api/unitPrice';
+import { formatAmount, formatQty } from '../utils/numberFormat';
 
 const SALES_ITEM_CLASSES: PropertyClassification[] = ['상품', '제품', '공정품'];
 
@@ -47,13 +48,6 @@ const DELIVERY_STATUS_OPTIONS: { value: SalesLineDeliveryStatus | ''; label: str
   { value: 'IN_PROGRESS', label: '진행' },
   { value: 'COMPLETED', label: '완납' },
 ];
-
-function formatAmount(value: number): string {
-  if (!Number.isFinite(value)) {
-    return '0';
-  }
-  return value.toLocaleString('ko-KR', { maximumFractionDigits: 2 });
-}
 
 function lineAmount(qty: number, unitPrice: number): number {
   return Math.round(qty * unitPrice * 100) / 100;
@@ -902,7 +896,7 @@ export default function SalesOrderPage() {
                     <td>{row.orderDate}</td>
                     <td>{row.requestedDeliveryDate ?? '-'}</td>
                     <td className="num">{formatAmount(row.unitPrice)}</td>
-                    <td className="num">{row.orderQty}</td>
+                    <td className="num">{formatQty(row.orderQty)}</td>
                     <td className="num sales-order-amount">{formatAmount(row.amount)}</td>
                     <td>{row.executionStatusLabel}</td>
                     <td>{row.deliveryStatusLabel}</td>

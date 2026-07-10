@@ -6,16 +6,13 @@ import {
   type WorkCenterLoadDay,
   type WorkCenterLoadDetail,
 } from '../api/workCenterLoad';
+import { formatInteger, formatQty } from '../utils/numberFormat';
 
 function formatPct(rate: number | null): string {
   if (rate == null) {
     return '—';
   }
   return `${(rate * 100).toFixed(1)}%`;
-}
-
-function formatMinutes(value: number): string {
-  return value.toLocaleString();
 }
 
 function defaultDateRange(): { from: string; to: string } {
@@ -147,10 +144,10 @@ export default function WorkCenterLoadPage() {
               <tr>
                 <th>일자</th>
                 <th>작업장</th>
-                <th>소요(분)</th>
-                <th>Capa(분)</th>
+                <th className="num">소요(분)</th>
+                <th className="num">Capa(분)</th>
                 <th>부하율</th>
-                <th>계획건수</th>
+                <th className="num">계획건수</th>
                 <th>상태</th>
               </tr>
             </thead>
@@ -163,12 +160,12 @@ export default function WorkCenterLoadPage() {
                 >
                   <td>{day.date}</td>
                   <td>{day.workCenterName}</td>
-                  <td>{formatMinutes(day.demandMinutes)}</td>
-                  <td>{formatMinutes(day.capaMinutes)}</td>
+                  <td className="num">{formatInteger(day.demandMinutes)}</td>
+                  <td className="num">{formatInteger(day.capaMinutes)}</td>
                   <td style={day.overThreshold ? { color: '#b45309', fontWeight: 600 } : undefined}>
                     {formatPct(day.loadRate)}
                   </td>
-                  <td>{day.workPlanCount}</td>
+                  <td className="num">{formatInteger(day.workPlanCount)}</td>
                   <td>
                     {day.overThreshold ? (
                       <span style={{ color: '#b45309', fontWeight: 600 }}>경고</span>
@@ -192,7 +189,7 @@ export default function WorkCenterLoadPage() {
               {selectedDay.date} · {selectedDay.workCenterName}
             </h2>
             <p>
-              소요 {formatMinutes(selectedDay.demandMinutes)}분 / Capa {formatMinutes(selectedDay.capaMinutes)}분 · 부하율{' '}
+              소요 {formatInteger(selectedDay.demandMinutes)}분 / Capa {formatInteger(selectedDay.capaMinutes)}분 · 부하율{' '}
               {formatPct(selectedDay.loadRate)}
             </p>
             <div className="table-wrap">
@@ -202,8 +199,8 @@ export default function WorkCenterLoadPage() {
                     <th>계획번호</th>
                     <th>품목</th>
                     <th>공정</th>
-                    <th>계획수량</th>
-                    <th>소요(분)</th>
+                    <th className="num">계획수량</th>
+                    <th className="num">소요(분)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -214,8 +211,8 @@ export default function WorkCenterLoadPage() {
                         {row.itemNo} {row.itemName}
                       </td>
                       <td>{row.processName}</td>
-                      <td>{row.plannedQty}</td>
-                      <td>{formatMinutes(row.demandMinutes)}</td>
+                      <td className="num">{formatQty(row.plannedQty)}</td>
+                      <td className="num">{formatInteger(row.demandMinutes)}</td>
                     </tr>
                   ))}
                 </tbody>

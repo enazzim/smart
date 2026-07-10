@@ -10,10 +10,7 @@ import {
   formatInventoryLocation,
   INVENTORY_LOCATION_FILTER_OPTIONS,
 } from '../utils/inventoryLocation';
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
-}
+import { formatInteger, formatQty } from '../utils/numberFormat';
 
 export default function InventoryLedgerPage() {
   const [tab, setTab] = useState<'movements' | 'balances'>('movements');
@@ -186,9 +183,9 @@ export default function InventoryLedgerPage() {
                 <th>품목</th>
                 <th>창고</th>
                 <th>구분</th>
-                <th>수량</th>
+                <th className="num">수량</th>
                 <th>원장유형</th>
-                <th>원장ID</th>
+                <th className="num">원장ID</th>
               </tr>
             </thead>
             <tbody>
@@ -210,9 +207,9 @@ export default function InventoryLedgerPage() {
                       })}
                     </td>
                     <td>{movementTypeLabel(row.movementType)}</td>
-                    <td>{formatQty(row.qty)}</td>
+                    <td className="num">{formatQty(row.qty)}</td>
                     <td>{row.referenceType}</td>
-                    <td>{row.referenceId}</td>
+                    <td className="num">{formatInteger(row.referenceId)}</td>
                   </tr>
                 ))
               )}
@@ -226,11 +223,11 @@ export default function InventoryLedgerPage() {
               <tr>
                 <th>품목</th>
                 <th>창고</th>
-                <th>연도</th>
-                <th>현재고</th>
-                <th>월별 입고</th>
-                <th>월별 출고</th>
-                <th>월말 재고</th>
+                <th className="num">연도</th>
+                <th className="num">현재고</th>
+                <th className="num">월별 입고</th>
+                <th className="num">월별 출고</th>
+                <th className="num">월말 재고</th>
               </tr>
             </thead>
             <tbody>
@@ -253,23 +250,23 @@ export default function InventoryLedgerPage() {
                           outputProcessName: row.outputProcessName,
                         })}
                       </td>
-                      <td>{row.fiscalYear}</td>
-                      <td>{formatQty(row.stockQty)}</td>
-                      <td>
+                      <td className="num">{formatInteger(row.fiscalYear)}</td>
+                      <td className="num">{formatQty(row.stockQty)}</td>
+                      <td className="num">
                         {monthSummary.map((m) => (
                           <div key={`in-${m.monthNum}`}>
                             {m.monthNum}월: {formatQty(m.inQty)}
                           </div>
                         ))}
                       </td>
-                      <td>
+                      <td className="num">
                         {monthSummary.map((m) => (
                           <div key={`out-${m.monthNum}`}>
                             {m.monthNum}월: {formatQty(m.outQty)}
                           </div>
                         ))}
                       </td>
-                      <td>
+                      <td className="num">
                         {monthSummary.map((m) => (
                           <div key={`stk-${m.monthNum}`}>
                             {m.monthNum}월: {formatQty(m.stockQty)}

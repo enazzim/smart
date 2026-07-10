@@ -23,6 +23,7 @@ import {
   type PurchaseReceiptListParams,
 
 } from '../api/purchaseReceipt';
+import { formatAmount, formatQty } from '../utils/numberFormat';
 
 
 
@@ -41,22 +42,6 @@ function addDaysIso(iso: string, days: number): string {
   date.setDate(date.getDate() + days);
 
   return date.toISOString().slice(0, 10);
-
-}
-
-
-
-function formatQty(value: number): string {
-
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
-
-}
-
-
-
-function formatAmount(value: number): string {
-
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 }
 
@@ -671,17 +656,17 @@ export default function PurchaseReceiptPage() {
 
                     <th>검사</th>
 
-                    <th>발주</th>
+                    <th className="num">발주</th>
 
-                    <th>기입고</th>
+                    <th className="num">기입고</th>
 
-                    <th>검사대기</th>
+                    <th className="num">검사대기</th>
 
-                    <th>잔량</th>
+                    <th className="num">잔량</th>
 
                     <th>입고수량</th>
 
-                    <th>단가</th>
+                    <th className="num">단가</th>
 
                   </tr>
 
@@ -749,13 +734,13 @@ export default function PurchaseReceiptPage() {
 
                           </td>
 
-                          <td>{formatQty(row.orderQty)}</td>
+                          <td className="num">{formatQty(row.orderQty)}</td>
 
-                          <td>{formatQty(row.receivedQty)}</td>
+                          <td className="num">{formatQty(row.receivedQty)}</td>
 
-                          <td>{formatQty(row.waitingInspectionQty)}</td>
+                          <td className="num">{formatQty(row.waitingInspectionQty)}</td>
 
-                          <td>{formatQty(row.remainQty)}</td>
+                          <td className="num">{formatQty(row.remainQty)}</td>
 
                           <td>
 
@@ -787,7 +772,7 @@ export default function PurchaseReceiptPage() {
 
                           </td>
 
-                          <td>{formatAmount(row.unitPrice)}</td>
+                          <td className="num">{formatAmount(row.unitPrice)}</td>
 
                         </tr>
 

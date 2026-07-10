@@ -11,6 +11,7 @@ import {
 } from '../api/salesRevenue';
 import { INVENTORY_LOCATION_LABEL, translateInventoryLocationInText } from '../utils/inventoryLocation';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import { formatAmount, formatQty } from '../utils/numberFormat';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -20,14 +21,6 @@ function addDaysIso(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
-}
-
-function formatAmount(value: number): string {
-  return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 function parseQty(value: string): number | null {
@@ -282,11 +275,11 @@ export default function SalesRevenuePage() {
                   <th>거래처</th>
                   <th>수주번호</th>
                   <th>품목</th>
-                  <th>출고수량</th>
-                  <th>매출누적</th>
-                  <th>잔량</th>
-                  <th>단가</th>
-                  <th>{INVENTORY_LOCATION_LABEL.DELIVERY} 재고</th>
+                  <th className="num">출고수량</th>
+                  <th className="num">매출누적</th>
+                  <th className="num">잔량</th>
+                  <th className="num">단가</th>
+                  <th className="num">{INVENTORY_LOCATION_LABEL.DELIVERY} 재고</th>
                   <th>매출수량 입력</th>
                   <th>비고</th>
                 </tr>
@@ -309,11 +302,11 @@ export default function SalesRevenuePage() {
                     <td>
                       {row.itemNo} {row.itemName}
                     </td>
-                    <td>{formatQty(row.shippedQty)}</td>
-                    <td>{formatQty(row.invoicedQty)}</td>
-                    <td>{formatQty(row.remainingQty)}</td>
-                    <td>{formatAmount(row.unitPrice)}</td>
-                    <td>{formatQty(row.deliveryOnHandQty)}</td>
+                    <td className="num">{formatQty(row.shippedQty)}</td>
+                    <td className="num">{formatQty(row.invoicedQty)}</td>
+                    <td className="num">{formatQty(row.remainingQty)}</td>
+                    <td className="num">{formatAmount(row.unitPrice)}</td>
+                    <td className="num">{formatQty(row.deliveryOnHandQty)}</td>
                     <td>
                       <input
                         type="number"
@@ -390,8 +383,8 @@ export default function SalesRevenuePage() {
                   <th>매출일</th>
                   <th>거래처</th>
                   <th>품목</th>
-                  <th>매출수량</th>
-                  <th>금액</th>
+                  <th className="num">매출수량</th>
+                  <th className="num">금액</th>
                   <th>상태</th>
                   <th />
                 </tr>
@@ -409,12 +402,12 @@ export default function SalesRevenuePage() {
                         </div>
                       ))}
                     </td>
-                    <td>
+                    <td className="num">
                       {revenue.lines.map((line) => (
                         <div key={line.id}>{formatQty(line.revenueQty)}</div>
                       ))}
                     </td>
-                    <td>
+                    <td className="num">
                       {revenue.lines.map((line) => (
                         <div key={line.id}>{formatAmount(line.amount)}</div>
                       ))}

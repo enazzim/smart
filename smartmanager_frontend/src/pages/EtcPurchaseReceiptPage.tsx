@@ -15,17 +15,10 @@ import {
   type EtcPurchaseReceiptCandidateParams,
   type EtcPurchaseReceiptListParams,
 } from '../api/etcPurchase';
+import { formatAmount, formatQty } from '../utils/numberFormat';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
-}
-
-function formatAmount(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 function createDefaultHistoryFilters(): EtcPurchaseReceiptListParams {
@@ -381,9 +374,9 @@ export default function EtcPurchaseReceiptPage() {
                     <th>발주번호</th>
                     <th>품목명</th>
                     <th>거래처</th>
-                    <th>발주수량</th>
-                    <th>단가</th>
-                    <th>잔량</th>
+                    <th className="num">발주수량</th>
+                    <th className="num">단가</th>
+                    <th className="num">잔량</th>
                     <th>납기요구일</th>
                     <th>상태</th>
                   </tr>
@@ -410,9 +403,9 @@ export default function EtcPurchaseReceiptPage() {
                         <td>{row.orderNo}</td>
                         <td>{row.itemName}</td>
                         <td>{row.partnerName}</td>
-                        <td>{formatQty(row.orderQty)}</td>
-                        <td>{formatAmount(row.unitPrice)}</td>
-                        <td>{formatQty(row.remainQty)}</td>
+                        <td className="num">{formatQty(row.orderQty)}</td>
+                        <td className="num">{formatAmount(row.unitPrice)}</td>
+                        <td className="num">{formatQty(row.remainQty)}</td>
                         <td>{row.requestedDeliveryDate}</td>
                         <td>{row.statusLabel}</td>
                       </tr>
@@ -592,8 +585,8 @@ export default function EtcPurchaseReceiptPage() {
                     <th>발주번호</th>
                     <th>품목명</th>
                     <th>거래처</th>
-                    <th>납품수량</th>
-                    <th>금액</th>
+                    <th className="num">납품수량</th>
+                    <th className="num">금액</th>
                     <th>납입일자</th>
                     <th>매입월</th>
                     <th />
@@ -620,8 +613,8 @@ export default function EtcPurchaseReceiptPage() {
                         <td>{row.orderNo}</td>
                         <td>{row.itemName}</td>
                         <td>{row.partnerName}</td>
-                        <td>{formatQty(row.receiptQty)}</td>
-                        <td>{formatAmount(row.amount)}</td>
+                        <td className="num">{formatQty(row.receiptQty)}</td>
+                        <td className="num">{formatAmount(row.amount)}</td>
                         <td>{row.receiptDate}</td>
                         <td>{formatFiscalPeriodLabel({ fiscalYear: row.fiscalYear, fiscalMonth: row.fiscalMonth })}</td>
                         <td className="actions">

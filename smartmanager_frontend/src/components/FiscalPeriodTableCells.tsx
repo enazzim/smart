@@ -5,6 +5,8 @@ interface FiscalPeriodTableCellsProps {
   fiscalYear: number;
   fiscalMonth: number;
   disabled?: boolean;
+  /** 숫자 열 오른쪽 정렬 (그리드용) */
+  numeric?: boolean;
   onSave: (period: FiscalPeriod) => Promise<void>;
 }
 
@@ -12,6 +14,7 @@ export default function FiscalPeriodTableCells({
   fiscalYear,
   fiscalMonth,
   disabled = false,
+  numeric = false,
   onSave,
 }: FiscalPeriodTableCellsProps) {
   const [editing, setEditing] = useState<'year' | 'month' | null>(null);
@@ -69,7 +72,7 @@ export default function FiscalPeriodTableCells({
   };
 
   const renderCell = (field: 'year' | 'month', value: number, label: string) => (
-    <td className="fiscal-period-cell">
+    <td className={numeric ? 'fiscal-period-cell num' : 'fiscal-period-cell'}>
       {editing === field ? (
         <input
           type="number"

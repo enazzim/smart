@@ -15,6 +15,7 @@ import {
   fetchWorkStandards,
   updateWorkStandard,
 } from '../api/workStandard';
+import { formatInteger } from '../utils/numberFormat';
 
 const INHOUSE_PROCESS = new Set(['INHOUSE', 'SPLIT']);
 
@@ -478,6 +479,7 @@ export default function WorkStandardPage() {
         ) : standards.length === 0 ? (
           <p>등록된 작업표준이 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -487,14 +489,14 @@ export default function WorkStandardPage() {
                     <th>품목명</th>
                   </>
                 )}
-                <th>순번</th>
+                <th className="num">순번</th>
                 <th>공정</th>
                 <th>작업장</th>
                 <th>설비</th>
                 <th>주작업자</th>
-                <th>우선순위</th>
-                <th>셋업(분)</th>
-                <th>표준(초)</th>
+                <th className="num">우선순위</th>
+                <th className="num">셋업(분)</th>
+                <th className="num">표준(초)</th>
                 <th>작업</th>
               </tr>
             </thead>
@@ -507,16 +509,16 @@ export default function WorkStandardPage() {
                       <td>{ws.itemName}</td>
                     </>
                   )}
-                  <td>{ws.processSequenceNum}</td>
+                  <td className="num">{formatInteger(ws.processSequenceNum)}</td>
                   <td>
                     {ws.processCode} {ws.processName}
                   </td>
                   <td>{ws.wcName}</td>
                   <td>{ws.equipmentName ?? '—'}</td>
                   <td>{ws.mainWorkerName ?? '—'}</td>
-                  <td>{ws.priorityOrder}</td>
-                  <td>{ws.setupTime}</td>
-                  <td>{ws.standardTime}</td>
+                  <td className="num">{formatInteger(ws.priorityOrder)}</td>
+                  <td className="num">{formatInteger(ws.setupTime)}</td>
+                  <td className="num">{formatInteger(ws.standardTime)}</td>
                   <td className="actions">
                     <button type="button" className="btn-action" onClick={() => startEdit(ws)}>
                       수정
@@ -529,6 +531,7 @@ export default function WorkStandardPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>

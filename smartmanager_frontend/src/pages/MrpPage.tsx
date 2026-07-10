@@ -13,10 +13,7 @@ import {
   type MrpRun,
 } from '../api/mrp';
 import GridExcelExportButton from '../components/GridExcelExportButton';
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
-}
+import { formatInteger, formatQty } from '../utils/numberFormat';
 
 function formatDateTime(value: string): string {
   const date = new Date(value);
@@ -53,9 +50,9 @@ function renderLineRow(
       </td>
       <td>{line.componentPropertyClassificationLabel}</td>
       <td>{line.unit}</td>
-      <td>{formatQty(line.bomUnitQty)}</td>
-      <td>{formatQty(line.plannedQty)}</td>
-      <td>{formatQty(line.grossQty)}</td>
+      <td className="num">{formatQty(line.bomUnitQty)}</td>
+      <td className="num">{formatQty(line.plannedQty)}</td>
+      <td className="num">{formatQty(line.grossQty)}</td>
       <td className="actions">
         {line.cancellable && (
           <button
@@ -332,6 +329,7 @@ export default function MrpPage() {
         ) : targets.length === 0 ? (
           <p>산출 대상 생산계획이 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -347,7 +345,7 @@ export default function MrpPage() {
                 <th>수주번호</th>
                 <th>거래처</th>
                 <th>모품목</th>
-                <th>계획수량</th>
+                <th className="num">계획수량</th>
                 <th>납기요구일</th>
               </tr>
             </thead>
@@ -367,12 +365,13 @@ export default function MrpPage() {
                   <td>
                     {plan.itemNo} — {plan.itemName}
                   </td>
-                  <td>{formatQty(plan.plannedQty)}</td>
+                  <td className="num">{formatQty(plan.plannedQty)}</td>
                   <td>{plan.requestedDeliveryDate ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 
@@ -393,12 +392,13 @@ export default function MrpPage() {
         ) : runs.length === 0 ? (
           <p>산출 이력이 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>산출번호</th>
-                <th>계획 건수</th>
-                <th>소요 라인</th>
+                <th className="num">계획 건수</th>
+                <th className="num">소요 라인</th>
                 <th>산출일시</th>
                 <th>산출자</th>
                 <th>관리</th>
@@ -408,8 +408,8 @@ export default function MrpPage() {
               {runs.map((run) => (
                 <tr key={run.id} className={selectedRunId === run.id ? 'row-selected' : undefined}>
                   <td>{run.runNo}</td>
-                  <td>{run.planCount}</td>
-                  <td>{run.lineCount}</td>
+                  <td className="num">{formatInteger(run.planCount)}</td>
+                  <td className="num">{formatInteger(run.lineCount)}</td>
                   <td>{formatDateTime(run.createdAt)}</td>
                   <td>{run.createdBy ?? '—'}</td>
                   <td className="actions">
@@ -431,6 +431,7 @@ export default function MrpPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 
@@ -471,6 +472,7 @@ export default function MrpPage() {
         ) : !hasLineData ? (
           <p>소요 자재가 없습니다.</p>
         ) : grouped?.groupingMode === 'BY_COMPONENT' ? (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -478,8 +480,8 @@ export default function MrpPage() {
                 <th>자재품목</th>
                 <th>자산분류</th>
                 <th>단위</th>
-                <th>합산 총소요량</th>
-                <th>상세 건수</th>
+                <th className="num">합산 총소요량</th>
+                <th className="num">상세 건수</th>
               </tr>
             </thead>
             <tbody>
@@ -502,8 +504,8 @@ export default function MrpPage() {
                       </td>
                       <td>{group.componentPropertyClassificationLabel}</td>
                       <td>{group.unit}</td>
-                      <td>{formatQty(group.totalGrossQty)}</td>
-                      <td>{group.lineCount}</td>
+                      <td className="num">{formatQty(group.totalGrossQty)}</td>
+                      <td className="num">{formatInteger(group.lineCount)}</td>
                     </tr>
                     {expanded && (
                       <tr>
@@ -517,9 +519,9 @@ export default function MrpPage() {
                                 <th>자재품목</th>
                                 <th>자산분류</th>
                                 <th>단위</th>
-                                <th>단위소요</th>
-                                <th>계획수량</th>
-                                <th>총소요량</th>
+                                <th className="num">단위소요</th>
+                                <th className="num">계획수량</th>
+                                <th className="num">총소요량</th>
                                 <th>관리</th>
                               </tr>
                             </thead>
@@ -537,7 +539,9 @@ export default function MrpPage() {
               })}
             </tbody>
           </table>
+          </div>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -547,9 +551,9 @@ export default function MrpPage() {
                 <th>자재품목</th>
                 <th>자산분류</th>
                 <th>단위</th>
-                <th>단위소요</th>
-                <th>계획수량</th>
-                <th>총소요량</th>
+                <th className="num">단위소요</th>
+                <th className="num">계획수량</th>
+                <th className="num">총소요량</th>
                 <th>관리</th>
               </tr>
             </thead>
@@ -559,6 +563,7 @@ export default function MrpPage() {
               )}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>

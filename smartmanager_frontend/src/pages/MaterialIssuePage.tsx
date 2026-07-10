@@ -10,13 +10,10 @@ import {
   type MaterialIssueListParams,
 } from '../api/materialIssue';
 import type { WorkOrder } from '../api/workOrder';
+import { formatQty } from '../utils/numberFormat';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
 function parseQty(value: string): number | null {
@@ -336,7 +333,7 @@ export default function MaterialIssuePage() {
                     <th>지시번호</th>
                     <th>품목</th>
                     <th>공정</th>
-                    <th>잔량</th>
+                    <th className="num">잔량</th>
                     <th />
                   </tr>
                 </thead>
@@ -353,7 +350,7 @@ export default function MaterialIssuePage() {
                           {row.itemNo} {row.itemName}
                         </td>
                         <td>{row.processName}</td>
-                        <td>{formatQty(row.remainingQty)}</td>
+                        <td className="num">{formatQty(row.remainingQty)}</td>
                         <td className="actions">
                           <button type="button" disabled={submitting} onClick={() => openRegister(row)}>
                             투입

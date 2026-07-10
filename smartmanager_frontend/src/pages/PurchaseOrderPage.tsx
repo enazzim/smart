@@ -21,6 +21,7 @@ import {
   toPartnerPriceItems,
   type PartnerPriceItem,
 } from '../utils/unitPriceHelpers';
+import { formatAmount, formatQty } from '../utils/numberFormat';
 
 type ManualPurchaseLine = {
   key: string;
@@ -44,14 +45,6 @@ function newManualLine(): ManualPurchaseLine {
     orderQty: '1',
     unitPrice: '',
   };
-}
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
-}
-
-function formatAmount(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 function formatDateTime(value: string): string {
@@ -606,6 +599,7 @@ export default function PurchaseOrderPage() {
         ) : candidates.length === 0 ? (
           <p>발주 가능한 자재소요가 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -624,8 +618,8 @@ export default function PurchaseOrderPage() {
                 <th>자재품목</th>
                 <th>자산분류</th>
                 <th>단위</th>
-                <th>총소요</th>
-                <th>잔여</th>
+                <th className="num">총소요</th>
+                <th className="num">잔여</th>
                 <th>거래처</th>
                 <th>상태</th>
               </tr>
@@ -687,8 +681,8 @@ export default function PurchaseOrderPage() {
                       </td>
                       <td>{row.componentPropertyClassification}</td>
                       <td>{row.unit}</td>
-                      <td>{formatQty(row.grossQty)}</td>
-                      <td>{formatQty(row.suggestedQty)}</td>
+                      <td className="num">{formatQty(row.grossQty)}</td>
+                      <td className="num">{formatQty(row.suggestedQty)}</td>
                       <td>{vendorCount > 0 ? `${vendorCount}곳` : '—'}</td>
                       <td>{row.orderable ? '발주 가능' : row.orderableMessage ?? '발주 불가'}</td>
                     </tr>
@@ -701,10 +695,10 @@ export default function PurchaseOrderPage() {
                                 <th />
                                 <th>거래처</th>
                                 <th>사업자번호</th>
-                                <th>발주비율</th>
-                                <th>발주수량</th>
-                                <th>단가</th>
-                                <th>금액</th>
+                                <th className="num">발주비율</th>
+                                <th className="num">발주수량</th>
+                                <th className="num">단가</th>
+                                <th className="num">금액</th>
                                 <th>리드타임</th>
                                 <th>납기요구일</th>
                               </tr>
@@ -728,10 +722,10 @@ export default function PurchaseOrderPage() {
                                     </td>
                                     <td>{vendor.partnerName}</td>
                                     <td>{vendor.businessRegNo}</td>
-                                    <td>{formatQty(vendor.orderRate)}%</td>
-                                    <td>{formatQty(vendor.orderQty)}</td>
-                                    <td>{formatAmount(vendor.unitPrice)}</td>
-                                    <td>{formatAmount(vendor.amount)}</td>
+                                    <td className="num">{formatQty(vendor.orderRate)}%</td>
+                                    <td className="num">{formatQty(vendor.orderQty)}</td>
+                                    <td className="num">{formatAmount(vendor.unitPrice)}</td>
+                                    <td className="num">{formatAmount(vendor.amount)}</td>
                                     <td>{vendor.leadTimeDays != null ? `${vendor.leadTimeDays}일` : '—'}</td>
                                     <td>{vendor.requestedDeliveryDate ?? '—'}</td>
                                   </tr>
@@ -754,6 +748,7 @@ export default function PurchaseOrderPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 
@@ -777,13 +772,14 @@ export default function PurchaseOrderPage() {
               닫기
             </button>
           </div>
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>발주번호</th>
                 <th>거래처</th>
                 <th>발주일</th>
-                <th>라인</th>
+                <th className="num">라인</th>
                 <th>관리</th>
               </tr>
             </thead>
@@ -793,7 +789,7 @@ export default function PurchaseOrderPage() {
                   <td>{order.orderNo}</td>
                   <td>{order.partnerName}</td>
                   <td>{order.orderDate}</td>
-                  <td>{order.lines.length}</td>
+                  <td className="num">{order.lines.length}</td>
                   <td>
                     <button type="button" className="btn-action" onClick={() => void handlePrint([order.id])}>
                       발주서 출력
@@ -803,6 +799,7 @@ export default function PurchaseOrderPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </section>
       )}
 
@@ -876,6 +873,7 @@ export default function PurchaseOrderPage() {
         ) : orders.length === 0 ? (
           <p>조건에 맞는 구매발주가 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -905,7 +903,7 @@ export default function PurchaseOrderPage() {
                 <th>발주일</th>
                 <th>출처</th>
                 <th>상태</th>
-                <th>라인</th>
+                <th className="num">라인</th>
                 <th>등록일시</th>
                 <th>관리</th>
               </tr>
@@ -929,7 +927,7 @@ export default function PurchaseOrderPage() {
                   <td>{order.orderDate}</td>
                   <td>{order.sourceTypeLabel}</td>
                   <td>{order.statusLabel}</td>
-                  <td>{order.lines.length}</td>
+                  <td className="num">{order.lines.length}</td>
                   <td>{formatDateTime(order.createdAt)}</td>
                   <td className="actions">
                     {printable && (
@@ -958,6 +956,7 @@ export default function PurchaseOrderPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
         {orders.some((order) => order.lines.length > 0) && (
           <div className="detail-panel">
@@ -967,14 +966,15 @@ export default function PurchaseOrderPage() {
                 <h4>
                   {order.orderNo} — {order.partnerName} ({order.statusLabel})
                 </h4>
+                <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
                       <th>라인</th>
                       <th>품목</th>
-                      <th>수량</th>
-                      <th>단가</th>
-                      <th>금액</th>
+                      <th className="num">수량</th>
+                      <th className="num">단가</th>
+                      <th className="num">금액</th>
                       <th>납기요구일</th>
                       <th>자재소요</th>
                     </tr>
@@ -986,9 +986,9 @@ export default function PurchaseOrderPage() {
                         <td>
                           {line.itemNo} — {line.itemName}
                         </td>
-                        <td>{formatQty(line.orderQty)}</td>
-                        <td>{formatAmount(line.unitPrice)}</td>
-                        <td>{formatAmount(line.amount)}</td>
+                        <td className="num">{formatQty(line.orderQty)}</td>
+                        <td className="num">{formatAmount(line.unitPrice)}</td>
+                        <td className="num">{formatAmount(line.amount)}</td>
                         <td>{line.requestedDeliveryDate ?? '—'}</td>
                         <td>
                           {line.requirementLineId
@@ -999,6 +999,7 @@ export default function PurchaseOrderPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             ))}
           </div>

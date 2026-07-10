@@ -9,6 +9,7 @@ import {
   type SalesCollectionCandidateParams,
   type SalesCollectionListParams,
 } from '../api/salesCollection';
+import { formatAmount } from '../utils/numberFormat';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -18,10 +19,6 @@ function addDaysIso(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function formatAmount(value: number): string {
-  return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 function parseAmount(value: string): number | null {
@@ -202,9 +199,9 @@ export default function SalesCollectionPage() {
                   <th />
                   <th>거래처</th>
                   <th>사업자번호</th>
-                  <th>매출합계</th>
-                  <th>수금합계</th>
-                  <th>미수잔액</th>
+                  <th className="num">매출합계</th>
+                  <th className="num">수금합계</th>
+                  <th className="num">미수잔액</th>
                 </tr>
               </thead>
               <tbody>
@@ -225,9 +222,9 @@ export default function SalesCollectionPage() {
                     </td>
                     <td>{row.partnerName}</td>
                     <td>{row.partnerBusinessRegNo}</td>
-                    <td>{formatAmount(row.revenueAmount)}</td>
-                    <td>{formatAmount(row.collectedAmount)}</td>
-                    <td>{formatAmount(row.uncollectedAmount)}</td>
+                    <td className="num">{formatAmount(row.revenueAmount)}</td>
+                    <td className="num">{formatAmount(row.collectedAmount)}</td>
+                    <td className="num">{formatAmount(row.uncollectedAmount)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -360,9 +357,9 @@ export default function SalesCollectionPage() {
                   <th>수금번호</th>
                   <th>수금일</th>
                   <th>거래처</th>
-                  <th>공급가</th>
-                  <th>부가세</th>
-                  <th>총액</th>
+                  <th className="num">공급가</th>
+                  <th className="num">부가세</th>
+                  <th className="num">총액</th>
                   <th>결제수단</th>
                   <th>상태</th>
                   <th />
@@ -374,9 +371,9 @@ export default function SalesCollectionPage() {
                     <td>{collection.collectionNo}</td>
                     <td>{collection.collectionDate}</td>
                     <td>{collection.partnerName}</td>
-                    <td>{formatAmount(collection.supplyAmount)}</td>
-                    <td>{formatAmount(collection.vatAmount)}</td>
-                    <td>{formatAmount(collection.totalAmount)}</td>
+                    <td className="num">{formatAmount(collection.supplyAmount)}</td>
+                    <td className="num">{formatAmount(collection.vatAmount)}</td>
+                    <td className="num">{formatAmount(collection.totalAmount)}</td>
                     <td>{collection.paymentMethod ?? '-'}</td>
                     <td>{collection.statusLabel}</td>
                     <td>

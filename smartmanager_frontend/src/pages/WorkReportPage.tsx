@@ -15,13 +15,10 @@ import { fetchWorkStandards } from '../api/workStandard';
 import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import WorkerSearchField from '../components/WorkerSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import { formatQty } from '../utils/numberFormat';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
 function parseQty(value: string): number | null {
@@ -449,7 +446,7 @@ export default function WorkReportPage() {
                     <th>품목</th>
                     <th>공정</th>
                     <th>작업장</th>
-                    <th>잔량</th>
+                    <th className="num">잔량</th>
                     <th />
                   </tr>
                 </thead>
@@ -468,7 +465,7 @@ export default function WorkReportPage() {
                         </td>
                         <td>{row.processName}</td>
                         <td>{row.workCenterName ?? '—'}</td>
-                        <td>{formatQty(row.remainingQty)}</td>
+                        <td className="num">{formatQty(row.remainingQty)}</td>
                         <td className="actions">
                           <button type="button" disabled={submitting} onClick={() => openRegister(row)}>
                             등록
@@ -523,9 +520,9 @@ export default function WorkReportPage() {
                     <th>품목</th>
                     <th>공정</th>
                     <th>실적일</th>
-                    <th>작업</th>
-                    <th>양품</th>
-                    <th>불량</th>
+                    <th className="num">작업</th>
+                    <th className="num">양품</th>
+                    <th className="num">불량</th>
                     <th>상태</th>
                     <th />
                   </tr>
@@ -545,9 +542,9 @@ export default function WorkReportPage() {
                         </td>
                         <td>{row.processName}</td>
                         <td>{row.reportDate}</td>
-                        <td>{formatQty(row.goodQty + row.scrapQty)}</td>
-                        <td>{formatQty(row.goodQty)}</td>
-                        <td>{formatQty(row.scrapQty)}</td>
+                        <td className="num">{formatQty(row.goodQty + row.scrapQty)}</td>
+                        <td className="num">{formatQty(row.goodQty)}</td>
+                        <td className="num">{formatQty(row.scrapQty)}</td>
                         <td>{row.statusLabel}</td>
                         <td>
                           {row.cancellable && (

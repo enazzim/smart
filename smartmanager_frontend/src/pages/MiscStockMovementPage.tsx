@@ -13,6 +13,7 @@ import {
 } from '../api/miscStockMovement';
 import { fetchSmallPublicCodes, type PublicCodeSmall } from '../api/publicCode';
 import { fetchProcessPlans, type ProcessPlan } from '../api/process';
+import { formatQty } from '../utils/numberFormat';
 
 const ALL_ITEM_CLASSES: PropertyClassification[] = ['원자재', '제품', '상품', '공정품'];
 
@@ -24,10 +25,6 @@ function addDaysIso(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
 function formatProcessLabel(process: ProcessPlan): string {
@@ -420,7 +417,7 @@ export default function MiscStockMovementPage() {
                   <th>구분</th>
                   <th>품목</th>
                   <th>창고</th>
-                  <th>수량</th>
+                  <th className="num">수량</th>
                   <th>사유</th>
                   <th>사유(내용)</th>
                   <th>상태</th>
@@ -437,7 +434,7 @@ export default function MiscStockMovementPage() {
                       {row.itemNo} {row.itemName}
                     </td>
                     <td>{row.locationLabel}</td>
-                    <td>{formatQty(row.qty)}</td>
+                    <td className="num">{formatQty(row.qty)}</td>
                     <td>{row.reasonLabel || '—'}</td>
                     <td>{row.note || '—'}</td>
                     <td>{row.statusLabel}</td>

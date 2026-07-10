@@ -8,6 +8,7 @@ import type {
 } from '../api/item';
 import { createItem, deleteItem, fetchItems, updateItem } from '../api/item';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import { formatInteger } from '../utils/numberFormat';
 
 const PROPERTY_OPTIONS: PropertyClassification[] = ['원자재', '제품', '상품', '공정품'];
 
@@ -318,10 +319,11 @@ export default function ItemPage() {
         ) : items.length === 0 ? (
           <p>등록된 품목이 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ID</th>
+                <th className="num">ID</th>
                 <th>품목번호</th>
                 <th>품목명</th>
                 <th>자산분류</th>
@@ -334,7 +336,7 @@ export default function ItemPage() {
             <tbody>
               {items.map((item) => (
                 <tr key={item.id} className={editingId === item.id ? 'row-editing' : undefined}>
-                  <td>{item.id}</td>
+                  <td className="num">{formatInteger(item.id)}</td>
                   <td>{item.itemNo}</td>
                   <td>{item.itemName}</td>
                   <td>{item.propertyClassification}</td>
@@ -353,6 +355,7 @@ export default function ItemPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>

@@ -13,6 +13,7 @@ import {
   type OutsourcingReceiptCandidateParams,
   type OutsourcingReceiptListParams,
 } from '../api/outsourcingReceipt';
+import { formatAmount, formatQty } from '../utils/numberFormat';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -22,14 +23,6 @@ function addDaysIso(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
-}
-
-function formatAmount(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 function checkLabel(value: string): string {
@@ -349,12 +342,12 @@ export default function OutsourcingReceiptPage() {
                     <th>품목</th>
                     <th>공정</th>
                     <th>검사</th>
-                    <th>발주</th>
-                    <th>출고</th>
-                    <th>기입고</th>
-                    <th>검사대기</th>
-                    <th>입고잔량</th>
-                    <th>단가</th>
+                    <th className="num">발주</th>
+                    <th className="num">출고</th>
+                    <th className="num">기입고</th>
+                    <th className="num">검사대기</th>
+                    <th className="num">입고잔량</th>
+                    <th className="num">단가</th>
                     <th>입고수량</th>
                   </tr>
                 </thead>
@@ -385,12 +378,12 @@ export default function OutsourcingReceiptPage() {
                           </td>
                           <td>{row.processName}</td>
                           <td>{checkLabel(row.checkDistinction)}</td>
-                          <td>{formatQty(row.orderQty)}</td>
-                          <td>{formatQty(row.shippedQty)}</td>
-                          <td>{formatQty(row.receivedQty)}</td>
-                          <td>{formatQty(row.waitingInspectionQty)}</td>
-                          <td>{formatQty(row.remainQty)}</td>
-                          <td>{formatAmount(row.unitPrice)}</td>
+                          <td className="num">{formatQty(row.orderQty)}</td>
+                          <td className="num">{formatQty(row.shippedQty)}</td>
+                          <td className="num">{formatQty(row.receivedQty)}</td>
+                          <td className="num">{formatQty(row.waitingInspectionQty)}</td>
+                          <td className="num">{formatQty(row.remainQty)}</td>
+                          <td className="num">{formatAmount(row.unitPrice)}</td>
                           <td>
                             <input
                               type="number"
@@ -470,7 +463,7 @@ export default function OutsourcingReceiptPage() {
                     <th>매입월</th>
                     <th>상태</th>
                     <th>품목</th>
-                    <th>수량</th>
+                    <th className="num">수량</th>
                     <th>반영</th>
                     <th />
                   </tr>
@@ -498,7 +491,7 @@ export default function OutsourcingReceiptPage() {
                           <td>
                             {line.itemNo} {line.itemName}
                           </td>
-                          <td>{formatQty(line.receiptQty)}</td>
+                          <td className="num">{formatQty(line.receiptQty)}</td>
                           <td>{line.stockPosted ? '완료' : line.qualityInspectionId ? '검사대기' : '미반영'}</td>
                           {index === 0 && (
                             <td rowSpan={receipt.lines.length}>

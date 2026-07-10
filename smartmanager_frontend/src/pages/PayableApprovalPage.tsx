@@ -15,6 +15,7 @@ import CompanySearchField, {
 import FiscalPeriodTableCells from '../components/FiscalPeriodTableCells';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { currentCalendarYearMonth, type FiscalPeriod } from '../utils/fiscalCalendar';
+import { formatAmount } from '../utils/numberFormat';
 
 type TabId = 'pending' | 'approved';
 
@@ -28,8 +29,8 @@ function addDaysIso(iso: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-function formatAmount(value: number): string {
-  return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+function formatDateTime(value: string): string {
+  return new Date(value).toLocaleString('ko-KR');
 }
 
 function rowKey(row: PayableApprovalRow): string {
@@ -375,12 +376,12 @@ export default function PayableApprovalPage() {
                   <th>품목번호</th>
                   <th>품목명</th>
                   <th>공정명</th>
-                  <th>합격수량</th>
-                  <th>표준단가</th>
-                  <th>단가</th>
-                  <th>금액</th>
-                  <th>매입년도</th>
-                  <th>매입월</th>
+                  <th className="num">합격수량</th>
+                  <th className="num">표준단가</th>
+                  <th className="num">단가</th>
+                  <th className="num">금액</th>
+                  <th className="num">매입년도</th>
+                  <th className="num">매입월</th>
                   <th>구분</th>
                   <th>거래처</th>
                   <th>입고일</th>
@@ -407,14 +408,15 @@ export default function PayableApprovalPage() {
                     <td>{row.itemNo}</td>
                     <td>{row.itemName}</td>
                     <td>{row.processName || '—'}</td>
-                    <td>{row.qty}</td>
-                    <td>{formatAmount(row.standardUnitPrice)}</td>
-                    <td>{formatAmount(row.unitPrice)}</td>
-                    <td>{formatAmount(row.amount)}</td>
+                    <td className="num">{formatAmount(row.qty)}</td>
+                    <td className="num">{formatAmount(row.standardUnitPrice)}</td>
+                    <td className="num">{formatAmount(row.unitPrice)}</td>
+                    <td className="num">{formatAmount(row.amount)}</td>
                     <FiscalPeriodTableCells
                       fiscalYear={row.fiscalYear}
                       fiscalMonth={row.fiscalMonth}
                       disabled={submitting}
+                      numeric
                       onSave={(period) => onFiscalPeriodSave(row, period)}
                     />
                     <td>{row.categoryLabel}</td>
@@ -423,7 +425,7 @@ export default function PayableApprovalPage() {
                     {activeTab === 'approved' && (
                       <>
                         <td>{row.approvedByName ?? '—'}</td>
-                        <td>{row.approvedAt ? new Date(row.approvedAt).toLocaleString() : '—'}</td>
+                        <td>{row.approvedAt ? formatDateTime(row.approvedAt) : '—'}</td>
                       </>
                     )}
                   </tr>

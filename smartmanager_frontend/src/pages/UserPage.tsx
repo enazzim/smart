@@ -482,6 +482,7 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
         {loading ? (
           <p>로딩 중…</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -521,6 +522,7 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
               )}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>

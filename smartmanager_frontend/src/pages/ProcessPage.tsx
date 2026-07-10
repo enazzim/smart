@@ -16,6 +16,7 @@ import {
   fetchWorkCenters,
   updateProcessPlan,
 } from '../api/process';
+import { formatInteger } from '../utils/numberFormat';
 
 const WORK_DISTINCTION_OPTIONS: { value: WorkDistinction; label: string }[] = [
   { value: 'INHOUSE', label: '자가' },
@@ -372,30 +373,31 @@ export default function ProcessPage() {
         ) : processes.length === 0 ? (
           <p>등록된 공정이 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ID</th>
+                <th className="num">ID</th>
                 {showItemColumn && <th>품목</th>}
-                <th>순번</th>
+                <th className="num">순번</th>
                 <th>공정</th>
                 <th>작업구분</th>
                 <th>작업장</th>
-                <th>발주%</th>
-                <th>진척%</th>
+                <th className="num">발주%</th>
+                <th className="num">진척%</th>
                 <th>작업</th>
               </tr>
             </thead>
             <tbody>
               {processes.map((process) => (
                 <tr key={process.id} className={editingId === process.id ? 'row-editing' : undefined}>
-                  <td>{process.id}</td>
+                  <td className="num">{formatInteger(process.id)}</td>
                   {showItemColumn && (
                     <td>
                       {process.itemNo} — {process.itemName}
                     </td>
                   )}
-                  <td>{process.processSequenceNum}</td>
+                  <td className="num">{formatInteger(process.processSequenceNum)}</td>
                   <td>
                     {process.processCode} — {process.processName}
                   </td>
@@ -404,8 +406,8 @@ export default function ProcessPage() {
                       process.workDistinction}
                   </td>
                   <td>{process.wcName ?? '—'}</td>
-                  <td>{process.outsideOrderRate}</td>
-                  <td>{process.progressRate}</td>
+                  <td className="num">{formatInteger(process.outsideOrderRate)}</td>
+                  <td className="num">{formatInteger(process.progressRate)}</td>
                   <td className="actions">
                     <button type="button" className="btn-action" onClick={() => startEdit(process)}>
                       수정
@@ -422,6 +424,7 @@ export default function ProcessPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>

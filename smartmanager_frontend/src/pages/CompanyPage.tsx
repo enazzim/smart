@@ -3,6 +3,7 @@ import type { Company, CompanyRoleType, CreateCompanyRequest, UpdateCompanyReque
 import { createCompany, deleteCompany, fetchCompanies, updateCompany } from '../api/company';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import { formatInteger } from '../utils/numberFormat';
 
 const ROLE_OPTIONS: { value: CompanyRoleType; label: string }[] = [
   { value: 'SALES', label: '판매' },
@@ -265,10 +266,11 @@ export default function CompanyPage() {
         ) : displayedCompanies.length === 0 ? (
           <p>검색 조건에 맞는 거래처가 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ID</th>
+                <th className="num">ID</th>
                 <th>상호</th>
                 <th>사업자번호</th>
                 <th>대표자</th>
@@ -279,7 +281,7 @@ export default function CompanyPage() {
             <tbody>
               {displayedCompanies.map((c) => (
                 <tr key={c.id} className={editingId === c.id ? 'row-editing' : undefined}>
-                  <td>{c.id}</td>
+                  <td className="num">{formatInteger(c.id)}</td>
                   <td>{c.companyName}</td>
                   <td>{c.businessRegNo}</td>
                   <td>{c.presidentName}</td>
@@ -296,6 +298,7 @@ export default function CompanyPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>

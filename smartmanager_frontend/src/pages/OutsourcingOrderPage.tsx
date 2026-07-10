@@ -9,14 +9,7 @@ import {
   type OutsourcingOrderListParams,
   type WorkPlanOutsourceCandidate,
 } from '../api/outsourcingOrder';
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
-}
-
-function formatAmount(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
+import { formatAmount, formatQty } from '../utils/numberFormat';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -308,8 +301,8 @@ export default function OutsourcingOrderPage() {
                   <th>계획번호</th>
                   <th>품목</th>
                   <th>공정</th>
-                  <th>계획수량</th>
-                  <th>잔량</th>
+                  <th className="num">계획수량</th>
+                  <th className="num">잔량</th>
                   <th>거래처</th>
                   <th>상태</th>
                 </tr>
@@ -369,8 +362,8 @@ export default function OutsourcingOrderPage() {
                         <td>
                           {row.processCode} {row.processName}
                         </td>
-                        <td>{formatQty(row.plannedQty)}</td>
-                        <td>{formatQty(row.remainingQty)}</td>
+                        <td className="num">{formatQty(row.plannedQty)}</td>
+                        <td className="num">{formatQty(row.remainingQty)}</td>
                         <td>{vendorCount > 0 ? `${vendorCount}곳` : '—'}</td>
                         <td>{row.orderable ? '발주가능' : row.orderableMessage ?? '불가'}</td>
                       </tr>
@@ -383,10 +376,10 @@ export default function OutsourcingOrderPage() {
                                   <th />
                                   <th>거래처</th>
                                   <th>공정구간</th>
-                                  <th>발주비율</th>
-                                  <th>발주수량</th>
-                                  <th>단가</th>
-                                  <th>금액</th>
+                                  <th className="num">발주비율</th>
+                                  <th className="num">발주수량</th>
+                                  <th className="num">단가</th>
+                                  <th className="num">금액</th>
                                   <th>납기</th>
                                 </tr>
                               </thead>
@@ -411,10 +404,10 @@ export default function OutsourcingOrderPage() {
                                       <td>
                                         {vendor.beginProcessName} ~ {vendor.endProcessName}
                                       </td>
-                                      <td>{formatQty(vendor.orderRate)}%</td>
-                                      <td>{formatQty(vendor.orderQty)}</td>
-                                      <td>{formatAmount(vendor.unitPrice)}</td>
-                                      <td>{formatAmount(vendor.amount)}</td>
+                                      <td className="num">{formatQty(vendor.orderRate)}%</td>
+                                      <td className="num">{formatQty(vendor.orderQty)}</td>
+                                      <td className="num">{formatAmount(vendor.unitPrice)}</td>
+                                      <td className="num">{formatAmount(vendor.amount)}</td>
                                       <td>{vendor.requestedDeliveryDate ?? '—'}</td>
                                     </tr>
                                   );

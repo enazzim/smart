@@ -24,6 +24,7 @@ import {
   INVENTORY_LOCATION_LABEL,
   translateInventoryLocationInText,
 } from '../utils/inventoryLocation';
+import { formatQty } from '../utils/numberFormat';
 
 const ADVANCE_PARENT_CLASSES: PropertyClassification[] = ['제품', '공정품'];
 
@@ -56,10 +57,6 @@ function addDaysIso(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
 function parseQty(value: string): number | null {
@@ -538,8 +535,8 @@ export default function OutsourcingShipmentPage() {
                   <th>공정</th>
                   <th>분류</th>
                   <th>창고</th>
-                  <th>투입수량</th>
-                  <th>현재고</th>
+                  <th className="num">투입수량</th>
+                  <th className="num">현재고</th>
                 </tr>
               </thead>
               <tbody>
@@ -552,7 +549,7 @@ export default function OutsourcingShipmentPage() {
                     <td>{line.inputProcessName || '-'}</td>
                     <td>{line.propertyClassification}</td>
                     <td>{formatInventoryLocation(line.sourceLocationCode)}</td>
-                    <td className="issue-qty-cell">
+                    <td className="num issue-qty-cell">
                       {editingAdvanceLineKey === line.lineKey ? (
                         <input
                           ref={advanceQtyInputRef}
@@ -579,7 +576,7 @@ export default function OutsourcingShipmentPage() {
                         </span>
                       )}
                     </td>
-                    <td>{formatQty(line.onHandQty)}</td>
+                    <td className="num">{formatQty(line.onHandQty)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -627,9 +624,9 @@ export default function OutsourcingShipmentPage() {
                   <th>거래처</th>
                   <th>품목</th>
                   <th>공정구간</th>
-                  <th>발주수량</th>
-                  <th>출고수량</th>
-                  <th>잔량</th>
+                  <th className="num">발주수량</th>
+                  <th className="num">출고수량</th>
+                  <th className="num">잔량</th>
                   <th>출고수량 입력</th>
                   <th>상태</th>
                 </tr>
@@ -668,9 +665,9 @@ export default function OutsourcingShipmentPage() {
                         <td>
                           {row.beginProcessName} ~ {row.endProcessName}
                         </td>
-                        <td>{formatQty(row.orderQty)}</td>
-                        <td>{formatQty(row.shippedQty)}</td>
-                        <td>{formatQty(row.remainingQty)}</td>
+                        <td className="num">{formatQty(row.orderQty)}</td>
+                        <td className="num">{formatQty(row.shippedQty)}</td>
+                        <td className="num">{formatQty(row.remainingQty)}</td>
                         <td>
                           <input
                             type="number"
@@ -702,8 +699,8 @@ export default function OutsourcingShipmentPage() {
                                     <th>공정</th>
                                     <th>분류</th>
                                     <th>창고</th>
-                                    <th>투입수량</th>
-                                    <th>현재고</th>
+                                    <th className="num">투입수량</th>
+                                    <th className="num">현재고</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -716,8 +713,8 @@ export default function OutsourcingShipmentPage() {
                                       <td>{line.inputProcessName || '-'}</td>
                                       <td>{line.propertyClassification}</td>
                                       <td>{formatInventoryLocation(line.sourceLocationCode)}</td>
-                                      <td>{formatQty(line.issueQty)}</td>
-                                      <td>{formatQty(line.onHandQty)}</td>
+                                      <td className="num">{formatQty(line.issueQty)}</td>
+                                      <td className="num">{formatQty(line.onHandQty)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -797,7 +794,7 @@ export default function OutsourcingShipmentPage() {
                   <th>출고일</th>
                   <th>거래처</th>
                   <th>품목·공정</th>
-                  <th>출고수량</th>
+                  <th className="num">출고수량</th>
                   <th>상태</th>
                   <th />
                 </tr>
@@ -822,7 +819,7 @@ export default function OutsourcingShipmentPage() {
                         </div>
                       ))}
                     </td>
-                    <td>{formatQty(shipment.lines.reduce((sum, line) => sum + line.shipmentQty, 0))}</td>
+                    <td className="num">{formatQty(shipment.lines.reduce((sum, line) => sum + line.shipmentQty, 0))}</td>
                     <td>{shipment.statusLabel}</td>
                     <td>
                       {shipment.cancelable && (

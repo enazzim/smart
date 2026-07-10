@@ -10,6 +10,7 @@ import {
   type EtcPurchaseOrder,
   type EtcPurchaseOrderListParams,
 } from '../api/etcPurchase';
+import { formatAmount, formatQty } from '../utils/numberFormat';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -19,14 +20,6 @@ function addDaysIso(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
-}
-
-function formatAmount(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 function parseNumber(value: string): number | null {
@@ -408,6 +401,7 @@ export default function EtcPurchaseOrderPage() {
         ) : rows.length === 0 ? (
           <p>조건에 맞는 기타구매발주가 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -436,10 +430,10 @@ export default function EtcPurchaseOrderPage() {
                 <th>거래처</th>
                 <th>발주일</th>
                 <th>품목명</th>
-                <th>단가</th>
-                <th>주문량</th>
-                <th>잔량</th>
-                <th>총금액</th>
+                <th className="num">단가</th>
+                <th className="num">주문량</th>
+                <th className="num">잔량</th>
+                <th className="num">총금액</th>
                 <th>납기요구일</th>
                 <th>상태</th>
                 <th>관리</th>
@@ -461,10 +455,10 @@ export default function EtcPurchaseOrderPage() {
                   <td>{row.partnerName}</td>
                   <td>{row.orderDate}</td>
                   <td>{row.itemName}</td>
-                  <td>{formatAmount(row.unitPrice)}</td>
-                  <td>{formatQty(row.orderQty)}</td>
-                  <td>{formatQty(row.remainQty)}</td>
-                  <td>{formatAmount(row.amount)}</td>
+                  <td className="num">{formatAmount(row.unitPrice)}</td>
+                  <td className="num">{formatQty(row.orderQty)}</td>
+                  <td className="num">{formatQty(row.remainQty)}</td>
+                  <td className="num">{formatAmount(row.amount)}</td>
                   <td>{row.requestedDeliveryDate}</td>
                   <td>{row.statusLabel}</td>
                   <td className="actions">
@@ -489,6 +483,7 @@ export default function EtcPurchaseOrderPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>

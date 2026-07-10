@@ -1,6 +1,7 @@
 # D5 — Lot 추적 (`LotLedger` → `inventory_lot`)
 
-> Step 0 산출물 · **초안 v0.1** (문서·스키마만 — **구현은 Part 06·외주단가 Projector 정합 이후**)  
+> Step 0 산출물 · **초안 v0.2** (문서·스키마 — **구현 미착수**)  
+> **실무 연동 설계:** [`lot-integration-design.md`](./lot-integration-design.md) ← **구현 시 SSOT**  
 > 레거시: `LotNumberManagement.aspx` · `DSLoad.xsd` `LotLedger`  
 > SmartManager: `inventory_lot` + `inventory_lot_balance` + `stock_movement.lot_id` + `lot_genealogy`  
 > **관련:** [`inventory-ledger-spec.md`](../../results/sample/inventory-ledger-spec.md) · [`domain-event-projector-matrix.md`](./domain-event-projector-matrix.md) · [`d4-item.md`](./d4-item.md) · 스키마 초안 [`schema-drafts/V007__lot_traceability.sql`](./schema-drafts/V007__lot_traceability.sql)
@@ -11,10 +12,10 @@
 
 | 단계 | 내용 | 상태 |
 |------|------|------|
-| **A** | 본 문서 + `schema-drafts/` SQL 초안 | **v0.1 초안** |
-| **B** | Part 06 — `OutsourceInputBalanceProjector` 400·BOM·문서 정합 | **다음 작업 (Lot 이전)** |
-| **C** | `stock_movement` · `inventory_balance_monthly` Flyway (sample INF-1) | Lot 선행 |
-| **D** | `V007` Flyway 적용 · Lot API·TX 연동 (TX1 구매입고부터) | B·C 이후 |
+| **A** | 본 문서 + `schema-drafts/` SQL 초안 | **v0.2** |
+| **B** | `stock_movement` · `inventory_balance_monthly` Flyway | **✅ V028 적용됨** |
+| **C** | [`lot-integration-design.md`](./lot-integration-design.md) 연동 설계 확정 | **v1.0** |
+| **D** | Flyway V070+ · Lot API·TX 연동 (LOT-1~) | **미착수** |
 
 **원칙:** Projector가 만드는 것은 **재고 슬롯**(`inventory_balance`)이며, Lot 번호·계보는 **트랜잭션(TX) + `stock_movement`** 에서만 생성·이동한다.  
 외주단가 등록(`OutsourceInputBalanceProjector`)과 Lot는 **독립**이다.

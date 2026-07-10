@@ -15,6 +15,7 @@ import {
   type ProductionPlanSearchParams,
   type ProductionPlanWorkPlanStatus,
 } from '../api/productionPlan';
+import { formatQty } from '../utils/numberFormat';
 
 const PLAN_ITEM_CLASSES: PropertyClassification[] = ['제품', '공정품'];
 
@@ -29,10 +30,6 @@ const PLAN_WORK_PLAN_STATUS_OPTIONS: { value: ProductionPlanWorkPlanStatus | '';
   { value: 'NOT_PLANNED', label: '미수립' },
   { value: 'PLANNED', label: '수립' },
 ];
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
-}
 
 export default function ProductionPlanPage() {
   const [candidates, setCandidates] = useState<SalesOrderLineListRow[]>([]);
@@ -349,6 +346,7 @@ export default function ProductionPlanPage() {
         ) : candidates.length === 0 ? (
           <p>수립 대기 중인 수주 라인이 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -363,8 +361,8 @@ export default function ProductionPlanPage() {
                 <th>수주번호</th>
                 <th>거래처</th>
                 <th>품목</th>
-                <th>수주수량</th>
-                <th>계획수량</th>
+                <th className="num">수주수량</th>
+                <th className="num">계획수량</th>
                 <th>납기요구일</th>
                 <th>납품상태</th>
                 <th>수주일</th>
@@ -386,8 +384,8 @@ export default function ProductionPlanPage() {
                   <td>
                     {row.itemNo} — {row.itemName}
                   </td>
-                  <td>{formatQty(row.orderQty)}</td>
-                  <td>
+                  <td className="num">{formatQty(row.orderQty)}</td>
+                  <td className="num">
                     <input
                       type="number"
                       min={0.0001}
@@ -414,6 +412,7 @@ export default function ProductionPlanPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 
@@ -496,6 +495,7 @@ export default function ProductionPlanPage() {
         ) : filteredPlans.length === 0 ? (
           <p>등록된 생산계획이 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -504,8 +504,8 @@ export default function ProductionPlanPage() {
                 <th>수주번호</th>
                 <th>거래처</th>
                 <th>품목</th>
-                <th>계획수량</th>
-                <th>생산수량</th>
+                <th className="num">계획수량</th>
+                <th className="num">생산수량</th>
                 <th>납기요구일</th>
                 <th>자재소요</th>
                 <th>작업계획</th>
@@ -523,8 +523,8 @@ export default function ProductionPlanPage() {
                   <td>
                     {plan.itemNo} — {plan.itemName}
                   </td>
-                  <td>{formatQty(plan.plannedQty)}</td>
-                  <td>{formatQty(plan.producedQty)}</td>
+                  <td className="num">{formatQty(plan.plannedQty)}</td>
+                  <td className="num">{formatQty(plan.producedQty)}</td>
                   <td>{plan.requestedDeliveryDate ?? '—'}</td>
                   <td>{plan.mrpStatusLabel}</td>
                   <td>{plan.workPlanStatusLabel}</td>
@@ -545,6 +545,7 @@ export default function ProductionPlanPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>

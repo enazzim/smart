@@ -11,6 +11,7 @@ import {
 import type { WorkCenter } from '../api/process';
 import { fetchWorkCenters } from '../api/process';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import { formatInteger } from '../utils/numberFormat';
 
 const emptyForm: CreateEquipmentRequest = {
   equipmentNum: '',
@@ -310,6 +311,7 @@ export default function EquipmentPage() {
         ) : equipmentList.length === 0 ? (
           <p>등록된 설비가 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -317,9 +319,9 @@ export default function EquipmentPage() {
                 <th>설비명</th>
                 <th>분류</th>
                 <th>작업장</th>
-                <th>설계샷</th>
-                <th>누계샷</th>
-                <th>작업샷</th>
+                <th className="num">설계샷</th>
+                <th className="num">누계샷</th>
+                <th className="num">작업샷</th>
                 <th>교체</th>
                 <th>작업</th>
               </tr>
@@ -331,9 +333,9 @@ export default function EquipmentPage() {
                   <td>{eq.equipmentName}</td>
                   <td>{eq.equipmentCategoryName}</td>
                   <td>{eq.wcName ?? '—'}</td>
-                  <td>{eq.designShot.toLocaleString()}</td>
-                  <td>{eq.accumulatedShot.toLocaleString()}</td>
-                  <td>{eq.workShot.toLocaleString()}</td>
+                  <td className="num">{formatInteger(eq.designShot)}</td>
+                  <td className="num">{formatInteger(eq.accumulatedShot)}</td>
+                  <td className="num">{formatInteger(eq.workShot)}</td>
                   <td>{eq.replacementDue ? '필요' : '—'}</td>
                   <td className="actions">
                     <button type="button" className="btn-action" onClick={() => startEdit(eq)}>
@@ -347,6 +349,7 @@ export default function EquipmentPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>

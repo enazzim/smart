@@ -10,6 +10,7 @@ import {
   type PartnerPaymentCostCategory,
   type PartnerPaymentListParams,
 } from '../api/partnerPayment';
+import { formatAmount } from '../utils/numberFormat';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -19,10 +20,6 @@ function addDaysIso(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function formatAmount(value: number): string {
-  return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 function parseAmount(value: string): number | null {
@@ -212,10 +209,10 @@ export default function PartnerPaymentPage() {
                   <th />
                   <th>거래처</th>
                   <th>사업자번호</th>
-                  <th>구매발생</th>
-                  <th>외주발생</th>
-                  <th>지급합계</th>
-                  <th>미지급잔액</th>
+                  <th className="num">구매발생</th>
+                  <th className="num">외주발생</th>
+                  <th className="num">지급합계</th>
+                  <th className="num">미지급잔액</th>
                 </tr>
               </thead>
               <tbody>
@@ -236,10 +233,10 @@ export default function PartnerPaymentPage() {
                     </td>
                     <td>{row.partnerName}</td>
                     <td>{row.partnerBusinessRegNo}</td>
-                    <td>{formatAmount(row.purchasePayableAmount)}</td>
-                    <td>{formatAmount(row.outsourcePayableAmount)}</td>
-                    <td>{formatAmount(row.paidAmount)}</td>
-                    <td>{formatAmount(row.unpaidAmount)}</td>
+                    <td className="num">{formatAmount(row.purchasePayableAmount)}</td>
+                    <td className="num">{formatAmount(row.outsourcePayableAmount)}</td>
+                    <td className="num">{formatAmount(row.paidAmount)}</td>
+                    <td className="num">{formatAmount(row.unpaidAmount)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -384,9 +381,9 @@ export default function PartnerPaymentPage() {
                   <th>지급일</th>
                   <th>거래처</th>
                   <th>구분</th>
-                  <th>공급가</th>
-                  <th>부가세</th>
-                  <th>총액</th>
+                  <th className="num">공급가</th>
+                  <th className="num">부가세</th>
+                  <th className="num">총액</th>
                   <th>결제수단</th>
                   <th>상태</th>
                   <th />
@@ -399,9 +396,9 @@ export default function PartnerPaymentPage() {
                     <td>{payment.paymentDate}</td>
                     <td>{payment.partnerName}</td>
                     <td>{payment.costCategoryLabel}</td>
-                    <td>{formatAmount(payment.supplyAmount)}</td>
-                    <td>{formatAmount(payment.vatAmount)}</td>
-                    <td>{formatAmount(payment.totalAmount)}</td>
+                    <td className="num">{formatAmount(payment.supplyAmount)}</td>
+                    <td className="num">{formatAmount(payment.vatAmount)}</td>
+                    <td className="num">{formatAmount(payment.totalAmount)}</td>
                     <td>{payment.paymentMethod ?? '-'}</td>
                     <td>{payment.statusLabel}</td>
                     <td>

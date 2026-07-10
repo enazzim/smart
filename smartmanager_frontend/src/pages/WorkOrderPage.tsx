@@ -8,10 +8,7 @@ import {
   type WorkOrderListParams,
 } from '../api/workOrder';
 import GridExcelExportButton from '../components/GridExcelExportButton';
-
-function formatQty(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 4 });
-}
+import { formatQty } from '../utils/numberFormat';
 
 export default function WorkOrderPage() {
   const [targets, setTargets] = useState<WorkOrder[]>([]);
@@ -177,7 +174,7 @@ export default function WorkOrderPage() {
                     <th>품목</th>
                     <th>공정</th>
                     <th>작업장</th>
-                    <th>지시수량</th>
+                    <th className="num">지시수량</th>
                     <th>시작일</th>
                   </tr>
                 </thead>
@@ -203,7 +200,7 @@ export default function WorkOrderPage() {
                         </td>
                         <td>{row.processName}</td>
                         <td>{row.workCenterName ?? '—'}</td>
-                        <td>{formatQty(row.orderedQty)}</td>
+                        <td className="num">{formatQty(row.orderedQty)}</td>
                         <td>{row.planStartDate ?? '—'}</td>
                       </tr>
                     ))
@@ -250,9 +247,9 @@ export default function WorkOrderPage() {
                     <th>품목</th>
                     <th>공정</th>
                     <th>작업장</th>
-                    <th>지시</th>
-                    <th>실적</th>
-                    <th>잔량</th>
+                    <th className="num">지시</th>
+                    <th className="num">실적</th>
+                    <th className="num">잔량</th>
                     <th>상태</th>
                     <th />
                   </tr>
@@ -272,9 +269,9 @@ export default function WorkOrderPage() {
                         </td>
                         <td>{row.processName}</td>
                         <td>{row.workCenterName ?? '—'}</td>
-                        <td>{formatQty(row.orderedQty)}</td>
-                        <td>{formatQty(row.reportedQty)}</td>
-                        <td>{formatQty(row.remainingQty)}</td>
+                        <td className="num">{formatQty(row.orderedQty)}</td>
+                        <td className="num">{formatQty(row.reportedQty)}</td>
+                        <td className="num">{formatQty(row.remainingQty)}</td>
                         <td>{row.statusLabel}</td>
                         <td>
                           {row.cancellable && (

@@ -9,6 +9,7 @@ import {
   updateWorkCenter,
 } from '../api/workCenter';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import { formatInteger } from '../utils/numberFormat';
 
 const emptyForm: CreateWorkCenterRequest = {
   wcName: '',
@@ -231,23 +232,24 @@ export default function WorkCenterPage() {
         ) : workCenters.length === 0 ? (
           <p>등록된 작업장이 없습니다.</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ID</th>
+                <th className="num">ID</th>
                 <th>작업장명</th>
                 <th>대표공정</th>
-                <th>가동시간(분)</th>
+                <th className="num">가동시간(분)</th>
                 <th>작업</th>
               </tr>
             </thead>
             <tbody>
               {workCenters.map((wc) => (
                 <tr key={wc.id} className={editingId === wc.id ? 'row-editing' : undefined}>
-                  <td>{wc.id}</td>
+                  <td className="num">{formatInteger(wc.id)}</td>
                   <td>{wc.wcName}</td>
                   <td>{formatProcessLabel(wc.mainProcessCode, wc.mainProcessName)}</td>
-                  <td>{wc.operationTime}</td>
+                  <td className="num">{formatInteger(wc.operationTime)}</td>
                   <td className="actions">
                     <button type="button" className="btn-action" onClick={() => startEdit(wc)}>
                       수정
@@ -260,6 +262,7 @@ export default function WorkCenterPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>
