@@ -66,11 +66,7 @@ public class MariaDbBackupService {
         Path target = backupDirectory.resolve(fileName);
         JdbcTarget targetDb = parseJdbcUrl(jdbcUrl);
         String dumpExecutable = resolveExecutable("mariadb-dump");
-        if (!Files.isRegularFile(Path.of(dumpExecutable)) && !isOnPath(dumpExecutable)) {
-            throw new IllegalStateException(
-                    "mariadb-dump를 찾을 수 없습니다. MariaDB bin 경로를 smartmanager.backup.mariadb-bin-dir 에 설정해 주세요."
-            );
-        }
+        ensureExecutableAvailable(dumpExecutable, "mariadb-dump");
         List<String> command = new ArrayList<>();
         command.add(dumpExecutable);
         command.add("-h");
@@ -112,7 +108,9 @@ public class MariaDbBackupService {
         Path path = resolveBackupFile(fileName);
         JdbcTarget targetDb = parseJdbcUrl(jdbcUrl);
         List<String> command = new ArrayList<>();
-        command.add(resolveExecutable("mariadb"));
+        String mariadbExecutable = resolveExecutable("mariadb");
+        ensureExecutableAvailable(mariadbExecutable, "mariadb");
+        command.add(mariadbExecutable);
         command.add("-h");
         command.add(targetDb.host());
         if (targetDb.port() != null) {
@@ -189,24 +187,86 @@ public class MariaDbBackupService {
         }
     }
 
-    private static boolean isOnPath(String executable) {
+    private void ensureExecutableAvailable(String executable, String toolName) {
+        if (Files.isRegularFile(Path.of(executable))) {
+            return;
+        }
+        if (isBareCommand(executable)) {
+            return;
+        }
+        throw new IllegalStateException(
+                toolName + "를 찾을 수 없습니다. MariaDB 클라이언트를 설치하고 "
+                        + toolName + "가 시스템 PATH에 등록되어 있는지 확인해 주세요."
+        );
+    }
+
+    private static boolean isBareCommand(String executable) {
         return !executable.contains("/") && !executable.contains("\\");
     }
 
     private String resolveExecutable(String name) {
-        String suffix = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win") ? ".exe" : "";
+        String onSystemPath = findOnSystemPath(name);
+        if (onSystemPath != null) {
+            return onSystemPath;
+        }
+
+        String suffix = isWindows() ? ".exe" : "";
         if (mariadbBinDir != null && !mariadbBinDir.isBlank()) {
-            return Path.of(mariadbBinDir, name + suffix).toString();
+            Path configured = Path.of(mariadbBinDir, name + suffix);
+            if (Files.isRegularFile(configured)) {
+                return configured.toString();
+            }
         }
-        Path fromPath = findOnWindows(name, suffix);
-        if (fromPath != null) {
-            return fromPath.toString();
+
+        Path fromWindows = findOnWindows(name, suffix);
+        if (fromWindows != null) {
+            return fromWindows.toString();
         }
+
         return name;
     }
 
+    private static String findOnSystemPath(String name) {
+        if (isWindows()) {
+            String found = runPathLookup(List.of("where", name));
+            if (found != null) {
+                return found;
+            }
+            return runPathLookup(List.of("where", name + ".exe"));
+        }
+        return runPathLookup(List.of("which", name));
+    }
+
+    private static String runPathLookup(List<String> command) {
+        try {
+            Process process = new ProcessBuilder(command)
+                    .redirectErrorStream(true)
+                    .start();
+            String output = new String(process.getInputStream().readAllBytes()).trim();
+            int exitCode = process.waitFor();
+            if (exitCode != 0 || output.isBlank()) {
+                return null;
+            }
+            for (String line : output.split("\\R")) {
+                Path candidate = Path.of(line.trim());
+                if (Files.isRegularFile(candidate)) {
+                    return candidate.toString();
+                }
+            }
+        } catch (IOException | InterruptedException ex) {
+            if (ex instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        return null;
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
     private static Path findOnWindows(String name, String suffix) {
-        if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) {
+        if (!isWindows()) {
             return null;
         }
         String fileName = name + suffix;

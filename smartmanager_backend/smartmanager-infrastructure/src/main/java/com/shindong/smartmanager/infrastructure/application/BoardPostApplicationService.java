@@ -36,8 +36,8 @@ public class BoardPostApplicationService {
     }
 
     @Transactional
-    public BoardPostDetailView getDetail(long postId) {
-        return boardPostService.getDetail(postId, true);
+    public BoardPostDetailView getDetail(long postId, long actorUserId) {
+        return boardPostService.getDetail(postId, actorUserId, true);
     }
 
     @Transactional

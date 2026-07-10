@@ -12,4 +12,6 @@ public interface SpringDataPurchaseHistoryRepository extends JpaRepository<Purch
             long sourceId,
             int recordingState
     );
+
+    Optional<PurchaseHistoryJpaEntity> findByIdAndRecordingState(long id, int recordingState);
 }

@@ -860,6 +860,24 @@ th.num {
   text-align: center;
 }
 
+.fiscal-period-cell {
+  padding: 0.25rem 0.35rem;
+  vertical-align: middle;
+}
+
+.fiscal-period-field-table {
+  width: 4.25rem;
+  min-width: 4.25rem;
+  text-align: center;
+  background: #eef4fc;
+  cursor: pointer;
+  padding: 0.2rem 0.35rem;
+}
+
+.fiscal-period-field-table:hover {
+  background: #e0ecfa;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -1399,6 +1417,26 @@ th.num {
 
 .panel-header-row > button:not(.secondary):hover:not(:disabled) {
   background: var(--sm-blue-700);
+}
+
+.panel-header-row .btn-grid-excel {
+  padding: 0.52rem 1.1rem;
+  background: var(--sm-blue-600);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.panel-header-row .btn-grid-excel:hover:not(:disabled) {
+  background: var(--sm-blue-700);
+}
+
+.panel-header-row .btn-grid-excel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .panel-header-row > button:disabled {
@@ -2565,4 +2603,55 @@ table.nested-table td {
   .sales-order-search-actions button {
     flex: 1;
   }
+}
+
+/* 조회 전용(VIEWER): 등록·수정·삭제 UI 숨김 */
+.read-only-banner {
+  margin: 0 0 1rem;
+  padding: 0.65rem 1rem;
+  background: #fff8e6;
+  border: 1px solid #f0d78c;
+  border-radius: 8px;
+  color: #7a5b00;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.app-read-only .app-main .panel:has(> form:not([data-allow-write])) {
+  display: none;
+}
+
+.app-read-only .app-main td.actions,
+.app-read-only .app-main td.actions .btn-action,
+.app-read-only .app-main .btn-action,
+.app-read-only .app-main .form-actions:not(:has([data-allow-write])) {
+  display: none !important;
+}
+
+.app-read-only .app-main .page-header > button:not(.secondary):not(.link-button):not(.danger-link),
+.app-read-only .app-main .page-header .inline-actions > button:not(.secondary):not(.link-button),
+.app-read-only .app-main .filter-panel > button:not(.secondary):not(.link-button),
+.app-read-only .app-main .board-toolbar > button:not(.secondary):not(.link-button),
+.app-read-only .app-main .board-actions > button:not(.secondary):not(.link-button):not(.danger),
+.app-read-only .app-main .panel-header-row > button.btn-grid-excel {
+  display: inline-flex !important;
+}
+
+.app-read-only .app-main .panel-header-row > button:not(.secondary),
+.app-read-only .app-main .action-bar > button:not(.secondary),
+.app-read-only .app-main .modal-actions > button:not(.secondary),
+.app-read-only .app-main button.danger-link {
+  display: none !important;
+}
+
+.app-read-only .app-main .panel table button {
+  display: none !important;
+}
+
+.app-read-only .app-main form[data-allow-write] .form-actions {
+  display: flex !important;
+}
+
+.app-read-only .app-main form[data-allow-write] .form-actions button {
+  display: inline-flex !important;
 }

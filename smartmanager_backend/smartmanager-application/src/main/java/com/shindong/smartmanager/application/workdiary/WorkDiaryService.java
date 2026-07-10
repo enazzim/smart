@@ -91,6 +91,12 @@ public class WorkDiaryService {
         );
     }
 
+    public boolean isApprover(long actorUserId) {
+        return userRepository.findActiveById(actorUserId)
+                .map(user -> user.roleCodes().contains("SYSTEM_ADMIN"))
+                .orElse(false);
+    }
+
     public WorkDiaryPageView list(WorkDiaryListCriteria criteria) {
         var items = workDiaryRepository.findActiveEntries(criteria).stream()
                 .map(this::toListItemView)
@@ -160,7 +166,7 @@ public class WorkDiaryService {
         var entry = workDiaryRepository.findActiveEntryById(id)
                 .orElseThrow(() -> new IllegalArgumentException("업무일지를 찾을 수 없습니다: " + id));
         assertCanEdit(entry, actorUserId);
-        workDiaryRepository.softDeleteEntry(id, actorLoginId, actorUserIdText);
+        workDiaryRepository.deleteEntry(id);
     }
 
     public WorkDiarySubmitResult submit(SubmitWorkDiaryCommand command) {
@@ -182,6 +188,7 @@ public class WorkDiaryService {
     }
 
     public WorkDiaryApproveResult approve(ApproveWorkDiaryCommand command) {
+        assertApprover(command.actorUserId());
         var entry = workDiaryRepository.findActiveEntryById(command.id())
                 .orElseThrow(() -> new IllegalArgumentException("업무일지를 찾을 수 없습니다: " + command.id()));
         if (entry.status() == WorkDiaryStatus.APPROVED) {
@@ -211,6 +218,7 @@ public class WorkDiaryService {
     }
 
     public WorkDiaryCancelApprovalResult cancelApproval(CancelWorkDiaryApprovalCommand command) {
+        assertApprover(command.actorUserId());
         var entry = workDiaryRepository.findActiveEntryById(command.id())
                 .orElseThrow(() -> new IllegalArgumentException("업무일지를 찾을 수 없습니다: " + command.id()));
         if (entry.status() != WorkDiaryStatus.APPROVED) {
@@ -254,10 +262,7 @@ public class WorkDiaryService {
     private void assertCanEdit(WorkDiaryRepository.WorkDiaryEntryRecord entry, long actorUserId) {
         assertOwner(entry, actorUserId);
         if (!canAuthorEdit(entry)) {
-            if (entry.status() == WorkDiaryStatus.APPROVED) {
-                throw new IllegalStateException("결재 완료된 업무일지는 수정/삭제할 수 없습니다.");
-            }
-            throw new IllegalStateException("제출된 업무일지는 수정/삭제할 수 없습니다.");
+            throw new IllegalStateException("결재 완료된 업무일지는 수정/삭제할 수 없습니다.");
         }
     }
 
@@ -265,10 +270,15 @@ public class WorkDiaryService {
         if (entry.status() == WorkDiaryStatus.APPROVED) {
             return false;
         }
-        if (entry.status() == WorkDiaryStatus.SUBMITTED) {
-            return entry.approvalCanceledAt() != null;
+        return entry.status() == WorkDiaryStatus.DRAFT
+                || entry.status() == WorkDiaryStatus.SUBMITTED
+                || entry.status() == WorkDiaryStatus.REJECTED;
+    }
+
+    private void assertApprover(long actorUserId) {
+        if (!isApprover(actorUserId)) {
+            throw new IllegalStateException("업무일지 결재 권한이 없습니다.");
         }
-        return entry.status() == WorkDiaryStatus.DRAFT || entry.status() == WorkDiaryStatus.REJECTED;
     }
 
     private void assertOwner(WorkDiaryRepository.WorkDiaryEntryRecord entry, long actorUserId) {

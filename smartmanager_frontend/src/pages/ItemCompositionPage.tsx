@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PropertyClassification } from '../api/item';
 import type {
   BomTreeNode,
@@ -15,6 +15,7 @@ import {
   updateItemComposition,
 } from '../api/itemComposition';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import { downloadExplosionExcel, downloadReverseExcel } from '../utils/bomExcelExport';
 
 const PARENT_CLASSES: PropertyClassification[] = ['제품', '상품', '공정품'];
@@ -94,6 +95,19 @@ export default function ItemCompositionPage() {
   const [copyTarget, setCopyTarget] = useState<ItemSearchSelection | null>(null);
 
   const isEditing = editingId !== null;
+
+  const bomExportRows = useMemo(
+    () =>
+      rows.map((row) => ({
+        모품목: row.parentItemNo,
+        모품목명: row.parentItemName,
+        자품목: row.childItemNo,
+        자품목명: row.childItemName,
+        모품수량: row.parentQuantity,
+        자품수량: row.childQuantity,
+      })),
+    [rows],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -376,7 +390,10 @@ export default function ItemCompositionPage() {
       </section>
 
       <section className="panel">
-        <h2>품목구성 목록</h2>
+        <div className="panel-header-row">
+          <h2>품목구성 목록</h2>
+          <GridExcelExportButton fileBaseName="품목구성목록" disabled={loading} rows={bomExportRows} />
+        </div>
         <div className="bom-toolbar">
           <div className="search-row">
             <ItemSearchField

@@ -6,6 +6,7 @@ import { setSessionExpiredHandler } from './api/http';
 import LoginPage from './pages/LoginPage';
 import AppShell, { type AppSelection } from './layout/AppShell';
 import type { BoardScreen } from './pages/BoardPage';
+import { AuthProvider } from './context/AuthContext';
 import { MaterialIssueSettingProvider } from './context/MaterialIssueSettingContext';
 import { isSelectionVisible } from './layout/menuAccess';
 import {
@@ -139,7 +140,7 @@ export default function App() {
     if (!currentUser) {
       return;
     }
-    if (!isSelectionVisible(selection, currentUser.roleCodes)) {
+    if (!isSelectionVisible(selection, currentUser.roleCodes, currentUser.authorities)) {
       setSelection({ category: 'home' });
       setExpandedCategory('home');
     }
@@ -279,26 +280,28 @@ export default function App() {
       negativeStockAllowed={negativeStockAllowed}
       setNegativeStockAllowed={setNegativeStockAllowed}
     >
-      <AppShell
-        currentUser={currentUser}
-        selection={selection}
-        expandedCategory={expandedCategory}
-        materialIssueEnabled={materialIssueEnabled}
-        onSelectCategory={onSelectCategory}
-        onSelectChild={onSelectChild}
-        onLogout={onLogout}
-        onNavigateHome={onNavigateHome}
-        onOpenBoardList={onOpenBoardList}
-        onOpenBoardPost={onOpenBoardPost}
-        onBoardNavigateList={onBoardNavigateList}
-        onBoardNavigateDetail={onBoardNavigateDetail}
-        onBoardNavigateCompose={onBoardNavigateCompose}
-        onOpenWorkDiaryList={onOpenWorkDiaryList}
-        onOpenWorkDiaryDetail={onOpenWorkDiaryDetail}
-        onWorkDiaryNavigateList={onWorkDiaryNavigateList}
-        onWorkDiaryNavigateDetail={onWorkDiaryNavigateDetail}
-        onWorkDiaryNavigateCompose={onWorkDiaryNavigateCompose}
-      />
+      <AuthProvider currentUser={currentUser}>
+        <AppShell
+          currentUser={currentUser}
+          selection={selection}
+          expandedCategory={expandedCategory}
+          materialIssueEnabled={materialIssueEnabled}
+          onSelectCategory={onSelectCategory}
+          onSelectChild={onSelectChild}
+          onLogout={onLogout}
+          onNavigateHome={onNavigateHome}
+          onOpenBoardList={onOpenBoardList}
+          onOpenBoardPost={onOpenBoardPost}
+          onBoardNavigateList={onBoardNavigateList}
+          onBoardNavigateDetail={onBoardNavigateDetail}
+          onBoardNavigateCompose={onBoardNavigateCompose}
+          onOpenWorkDiaryList={onOpenWorkDiaryList}
+          onOpenWorkDiaryDetail={onOpenWorkDiaryDetail}
+          onWorkDiaryNavigateList={onWorkDiaryNavigateList}
+          onWorkDiaryNavigateDetail={onWorkDiaryNavigateDetail}
+          onWorkDiaryNavigateCompose={onWorkDiaryNavigateCompose}
+        />
+      </AuthProvider>
     </MaterialIssueSettingProvider>
   );
 }

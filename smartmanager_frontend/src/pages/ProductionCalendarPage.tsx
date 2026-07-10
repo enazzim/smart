@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MonthCalendarGrid, { MonthNavigator } from '../components/MonthCalendarGrid';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import {
   DEFAULT_WORK_TIME,
   deleteProductionCalendarByDate,
@@ -22,6 +23,19 @@ export default function ProductionCalendarPage() {
   const [error, setError] = useState<string | null>(null);
 
   const dayMap = useMemo(() => new Map(days.map((d) => [d.calendarDate, d])), [days]);
+
+  const calendarExportRows = useMemo(
+    () =>
+      days.map((day) => ({
+        일자: day.calendarDate,
+        '유효가동(분)': day.effectiveWorkTime,
+        등록여부: day.registered ? 'Y' : 'N',
+        자동휴무: day.autoOffDay ? 'Y' : 'N',
+        '등록가동(분)': day.registeredWorkTime ?? '',
+        비고: day.content ?? '',
+      })),
+    [days],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,6 +119,17 @@ export default function ProductionCalendarPage() {
       {error && <div className="error">{error}</div>}
 
       <section className="panel">
+        <div className="panel-header-row">
+          <h2>
+            {year}년 {month}월 기본생산달력
+          </h2>
+          <GridExcelExportButton
+            fileBaseName={`기본생산달력_${year}${String(month).padStart(2, '0')}`}
+            sheetName="기본생산달력"
+            disabled={loading}
+            rows={calendarExportRows}
+          />
+        </div>
         <MonthNavigator
           year={year}
           month={month}

@@ -19,7 +19,9 @@ public record BoardPostDetailResponse(
         Instant createdAt,
         Instant updatedAt,
         List<BoardAttachmentResponse> attachments,
-        List<BoardPostDetailResponse> replies
+        List<BoardPostDetailResponse> replies,
+        boolean canEdit,
+        boolean canDelete
 ) {
     public static BoardPostDetailResponse from(BoardPostDetailView view) {
         return new BoardPostDetailResponse(
@@ -37,7 +39,9 @@ public record BoardPostDetailResponse(
                 view.createdAt(),
                 view.updatedAt(),
                 view.attachments().stream().map(BoardAttachmentResponse::from).toList(),
-                view.replies().stream().map(BoardPostDetailResponse::from).toList()
+                view.replies().stream().map(BoardPostDetailResponse::from).toList(),
+                view.canEdit(),
+                view.canDelete()
         );
     }
 }

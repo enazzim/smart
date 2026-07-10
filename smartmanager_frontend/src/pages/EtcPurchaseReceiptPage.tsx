@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import CompanySearchField, {
+  PURCHASE_OUTSOURCE_PARTNER_ROLES,
+  type CompanySearchSelection,
+} from '../components/CompanySearchField';
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
 import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
 import { formatFiscalPeriodLabel } from '../utils/fiscalCalendar';
@@ -37,10 +41,12 @@ export default function EtcPurchaseReceiptPage() {
   const receiptFiscal = useFiscalPeriod(receiptDate);
   const editFiscal = useFiscalPeriod(editReceiptDate);
   const [candidateFilters, setCandidateFilters] = useState<EtcPurchaseReceiptCandidateParams>({});
+  const [candidateFilterPartner, setCandidateFilterPartner] = useState<CompanySearchSelection | null>(null);
   const [historyFilters, setHistoryFilters] = useState<EtcPurchaseReceiptListParams>(() => ({
     receiptFrom: addDaysIso(todayIso(), -30),
     receiptTo: todayIso(),
   }));
+  const [historyFilterPartner, setHistoryFilterPartner] = useState<CompanySearchSelection | null>(null);
   const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -58,26 +64,36 @@ export default function EtcPurchaseReceiptPage() {
     setLoadingCandidates(true);
     setError(null);
     try {
-      setCandidates(await fetchEtcPurchaseReceiptCandidates(candidateFilters));
+      setCandidates(
+        await fetchEtcPurchaseReceiptCandidates({
+          ...candidateFilters,
+          partnerName: candidateFilterPartner?.companyName,
+        }),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : '미완료 발주 조회 실패');
       setCandidates([]);
     } finally {
       setLoadingCandidates(false);
     }
-  }, [candidateFilters]);
+  }, [candidateFilters, candidateFilterPartner]);
 
   const loadReceipts = useCallback(async () => {
     setLoadingHistory(true);
     try {
-      setReceipts(await fetchEtcPurchaseReceipts(historyFilters));
+      setReceipts(
+        await fetchEtcPurchaseReceipts({
+          ...historyFilters,
+          partnerName: historyFilterPartner?.companyName,
+        }),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : '입고 내역 조회 실패');
       setReceipts([]);
     } finally {
       setLoadingHistory(false);
     }
-  }, [historyFilters]);
+  }, [historyFilters, historyFilterPartner]);
 
   useEffect(() => {
     if (tab === 'candidates') {
@@ -213,13 +229,21 @@ export default function EtcPurchaseReceiptPage() {
                 onChange={(e) => setCandidateFilters((f) => ({ ...f, itemName: e.target.value }))}
               />
             </label>
-            <label>
-              거래처
-              <input
-                value={candidateFilters.partnerName ?? ''}
-                onChange={(e) => setCandidateFilters((f) => ({ ...f, partnerName: e.target.value }))}
-              />
-            </label>
+            <CompanySearchField
+              label="거래처"
+              partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
+              selectedCompany={candidateFilterPartner}
+              onSelect={setCandidateFilterPartner}
+              placeholder="전체 조회 — 상호 또는 사업자번호 입력"
+            />
+            <button
+              type="button"
+              className="secondary"
+              disabled={candidateFilterPartner == null}
+              onClick={() => setCandidateFilterPartner(null)}
+            >
+              전체
+            </button>
             <label>
               납기요구일(부터)
               <input
@@ -343,13 +367,21 @@ export default function EtcPurchaseReceiptPage() {
                 onChange={(e) => setHistoryFilters((f) => ({ ...f, itemName: e.target.value }))}
               />
             </label>
-            <label>
-              거래처
-              <input
-                value={historyFilters.partnerName ?? ''}
-                onChange={(e) => setHistoryFilters((f) => ({ ...f, partnerName: e.target.value }))}
-              />
-            </label>
+            <CompanySearchField
+              label="거래처"
+              partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
+              selectedCompany={historyFilterPartner}
+              onSelect={setHistoryFilterPartner}
+              placeholder="전체 조회 — 상호 또는 사업자번호 입력"
+            />
+            <button
+              type="button"
+              className="secondary"
+              disabled={historyFilterPartner == null}
+              onClick={() => setHistoryFilterPartner(null)}
+            >
+              전체
+            </button>
             <label>
               납입일자(부터)
               <input

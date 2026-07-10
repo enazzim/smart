@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
+import CompanySearchField, {
+  PURCHASE_OUTSOURCE_PARTNER_ROLES,
+  type CompanySearchSelection,
+} from '../components/CompanySearchField';
 import {
   createEtcPurchaseOrder,
   deleteEtcPurchaseOrder,
@@ -36,6 +39,7 @@ const emptyForm = {
 export default function EtcPurchaseOrderPage() {
   const [rows, setRows] = useState<EtcPurchaseOrder[]>([]);
   const [filters, setFilters] = useState<EtcPurchaseOrderListParams>({});
+  const [filterPartner, setFilterPartner] = useState<CompanySearchSelection | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [partner, setPartner] = useState<CompanySearchSelection | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -54,14 +58,19 @@ export default function EtcPurchaseOrderPage() {
     setLoading(true);
     setError(null);
     try {
-      setRows(await fetchEtcPurchaseOrders(filters));
+      setRows(
+        await fetchEtcPurchaseOrders({
+          ...filters,
+          partnerName: filterPartner?.companyName,
+        }),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : '기타구매발주 목록 조회 실패');
       setRows([]);
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, filterPartner]);
 
   useEffect(() => {
     void load();
@@ -222,7 +231,7 @@ export default function EtcPurchaseOrderPage() {
           >
             <CompanySearchField
               label="거래처"
-              partnerType="PURCHASE"
+              partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
               selectedCompany={partner}
               onSelect={setPartner}
             />
@@ -254,13 +263,21 @@ export default function EtcPurchaseOrderPage() {
             onChange={(e) => setFilters((f) => ({ ...f, itemName: e.target.value }))}
           />
         </label>
-        <label>
-          거래처
-          <input
-            value={filters.partnerName ?? ''}
-            onChange={(e) => setFilters((f) => ({ ...f, partnerName: e.target.value }))}
-          />
-        </label>
+        <CompanySearchField
+          label="거래처"
+          partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
+          selectedCompany={filterPartner}
+          onSelect={setFilterPartner}
+          placeholder="전체 조회 — 상호 또는 사업자번호 입력"
+        />
+        <button
+          type="button"
+          className="secondary"
+          disabled={filterPartner == null}
+          onClick={() => setFilterPartner(null)}
+        >
+          전체
+        </button>
         <label>
           납기요구일(부터)
           <input

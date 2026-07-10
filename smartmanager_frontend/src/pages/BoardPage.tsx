@@ -20,7 +20,7 @@ import {
   replaceBoardAttachment,
   updateBoardPost,
 } from '../api/board';
-import type { AuthenticatedUser } from '../api/auth';
+import { useAuth } from '../context/AuthContext';
 
 export type BoardScreen =
   | { mode: 'list' }
@@ -30,7 +30,6 @@ export type BoardScreen =
 interface BoardPageProps {
   boardType: BoardType;
   screen: BoardScreen;
-  currentUser: AuthenticatedUser | null;
   onNavigateHome: () => void;
   onNavigateList: () => void;
   onNavigateDetail: (postId: number) => void;
@@ -62,14 +61,14 @@ function UploadIcon() {
 export default function BoardPage({
   boardType,
   screen,
-  currentUser,
   onNavigateHome,
   onNavigateList,
   onNavigateDetail,
   onNavigateCompose,
 }: BoardPageProps) {
   const boardTitle = BOARD_TYPE_LABELS[boardType];
-  const canWrite = currentUser?.authorities.includes('community:board:write') ?? false;
+  const { canWriteDashboard } = useAuth();
+  const canWrite = canWriteDashboard();
 
   if (screen.mode === 'list') {
     return (
@@ -90,7 +89,6 @@ export default function BoardPage({
         boardType={boardType}
         boardTitle={boardTitle}
         postId={screen.postId}
-        currentUser={currentUser}
         canWrite={canWrite}
         onNavigateHome={onNavigateHome}
         onNavigateList={onNavigateList}
@@ -265,7 +263,6 @@ function BoardDetailView({
   boardType,
   boardTitle,
   postId,
-  currentUser,
   canWrite,
   onNavigateHome,
   onNavigateList,
@@ -275,7 +272,6 @@ function BoardDetailView({
   boardType: BoardType;
   boardTitle: string;
   postId: number;
-  currentUser: AuthenticatedUser | null;
   canWrite: boolean;
   onNavigateHome: () => void;
   onNavigateList: () => void;
@@ -303,10 +299,6 @@ function BoardDetailView({
   useEffect(() => {
     void load();
   }, [load]);
-
-  const isOwner = post != null && currentUser != null && post.authorUserId === currentUser.id;
-  const canModerate = currentUser?.authorities.includes('community:board:moderate') ?? false;
-  const canModify = canWrite && (isOwner || canModerate);
 
   const onDelete = async () => {
     if (!window.confirm('게시글을 삭제하시겠습니까? 첨부파일도 함께 삭제됩니다.')) return;
@@ -367,6 +359,9 @@ function BoardDetailView({
     );
   }
 
+  const canModify = post.canEdit;
+  const canDeletePost = post.canDelete;
+
   return (
     <div className="page board-page">
       <BoardBreadcrumb boardTitle={boardTitle} onNavigateHome={onNavigateHome} onNavigateList={onNavigateList} />
@@ -401,9 +396,11 @@ function BoardDetailView({
                 >
                   수정
                 </button>
-                <button type="button" className="danger" disabled={submitting} onClick={() => void onDelete()}>
-                  삭제
-                </button>
+                {canDeletePost && (
+                  <button type="button" className="danger" disabled={submitting} onClick={() => void onDelete()}>
+                    삭제
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -584,6 +581,10 @@ function BoardComposeView({
           setFiles([]);
         } else if (composeMode === 'edit' && postId != null) {
           const post = await fetchBoardPost(boardType, postId);
+          if (!post.canEdit) {
+            setError('본인이 작성한 글만 수정할 수 있습니다.');
+            return;
+          }
           setTitle(post.title ?? '');
           setContent(post.content);
           setFiles([]);

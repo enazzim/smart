@@ -4,12 +4,14 @@ import com.shindong.smartmanager.application.closing.FiscalCalendarService;
 import com.shindong.smartmanager.application.closing.FiscalPeriod;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.event.DomainEventStore;
+import com.shindong.smartmanager.application.outsource.OutsourceHistoryRecord;
 import com.shindong.smartmanager.application.ledger.PartnerLedgerService;
 import com.shindong.smartmanager.application.quality.QualityInspectionRepository;
 import com.shindong.smartmanager.domain.event.AggregateTypes;
 import com.shindong.smartmanager.domain.event.DomainEvent;
 import com.shindong.smartmanager.domain.event.EventTypes;
 import com.shindong.smartmanager.domain.item.CheckDistinction;
+import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
 import com.shindong.smartmanager.domain.outsource.OutsourceHistorySourceType;
 import com.shindong.smartmanager.domain.outsource.OutsourcingOrderStatus;
 import com.shindong.smartmanager.domain.outsource.OutsourcingReceiptStatus;
@@ -291,7 +293,7 @@ public class OutsourcingReceiptService {
                 actorUserId
         ));
 
-        partnerLedgerService.addPurchaseAmount(partnerId, movementDate, amount, actorUserId);
+        // 지급 확정은 승인처리 화면에서 반영 (partner_ledger 미갱신)
     }
 
     public void reverseStockAndLedger(
@@ -348,8 +350,16 @@ public class OutsourcingReceiptService {
                 actorUserId
         );
 
+        List<OutsourceHistoryRecord> histories = outsourceHistoryRepository.findActiveBySource(
+                historySourceType, historySourceId);
         outsourceHistoryRepository.deactivateBySource(historySourceType, historySourceId, actorUserId);
-        partnerLedgerService.subtractPurchaseAmount(partnerId, movementDate, amount, actorUserId);
+
+        for (OutsourceHistoryRecord history : histories) {
+            if (history.approvalStatus() == PayableApprovalStatus.APPROVED) {
+                partnerLedgerService.subtractPurchaseAmount(
+                        partnerId, history.historyDate(), history.amount(), actorUserId);
+            }
+        }
     }
 
     private OutsourcingReceiptView registerForPartner(

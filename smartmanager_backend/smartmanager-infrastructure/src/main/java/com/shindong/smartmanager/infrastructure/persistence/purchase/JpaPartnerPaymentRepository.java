@@ -71,13 +71,13 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                 LEFT JOIN (
                     SELECT company_id, SUM(amount) AS purchase_amount
                     FROM purchase_history
-                    WHERE recording_state = 1
+                    WHERE recording_state = 1 AND approval_status = 'APPROVED'
                     GROUP BY company_id
                 ) ph ON ph.company_id = c.id
                 LEFT JOIN (
                     SELECT company_id, SUM(amount) AS outsource_amount
                     FROM outsource_history
-                    WHERE recording_state = 1
+                    WHERE recording_state = 1 AND approval_status = 'APPROVED'
                     GROUP BY company_id
                 ) oh ON oh.company_id = c.id
                 LEFT JOIN (
@@ -202,7 +202,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
         String sql = """
                 SELECT COALESCE(SUM(amount), 0)
                 FROM purchase_history
-                WHERE recording_state = 1 AND company_id = :partnerId
+                WHERE recording_state = 1 AND approval_status = 'APPROVED' AND company_id = :partnerId
                 """;
         Query query = entityManager.createNativeQuery(sql);
         query.setParameter("partnerId", partnerId);
@@ -213,7 +213,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
         String sql = """
                 SELECT COALESCE(SUM(amount), 0)
                 FROM outsource_history
-                WHERE recording_state = 1 AND company_id = :partnerId
+                WHERE recording_state = 1 AND approval_status = 'APPROVED' AND company_id = :partnerId
                 """;
         Query query = entityManager.createNativeQuery(sql);
         query.setParameter("partnerId", partnerId);

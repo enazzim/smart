@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CodeOption } from '../api/equipment';
 import { fetchEquipmentCategories } from '../api/equipment';
 import type { CreateEquipmentRequest, Equipment } from '../api/equipment';
@@ -10,6 +10,7 @@ import {
 } from '../api/equipment';
 import type { WorkCenter } from '../api/process';
 import { fetchWorkCenters } from '../api/process';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 
 const emptyForm: CreateEquipmentRequest = {
   equipmentNum: '',
@@ -36,6 +37,21 @@ export default function EquipmentPage() {
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = editingId !== null;
+
+  const equipmentExportRows = useMemo(
+    () =>
+      equipmentList.map((eq) => ({
+        번호: eq.equipmentNum,
+        설비명: eq.equipmentName,
+        분류: eq.equipmentCategoryName,
+        작업장: eq.wcName ?? '',
+        설계샷: eq.designShot,
+        누계샷: eq.accumulatedShot,
+        작업샷: eq.workShot,
+        교체: eq.replacementDue ? '필요' : '',
+      })),
+    [equipmentList],
+  );
 
   const load = async (query = searchQuery) => {
     setLoading(true);
@@ -261,7 +277,10 @@ export default function EquipmentPage() {
       </section>
 
       <section className="panel">
-        <h2>설비 목록</h2>
+        <div className="panel-header-row">
+          <h2>설비 목록</h2>
+          <GridExcelExportButton fileBaseName="설비목록" disabled={loading} rows={equipmentExportRows} />
+        </div>
         <form onSubmit={onSearch} className="search-row">
           <label>
             설비번호·설비명 검색

@@ -139,13 +139,15 @@ class WorkDiaryControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "fieldValues": {"01": "제출후 수정시도"},
+                                  "fieldValues": {"01": "제출후 수정"},
                                   "listed": true,
-                                  "closingNote": ""
+                                  "closingNote": "결재 전 수정"
                                 }
                                 """))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("제출된 업무일지는 수정/삭제할 수 없습니다."));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fieldValues.01").value("제출후 수정"))
+                .andExpect(jsonPath("$.canEdit").value(true))
+                .andExpect(jsonPath("$.canDelete").value(true));
 
         mockMvc.perform(post(BASE + "/{id}/approve", id)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)

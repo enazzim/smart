@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CompanyRoleType } from '../api/company';
 import type { PropertyClassification } from '../api/item';
 import type { CodeOption } from '../api/process';
@@ -12,6 +12,7 @@ import {
 } from '../api/unitPrice';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 
 const TAB_CONFIG: {
   type: CostType;
@@ -93,6 +94,28 @@ export default function UnitPricePage() {
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = editingId !== null;
+
+  const unitPriceExportRows = useMemo(
+    () =>
+      prices.map((price) => {
+        const row: Record<string, string | number> = {
+          품목번호: price.itemNum,
+          품목명: price.itemName,
+          거래처: price.companyName,
+        };
+        if (tabConfig.showProcess) {
+          row['시작공정'] = price.processName ?? '';
+          row['종료공정'] = price.endProcessName ?? '';
+        }
+        if (!tabConfig.orderRateDisabled) {
+          row['발주비율'] = `${price.orderRate}%`;
+        }
+        row['기준단가'] = price.standardUnitCost;
+        row['적용기간'] = price.endDate ? `${price.beginDate} ~ ${price.endDate}` : `${price.beginDate} ~`;
+        return row;
+      }),
+    [prices, tabConfig],
+  );
 
   const listQuery = filterItem?.itemNo ?? filterCompany?.companyName ?? '';
 
@@ -380,7 +403,15 @@ export default function UnitPricePage() {
       </section>
 
       <section className="panel">
-        <h2>{tabConfig.label} 목록</h2>
+        <div className="panel-header-row">
+          <h2>{tabConfig.label} 목록</h2>
+          <GridExcelExportButton
+            fileBaseName={`${tabConfig.label}목록`}
+            sheetName={tabConfig.label}
+            disabled={loading}
+            rows={unitPriceExportRows}
+          />
+        </div>
         <div className="search-row">
           <ItemSearchField
             label="품목 필터 (선택)"

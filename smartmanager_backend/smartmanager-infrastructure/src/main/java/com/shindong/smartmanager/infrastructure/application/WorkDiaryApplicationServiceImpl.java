@@ -55,6 +55,12 @@ public class WorkDiaryApplicationServiceImpl implements WorkDiaryApplicationServ
 
     @Override
     @Transactional(readOnly = true)
+    public boolean isApprover(long actorUserId) {
+        return workDiaryService.isApprover(actorUserId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public WorkDiaryDetailView getDetail(long id, long actorUserId, boolean approver) {
         return workDiaryService.getDetail(id, actorUserId, approver);
     }

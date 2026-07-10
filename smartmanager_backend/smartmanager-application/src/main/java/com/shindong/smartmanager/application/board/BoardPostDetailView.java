@@ -20,6 +20,8 @@ public record BoardPostDetailView(
         Instant createdAt,
         Instant updatedAt,
         List<BoardAttachmentView> attachments,
-        List<BoardPostDetailView> replies
+        List<BoardPostDetailView> replies,
+        boolean canEdit,
+        boolean canDelete
 ) {
 }

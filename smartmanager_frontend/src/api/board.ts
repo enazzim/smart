@@ -54,6 +54,8 @@ export interface BoardPostDetail {
   updatedAt: string | null;
   attachments: BoardAttachment[];
   replies: BoardPostDetail[];
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 export interface BoardPostPage {

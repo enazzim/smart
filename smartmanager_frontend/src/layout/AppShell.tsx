@@ -17,7 +17,8 @@ import {
   renderSalesPage,
   renderSystemPage,
 } from './menuConfig';
-import { getVisibleMenuCategories } from './menuAccess';
+import { useAuth } from '../context/AuthContext';
+import { canAccessSelfAccount, getVisibleMenuCategories, isDashboardSelection } from './menuAccess';
 import BasisInfoPage from '../pages/BasisInfoPage';
 import BoardPage, { type BoardScreen } from '../pages/BoardPage';
 import DashboardPage from '../pages/DashboardPage';
@@ -81,9 +82,13 @@ export default function AppShell({
   onWorkDiaryNavigateCompose,
 }: AppShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { readOnly } = useAuth();
   const visibleCategories = new Set(
     currentUser ? getVisibleMenuCategories(currentUser.roleCodes) : ['home'],
   );
+  const showAccountLink =
+    currentUser != null && canAccessSelfAccount(currentUser.roleCodes, currentUser.authorities);
+  const transactionReadOnly = readOnly && !isDashboardSelection(selection.category);
 
   useEffect(() => {
     if (!mobileNavOpen) {
@@ -121,7 +126,7 @@ export default function AppShell({
   };
 
   return (
-    <div className={`app-shell${mobileNavOpen ? ' mobile-nav-open' : ''}`}>
+    <div className={`app-shell${mobileNavOpen ? ' mobile-nav-open' : ''}${transactionReadOnly ? ' app-read-only' : ''}`}>
       <header className="app-header">
         <div className="app-header-left">
           <button
@@ -143,6 +148,11 @@ export default function AppShell({
         </div>
         <div className="app-header-user">
           <span>{currentUser ? `${currentUser.name} (${currentUser.loginId})` : '…'}</span>
+          {showAccountLink && (
+            <button type="button" className="secondary" onClick={() => onSelectCategory('basis')}>
+              내 계정
+            </button>
+          )}
           <button type="button" className="secondary" onClick={onLogout}>
             로그아웃
           </button>
@@ -208,6 +218,11 @@ export default function AppShell({
         </aside>
 
         <main className="app-main">
+          {transactionReadOnly && (
+            <div className="read-only-banner" role="status">
+              조회 전용 권한입니다. 등록·수정·삭제는 할 수 없습니다.
+            </div>
+          )}
           {renderContent(selection, {
             currentUser,
             onNavigateHome,
@@ -275,7 +290,6 @@ function renderContent(selection: AppSelection, ctx: RenderContext) {
       <BoardPage
         boardType={selection.boardType}
         screen={selection.screen}
-        currentUser={ctx.currentUser}
         onNavigateHome={ctx.onNavigateHome}
         onNavigateList={ctx.onBoardNavigateList}
         onNavigateDetail={ctx.onBoardNavigateDetail}

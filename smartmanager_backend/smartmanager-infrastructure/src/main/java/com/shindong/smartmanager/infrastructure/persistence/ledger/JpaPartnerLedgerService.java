@@ -40,7 +40,15 @@ public class JpaPartnerLedgerService implements PartnerLedgerService {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) == 0) {
             return;
         }
-        FiscalPeriod period = fiscalCalendarService.resolvePeriod(transactionDate);
+        addPurchaseAmount(companyId, fiscalCalendarService.resolvePeriod(transactionDate), amount, actorUserId);
+    }
+
+    @Override
+    @Transactional
+    public void addPurchaseAmount(long companyId, FiscalPeriod period, BigDecimal amount, String actorUserId) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) == 0) {
+            return;
+        }
         ledgerAccountRepository.ensureAccount(companyId, period.fiscalYear(), PartnerLedgerType.PURCHASE, actorUserId);
 
         long accountId = accountRepository
@@ -64,7 +72,16 @@ public class JpaPartnerLedgerService implements PartnerLedgerService {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) == 0) {
             return;
         }
-        addPurchaseAmount(companyId, transactionDate, amount.negate(), actorUserId);
+        subtractPurchaseAmount(companyId, fiscalCalendarService.resolvePeriod(transactionDate), amount, actorUserId);
+    }
+
+    @Override
+    @Transactional
+    public void subtractPurchaseAmount(long companyId, FiscalPeriod period, BigDecimal amount, String actorUserId) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) == 0) {
+            return;
+        }
+        addPurchaseAmount(companyId, period, amount.negate(), actorUserId);
     }
 
     @Override

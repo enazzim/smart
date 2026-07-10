@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.outsource;
 
 import com.shindong.smartmanager.domain.outsource.OutsourceHistorySourceType;
+import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -51,6 +52,22 @@ public class OutsourceHistoryJpaEntity {
 
     @Column(name = "fiscal_month", nullable = false)
     private byte fiscalMonth;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", nullable = false, length = 20)
+    private PayableApprovalStatus approvalStatus = PayableApprovalStatus.PENDING;
+
+    @Column(name = "approved_at")
+    private Instant approvedAt;
+
+    @Column(name = "approved_by_user_id")
+    private Long approvedByUserId;
+
+    @Column(name = "approval_cancelled_at")
+    private Instant approvalCancelledAt;
+
+    @Column(name = "approval_cancelled_by_user_id")
+    private Long approvalCancelledByUserId;
 
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
@@ -130,5 +147,49 @@ public class OutsourceHistoryJpaEntity {
 
     public Long getSourceId() {
         return sourceId;
+    }
+
+    public Long getCompanyId() {
+        return companyId;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public LocalDate getHistoryDate() {
+        return historyDate;
+    }
+
+    public short getFiscalYear() {
+        return fiscalYear;
+    }
+
+    public byte getFiscalMonth() {
+        return fiscalMonth;
+    }
+
+    public PayableApprovalStatus getApprovalStatus() {
+        return approvalStatus;
+    }
+
+    public void setApprovalStatus(PayableApprovalStatus approvalStatus) {
+        this.approvalStatus = approvalStatus;
+    }
+
+    public void setApprovedAt(Instant approvedAt) {
+        this.approvedAt = approvedAt;
+    }
+
+    public void setApprovedByUserId(Long approvedByUserId) {
+        this.approvedByUserId = approvedByUserId;
+    }
+
+    public void setApprovalCancelledAt(Instant approvalCancelledAt) {
+        this.approvalCancelledAt = approvalCancelledAt;
+    }
+
+    public void setApprovalCancelledByUserId(Long approvalCancelledByUserId) {
+        this.approvalCancelledByUserId = approvalCancelledByUserId;
     }
 }

@@ -84,7 +84,7 @@ public interface WorkDiaryRepository {
             String actorUserIdText
     );
 
-    void softDeleteEntry(long id, String actorLoginId, String actorUserIdText);
+    void deleteEntry(long id);
 
     void markSubmitted(long id, WorkDiaryStatus status, Instant submittedAt, String actorLoginId, String actorUserIdText);
 

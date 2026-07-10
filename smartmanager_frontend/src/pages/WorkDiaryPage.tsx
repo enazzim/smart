@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AuthenticatedUser } from '../api/auth';
+import { useAuth } from '../context/AuthContext';
 import {
   WORK_DIARY_STATUS_LABELS,
   approveWorkDiary,
@@ -56,8 +57,9 @@ export default function WorkDiaryPage({
   onNavigateDetail,
   onNavigateCompose,
 }: WorkDiaryPageProps) {
-  const canWrite = currentUser?.authorities.includes('community:workdiary:write') ?? false;
-  const canApprove = currentUser?.authorities.includes('community:workdiary:approve') ?? false;
+  const { canWriteDashboard } = useAuth();
+  const canWrite = canWriteDashboard();
+  const canApprove = currentUser?.roleCodes.includes('SYSTEM_ADMIN') ?? false;
 
   if (screen.mode === 'list') {
     return (

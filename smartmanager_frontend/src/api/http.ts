@@ -78,8 +78,12 @@ export async function handleResponse<T>(response: Response): Promise<T> {
     const body = await response.json().catch(() => ({ message: response.statusText }));
     throw new Error(apiErrorMessage(body.message, '요청에 실패했습니다.'));
   }
-  if (response.status === 204) {
+  if (response.status === 204 || response.status === 205) {
     return undefined as T;
   }
-  return response.json() as Promise<T>;
+  const text = await response.text();
+  if (!text.trim()) {
+    return undefined as T;
+  }
+  return JSON.parse(text) as T;
 }

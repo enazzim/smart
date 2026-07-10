@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MonthCalendarGrid, { MonthNavigator } from '../components/MonthCalendarGrid';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import type { WorkCenter } from '../api/workCenter';
 import { fetchWorkCenters } from '../api/workCenter';
 import type { EffectiveCalendarDay } from '../api/workCenterCalendar';
@@ -25,6 +26,20 @@ export default function WorkCenterCalendarPage() {
   const [error, setError] = useState<string | null>(null);
 
   const dayMap = useMemo(() => new Map(days.map((d) => [d.calendarDate, d])), [days]);
+
+  const selectedWorkCenterName = workCenters.find((wc) => wc.id === workCenterId)?.wcName ?? '';
+
+  const calendarExportRows = useMemo(
+    () =>
+      days.map((day) => ({
+        일자: day.calendarDate,
+        '유효가동(분)': day.effectiveWorkTime,
+        Override: day.isOverride ? 'Y' : 'N',
+        '기본달력(분)': day.baseWorkTime ?? '',
+        비고: day.content ?? '',
+      })),
+    [days],
+  );
 
   useEffect(() => {
     void (async () => {
@@ -145,6 +160,17 @@ export default function WorkCenterCalendarPage() {
           )}
         </aside>
         <div className="calendar-main">
+          <div className="panel-header-row">
+            <h2>
+              {selectedWorkCenterName || '작업장'} — {year}년 {month}월
+            </h2>
+            <GridExcelExportButton
+              fileBaseName={`WC달력_${selectedWorkCenterName || workCenterId}_${year}${String(month).padStart(2, '0')}`}
+              sheetName="WC달력"
+              disabled={loading || workCenterId <= 0}
+              rows={calendarExportRows}
+            />
+          </div>
           <MonthNavigator
             year={year}
             month={month}

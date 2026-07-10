@@ -53,12 +53,12 @@ public class BoardPostService {
         return new BoardPostPageView(items, total, criteria.page(), criteria.size());
     }
 
-    public BoardPostDetailView getDetail(long postId, boolean incrementViewCount) {
+    public BoardPostDetailView getDetail(long postId, long actorUserId, boolean incrementViewCount) {
         BoardPostRepository.BoardPostRecord post = findActivePost(postId);
         if (incrementViewCount) {
             boardPostRepository.incrementViewCount(postId);
         }
-        return toDetail(post, true);
+        return toDetail(post, actorUserId, true);
     }
 
     public BoardPostDetailView createTopPost(
@@ -80,7 +80,7 @@ public class BoardPostService {
         );
         boardPostRepository.updateThreadRootId(postId, postId);
         saveUploadFiles(command.boardType(), postId, uploadFiles);
-        return getDetail(postId, false);
+        return getDetail(postId, authorUserId, false);
     }
 
     public BoardPostDetailView createReply(
@@ -104,7 +104,7 @@ public class BoardPostService {
                 actorUserId
         );
         saveUploadFiles(parent.boardType(), replyId, uploadFiles);
-        return toDetail(findActivePost(replyId), false);
+        return getDetail(replyId, authorUserId, false);
     }
 
     public BoardPostDetailView updatePost(
@@ -126,7 +126,7 @@ public class BoardPostService {
         } else {
             boardPostRepository.updatePost(postId, post.title(), normalizeContent(content), actorLoginId, actorUserIdText);
         }
-        return getDetail(postId, false);
+        return getDetail(postId, actorUserId, false);
     }
 
     public void deletePost(long postId, long actorUserId, boolean moderator, String actorLoginId, String actorUserIdText) {
@@ -254,16 +254,17 @@ public class BoardPostService {
         boardPostRepository.softDeleteAttachmentsByPostIds(postIds);
     }
 
-    private BoardPostDetailView toDetail(BoardPostRepository.BoardPostRecord post, boolean includeReplies) {
+    private BoardPostDetailView toDetail(BoardPostRepository.BoardPostRecord post, long actorUserId, boolean includeReplies) {
         List<BoardAttachmentView> attachments = boardPostRepository.findActiveAttachmentsByPostId(post.id()).stream()
                 .map(this::toAttachmentView)
                 .toList();
         List<BoardPostDetailView> replies = List.of();
         if (includeReplies && post.postKind() == PostKind.TOP) {
             replies = boardPostRepository.findActiveReplies(post.threadRootId()).stream()
-                    .map(reply -> toDetail(reply, false))
+                    .map(reply -> toDetail(reply, actorUserId, false))
                     .toList();
         }
+        boolean canModify = isAuthor(post, actorUserId);
         return new BoardPostDetailView(
                 post.id(),
                 post.boardType(),
@@ -279,8 +280,14 @@ public class BoardPostService {
                 post.createdAt(),
                 post.updatedAt(),
                 attachments,
-                replies
+                replies,
+                canModify,
+                canModify
         );
+    }
+
+    private boolean isAuthor(BoardPostRepository.BoardPostRecord post, long actorUserId) {
+        return post.authorUserId() != null && post.authorUserId() == actorUserId;
     }
 
     private BoardPostSummaryView toSummary(BoardPostRepository.BoardPostRecord post, boolean hasAttachment) {
@@ -372,10 +379,7 @@ public class BoardPostService {
     }
 
     private void assertCanModify(BoardPostRepository.BoardPostRecord post, long actorUserId, boolean moderator) {
-        if (moderator) {
-            return;
-        }
-        if (post.authorUserId() == null || post.authorUserId() != actorUserId) {
+        if (!isAuthor(post, actorUserId)) {
             throw new IllegalStateException("게시글을 수정할 권한이 없습니다.");
         }
     }

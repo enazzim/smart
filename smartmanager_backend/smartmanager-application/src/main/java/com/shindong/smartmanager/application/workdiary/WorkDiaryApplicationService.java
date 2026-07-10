@@ -13,6 +13,8 @@ public interface WorkDiaryApplicationService {
 
     WorkDiaryPageView list(WorkDiaryListCriteria criteria);
 
+    boolean isApprover(long actorUserId);
+
     WorkDiaryDetailView getDetail(long id, long actorUserId, boolean approver);
 
     WorkDiaryDetailView getByDate(LocalDate workDate, long actorUserId);

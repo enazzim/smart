@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { fetchCompanies, type CompanyRoleType } from '../api/company';
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+/** 구매·외주 거래처 필터용 — 배열 참조 안정화 */
+export const PURCHASE_OUTSOURCE_PARTNER_ROLES: readonly CompanyRoleType[] = ['PURCHASE', 'OUTSOURCE'];
 
 export type CompanySearchSelection = {
   id: number;
@@ -24,11 +27,18 @@ function matchesQuery(company: CompanySearchSelection, query: string) {
   );
 }
 
-async function loadCompanies(role: CompanyRoleType | undefined, query: string): Promise<CompanySearchSelection[]> {
+async function loadCompanies(
+  roles: CompanyRoleType | readonly CompanyRoleType[] | undefined,
+  query: string,
+): Promise<CompanySearchSelection[]> {
   const companies = await fetchCompanies();
-  const filteredByRole = role
-    ? companies.filter((company) => company.roles.includes(role))
-    : companies;
+  const filteredByRole = (() => {
+    if (!roles) {
+      return companies;
+    }
+    const roleList = Array.isArray(roles) ? roles : [roles];
+    return companies.filter((company) => roleList.some((role) => company.roles.includes(role)));
+  })();
 
   const trimmed = query.trim();
   return filteredByRole
@@ -43,6 +53,8 @@ async function loadCompanies(role: CompanyRoleType | undefined, query: string): 
 export interface CompanySearchFieldProps {
   label: string;
   partnerType?: CompanyRoleType;
+  /** partnerType보다 우선 — 여러 역할 중 하나라도 있으면 표시 */
+  partnerTypes?: readonly CompanyRoleType[];
   selectedCompany: CompanySearchSelection | null;
   onSelect: (company: CompanySearchSelection | null) => void;
   placeholder?: string;
@@ -51,10 +63,15 @@ export interface CompanySearchFieldProps {
 export default function CompanySearchField({
   label,
   partnerType,
+  partnerTypes,
   selectedCompany,
   onSelect,
   placeholder = '상호 또는 사업자번호 입력',
 }: CompanySearchFieldProps) {
+  const rolesFilterKey = useMemo(
+    () => partnerTypes?.join('|') ?? partnerType ?? '',
+    [partnerTypes, partnerType],
+  );
   const listId = useId();
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [query, setQuery] = useState('');
@@ -63,12 +80,17 @@ export default function CompanySearchField({
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
+  const rolesFilter = useMemo(
+    () => partnerTypes ?? partnerType,
+    [rolesFilterKey, partnerTypes, partnerType],
+  );
+
   const fetchOptions = useCallback(
     async (searchQuery: string) => {
       setSearching(true);
       setSearchError(null);
       try {
-        setOptions(await loadCompanies(partnerType, searchQuery));
+        setOptions(await loadCompanies(rolesFilter, searchQuery));
       } catch (e) {
         setSearchError(e instanceof Error ? e.message : '거래처 검색 실패');
         setOptions([]);
@@ -76,7 +98,7 @@ export default function CompanySearchField({
         setSearching(false);
       }
     },
-    [partnerType],
+    [rolesFilter],
   );
 
   useEffect(() => {

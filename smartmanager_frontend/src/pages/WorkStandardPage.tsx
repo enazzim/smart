@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import type { ProcessPlan, WorkCenter } from '../api/process';
 import { fetchProcessPlans, fetchWorkCenters } from '../api/process';
 import type { Equipment } from '../api/equipment';
@@ -69,6 +70,29 @@ export default function WorkStandardPage() {
 
   const isEditing = editingId !== null;
   const showItemColumn = filterItem === null;
+
+  const workStandardExportRows = useMemo(
+    () =>
+      standards.map((ws) => {
+        const row: Record<string, string | number> = {};
+        if (showItemColumn) {
+          row['품목번호'] = ws.itemNum;
+          row['품목명'] = ws.itemName;
+        }
+        Object.assign(row, {
+          순번: ws.processSequenceNum,
+          공정: `${ws.processCode} ${ws.processName}`,
+          작업장: ws.wcName,
+          설비: ws.equipmentName ?? '',
+          주작업자: ws.mainWorkerName ?? '',
+          우선순위: ws.priorityOrder,
+          '셋업(분)': ws.setupTime,
+          '표준(초)': ws.standardTime,
+        });
+        return row;
+      }),
+    [standards, showItemColumn],
+  );
 
   const refreshList = useCallback(async (item?: ItemSearchSelection | null) => {
     setLoading(true);
@@ -423,7 +447,10 @@ export default function WorkStandardPage() {
       </section>
 
       <section className="panel">
-        <h2>작업표준 목록</h2>
+        <div className="panel-header-row">
+          <h2>작업표준 목록</h2>
+          <GridExcelExportButton fileBaseName="작업표준목록" disabled={loading} rows={workStandardExportRows} />
+        </div>
         <div className="search-row">
           <ItemSearchField
             label="품목 필터 (선택)"

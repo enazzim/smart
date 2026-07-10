@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Company, CompanyRoleType, CreateCompanyRequest, UpdateCompanyRequest } from '../api/company';
 import { createCompany, deleteCompany, fetchCompanies, updateCompany } from '../api/company';
+import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 
 const ROLE_OPTIONS: { value: CompanyRoleType; label: string }[] = [
   { value: 'SALES', label: '판매' },
@@ -39,6 +41,7 @@ function toUpdatePayload(company: Company): UpdateCompanyRequest {
 
 export default function CompanyPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [filterCompany, setFilterCompany] = useState<CompanySearchSelection | null>(null);
   const [form, setForm] = useState<CreateCompanyRequest>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingBusinessRegNo, setEditingBusinessRegNo] = useState<string | null>(null);
@@ -48,7 +51,26 @@ export default function CompanyPage() {
 
   const isEditing = editingId !== null;
 
-  const load = async () => {
+  const displayedCompanies = useMemo(() => {
+    if (!filterCompany) {
+      return companies;
+    }
+    return companies.filter((company) => company.id === filterCompany.id);
+  }, [companies, filterCompany]);
+
+  const companyExportRows = useMemo(
+    () =>
+      displayedCompanies.map((company) => ({
+        ID: company.id,
+        상호: company.companyName,
+        사업자번호: company.businessRegNo,
+        대표자: company.presidentName,
+        역할: company.roles.join(', '),
+      })),
+    [displayedCompanies],
+  );
+
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -58,11 +80,11 @@ export default function CompanyPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -212,11 +234,36 @@ export default function CompanyPage() {
       </section>
 
       <section className="panel">
-        <h2>거래처 목록</h2>
+        <div className="panel-header-row">
+          <h2>거래처 목록</h2>
+          <GridExcelExportButton
+            fileBaseName="거래처목록"
+            disabled={loading}
+            rows={companyExportRows}
+          />
+        </div>
+        <div className="search-row">
+          <CompanySearchField
+            label="거래처 검색 (선택)"
+            selectedCompany={filterCompany}
+            onSelect={setFilterCompany}
+            placeholder="전체 조회 — 상호 또는 사업자번호 입력"
+          />
+          <button
+            type="button"
+            className="secondary"
+            disabled={loading || filterCompany == null}
+            onClick={() => setFilterCompany(null)}
+          >
+            전체
+          </button>
+        </div>
         {loading ? (
           <p>불러오는 중…</p>
         ) : companies.length === 0 ? (
           <p>등록된 거래처가 없습니다.</p>
+        ) : displayedCompanies.length === 0 ? (
+          <p>검색 조건에 맞는 거래처가 없습니다.</p>
         ) : (
           <table>
             <thead>
@@ -230,7 +277,7 @@ export default function CompanyPage() {
               </tr>
             </thead>
             <tbody>
-              {companies.map((c) => (
+              {displayedCompanies.map((c) => (
                 <tr key={c.id} className={editingId === c.id ? 'row-editing' : undefined}>
                   <td>{c.id}</td>
                   <td>{c.companyName}</td>

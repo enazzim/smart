@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CodeOption } from '../api/process';
 import { fetchProcessCodeOptions } from '../api/process';
 import type { CreateWorkCenterRequest, WorkCenter } from '../api/workCenter';
@@ -8,6 +8,7 @@ import {
   fetchWorkCenters,
   updateWorkCenter,
 } from '../api/workCenter';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 
 const emptyForm: CreateWorkCenterRequest = {
   wcName: '',
@@ -30,6 +31,17 @@ export default function WorkCenterPage() {
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = editingId !== null;
+
+  const workCenterExportRows = useMemo(
+    () =>
+      workCenters.map((wc) => ({
+        ID: wc.id,
+        작업장명: wc.wcName,
+        대표공정: formatProcessLabel(wc.mainProcessCode, wc.mainProcessName),
+        '가동시간(분)': wc.operationTime,
+      })),
+    [workCenters],
+  );
 
   const load = async (query = searchQuery) => {
     setLoading(true);
@@ -186,7 +198,10 @@ export default function WorkCenterPage() {
       </section>
 
       <section className="panel">
-        <h2>작업장 목록</h2>
+        <div className="panel-header-row">
+          <h2>작업장 목록</h2>
+          <GridExcelExportButton fileBaseName="작업장목록" disabled={loading} rows={workCenterExportRows} />
+        </div>
         <form onSubmit={onSearch} className="search-row">
           <label>
             작업장명 검색

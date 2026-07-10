@@ -160,14 +160,10 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
 
     @Override
     @Transactional
-    public void softDeleteEntry(long id, String actorLoginId, String actorUserIdText) {
-        entryRepository.findActiveById(id).ifPresent(entity -> {
-            entity.setRecordingState(0);
-            entity.setUpdatedBy(actorLoginId);
-            entity.setUpdatedById(actorUserIdText);
-            entity.setUpdatedAt(Instant.now());
-            entryRepository.save(entity);
-        });
+    public void deleteEntry(long id) {
+        WorkDiaryEntryJpaEntity entity = entryRepository.findActiveById(id)
+                .orElseThrow(() -> new IllegalArgumentException("업무일지를 찾을 수 없습니다: " + id));
+        entryRepository.delete(entity);
     }
 
     @Override

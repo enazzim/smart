@@ -1,8 +1,10 @@
 package com.shindong.smartmanager.infrastructure.persistence.outsource;
 
 import com.shindong.smartmanager.application.outsource.OutsourceHistoryCommand;
+import com.shindong.smartmanager.application.outsource.OutsourceHistoryRecord;
 import com.shindong.smartmanager.application.outsource.OutsourceHistoryRepository;
 import com.shindong.smartmanager.domain.outsource.OutsourceHistorySourceType;
+import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.stereotype.Repository;
@@ -31,11 +33,28 @@ public class JpaOutsourceHistoryRepository implements OutsourceHistoryRepository
         entity.setSourceId(command.sourceId());
         entity.setFiscalYear((short) command.fiscalYear());
         entity.setFiscalMonth((byte) command.fiscalMonth());
+        entity.setApprovalStatus(PayableApprovalStatus.PENDING);
         entity.setRecordingState(1);
         entity.setCreatedBy(command.actorUserId());
         entity.setCreatedById(command.actorUserId());
         entity.setCreatedAt(Instant.now());
         return repository.save(entity).getId();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OutsourceHistoryRecord> findActiveBySource(OutsourceHistorySourceType sourceType, long sourceId) {
+        return repository.findBySourceTypeAndSourceIdAndRecordingState(sourceType, sourceId, 1).stream()
+                .map(entity -> new OutsourceHistoryRecord(
+                        entity.getId(),
+                        entity.getCompanyId(),
+                        entity.getAmount(),
+                        entity.getHistoryDate(),
+                        entity.getFiscalYear(),
+                        entity.getFiscalMonth(),
+                        entity.getApprovalStatus()
+                ))
+                .toList();
     }
 
     @Override

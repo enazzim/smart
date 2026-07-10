@@ -98,7 +98,7 @@ public class WorkDiaryController {
     @PreAuthorize("hasAnyAuthority('community:workdiary:read','community:workdiary:write','community:workdiary:approve')")
     public WorkDiaryPageResponse list(@Valid @ModelAttribute WorkDiaryListQuery query) {
         var principal = SecurityUtils.requirePrincipal();
-        boolean approver = principal.authorities().contains("community:workdiary:approve");
+        boolean approver = workDiaryApplicationService.isApprover(principal.userId());
         WorkDiaryPageView page = workDiaryApplicationService.list(new WorkDiaryListCriteria(
                 principal.userId(),
                 approver,
@@ -121,7 +121,7 @@ public class WorkDiaryController {
     @PreAuthorize("hasAnyAuthority('community:workdiary:read','community:workdiary:write','community:workdiary:approve')")
     public WorkDiaryDetailResponse get(@PathVariable long id) {
         var principal = SecurityUtils.requirePrincipal();
-        boolean approver = principal.authorities().contains("community:workdiary:approve");
+        boolean approver = workDiaryApplicationService.isApprover(principal.userId());
         return toDetailResponse(workDiaryApplicationService.getDetail(id, principal.userId(), approver));
     }
 

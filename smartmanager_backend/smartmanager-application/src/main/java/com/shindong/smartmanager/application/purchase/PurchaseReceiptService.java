@@ -24,6 +24,7 @@ import com.shindong.smartmanager.domain.item.CheckDistinction;
 
 import com.shindong.smartmanager.domain.item.PropertyClassification;
 
+import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
 import com.shindong.smartmanager.domain.purchase.PurchaseHistorySourceType;
 
 import com.shindong.smartmanager.domain.purchase.PurchaseOrderStatus;
@@ -738,7 +739,7 @@ public class PurchaseReceiptService {
 
 
 
-        partnerLedgerService.addPurchaseAmount(partnerId, movementDate, amount, actorUserId);
+        // 지급 확정은 승인처리 화면에서 반영 (partner_ledger 미갱신)
 
     }
 
@@ -802,9 +803,16 @@ public class PurchaseReceiptService {
 
 
 
+        List<PurchaseHistoryRecord> histories = purchaseHistoryRepository.findActiveBySource(
+                historySourceType, historySourceId);
         purchaseHistoryRepository.deactivateBySource(historySourceType, historySourceId, actorUserId);
 
-        partnerLedgerService.subtractPurchaseAmount(partnerId, movementDate, amount, actorUserId);
+        for (PurchaseHistoryRecord history : histories) {
+            if (history.approvalStatus() == PayableApprovalStatus.APPROVED) {
+                partnerLedgerService.subtractPurchaseAmount(
+                        partnerId, history.historyDate(), history.amount(), actorUserId);
+            }
+        }
 
     }
 

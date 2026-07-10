@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   CheckDistinction,
   CreateItemRequest,
@@ -7,6 +7,7 @@ import type {
   UpdateItemRequest,
 } from '../api/item';
 import { createItem, deleteItem, fetchItems, updateItem } from '../api/item';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 
 const PROPERTY_OPTIONS: PropertyClassification[] = ['원자재', '제품', '상품', '공정품'];
 
@@ -57,6 +58,20 @@ export default function ItemPage() {
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = editingId !== null;
+
+  const itemExportRows = useMemo(
+    () =>
+      items.map((item) => ({
+        ID: item.id,
+        품목번호: item.itemNo,
+        품목명: item.itemName,
+        자산분류: item.propertyClassification,
+        기종: item.modelType ?? '',
+        단위: item.unit,
+        규격: item.standard ?? '',
+      })),
+    [items],
+  );
 
   const load = async (itemNo = searchItemNo, itemName = searchItemName) => {
     setLoading(true);
@@ -281,7 +296,10 @@ export default function ItemPage() {
       </section>
 
       <section className="panel">
-        <h2>품목 목록</h2>
+        <div className="panel-header-row">
+          <h2>품목 목록</h2>
+          <GridExcelExportButton fileBaseName="품목목록" disabled={loading} rows={itemExportRows} />
+        </div>
         <div className="search-row">
           <label>
             품목번호

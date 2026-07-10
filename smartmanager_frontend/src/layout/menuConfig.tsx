@@ -23,6 +23,7 @@ import PurchaseReceiptPage from '../pages/PurchaseReceiptPage';
 import EtcPurchaseOrderPage from '../pages/EtcPurchaseOrderPage';
 import EtcPurchaseReceiptPage from '../pages/EtcPurchaseReceiptPage';
 import PartnerPaymentPage from '../pages/PartnerPaymentPage';
+import PayableApprovalPage from '../pages/PayableApprovalPage';
 import InventoryLedgerPage from '../pages/InventoryLedgerPage';
 import WorkPlanPage from '../pages/WorkPlanPage';
 import WorkCenterLoadPage from '../pages/WorkCenterLoadPage';
@@ -80,6 +81,7 @@ export type PurchasePageId =
   | 'purchase-receipt'
   | 'purchase-etc-order'
   | 'purchase-etc-receipt'
+  | 'purchase-payable-approval'
   | 'purchase-payment'
   | 'inventory-ledger';
 
@@ -139,6 +141,7 @@ export const MENU_GROUPS: MenuGroup[] = [
       { id: 'purchase-receipt', label: '구매입고' },
       { id: 'purchase-etc-order', label: '기타구매발주' },
       { id: 'purchase-etc-receipt', label: '기타구매입고' },
+      { id: 'purchase-payable-approval', label: '승인처리' },
       { id: 'purchase-payment', label: '지급' },
       { id: 'inventory-ledger', label: '재고·원장' },
     ],
@@ -295,6 +298,9 @@ export function renderPurchasePage(page: PurchasePageId) {
   }
   if (page === 'purchase-etc-receipt') {
     return <EtcPurchaseReceiptPage />;
+  }
+  if (page === 'purchase-payable-approval') {
+    return <PayableApprovalPage />;
   }
   if (page === 'purchase-payment') {
     return <PartnerPaymentPage />;

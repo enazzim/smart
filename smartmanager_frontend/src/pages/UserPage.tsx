@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { AuthenticatedUser } from '../api/auth';
 import { changeMyPassword } from '../api/auth';
 import type { CodeOption, CreateUserRequest, Role, User } from '../api/user';
@@ -11,6 +11,7 @@ import {
   fetchWorkDiaryGroups,
   updateUser,
 } from '../api/user';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 
 const emptyForm: CreateUserRequest & { passwordConfirm: string } = {
   loginId: '',
@@ -56,6 +57,19 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
 
   const isEditing = editingId !== null;
   const isSelfService = !canManageUsers;
+
+  const userExportRows = useMemo(
+    () =>
+      users.map((user) => ({
+        아이디: user.loginId,
+        이름: user.name,
+        연락처: user.contact ?? '',
+        이메일: user.email ?? '',
+        역할: user.roleCodes.join(', '),
+        업무일지그룹: user.workDiaryGroupName ?? '',
+      })),
+    [users],
+  );
 
   const load = async (query = searchQuery) => {
     setLoading(true);
@@ -282,7 +296,7 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
 
         <section className="panel">
           <h2>비밀번호 변경</h2>
-          <form onSubmit={onPasswordSubmit} className="form-grid form-grid-wide">
+          <form onSubmit={onPasswordSubmit} className="form-grid form-grid-wide" data-allow-write>
             <label>
               현재 비밀번호 *
               <input
@@ -448,7 +462,10 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
       </section>
 
       <section className="panel">
-        <h2>사용자 목록</h2>
+        <div className="panel-header-row">
+          <h2>사용자 목록</h2>
+          <GridExcelExportButton fileBaseName="사용자목록" disabled={loading} rows={userExportRows} />
+        </div>
         <form onSubmit={onSearch} className="search-row">
           <label>
             아이디·이름 검색

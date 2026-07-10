@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import GridExcelExportButton from '../components/GridExcelExportButton';
 import type {
   CreateProcessRequest,
   ProcessPlan,
@@ -68,6 +69,30 @@ export default function ProcessPage() {
   const showWorkCenter = form.workDistinction === 'INHOUSE' || form.workDistinction === 'SPLIT';
   const showOutsideOrderRate = form.workDistinction === 'SPLIT';
   const showItemColumn = filterItem === null;
+
+  const processExportRows = useMemo(
+    () =>
+      processes.map((process) => {
+        const row: Record<string, string | number> = {
+          ID: process.id,
+        };
+        if (showItemColumn) {
+          row['품목'] = `${process.itemNo} — ${process.itemName}`;
+        }
+        Object.assign(row, {
+          순번: process.processSequenceNum,
+          공정: `${process.processCode} — ${process.processName}`,
+          작업구분:
+            WORK_DISTINCTION_OPTIONS.find((option) => option.value === process.workDistinction)?.label ??
+            process.workDistinction,
+          작업장: process.wcName ?? '',
+          '발주%': process.outsideOrderRate,
+          '진척%': process.progressRate,
+        });
+        return row;
+      }),
+    [processes, showItemColumn],
+  );
 
   const refreshProcessList = useCallback(async (item?: ItemSearchSelection | null) => {
     setLoading(true);
@@ -321,7 +346,10 @@ export default function ProcessPage() {
       </section>
 
       <section className="panel">
-        <h2>공정 목록</h2>
+        <div className="panel-header-row">
+          <h2>공정 목록</h2>
+          <GridExcelExportButton fileBaseName="공정목록" disabled={loading} rows={processExportRows} />
+        </div>
         <div className="search-row">
           <ItemSearchField
             label="품목 필터 (선택)"

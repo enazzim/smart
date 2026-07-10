@@ -5,6 +5,7 @@ import com.shindong.smartmanager.application.closing.FiscalPeriod;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.ledger.PartnerLedgerService;
 import com.shindong.smartmanager.domain.purchase.EtcPurchaseOrderStatus;
+import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
 import com.shindong.smartmanager.domain.purchase.PurchaseHistorySourceType;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -187,21 +188,23 @@ public class EtcPurchaseReceiptService {
                 receipt.fiscalMonth(),
                 actorUserId
         ));
-        partnerLedgerService.addPurchaseAmount(receipt.partnerId(), receipt.receiptDate(), receipt.amount(), actorUserId);
+        // 지급 확정은 승인처리 화면에서 반영 (partner_ledger 미갱신)
     }
 
     private void reversePayable(EtcPurchaseReceiptView receipt, String actorUserId) {
+        List<PurchaseHistoryRecord> histories = purchaseHistoryRepository.findActiveBySource(
+                PurchaseHistorySourceType.ETC_PURCHASE_RECEIPT, receipt.id());
         purchaseHistoryRepository.deactivateBySource(
                 PurchaseHistorySourceType.ETC_PURCHASE_RECEIPT,
                 receipt.id(),
                 actorUserId
         );
-        partnerLedgerService.subtractPurchaseAmount(
-                receipt.partnerId(),
-                receipt.receiptDate(),
-                receipt.amount(),
-                actorUserId
-        );
+        for (PurchaseHistoryRecord history : histories) {
+            if (history.approvalStatus() == PayableApprovalStatus.APPROVED) {
+                partnerLedgerService.subtractPurchaseAmount(
+                        receipt.partnerId(), history.historyDate(), history.amount(), actorUserId);
+            }
+        }
     }
 
     private String nextReceiptNo(LocalDate receiptDate) {
