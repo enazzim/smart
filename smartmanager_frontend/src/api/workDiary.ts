@@ -9,9 +9,40 @@ export const WORK_DIARY_STATUS_LABELS: Record<WorkDiaryStatus, string> = {
   REJECTED: '반려',
 };
 
+export const DEFAULT_CHECKLIST_OPTIONS = ['이상무', '이상있음'] as const;
+
+export type WorkDiaryFieldType = 'textarea' | 'checklist';
+
+export interface WorkDiaryChecklistItem {
+  id: string;
+  group?: string;
+  text: string;
+  sortOrder: number;
+}
+
+export interface WorkDiaryFieldDefinition {
+  key: string;
+  label: string;
+  type: WorkDiaryFieldType;
+  options?: string[];
+  items?: WorkDiaryChecklistItem[];
+}
+
 export interface WorkDiaryFieldSchema {
+  version?: number;
+  fields?: WorkDiaryFieldDefinition[];
+  /** @deprecated v1 — fields 로 대체 */
   legacyFields?: Record<string, string>;
 }
+
+export interface WorkDiaryChecklistEntry {
+  status: string;
+  note?: string;
+}
+
+export type WorkDiaryChecklistValue = Record<string, WorkDiaryChecklistEntry>;
+export type WorkDiaryFieldValue = string | WorkDiaryChecklistValue;
+export type WorkDiaryFieldValues = Record<string, WorkDiaryFieldValue>;
 
 export interface WorkDiaryTemplate {
   templateCode: string;
@@ -39,7 +70,7 @@ export interface WorkDiaryListItem {
 export interface WorkDiaryDetail extends WorkDiaryListItem {
   templateName: string;
   fieldSchema: WorkDiaryFieldSchema;
-  fieldValues: Record<string, string>;
+  fieldValues: WorkDiaryFieldValues;
   directiveNote?: string | null;
   closingNote?: string | null;
   submittedAt?: string | null;
@@ -85,36 +116,60 @@ function buildQuery(params?: WorkDiaryListParams): string {
   return q ? `?${q}` : '';
 }
 
-export function parseLegacyFields(schema?: WorkDiaryFieldSchema): Array<{ key: string; label: string }> {
-  const legacyFields = schema?.legacyFields ?? {};
-  return Object.entries(legacyFields)
-    .filter(([, label]) => label.trim() !== '')
-    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
-    .map(([key, label]) => ({ key, label }));
-}
-
 export const DIRECTIVE_FIELD_KEY = '06';
 
 export function isDirectiveWriterField(key: string, label: string): boolean {
   return key === DIRECTIVE_FIELD_KEY || /지시\s*사항/.test(label);
 }
 
-/** 작성자 입력 항목 — 레거시 지시사항(06) 제외 */
-export function parseWriterFields(schema?: WorkDiaryFieldSchema): Array<{ key: string; label: string }> {
-  return parseLegacyFields(schema).filter(({ key, label }) => !isDirectiveWriterField(key, label));
+export function parseSchemaFields(schema?: WorkDiaryFieldSchema): WorkDiaryFieldDefinition[] {
+  if (schema?.fields?.length) {
+    return schema.fields.filter(
+      (field) => field.label.trim() !== '' && !isDirectiveWriterField(field.key, field.label),
+    );
+  }
+  const legacyFields = schema?.legacyFields ?? {};
+  return Object.entries(legacyFields)
+    .filter(([, label]) => label.trim() !== '')
+    .filter(([key, label]) => !isDirectiveWriterField(key, label))
+    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+    .map(([key, label]) => ({
+      key,
+      label,
+      type: 'textarea' as const,
+      options: [],
+      items: [],
+    }));
 }
 
-export function emptyFieldValues(schema?: WorkDiaryFieldSchema): Record<string, string> {
-  const values: Record<string, string> = {};
-  parseWriterFields(schema).forEach(({ key }) => {
-    values[key] = '';
-  });
+/** @deprecated parseSchemaFields 사용 */
+export const parseWriterFields = parseSchemaFields;
+
+export function emptyFieldValues(schema?: WorkDiaryFieldSchema): WorkDiaryFieldValues {
+  return emptyFieldValuesForFields(parseSchemaFields(schema));
+}
+
+export function emptyFieldValuesForFields(fields: WorkDiaryFieldDefinition[]): WorkDiaryFieldValues {
+  const values: WorkDiaryFieldValues = {};
+  for (const field of fields) {
+    if (field.type === 'checklist') {
+      const checklist: WorkDiaryChecklistValue = {};
+      const options = field.options?.length ? field.options : [...DEFAULT_CHECKLIST_OPTIONS];
+      for (const item of field.items ?? []) {
+        checklist[item.id] = { status: options[0], note: '' };
+      }
+      values[field.key] = checklist;
+    } else {
+      values[field.key] = '';
+    }
+  }
   return values;
 }
 
+/** @deprecated fieldsFromSchema in workDiaryFieldUtils 사용 */
 export function legacyFieldsFromSchema(schema?: WorkDiaryFieldSchema): Record<string, string> {
   const values: Record<string, string> = {};
-  parseWriterFields(schema).forEach(({ key, label }) => {
+  parseSchemaFields(schema).forEach(({ key, label }) => {
     values[key] = label;
   });
   return values;
@@ -122,7 +177,7 @@ export function legacyFieldsFromSchema(schema?: WorkDiaryFieldSchema): Record<st
 
 export async function updateWorkDiaryTemplate(
   workDiaryGroupId: number,
-  body: { templateName: string; legacyFields: Record<string, string> },
+  body: { templateName: string; fields: WorkDiaryFieldDefinition[] },
 ): Promise<WorkDiaryTemplate> {
   return handleResponse(
     await apiFetch(`/api/v1/work-diaries/templates/${workDiaryGroupId}`, {
@@ -155,7 +210,7 @@ export async function fetchWorkDiaryByDate(workDate: string): Promise<WorkDiaryD
 
 export async function createWorkDiary(body: {
   workDate: string;
-  fieldValues: Record<string, string>;
+  fieldValues: WorkDiaryFieldValues;
   closingNote?: string;
   status: WorkDiaryStatus;
 }): Promise<WorkDiaryDetail> {
@@ -171,7 +226,7 @@ export async function createWorkDiary(body: {
 export async function updateWorkDiary(
   id: number,
   body: {
-    fieldValues: Record<string, string>;
+    fieldValues: WorkDiaryFieldValues;
     closingNote?: string;
   },
 ): Promise<WorkDiaryDetail> {
@@ -225,4 +280,8 @@ export async function cancelWorkDiaryApproval(id: number, reason?: string): Prom
 export function formatWorkDiaryDate(value?: string | null): string {
   if (!value) return '—';
   return value.slice(0, 10);
+}
+
+export function isChecklistValue(value: WorkDiaryFieldValue | undefined): value is WorkDiaryChecklistValue {
+  return value != null && typeof value === 'object' && !Array.isArray(value);
 }

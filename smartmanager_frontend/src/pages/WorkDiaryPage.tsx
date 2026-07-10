@@ -13,7 +13,8 @@ import {
   fetchWorkDiary,
   fetchWorkDiaryTemplates,
   formatWorkDiaryDate,
-  parseWriterFields,
+  parseSchemaFields,
+  type WorkDiaryFieldValues,
   submitWorkDiary,
   updateWorkDiary,
   type WorkDiaryDetail,
@@ -22,6 +23,8 @@ import {
   type WorkDiaryTemplate,
 } from '../api/workDiary';
 import { WorkDiaryTemplatesCatalog } from '../components/workdiary/WorkDiaryTemplatePanel';
+import WorkDiaryChecklistField from '../components/workdiary/WorkDiaryChecklistField';
+import { mergeFieldValues, checklistValueOrEmpty, textareaValue } from '../components/workdiary/workDiaryFieldUtils';
 
 export type WorkDiaryScreen =
   | { mode: 'list' }
@@ -324,7 +327,7 @@ function WorkDiaryDetailView({
     void load();
   }, [load]);
 
-  const fields = parseWriterFields(detail?.fieldSchema);
+  const fields = parseSchemaFields(detail?.fieldSchema);
 
   const onSubmitDiary = async () => {
     if (!detail) return;
@@ -421,10 +424,18 @@ function WorkDiaryDetailView({
 
       <section className="detail-panel">
         <h2>업무 내용</h2>
-        {fields.map(({ key, label }) => (
-          <div key={key} className="work-diary-field-readonly">
-            <h3>{label}</h3>
-            <pre>{detail.fieldValues[key] || '—'}</pre>
+        {fields.map((field) => (
+          <div key={field.key} className="work-diary-field-readonly">
+            <h3>{field.label}</h3>
+            {field.type === 'checklist' ? (
+              <WorkDiaryChecklistField
+                field={field}
+                value={checklistValueOrEmpty(detail.fieldValues[field.key])}
+                readOnly
+              />
+            ) : (
+              <pre>{textareaValue(detail.fieldValues[field.key]) || '—'}</pre>
+            )}
           </div>
         ))}
         {detail.closingNote && (
@@ -500,7 +511,7 @@ function WorkDiaryComposeView({
   onNavigateDetail: (id: number) => void;
 }) {
   const [template, setTemplate] = useState<WorkDiaryTemplate | null>(null);
-  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [fieldValues, setFieldValues] = useState<WorkDiaryFieldValues>({});
   const [selectedDate, setSelectedDate] = useState(workDate);
   const [closingNote, setClosingNote] = useState('');
   const [loading, setLoading] = useState(true);
@@ -522,7 +533,7 @@ function WorkDiaryComposeView({
             templateName: detail.templateName,
             fieldSchema: detail.fieldSchema,
           });
-          setFieldValues({ ...detail.fieldValues });
+          setFieldValues(mergeFieldValues(parseSchemaFields(detail.fieldSchema), detail.fieldValues));
           setSelectedDate(detail.workDate);
           setClosingNote(detail.closingNote ?? '');
         } else {
@@ -540,7 +551,7 @@ function WorkDiaryComposeView({
     void load();
   }, [editId, isEdit, workDate]);
 
-  const fields = parseWriterFields(template?.fieldSchema);
+  const fields = parseSchemaFields(template?.fieldSchema);
 
   const save = async (status: 'DRAFT' | 'SUBMITTED') => {
     if (!canWrite) return;
@@ -608,15 +619,23 @@ function WorkDiaryComposeView({
 
       <section className="detail-panel">
         <h2>업무 내용</h2>
-        {fields.map(({ key, label }) => (
-          <label key={key} className="work-diary-field">
-            {label}
-            <textarea
-              rows={4}
-              value={fieldValues[key] ?? ''}
-              onChange={(e) => setFieldValues((prev) => ({ ...prev, [key]: e.target.value }))}
-            />
-          </label>
+        {fields.map((field) => (
+          <div key={field.key} className="work-diary-field">
+            <h3>{field.label}</h3>
+            {field.type === 'checklist' ? (
+              <WorkDiaryChecklistField
+                field={field}
+                value={checklistValueOrEmpty(fieldValues[field.key])}
+                onChange={(next) => setFieldValues((prev) => ({ ...prev, [field.key]: next }))}
+              />
+            ) : (
+              <textarea
+                rows={4}
+                value={textareaValue(fieldValues[field.key])}
+                onChange={(e) => setFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+              />
+            )}
+          </div>
         ))}
         <label className="work-diary-field">
           마감 메모

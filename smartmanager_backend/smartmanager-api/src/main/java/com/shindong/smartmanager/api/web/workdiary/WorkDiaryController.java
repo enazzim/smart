@@ -66,7 +66,7 @@ public class WorkDiaryController {
         WorkDiaryTemplateView view = workDiaryApplicationService.updateTemplate(new UpdateWorkDiaryTemplateCommand(
                 workDiaryGroupId,
                 request.templateName(),
-                request.legacyFields(),
+                WorkDiaryFieldRequestMapper.toDefinitions(request.fields()),
                 principal.userId(),
                 principal.loginId(),
                 String.valueOf(principal.userId())

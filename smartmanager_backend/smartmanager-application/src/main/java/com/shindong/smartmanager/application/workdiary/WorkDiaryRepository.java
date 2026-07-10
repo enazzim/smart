@@ -3,7 +3,6 @@ package com.shindong.smartmanager.application.workdiary;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -25,7 +24,7 @@ public interface WorkDiaryRepository {
             long workDiaryGroupId,
             String templateCode,
             String workDateTitle,
-            Map<String, String> fieldValues,
+            Map<String, Object> fieldValues,
             String directiveNote,
             boolean listed,
             String closingNote,
@@ -67,7 +66,7 @@ public interface WorkDiaryRepository {
             long workDiaryGroupId,
             String templateCode,
             String workDateTitle,
-            Map<String, String> fieldValues,
+            Map<String, Object> fieldValues,
             boolean listed,
             String closingNote,
             WorkDiaryStatus status,
@@ -77,7 +76,7 @@ public interface WorkDiaryRepository {
 
     void updateEntry(
             long id,
-            Map<String, String> fieldValues,
+            Map<String, Object> fieldValues,
             boolean listed,
             String closingNote,
             String actorLoginId,

@@ -138,10 +138,12 @@ public class EtcPurchaseController {
             @RequestParam(required = false) String itemName,
             @RequestParam(required = false) String partnerName,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptTo
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptTo,
+            @RequestParam(required = false) Integer fiscalYear,
+            @RequestParam(required = false) Integer fiscalMonth
     ) {
         return etcPurchaseApplicationService.listReceipts(
-                new EtcPurchaseReceiptListCriteria(itemName, partnerName, receiptFrom, receiptTo)
+                new EtcPurchaseReceiptListCriteria(itemName, partnerName, receiptFrom, receiptTo, fiscalYear, fiscalMonth)
         ).stream().map(EtcPurchaseReceiptResponse::from).toList();
     }
 

@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { WorkDiaryFieldSchema, WorkDiaryTemplate } from '../../api/workDiary';
+import { parseSchemaFields, updateWorkDiaryTemplate } from '../../api/workDiary';
 import {
-  legacyFieldsFromSchema,
-  parseWriterFields,
-  updateWorkDiaryTemplate,
-} from '../../api/workDiary';
+  type EditorFieldRow,
+  editorRowsToFields,
+  fieldToEditorRow,
+  fieldsFromSchema,
+  newChecklistItemId,
+  nextFieldKey,
+} from './workDiaryFieldUtils';
 
 interface WorkDiaryTemplatePanelProps {
   templateName: string;
@@ -19,7 +23,7 @@ export default function WorkDiaryTemplatePanel({
   fieldSchema,
   compact = false,
 }: WorkDiaryTemplatePanelProps) {
-  const fields = parseWriterFields(fieldSchema);
+  const fields = parseSchemaFields(fieldSchema);
 
   return (
     <section className={`detail-panel work-diary-template-panel${compact ? ' work-diary-template-panel--compact' : ''}`}>
@@ -38,8 +42,13 @@ export default function WorkDiaryTemplatePanel({
         {fields.length === 0 ? (
           <li>등록된 입력 항목이 없습니다.</li>
         ) : (
-          fields.map(({ key, label }) => (
-            <li key={key}>{label}</li>
+          fields.map((field) => (
+            <li key={field.key}>
+              {field.label}
+              {field.type === 'checklist' && (
+                <span className="meta-text"> — 체크리스트 {field.items?.length ?? 0}항목</span>
+              )}
+            </li>
           ))
         )}
       </ol>
@@ -55,19 +64,6 @@ interface WorkDiaryTemplatesCatalogProps {
   onTemplatesChange: (templates: WorkDiaryTemplate[]) => void;
 }
 
-function nextFieldKey(existing: string[]): string {
-  const numeric = existing
-    .map((key) => Number.parseInt(key, 10))
-    .filter((value) => !Number.isNaN(value));
-  const next = numeric.length > 0 ? Math.max(...numeric) + 1 : 1;
-  return String(next).padStart(2, '0');
-}
-
-interface TemplateFieldRow {
-  key: string;
-  label: string;
-}
-
 function WorkDiaryTemplateEditor({
   template,
   onClose,
@@ -78,30 +74,22 @@ function WorkDiaryTemplateEditor({
   onSaved: (updated: WorkDiaryTemplate) => void;
 }) {
   const [templateName, setTemplateName] = useState(template.templateName);
-  const [rows, setRows] = useState<TemplateFieldRow[]>(() =>
-    Object.entries(legacyFieldsFromSchema(template.fieldSchema)).map(([key, label]) => ({ key, label })),
+  const [rows, setRows] = useState<EditorFieldRow[]>(() =>
+    fieldsFromSchema(template.fieldSchema).map(fieldToEditorRow),
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setTemplateName(template.templateName);
-    setRows(
-      Object.entries(legacyFieldsFromSchema(template.fieldSchema)).map(([key, label]) => ({ key, label })),
-    );
+    setRows(fieldsFromSchema(template.fieldSchema).map(fieldToEditorRow));
   }, [template]);
 
   const save = async () => {
     setSubmitting(true);
     setError(null);
-    const legacyFields: Record<string, string> = {};
-    for (const row of rows) {
-      const key = row.key.trim();
-      const label = row.label.trim();
-      if (!key || !label) continue;
-      legacyFields[key] = label;
-    }
-    if (Object.keys(legacyFields).length === 0) {
+    const fields = editorRowsToFields(rows);
+    if (fields.length === 0) {
       setError('입력 항목을 1개 이상 등록해 주세요.');
       setSubmitting(false);
       return;
@@ -109,7 +97,7 @@ function WorkDiaryTemplateEditor({
     try {
       const updated = await updateWorkDiaryTemplate(template.workDiaryGroupId, {
         templateName: templateName.trim(),
-        legacyFields,
+        fields,
       });
       onSaved(updated);
       onClose();
@@ -118,6 +106,66 @@ function WorkDiaryTemplateEditor({
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const updateRow = (index: number, patch: Partial<EditorFieldRow>) => {
+    setRows((prev) => prev.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
+  };
+
+  const addFieldRow = () => {
+    setRows((prev) => [
+      ...prev,
+      {
+        key: nextFieldKey(prev.map((row) => row.key)),
+        label: '',
+        type: 'textarea',
+        options: ['이상무', '이상있음'],
+        items: [],
+      },
+    ]);
+  };
+
+  const addChecklistItem = (fieldIndex: number) => {
+    setRows((prev) =>
+      prev.map((row, rowIndex) => {
+        if (rowIndex !== fieldIndex) return row;
+        const nextSort = row.items.length > 0 ? Math.max(...row.items.map((item) => item.sortOrder)) + 1 : 1;
+        return {
+          ...row,
+          items: [
+            ...row.items,
+            { id: newChecklistItemId(), group: '', text: '', sortOrder: nextSort },
+          ],
+        };
+      }),
+    );
+  };
+
+  const updateChecklistItem = (
+    fieldIndex: number,
+    itemIndex: number,
+    patch: Partial<EditorFieldRow['items'][number]>,
+  ) => {
+    setRows((prev) =>
+      prev.map((row, rowIndex) => {
+        if (rowIndex !== fieldIndex) return row;
+        return {
+          ...row,
+          items: row.items.map((item, currentIndex) =>
+            currentIndex === itemIndex ? { ...item, ...patch } : item,
+          ),
+        };
+      }),
+    );
+  };
+
+  const removeChecklistItem = (fieldIndex: number, itemIndex: number) => {
+    setRows((prev) =>
+      prev.map((row, rowIndex) => {
+        if (rowIndex !== fieldIndex) return row;
+        return { ...row, items: row.items.filter((_, currentIndex) => currentIndex !== itemIndex) };
+      }),
+    );
   };
 
   return (
@@ -145,55 +193,97 @@ function WorkDiaryTemplateEditor({
         <section className="detail-panel">
           <div className="inline-actions">
             <h3>입력 항목</h3>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() =>
-                setRows((prev) => [...prev, { key: nextFieldKey(prev.map((row) => row.key)), label: '' }])
-              }
-            >
+            <button type="button" className="secondary" onClick={addFieldRow}>
               항목 추가
             </button>
           </div>
+
           {rows.map((row, index) => (
-            <div key={`${row.key}-${index}`} className="work-diary-template-editor-row">
-              <label>
-                키
-                <input
-                  value={row.key}
-                  onChange={(e) =>
-                    setRows((prev) =>
-                      prev.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, key: e.target.value } : item,
-                      ),
-                    )
-                  }
-                  maxLength={2}
-                />
-              </label>
-              <label className="work-diary-field">
-                항목명
-                <input
-                  value={row.label}
-                  onChange={(e) =>
-                    setRows((prev) =>
-                      prev.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, label: e.target.value } : item,
-                      ),
-                    )
-                  }
-                  maxLength={200}
-                />
-              </label>
-              <button
-                type="button"
-                className="secondary"
-                disabled={rows.length <= 1}
-                onClick={() => setRows((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
-              >
-                삭제
-              </button>
-            </div>
+            <article key={`${row.key}-${index}`} className="work-diary-template-editor-block">
+              <div className="work-diary-template-editor-row">
+                <label>
+                  키
+                  <input
+                    value={row.key}
+                    onChange={(e) => updateRow(index, { key: e.target.value })}
+                    maxLength={2}
+                  />
+                </label>
+                <label className="work-diary-field">
+                  항목명
+                  <input
+                    value={row.label}
+                    onChange={(e) => updateRow(index, { label: e.target.value })}
+                    maxLength={200}
+                  />
+                </label>
+                <label>
+                  유형
+                  <select
+                    value={row.type}
+                    onChange={(e) =>
+                      updateRow(index, {
+                        type: e.target.value as EditorFieldRow['type'],
+                        items: e.target.value === 'checklist' ? row.items : [],
+                      })
+                    }
+                  >
+                    <option value="textarea">자유 입력</option>
+                    <option value="checklist">체크리스트</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={rows.length <= 1}
+                  onClick={() => setRows((prev) => prev.filter((_, rowIndex) => rowIndex !== index))}
+                >
+                  삭제
+                </button>
+              </div>
+
+              {row.type === 'checklist' && (
+                <div className="work-diary-template-checklist-editor">
+                  <div className="inline-actions">
+                    <h4>체크리스트 항목</h4>
+                    <button type="button" className="secondary" onClick={() => addChecklistItem(index)}>
+                      체크 항목 추가
+                    </button>
+                  </div>
+                  {row.items.length === 0 && (
+                    <p className="meta-text">체크리스트 항목을 추가해 주세요.</p>
+                  )}
+                  {row.items.map((item, itemIndex) => (
+                    <div key={`${item.id}-${itemIndex}`} className="work-diary-template-checklist-item-row">
+                      <label>
+                        그룹
+                        <input
+                          value={item.group}
+                          onChange={(e) => updateChecklistItem(index, itemIndex, { group: e.target.value })}
+                          maxLength={100}
+                          placeholder="예: 전기"
+                        />
+                      </label>
+                      <label className="work-diary-field">
+                        점검 내용
+                        <input
+                          value={item.text}
+                          onChange={(e) => updateChecklistItem(index, itemIndex, { text: e.target.value })}
+                          maxLength={500}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => removeChecklistItem(index, itemIndex)}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </article>
           ))}
         </section>
 
@@ -251,8 +341,11 @@ export function WorkDiaryTemplatesCatalog({
                 <h3>{template.workDiaryGroupName || '—'}</h3>
                 <p className="meta-text">{template.templateName}</p>
                 <ol>
-                  {parseWriterFields(template.fieldSchema).map(({ key, label }) => (
-                    <li key={key}>{label}</li>
+                  {parseSchemaFields(template.fieldSchema).map((field) => (
+                    <li key={field.key}>
+                      {field.label}
+                      {field.type === 'checklist' ? ` (${field.items?.length ?? 0})` : ''}
+                    </li>
                   ))}
                 </ol>
               </article>

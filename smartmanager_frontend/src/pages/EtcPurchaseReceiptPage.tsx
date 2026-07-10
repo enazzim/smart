@@ -5,7 +5,7 @@ import CompanySearchField, {
 } from '../components/CompanySearchField';
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
 import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
-import { formatFiscalPeriodLabel } from '../utils/fiscalCalendar';
+import { formatFiscalPeriodLabel, currentCalendarYearMonth } from '../utils/fiscalCalendar';
 import {
   cancelEtcPurchaseReceipt,
   createEtcPurchaseReceipts,
@@ -30,6 +30,30 @@ function formatAmount(value: number): string {
   return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
+function createDefaultHistoryFilters(): EtcPurchaseReceiptListParams {
+  const { fiscalYear, fiscalMonth } = currentCalendarYearMonth();
+  return {
+    receiptFrom: addDaysIso(todayIso(), -30),
+    receiptTo: todayIso(),
+    fiscalYear,
+    fiscalMonth,
+  };
+}
+
+function normalizeHistoryFilters(filters: EtcPurchaseReceiptListParams): EtcPurchaseReceiptListParams {
+  const { fiscalYear, fiscalMonth } = currentCalendarYearMonth();
+  return {
+    ...filters,
+    fiscalYear: filters.fiscalYear ?? fiscalYear,
+    fiscalMonth: filters.fiscalMonth ?? fiscalMonth,
+  };
+}
+
+function fiscalYearOptions(): number[] {
+  const currentYear = currentCalendarYearMonth().fiscalYear;
+  return Array.from({ length: 6 }, (_, index) => currentYear - 5 + index);
+}
+
 export default function EtcPurchaseReceiptPage() {
   const [tab, setTab] = useState<'candidates' | 'history'>('candidates');
   const [candidates, setCandidates] = useState<EtcPurchaseReceiptCandidate[]>([]);
@@ -42,11 +66,11 @@ export default function EtcPurchaseReceiptPage() {
   const editFiscal = useFiscalPeriod(editReceiptDate);
   const [candidateFilters, setCandidateFilters] = useState<EtcPurchaseReceiptCandidateParams>({});
   const [candidateFilterPartner, setCandidateFilterPartner] = useState<CompanySearchSelection | null>(null);
-  const [historyFilters, setHistoryFilters] = useState<EtcPurchaseReceiptListParams>(() => ({
-    receiptFrom: addDaysIso(todayIso(), -30),
-    receiptTo: todayIso(),
-  }));
+  const [historyFilters, setHistoryFilters] = useState<EtcPurchaseReceiptListParams>(createDefaultHistoryFilters);
+  const [appliedHistoryFilters, setAppliedHistoryFilters] =
+    useState<EtcPurchaseReceiptListParams>(createDefaultHistoryFilters);
   const [historyFilterPartner, setHistoryFilterPartner] = useState<CompanySearchSelection | null>(null);
+  const [appliedHistoryPartner, setAppliedHistoryPartner] = useState<CompanySearchSelection | null>(null);
   const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -83,8 +107,8 @@ export default function EtcPurchaseReceiptPage() {
     try {
       setReceipts(
         await fetchEtcPurchaseReceipts({
-          ...historyFilters,
-          partnerName: historyFilterPartner?.companyName,
+          ...appliedHistoryFilters,
+          partnerName: appliedHistoryPartner?.companyName,
         }),
       );
     } catch (e) {
@@ -93,7 +117,7 @@ export default function EtcPurchaseReceiptPage() {
     } finally {
       setLoadingHistory(false);
     }
-  }, [historyFilters, historyFilterPartner]);
+  }, [appliedHistoryFilters, appliedHistoryPartner]);
 
   useEffect(() => {
     if (tab === 'candidates') {
@@ -106,6 +130,22 @@ export default function EtcPurchaseReceiptPage() {
       void loadReceipts();
     }
   }, [tab, loadReceipts]);
+
+  const onHistorySearch = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const nextFilters = normalizeHistoryFilters(historyFilters);
+    setHistoryFilters(nextFilters);
+    setAppliedHistoryFilters(nextFilters);
+    setAppliedHistoryPartner(historyFilterPartner);
+  };
+
+  const onResetHistoryFilters = () => {
+    const defaults = createDefaultHistoryFilters();
+    setHistoryFilters(defaults);
+    setAppliedHistoryFilters(defaults);
+    setHistoryFilterPartner(null);
+    setAppliedHistoryPartner(null);
+  };
 
   const onSelectCandidate = (row: EtcPurchaseReceiptCandidate) => {
     setSelectedOrderId(row.etcPurchaseOrderId);
@@ -359,48 +399,84 @@ export default function EtcPurchaseReceiptPage() {
 
       {tab === 'history' && (
         <>
-          <section className="filter-panel">
-            <label>
-              품목명
-              <input
-                value={historyFilters.itemName ?? ''}
-                onChange={(e) => setHistoryFilters((f) => ({ ...f, itemName: e.target.value }))}
+          <section className="panel">
+            <h2>검색</h2>
+            <form onSubmit={onHistorySearch} className="search-row">
+              <label>
+                매입년도
+                <select
+                  value={historyFilters.fiscalYear ?? currentCalendarYearMonth().fiscalYear}
+                  onChange={(e) =>
+                    setHistoryFilters((f) => ({ ...f, fiscalYear: Number(e.target.value) }))
+                  }
+                >
+                  {fiscalYearOptions().map((year) => (
+                    <option key={year} value={year}>
+                      {year}년
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                매입월
+                <select
+                  value={historyFilters.fiscalMonth ?? currentCalendarYearMonth().fiscalMonth}
+                  onChange={(e) =>
+                    setHistoryFilters((f) => ({ ...f, fiscalMonth: Number(e.target.value) }))
+                  }
+                >
+                  {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
+                    <option key={month} value={month}>
+                      {month}월
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                품목명
+                <input
+                  value={historyFilters.itemName ?? ''}
+                  onChange={(e) => setHistoryFilters((f) => ({ ...f, itemName: e.target.value }))}
+                />
+              </label>
+              <CompanySearchField
+                label="거래처"
+                partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
+                selectedCompany={historyFilterPartner}
+                onSelect={setHistoryFilterPartner}
+                placeholder="전체 조회 — 상호 또는 사업자번호 입력"
               />
-            </label>
-            <CompanySearchField
-              label="거래처"
-              partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
-              selectedCompany={historyFilterPartner}
-              onSelect={setHistoryFilterPartner}
-              placeholder="전체 조회 — 상호 또는 사업자번호 입력"
-            />
-            <button
-              type="button"
-              className="secondary"
-              disabled={historyFilterPartner == null}
-              onClick={() => setHistoryFilterPartner(null)}
-            >
-              전체
-            </button>
-            <label>
-              납입일자(부터)
-              <input
-                type="date"
-                value={historyFilters.receiptFrom ?? ''}
-                onChange={(e) => setHistoryFilters((f) => ({ ...f, receiptFrom: e.target.value }))}
-              />
-            </label>
-            <label>
-              납입일자(까지)
-              <input
-                type="date"
-                value={historyFilters.receiptTo ?? ''}
-                onChange={(e) => setHistoryFilters((f) => ({ ...f, receiptTo: e.target.value }))}
-              />
-            </label>
-            <button type="button" onClick={() => void loadReceipts()}>
-              조회
-            </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={historyFilterPartner == null}
+                onClick={() => setHistoryFilterPartner(null)}
+              >
+                전체
+              </button>
+              <label>
+                납입일자(부터)
+                <input
+                  type="date"
+                  value={historyFilters.receiptFrom ?? ''}
+                  onChange={(e) => setHistoryFilters((f) => ({ ...f, receiptFrom: e.target.value }))}
+                />
+              </label>
+              <label>
+                납입일자(까지)
+                <input
+                  type="date"
+                  value={historyFilters.receiptTo ?? ''}
+                  onChange={(e) => setHistoryFilters((f) => ({ ...f, receiptTo: e.target.value }))}
+                />
+              </label>
+              <button type="button" className="secondary" onClick={onResetHistoryFilters}>
+                초기화
+              </button>
+              <button type="submit" disabled={loadingHistory}>
+                조회
+              </button>
+            </form>
           </section>
 
           {loadingHistory ? (

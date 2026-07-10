@@ -397,15 +397,15 @@ class WorkDiaryControllerIntegrationTest {
                         .content("""
                                 {
                                   "templateName": "커스텀 업무일지",
-                                  "legacyFields": {
-                                    "01": "1. 커스텀 항목 A",
-                                    "02": "2. 커스텀 항목 B"
-                                  }
+                                  "fields": [
+                                    { "key": "01", "label": "1. 커스텀 항목 A", "type": "textarea" },
+                                    { "key": "02", "label": "2. 커스텀 항목 B", "type": "textarea" }
+                                  ]
                                 }
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.templateName").value("커스텀 업무일지"))
-                .andExpect(jsonPath("$.fieldSchema.legacyFields.01").value("1. 커스텀 항목 A"));
+                .andExpect(jsonPath("$.fieldSchema.fields[0].label").value("1. 커스텀 항목 A"));
 
         mockMvc.perform(put(BASE + "/templates/{groupId}", groupId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + writerToken)
@@ -413,7 +413,9 @@ class WorkDiaryControllerIntegrationTest {
                         .content("""
                                 {
                                   "templateName": "권한 없음",
-                                  "legacyFields": {"01": "실패"}
+                                  "fields": [
+                                    { "key": "01", "label": "실패", "type": "textarea" }
+                                  ]
                                 }
                                 """))
                 .andExpect(status().isConflict())
@@ -423,7 +425,7 @@ class WorkDiaryControllerIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + writerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.templateName").value("커스텀 업무일지"))
-                .andExpect(jsonPath("$.fieldSchema.legacyFields.01").value("1. 커스텀 항목 A"));
+                .andExpect(jsonPath("$.fieldSchema.fields[0].label").value("1. 커스텀 항목 A"));
 
         long id = createDiary(writerToken, workDate, Map.of("01", "값A", "02", "값B"));
 
@@ -432,6 +434,51 @@ class WorkDiaryControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fieldValues.01").value("값A"))
                 .andExpect(jsonPath("$.fieldValues.02").value("값B"));
+    }
+
+    @Test
+    void checklistTemplate_savesStructuredFieldValues() throws Exception {
+        String writerLogin = "wd-chk-" + UUID.randomUUID().toString().substring(0, 8);
+        String writerName = "체크리스트-" + UUID.randomUUID().toString().substring(0, 4);
+        UserView writer = registerViewer(writerLogin, writerName);
+        String writerToken = tokenWithAuthorities(writer.id(), writer.loginId(), List.of(
+                "community:workdiary:read", "community:workdiary:write"
+        ));
+        String adminToken = adminToken();
+        long groupId = writer.workDiaryGroupId();
+        LocalDate workDate = LocalDate.of(2099, 3, 1);
+
+        mockMvc.perform(put(BASE + "/templates/{groupId}", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "templateName": "체크리스트 양식",
+                                  "fields": [
+                                    {
+                                      "key": "02",
+                                      "label": "2. 일일 체크LIST",
+                                      "type": "checklist",
+                                      "options": ["이상무", "이상있음"],
+                                      "items": [
+                                        { "id": "chk-1", "group": "전기", "text": "분전반 점검", "sortOrder": 1 }
+                                      ]
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fieldSchema.fields[0].type").value("checklist"));
+
+        long id = createDiary(writerToken, workDate, Map.of(
+                "02", Map.of("chk-1", Map.of("status", "이상있음", "note", "트립 1회"))
+        ));
+
+        mockMvc.perform(get(BASE + "/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + writerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fieldValues.02.chk-1.status").value("이상있음"))
+                .andExpect(jsonPath("$.fieldValues.02.chk-1.note").value("트립 1회"));
     }
 
     private UserView registerViewer(String loginId, String name) {
@@ -473,7 +520,7 @@ class WorkDiaryControllerIntegrationTest {
         return jwtTokenPort.createToken(userId, loginId, authorities);
     }
 
-    private long createDiary(String token, LocalDate workDate, Map<String, String> fieldValues) throws Exception {
+    private long createDiary(String token, LocalDate workDate, Map<String, ?> fieldValues) throws Exception {
         String body = objectMapper.writeValueAsString(Map.of(
                 "workDate", workDate.toString(),
                 "fieldValues", fieldValues,

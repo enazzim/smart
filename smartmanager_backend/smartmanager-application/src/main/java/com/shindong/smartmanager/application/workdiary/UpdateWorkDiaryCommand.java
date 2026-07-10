@@ -4,7 +4,7 @@ import java.util.Map;
 
 public record UpdateWorkDiaryCommand(
         long id,
-        Map<String, String> fieldValues,
+        Map<String, Object> fieldValues,
         boolean listed,
         String closingNote,
         long actorUserId,

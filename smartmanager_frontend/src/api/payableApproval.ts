@@ -30,20 +30,22 @@ export interface PayableApprovalRow {
 export interface PayableApprovalSearchParams {
   partnerName?: string;
   itemNo?: string;
-  drawingNo?: string;
   itemName?: string;
   receiptDateFrom?: string;
   receiptDateTo?: string;
+  fiscalYear?: number;
+  fiscalMonth?: number;
 }
 
 function buildQuery(params: PayableApprovalSearchParams): string {
   const search = new URLSearchParams();
   if (params.partnerName?.trim()) search.set('partnerName', params.partnerName.trim());
   if (params.itemNo?.trim()) search.set('itemNo', params.itemNo.trim());
-  if (params.drawingNo?.trim()) search.set('drawingNo', params.drawingNo.trim());
   if (params.itemName?.trim()) search.set('itemName', params.itemName.trim());
   if (params.receiptDateFrom) search.set('receiptDateFrom', params.receiptDateFrom);
   if (params.receiptDateTo) search.set('receiptDateTo', params.receiptDateTo);
+  if (params.fiscalYear != null) search.set('fiscalYear', String(params.fiscalYear));
+  if (params.fiscalMonth != null) search.set('fiscalMonth', String(params.fiscalMonth));
   const query = search.toString();
   return query ? `?${query}` : '';
 }

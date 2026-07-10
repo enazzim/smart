@@ -62,6 +62,14 @@ public class JpaEtcPurchaseReceiptRepository implements EtcPurchaseReceiptReposi
                 sql.append(" AND r.receipt_date <= :receiptTo");
                 params.put("receiptTo", criteria.receiptTo());
             }
+            if (criteria.fiscalYear() != null) {
+                sql.append(" AND r.fiscal_year = :fiscalYear");
+                params.put("fiscalYear", criteria.fiscalYear());
+            }
+            if (criteria.fiscalMonth() != null) {
+                sql.append(" AND r.fiscal_month = :fiscalMonth");
+                params.put("fiscalMonth", criteria.fiscalMonth());
+            }
         }
         sql.append(" ORDER BY r.receipt_date DESC, r.id DESC");
         Query query = entityManager.createNativeQuery(sql.toString());

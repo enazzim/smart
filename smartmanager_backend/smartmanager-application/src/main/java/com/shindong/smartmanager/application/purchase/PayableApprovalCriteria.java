@@ -6,9 +6,10 @@ import java.time.LocalDate;
 public record PayableApprovalCriteria(
         String partnerName,
         String itemNo,
-        String drawingNo,
         String itemName,
         LocalDate receiptDateFrom,
-        LocalDate receiptDateTo
+        LocalDate receiptDateTo,
+        Integer fiscalYear,
+        Integer fiscalMonth
 ) {
 }

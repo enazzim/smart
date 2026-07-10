@@ -109,7 +109,7 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
             long workDiaryGroupId,
             String templateCode,
             String workDateTitle,
-            Map<String, String> fieldValues,
+            Map<String, Object> fieldValues,
             boolean listed,
             String closingNote,
             WorkDiaryStatus status,
@@ -141,7 +141,7 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
     @Transactional
     public void updateEntry(
             long id,
-            Map<String, String> fieldValues,
+            Map<String, Object> fieldValues,
             boolean listed,
             String closingNote,
             String actorLoginId,
@@ -229,7 +229,7 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
                 entity.getTemplateCode(),
                 entity.getWorkDiaryGroupId(),
                 entity.getTemplateName(),
-                readObjectJson(entity.getFieldSchema())
+                readObjectMapJson(entity.getFieldSchema())
         );
     }
 
@@ -241,7 +241,7 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
                 entity.getWorkDiaryGroupId(),
                 entity.getTemplateCode(),
                 entity.getWorkDateTitle(),
-                readStringMapJson(entity.getFieldValues()),
+                readObjectMapJson(entity.getFieldValues()),
                 entity.getDirectiveNote(),
                 entity.isListed(),
                 entity.getClosingNote(),
@@ -265,23 +265,12 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
         }
     }
 
-    private Map<String, Object> readObjectJson(String json) {
+    private Map<String, Object> readObjectMapJson(String json) {
         if (json == null || json.isBlank()) {
             return Map.of();
         }
         try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (IOException ex) {
-            throw new IllegalStateException("JSON 파싱에 실패했습니다.", ex);
-        }
-    }
-
-    private Map<String, String> readStringMapJson(String json) {
-        if (json == null || json.isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
         } catch (IOException ex) {
             throw new IllegalStateException("JSON 파싱에 실패했습니다.", ex);
         }

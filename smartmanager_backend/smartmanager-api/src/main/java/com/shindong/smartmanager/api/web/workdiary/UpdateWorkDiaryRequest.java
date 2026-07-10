@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 import java.util.Map;
 
 public record UpdateWorkDiaryRequest(
-        @NotNull Map<String, String> fieldValues,
+        @NotNull Map<String, Object> fieldValues,
         @NotNull Boolean listed,
         @Size(max = 500) String closingNote
 ) {

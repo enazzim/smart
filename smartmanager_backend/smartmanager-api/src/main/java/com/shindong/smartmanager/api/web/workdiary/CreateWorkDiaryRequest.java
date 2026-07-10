@@ -7,7 +7,7 @@ import java.util.Map;
 
 public record CreateWorkDiaryRequest(
         @NotNull LocalDate workDate,
-        @NotNull Map<String, String> fieldValues,
+        @NotNull Map<String, Object> fieldValues,
         @NotNull Boolean listed,
         @Size(max = 500) String closingNote,
         @NotNull WorkDiaryStatus status

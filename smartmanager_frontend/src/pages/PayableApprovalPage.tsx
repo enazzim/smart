@@ -14,7 +14,7 @@ import CompanySearchField, {
 } from '../components/CompanySearchField';
 import FiscalPeriodTableCells from '../components/FiscalPeriodTableCells';
 import GridExcelExportButton from '../components/GridExcelExportButton';
-import type { FiscalPeriod } from '../utils/fiscalCalendar';
+import { currentCalendarYearMonth, type FiscalPeriod } from '../utils/fiscalCalendar';
 
 type TabId = 'pending' | 'approved';
 
@@ -36,15 +36,22 @@ function rowKey(row: PayableApprovalRow): string {
   return `${row.ledgerKind}-${row.historyId}`;
 }
 
-const emptyFilters: PayableApprovalSearchParams = {
-  receiptDateFrom: addDaysIso(todayIso(), -30),
-  receiptDateTo: todayIso(),
-};
+function createDefaultFilters(): PayableApprovalSearchParams {
+  const { fiscalYear, fiscalMonth } = currentCalendarYearMonth();
+  return {
+    receiptDateFrom: addDaysIso(todayIso(), -30),
+    receiptDateTo: todayIso(),
+    fiscalYear,
+    fiscalMonth,
+  };
+}
 
 export default function PayableApprovalPage() {
   const [activeTab, setActiveTab] = useState<TabId>('pending');
-  const [filters, setFilters] = useState<PayableApprovalSearchParams>(emptyFilters);
+  const [filters, setFilters] = useState<PayableApprovalSearchParams>(createDefaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState<PayableApprovalSearchParams>(createDefaultFilters);
   const [filterPartner, setFilterPartner] = useState<CompanySearchSelection | null>(null);
+  const [appliedPartner, setAppliedPartner] = useState<CompanySearchSelection | null>(null);
   const [rows, setRows] = useState<PayableApprovalRow[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -54,10 +61,10 @@ export default function PayableApprovalPage() {
 
   const searchParams = useMemo(
     (): PayableApprovalSearchParams => ({
-      ...filters,
-      partnerName: filterPartner?.companyName,
+      ...appliedFilters,
+      partnerName: appliedPartner?.companyName,
     }),
-    [filters, filterPartner],
+    [appliedFilters, appliedPartner],
   );
 
   const load = useCallback(async () => {
@@ -135,12 +142,23 @@ export default function PayableApprovalPage() {
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    void load();
+    const { fiscalYear, fiscalMonth } = currentCalendarYearMonth();
+    const nextFilters: PayableApprovalSearchParams = {
+      ...filters,
+      fiscalYear: filters.fiscalYear ?? fiscalYear,
+      fiscalMonth: filters.fiscalMonth ?? fiscalMonth,
+    };
+    setFilters(nextFilters);
+    setAppliedFilters(nextFilters);
+    setAppliedPartner(filterPartner);
   };
 
   const onResetFilters = () => {
-    setFilters({ ...emptyFilters });
+    const defaults = createDefaultFilters();
+    setFilters(defaults);
+    setAppliedFilters(defaults);
     setFilterPartner(null);
+    setAppliedPartner(null);
   };
 
   const onApprove = async () => {
@@ -253,18 +271,39 @@ export default function PayableApprovalPage() {
             />
           </label>
           <label>
-            도면번호
-            <input
-              value={filters.drawingNo ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, drawingNo: e.target.value }))}
-            />
-          </label>
-          <label>
             품목명
             <input
               value={filters.itemName ?? ''}
               onChange={(e) => setFilters((f) => ({ ...f, itemName: e.target.value }))}
             />
+          </label>
+          <label>
+            매입년도
+            <input
+              type="number"
+              min={2000}
+              max={2100}
+              value={filters.fiscalYear ?? ''}
+              onChange={(e) =>
+                setFilters((f) => ({
+                  ...f,
+                  fiscalYear: e.target.value === '' ? undefined : Number(e.target.value),
+                }))
+              }
+            />
+          </label>
+          <label>
+            매입월
+            <select
+              value={filters.fiscalMonth ?? currentCalendarYearMonth().fiscalMonth}
+              onChange={(e) => setFilters((f) => ({ ...f, fiscalMonth: Number(e.target.value) }))}
+            >
+              {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
+                <option key={month} value={month}>
+                  {month}월
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             입고일 From

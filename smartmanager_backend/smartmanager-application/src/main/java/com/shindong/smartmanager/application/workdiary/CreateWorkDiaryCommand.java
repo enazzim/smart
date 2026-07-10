@@ -5,7 +5,7 @@ import java.util.Map;
 
 public record CreateWorkDiaryCommand(
         LocalDate workDate,
-        Map<String, String> fieldValues,
+        Map<String, Object> fieldValues,
         boolean listed,
         String closingNote,
         WorkDiaryStatus status,

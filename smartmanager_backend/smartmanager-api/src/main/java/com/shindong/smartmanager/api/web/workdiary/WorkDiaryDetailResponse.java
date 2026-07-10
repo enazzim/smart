@@ -15,7 +15,7 @@ public record WorkDiaryDetailResponse(
         String templateCode,
         String templateName,
         Map<String, Object> fieldSchema,
-        Map<String, String> fieldValues,
+        Map<String, Object> fieldValues,
         String directiveNote,
         WorkDiaryStatus status,
         boolean listed,

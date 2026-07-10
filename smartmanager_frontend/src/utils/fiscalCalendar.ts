@@ -47,3 +47,9 @@ export function formatFiscalPeriodFromInstant(value: string | null | undefined):
   }
   return formatFiscalPeriodFromIso(value.slice(0, 10));
 }
+
+/** 검색 기본값용 — 달력 기준 이번 년·월 */
+export function currentCalendarYearMonth(): FiscalPeriod {
+  const now = new Date();
+  return { fiscalYear: now.getFullYear(), fiscalMonth: now.getMonth() + 1 };
+}

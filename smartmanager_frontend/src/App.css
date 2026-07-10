@@ -2080,6 +2080,60 @@ table.nested-table td {
   font-size: 0.85rem;
 }
 
+.work-diary-template-editor-block {
+  border: 1px solid var(--border-color, #d8dee9);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.work-diary-template-checklist-editor {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border-color, #d8dee9);
+}
+
+.work-diary-template-checklist-item-row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: 0.5rem;
+  align-items: end;
+  margin-bottom: 0.5rem;
+}
+
+.work-diary-checklist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.work-diary-checklist-table th,
+.work-diary-checklist-table td {
+  border: 1px solid var(--border-color, #d8dee9);
+  padding: 0.45rem 0.55rem;
+  vertical-align: top;
+}
+
+.work-diary-checklist-table th {
+  background: #f4f6f8;
+  font-weight: 600;
+}
+
+.work-diary-checklist-choice {
+  text-align: center;
+  width: 4.5rem;
+}
+
+.work-diary-checklist-group {
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 0.2rem;
+}
+
+.work-diary-checklist-orphan td {
+  background: #fff8e6;
+}
+
 @media (max-width: 900px) {
   .dashboard-grid {
     grid-template-columns: 1fr;

@@ -6,6 +6,8 @@ public record EtcPurchaseReceiptListCriteria(
         String itemName,
         String partnerName,
         LocalDate receiptFrom,
-        LocalDate receiptTo
+        LocalDate receiptTo,
+        Integer fiscalYear,
+        Integer fiscalMonth
 ) {
 }

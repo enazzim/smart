@@ -38,13 +38,14 @@ public class PayableApprovalController {
     public List<PayableApprovalResponse> listPending(
             @RequestParam(required = false) String partnerName,
             @RequestParam(required = false) String itemNo,
-            @RequestParam(required = false) String drawingNo,
             @RequestParam(required = false) String itemName,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateTo
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateTo,
+            @RequestParam(required = false) Integer fiscalYear,
+            @RequestParam(required = false) Integer fiscalMonth
     ) {
         return payableApprovalApplicationService.listPending(new PayableApprovalCriteria(
-                partnerName, itemNo, drawingNo, itemName, receiptDateFrom, receiptDateTo
+                partnerName, itemNo, itemName, receiptDateFrom, receiptDateTo, fiscalYear, fiscalMonth
         )).stream().map(PayableApprovalResponse::from).toList();
     }
 
@@ -53,13 +54,14 @@ public class PayableApprovalController {
     public List<PayableApprovalResponse> listApproved(
             @RequestParam(required = false) String partnerName,
             @RequestParam(required = false) String itemNo,
-            @RequestParam(required = false) String drawingNo,
             @RequestParam(required = false) String itemName,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateTo
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateTo,
+            @RequestParam(required = false) Integer fiscalYear,
+            @RequestParam(required = false) Integer fiscalMonth
     ) {
         return payableApprovalApplicationService.listApproved(new PayableApprovalCriteria(
-                partnerName, itemNo, drawingNo, itemName, receiptDateFrom, receiptDateTo
+                partnerName, itemNo, itemName, receiptDateFrom, receiptDateTo, fiscalYear, fiscalMonth
         )).stream().map(PayableApprovalResponse::from).toList();
     }
 

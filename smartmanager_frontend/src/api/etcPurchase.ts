@@ -82,6 +82,8 @@ export interface EtcPurchaseReceiptListParams {
   partnerName?: string;
   receiptFrom?: string;
   receiptTo?: string;
+  fiscalYear?: number;
+  fiscalMonth?: number;
 }
 
 export interface CreateEtcPurchaseOrderRequest {
@@ -181,6 +183,8 @@ export async function fetchEtcPurchaseReceipts(
     partnerName: params?.partnerName,
     receiptFrom: params?.receiptFrom,
     receiptTo: params?.receiptTo,
+    fiscalYear: params?.fiscalYear != null ? String(params.fiscalYear) : undefined,
+    fiscalMonth: params?.fiscalMonth != null ? String(params.fiscalMonth) : undefined,
   });
   return handleResponse<EtcPurchaseReceipt[]>(await apiFetch(`${API_BASE}/receipts${query}`));
 }

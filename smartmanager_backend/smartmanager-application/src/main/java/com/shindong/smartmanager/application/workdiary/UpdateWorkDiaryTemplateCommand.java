@@ -1,11 +1,11 @@
 package com.shindong.smartmanager.application.workdiary;
 
-import java.util.Map;
+import java.util.List;
 
 public record UpdateWorkDiaryTemplateCommand(
         long workDiaryGroupId,
         String templateName,
-        Map<String, String> legacyFields,
+        List<WorkDiaryFieldDefinition> fields,
         long actorUserId,
         String actorLoginId,
         String actorUserIdText

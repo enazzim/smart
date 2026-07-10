@@ -265,9 +265,6 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
         if (criteria.itemNo() != null && !criteria.itemNo().isBlank()) {
             sql.append(" AND i.item_no LIKE :itemNo");
         }
-        if (criteria.drawingNo() != null && !criteria.drawingNo().isBlank()) {
-            sql.append(" AND i.model_type LIKE :drawingNo");
-        }
         if (criteria.itemName() != null && !criteria.itemName().isBlank()) {
             if (purchase) {
                 sql.append(" AND (i.item_name LIKE :itemName OR ph.item_name LIKE :itemName)");
@@ -282,6 +279,14 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
         if (criteria.receiptDateTo() != null) {
             sql.append(" AND ").append(dateColumn).append(" <= :receiptDateTo");
         }
+        String fiscalYearColumn = purchase ? "ph.fiscal_year" : "oh.fiscal_year";
+        String fiscalMonthColumn = purchase ? "ph.fiscal_month" : "oh.fiscal_month";
+        if (criteria.fiscalYear() != null) {
+            sql.append(" AND ").append(fiscalYearColumn).append(" = :fiscalYear");
+        }
+        if (criteria.fiscalMonth() != null) {
+            sql.append(" AND ").append(fiscalMonthColumn).append(" = :fiscalMonth");
+        }
     }
 
     private void bindCommonParams(Query query, PayableApprovalCriteria criteria) {
@@ -294,9 +299,6 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
         if (criteria.itemNo() != null && !criteria.itemNo().isBlank()) {
             query.setParameter("itemNo", "%" + criteria.itemNo().trim() + "%");
         }
-        if (criteria.drawingNo() != null && !criteria.drawingNo().isBlank()) {
-            query.setParameter("drawingNo", "%" + criteria.drawingNo().trim() + "%");
-        }
         if (criteria.itemName() != null && !criteria.itemName().isBlank()) {
             query.setParameter("itemName", "%" + criteria.itemName().trim() + "%");
         }
@@ -305,6 +307,12 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
         }
         if (criteria.receiptDateTo() != null) {
             query.setParameter("receiptDateTo", criteria.receiptDateTo());
+        }
+        if (criteria.fiscalYear() != null) {
+            query.setParameter("fiscalYear", criteria.fiscalYear());
+        }
+        if (criteria.fiscalMonth() != null) {
+            query.setParameter("fiscalMonth", criteria.fiscalMonth());
         }
     }
 

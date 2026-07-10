@@ -72,7 +72,7 @@ public class WorkDiaryService {
         var template = workDiaryRepository.findActiveTemplateByGroupId(command.workDiaryGroupId())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "업무일지 템플릿을 찾을 수 없습니다. groupId=" + command.workDiaryGroupId()));
-        Map<String, Object> fieldSchema = WorkDiaryFieldSchemaSupport.buildFieldSchema(command.legacyFields());
+        Map<String, Object> fieldSchema = WorkDiaryFieldSchemaSupport.buildFieldSchema(command.fields());
         workDiaryRepository.updateTemplate(
                 command.workDiaryGroupId(),
                 command.templateName().trim(),
@@ -131,13 +131,17 @@ public class WorkDiaryService {
             throw new IllegalStateException("해당 날짜에 이미 작성된 업무일지가 있습니다.");
         });
         String fixedTitle = user.name() + " 업무일지";
+        Map<String, Object> normalizedValues = WorkDiaryFieldSchemaSupport.normalizeFieldValues(
+                command.fieldValues(),
+                template.fieldSchema()
+        );
         long id = workDiaryRepository.saveEntry(
                 command.workDate(),
                 command.actorUserId(),
                 groupId,
                 template.templateCode(),
                 fixedTitle,
-                normalizeFieldValues(command.fieldValues()),
+                normalizedValues,
                 command.listed(),
                 command.closingNote(),
                 command.status(),
@@ -151,9 +155,15 @@ public class WorkDiaryService {
         var entry = workDiaryRepository.findActiveEntryById(command.id())
                 .orElseThrow(() -> new IllegalArgumentException("업무일지를 찾을 수 없습니다: " + command.id()));
         assertCanEdit(entry, command.actorUserId());
+        var template = workDiaryRepository.findActiveTemplateByGroupId(entry.workDiaryGroupId())
+                .orElseThrow(() -> new IllegalArgumentException("업무일지 템플릿을 찾을 수 없습니다."));
+        Map<String, Object> normalizedValues = WorkDiaryFieldSchemaSupport.normalizeFieldValues(
+                command.fieldValues(),
+                template.fieldSchema()
+        );
         workDiaryRepository.updateEntry(
                 command.id(),
-                normalizeFieldValues(command.fieldValues()),
+                normalizedValues,
                 command.listed(),
                 command.closingNote(),
                 command.actorLoginId(),
@@ -243,13 +253,6 @@ public class WorkDiaryService {
                 command.actorUserId(),
                 approverName
         );
-    }
-
-    private Map<String, String> normalizeFieldValues(Map<String, String> fieldValues) {
-        if (fieldValues == null) {
-            throw new IllegalArgumentException("입력값(fieldValues)은 필수입니다.");
-        }
-        return fieldValues;
     }
 
     private void assertCanRead(WorkDiaryRepository.WorkDiaryEntryRecord entry, long actorUserId, boolean approver) {
