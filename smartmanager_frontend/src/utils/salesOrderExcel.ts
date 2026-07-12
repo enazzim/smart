@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import { createWorkbookWithSheet, downloadExcelWorkbook, normalizeExcelDate, parseFirstSheetRows } from './excelHelpers';
 import type { SalesOrderRequest } from '../api/salesOrder';
 
 export const SALES_ORDER_TEMPLATE_HEADERS = [
@@ -47,34 +47,10 @@ function cellNumber(value: unknown): number | undefined {
 }
 
 function normalizeDate(value: unknown): string {
-  if (value == null || value === '') {
-    return '';
-  }
-  if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
-  }
-  if (typeof value === 'number') {
-    const parsed = XLSX.SSF.parse_date_code(value);
-    if (parsed) {
-      const month = String(parsed.m).padStart(2, '0');
-      const day = String(parsed.d).padStart(2, '0');
-      return `${parsed.y}-${month}-${day}`;
-    }
-  }
-  const text = cellString(value);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    return text;
-  }
-  if (/^\d{8}$/.test(text)) {
-    return `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}`;
-  }
-  if (/^\d{4}\/\d{2}\/\d{2}$/.test(text)) {
-    return text.replace(/\//g, '-');
-  }
-  return text;
+  return normalizeExcelDate(value);
 }
 
-export function downloadSalesOrderTemplate() {
+export async function downloadSalesOrderTemplate() {
   const sampleRows: SalesOrderTemplateRow[] = [
     {
       수주번호: '',
@@ -87,20 +63,12 @@ export function downloadSalesOrderTemplate() {
       비고: '',
     },
   ];
-  const worksheet = XLSX.utils.json_to_sheet(sampleRows, { header: [...SALES_ORDER_TEMPLATE_HEADERS] });
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, '수주양식');
-  XLSX.writeFile(workbook, '수주일괄등록양식.xlsx');
+  const workbook = createWorkbookWithSheet('수주양식', SALES_ORDER_TEMPLATE_HEADERS, sampleRows);
+  await downloadExcelWorkbook(workbook, '수주일괄등록양식.xlsx');
 }
 
-export function parseSalesOrderExcel(buffer: ArrayBuffer): ParsedSalesOrderRow[] {
-  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName) {
-    throw new Error('엑셀 시트를 찾을 수 없습니다.');
-  }
-  const sheet = workbook.Sheets[sheetName];
-  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+export async function parseSalesOrderExcel(buffer: ArrayBuffer): Promise<ParsedSalesOrderRow[]> {
+  const rawRows = await parseFirstSheetRows(buffer);
 
   return rawRows
     .map((row, index) => ({

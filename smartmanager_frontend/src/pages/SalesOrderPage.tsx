@@ -421,7 +421,7 @@ export default function SalesOrderPage() {
     }
     try {
       const buffer = await file.arrayBuffer();
-      const parsed = parseSalesOrderExcel(buffer);
+      const parsed = await parseSalesOrderExcel(buffer);
       setExcelPreview(parsed);
     } catch (err) {
       setExcelErrors([{ rowNumber: 0, message: err instanceof Error ? err.message : '엑셀 파싱 실패' }]);
@@ -693,7 +693,7 @@ export default function SalesOrderPage() {
                 type="button"
                 className="import-template-btn"
                 disabled={submitting}
-                onClick={downloadSalesOrderTemplate}
+                onClick={() => void downloadSalesOrderTemplate()}
               >
                 ↓ 수주 양식 다운로드
               </button>

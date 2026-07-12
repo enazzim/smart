@@ -75,7 +75,7 @@ function ImportUploadCard({
           type="button"
           className="import-template-btn"
           disabled={disabled}
-          onClick={() => downloadImportTemplate(config.id)}
+          onClick={() => void downloadImportTemplate(config.id)}
         >
           ↓ 양식 다운로드
         </button>
@@ -168,7 +168,7 @@ export default function MasterImportPage() {
   const stageFile = useCallback(async (domain: ImportDomain, file: File) => {
     try {
       const buffer = await file.arrayBuffer();
-      const rows = parseImportExcel(domain, buffer);
+      const rows = await parseImportExcel(domain, buffer);
       const parseErrors = validateImportRows(domain, rows);
       setStagedByDomain((prev) => ({
         ...prev,

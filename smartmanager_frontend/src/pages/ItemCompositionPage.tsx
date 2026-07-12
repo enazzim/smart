@@ -512,7 +512,7 @@ export default function ItemCompositionPage() {
                 <div className="form-actions">
                   <button
                     type="button"
-                    onClick={() => downloadExplosionExcel(explosionTree)}
+                    onClick={() => void downloadExplosionExcel(explosionTree)}
                   >
                     엑셀 저장
                   </button>
@@ -565,7 +565,7 @@ export default function ItemCompositionPage() {
                   {reverseRows.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => downloadReverseExcel(reverseItemNum, reverseRows)}
+                      onClick={() => void downloadReverseExcel(reverseItemNum, reverseRows)}
                     >
                       엑셀 저장
                     </button>

@@ -18,7 +18,7 @@ export default function GridExcelExportButton({
       type="button"
       className="btn-grid-excel"
       disabled={disabled || rows.length === 0}
-      onClick={() => downloadGridExcel(fileBaseName, sheetName, rows)}
+      onClick={() => void downloadGridExcel(fileBaseName, sheetName, rows)}
     >
       엑셀저장
     </button>

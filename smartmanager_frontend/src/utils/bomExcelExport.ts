@@ -1,5 +1,5 @@
-import * as XLSX from 'xlsx';
 import type { BomTreeNode, ItemComposition } from '../api/itemComposition';
+import { createWorkbookFromObjects, downloadExcelWorkbook } from './excelHelpers';
 
 function fileTimestamp(): string {
   const d = new Date();
@@ -37,23 +37,21 @@ function flattenExplosion(node: BomTreeNode): Record<string, string | number>[] 
   return rows;
 }
 
-function writeWorkbook(filename: string, sheetName: string, rows: Record<string, string | number>[]) {
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-  XLSX.writeFile(workbook, filename);
+async function writeWorkbook(filename: string, sheetName: string, rows: Record<string, string | number>[]) {
+  const workbook = createWorkbookFromObjects(sheetName, rows);
+  await downloadExcelWorkbook(workbook, filename);
 }
 
-export function downloadExplosionExcel(root: BomTreeNode) {
-  writeWorkbook(
+export async function downloadExplosionExcel(root: BomTreeNode) {
+  await writeWorkbook(
     `BOM정전개_${root.itemNum}_${fileTimestamp()}.xlsx`,
     '정전개',
     flattenExplosion(root),
   );
 }
 
-export function downloadReverseExcel(childItemNum: string, rows: ItemComposition[]) {
-  writeWorkbook(
+export async function downloadReverseExcel(childItemNum: string, rows: ItemComposition[]) {
+  await writeWorkbook(
     `BOM역전개_${childItemNum}_${fileTimestamp()}.xlsx`,
     '역전개',
     rows.map((row) => ({

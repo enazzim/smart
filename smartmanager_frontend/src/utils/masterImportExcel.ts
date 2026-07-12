@@ -1,4 +1,9 @@
-import * as XLSX from 'xlsx';
+import {
+  createWorkbookWithSheet,
+  downloadExcelWorkbook,
+  normalizeExcelDate,
+  parseFirstSheetRows,
+} from './excelHelpers';
 
 export type ImportDomain =
   | 'company'
@@ -135,37 +140,20 @@ function cellNumber(value: unknown): number | undefined {
 }
 
 function normalizeDate(value: unknown): string {
-  if (value == null || value === '') return '';
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  if (typeof value === 'number') {
-    const parsed = XLSX.SSF.parse_date_code(value);
-    if (parsed) {
-      return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
-    }
-  }
-  const text = cellString(value);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
-  if (/^\d{8}$/.test(text)) return `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}`;
-  return text;
+  return normalizeExcelDate(value);
 }
 
-export function downloadImportTemplate(domain: ImportDomain) {
+export async function downloadImportTemplate(domain: ImportDomain) {
   const config = IMPORT_DOMAINS.find((d) => d.id === domain);
   if (!config) throw new Error('알 수 없는 도메인입니다.');
-  const worksheet = XLSX.utils.json_to_sheet([config.sampleRow], { header: [...config.headers] });
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, config.sheetName);
-  XLSX.writeFile(workbook, config.fileName);
+  const workbook = createWorkbookWithSheet(config.sheetName, config.headers, [config.sampleRow]);
+  await downloadExcelWorkbook(workbook, config.fileName);
 }
 
-export function parseImportExcel(domain: ImportDomain, buffer: ArrayBuffer): Record<string, unknown>[] {
+export async function parseImportExcel(domain: ImportDomain, buffer: ArrayBuffer): Promise<Record<string, unknown>[]> {
   const config = IMPORT_DOMAINS.find((d) => d.id === domain);
   if (!config) throw new Error('알 수 없는 도메인입니다.');
-  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName) throw new Error('엑셀 시트를 찾을 수 없습니다.');
-  const sheet = workbook.Sheets[sheetName];
-  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+  const rawRows = await parseFirstSheetRows(buffer);
   return rawRows
     .map((row) => mapRow(domain, row))
     .filter((row) => Object.values(row).some((v) => v !== '' && v != null));
