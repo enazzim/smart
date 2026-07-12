@@ -3,11 +3,23 @@ import { apiFetch, handleResponse } from './http';
 const API = '/api/v1/system/backups';
 
 export interface BackupFileInfo {
+  kind: 'db-only';
   fileName: string;
   fileSizeBytes: number;
   createdAt: string;
   reason?: string | null;
 }
+
+export interface FullBackupSetInfo {
+  kind: 'full';
+  setName: string;
+  sqlFileName: string;
+  totalSizeBytes: number;
+  drawingPdfFileCount: number;
+  createdAt: string;
+}
+
+export type BackupListItem = BackupFileInfo | FullBackupSetInfo;
 
 async function parseError(response: Response, fallback: string): Promise<string> {
   try {
@@ -18,18 +30,46 @@ async function parseError(response: Response, fallback: string): Promise<string>
   }
 }
 
+export async function fetchBackupList(): Promise<BackupListItem[]> {
+  const [dbBackups, fullBackups] = await Promise.all([fetchDbBackups(), fetchFullBackups()]);
+  const merged: BackupListItem[] = [
+    ...dbBackups.map((item) => ({ ...item, kind: 'db-only' as const })),
+    ...fullBackups.map((item) => ({ ...item, kind: 'full' as const })),
+  ];
+  merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return merged;
+}
+
+/** @deprecated use fetchBackupList */
 export async function fetchBackups(): Promise<BackupFileInfo[]> {
-  return handleResponse<BackupFileInfo[]>(await apiFetch(API));
+  const rows = await fetchDbBackups();
+  return rows.map((item) => ({ ...item, kind: 'db-only' as const }));
+}
+
+async function fetchDbBackups(): Promise<Omit<BackupFileInfo, 'kind'>[]> {
+  return handleResponse<Omit<BackupFileInfo, 'kind'>[]>(await apiFetch(API));
+}
+
+async function fetchFullBackups(): Promise<Omit<FullBackupSetInfo, 'kind'>[]> {
+  return handleResponse<Omit<FullBackupSetInfo, 'kind'>[]>(await apiFetch(`${API}/full`));
 }
 
 export async function createBackup(reason: string): Promise<BackupFileInfo> {
-  return handleResponse<BackupFileInfo>(
+  const created = await handleResponse<Omit<BackupFileInfo, 'kind'>>(
     await apiFetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason }),
     }),
   );
+  return { ...created, kind: 'db-only' };
+}
+
+export async function createFullBackup(): Promise<FullBackupSetInfo> {
+  const created = await handleResponse<Omit<FullBackupSetInfo, 'kind'>>(
+    await apiFetch(`${API}/full`, { method: 'POST' }),
+  );
+  return { ...created, kind: 'full' };
 }
 
 export async function downloadBackup(fileName: string): Promise<void> {
@@ -60,8 +100,20 @@ export async function deleteBackup(fileName: string): Promise<void> {
   );
 }
 
+export async function deleteFullBackup(setName: string): Promise<void> {
+  await handleResponse<void>(
+    await apiFetch(`${API}/full/${encodeURIComponent(setName)}`, { method: 'DELETE' }),
+  );
+}
+
 export async function restoreBackup(fileName: string): Promise<void> {
   await handleResponse<void>(
     await apiFetch(`${API}/${encodeURIComponent(fileName)}/restore`, { method: 'POST' }),
+  );
+}
+
+export async function restoreFullBackup(setName: string): Promise<void> {
+  await handleResponse<void>(
+    await apiFetch(`${API}/full/${encodeURIComponent(setName)}/restore`, { method: 'POST' }),
   );
 }

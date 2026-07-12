@@ -127,6 +127,24 @@ public final class BasisAuthorize {
 
     @Target(ElementType.TYPE)
     @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("hasAuthority('basis:drawing:read')")
+    public @interface DrawingRead {
+    }
+
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("hasAuthority('basis:drawing:write')")
+    public @interface DrawingWrite {
+    }
+
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("hasAuthority('basis:drawing:hard-delete')")
+    public @interface DrawingHardDelete {
+    }
+
+    @Target(ElementType.TYPE)
+    @Retention(RetentionPolicy.RUNTIME)
     @PreAuthorize("hasAuthority('system:role:read')")
     public @interface RoleRead {
     }

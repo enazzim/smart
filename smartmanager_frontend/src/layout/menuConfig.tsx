@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import { lazy, Suspense, type ComponentType } from 'react';
 import type { AuthenticatedUser } from '../api/auth';
 import CompanyPage from '../pages/CompanyPage';
 import ItemPage from '../pages/ItemPage';
@@ -40,6 +40,8 @@ import SalesRevenuePage from '../pages/SalesRevenuePage';
 import SalesCollectionPage from '../pages/SalesCollectionPage';
 import PlaceholderPage from '../pages/PlaceholderPage';
 
+const DrawingPage = lazy(() => import('../pages/DrawingPage'));
+
 /** TO-BE 업무 흐름 기준 대메뉴 */
 export type MenuCategory =
   | 'home'
@@ -63,6 +65,7 @@ export type BasisTab =
   | 'equipment'
   | 'productionCalendar'
   | 'workCenterCalendar'
+  | 'drawing'
   | 'user';
 
 export type SystemPage = 'publicCode' | 'masterImport' | 'role' | 'monthClosing' | 'systemSettings';
@@ -199,10 +202,11 @@ export const BASIS_TABS: { id: BasisTab; label: string }[] = [
   { id: 'equipment', label: '설비' },
   { id: 'productionCalendar', label: '기본달력' },
   { id: 'workCenterCalendar', label: 'WC달력' },
+  { id: 'drawing', label: '도면관리' },
   { id: 'user', label: '사용자' },
 ];
 
-const BASIS_PAGE_MAP: Record<Exclude<BasisTab, 'user'>, ComponentType> = {
+const BASIS_PAGE_MAP: Record<Exclude<BasisTab, 'user' | 'drawing'>, ComponentType> = {
   company: CompanyPage,
   item: ItemPage,
   bom: ItemCompositionPage,
@@ -227,9 +231,23 @@ const SYSTEM_PLACEHOLDER_LABELS: Record<Exclude<SystemPage, 'publicCode' | 'mast
 export interface BasisPageContext {
   currentUser: AuthenticatedUser | null;
   canManageUsers: boolean;
+  canManageDrawings: boolean;
+  canHardDeleteDrawings: boolean;
+  canReadDrawings: boolean;
 }
 
 export function renderBasisPage(tab: BasisTab, ctx?: BasisPageContext) {
+  if (tab === 'drawing') {
+    return (
+      <Suspense fallback={<p>도면관리 화면을 불러오는 중…</p>}>
+        <DrawingPage
+          readOnly={!(ctx?.canManageDrawings ?? false)}
+          canHardDelete={ctx?.canHardDeleteDrawings ?? false}
+          actorUserId={ctx?.currentUser?.loginId}
+        />
+      </Suspense>
+    );
+  }
   if (tab === 'user') {
     return (
       <UserPage

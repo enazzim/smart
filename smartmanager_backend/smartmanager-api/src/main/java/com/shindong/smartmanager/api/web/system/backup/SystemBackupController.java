@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.api.web.system.backup;
 
 import com.shindong.smartmanager.application.system.backup.BackupFileView;
+import com.shindong.smartmanager.application.system.backup.FullBackupSetView;
 import com.shindong.smartmanager.infrastructure.application.DatabaseBackupApplicationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -74,6 +75,35 @@ public class SystemBackupController {
                 .body(resource);
     }
 
+    @GetMapping("/full")
+    @PreAuthorize("hasAuthority('system:backup:read')")
+    public List<FullBackupSetResponse> listFull() {
+        return databaseBackupApplicationService.listFullBackups().stream()
+                .map(FullBackupSetResponse::from)
+                .toList();
+    }
+
+    @PostMapping("/full")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('system:backup:execute')")
+    public FullBackupSetResponse createFull() {
+        return FullBackupSetResponse.from(databaseBackupApplicationService.createFullBackup());
+    }
+
+    @DeleteMapping("/full/{setName}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('system:backup:execute')")
+    public void deleteFull(@PathVariable String setName) {
+        databaseBackupApplicationService.deleteFullBackup(setName);
+    }
+
+    @PostMapping("/full/{setName}/restore")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('system:backup:execute')")
+    public void restoreFull(@PathVariable String setName) {
+        databaseBackupApplicationService.restoreFullBackup(setName);
+    }
+
     public record CreateBackupRequest(
             @NotBlank @Size(max = 500) String reason
     ) {
@@ -86,6 +116,24 @@ public class SystemBackupController {
                     view.fileSizeBytes(),
                     view.createdAt(),
                     view.reason()
+            );
+        }
+    }
+
+    public record FullBackupSetResponse(
+            String setName,
+            String sqlFileName,
+            long totalSizeBytes,
+            long drawingPdfFileCount,
+            Instant createdAt
+    ) {
+        static FullBackupSetResponse from(FullBackupSetView view) {
+            return new FullBackupSetResponse(
+                    view.setName(),
+                    view.sqlFileName(),
+                    view.totalSizeBytes(),
+                    view.drawingPdfFileCount(),
+                    view.createdAt()
             );
         }
     }

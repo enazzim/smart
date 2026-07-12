@@ -74,6 +74,19 @@ export function canManageUsers(authorities: string[]): boolean {
   return authorities.includes('basis:user:write');
 }
 
+export function canReadDrawings(authorities: string[]): boolean {
+  return authorities.includes('basis:drawing:read');
+}
+
+export function canManageDrawings(authorities: string[]): boolean {
+  return authorities.includes('basis:drawing:write');
+}
+
+/** 휴지통 영구 삭제 — SYSTEM_ADMIN (`basis:drawing:hard-delete`) */
+export function canHardDeleteDrawings(authorities: string[]): boolean {
+  return authorities.includes('basis:drawing:hard-delete');
+}
+
 /** 운영자 등 — 사이드바 없이 내 계정(비밀번호 변경)만 필요할 때 */
 export function canAccessSelfAccount(roleCodes: string[], authorities: string[]): boolean {
   if (canManageBasisData(roleCodes)) {

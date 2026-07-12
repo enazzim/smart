@@ -16,6 +16,7 @@ public final class AggregateTypes {
     public static final String USER = "User";
     public static final String PRODUCTION_CALENDAR = "ProductionCalendar";
     public static final String WORK_CENTER_CALENDAR = "WorkCenterCalendar";
+    public static final String DRAWING = "Drawing";
     public static final String SALES_ORDER = "SalesOrder";
     public static final String PURCHASE_ORDER = "PurchaseOrder";
     public static final String OUTSOURCING_ORDER = "OutsourcingOrder";

@@ -16,3 +16,9 @@ management:
     web:
       exposure:
         include: health,info
+
+# 도면 PDF 파일 스토리지 (운영: 환경변수·프로필로 storage-dir 지정)
+smartmanager:
+  drawing:
+    storage-dir: ${SMARTMANAGER_DRAWING_STORAGE_DIR:../../drawing-storage/pdf}
+    max-file-size-bytes: ${SMARTMANAGER_DRAWING_MAX_FILE_BYTES:104857600}

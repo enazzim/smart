@@ -3463,3 +3463,434 @@ td.num.sales-order-amount {
     gap: 0.65rem;
   }
 }
+
+
+/* —— 도면관리 (Drawing) —— */
+.drawing-page .page-header h1 {
+  color: var(--sm-blue-800);
+}
+
+.drawing-filter-panel {
+  margin-bottom: 1rem;
+}
+
+.drawing-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.4fr) repeat(3, minmax(140px, 1fr));
+  gap: 0.85rem 1rem;
+  align-items: end;
+}
+
+.drawing-filter-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.drawing-filter-grid label span {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.drawing-tab-danger.tab-active {
+  color: #b91c1c;
+  border-bottom-color: #b91c1c;
+}
+
+.drawing-version-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.drawing-card-list {
+  display: none;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.drawing-card {
+  border: 1px solid var(--sm-blue-100);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  background: #fff;
+}
+
+.drawing-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.drawing-card__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--sm-blue-800);
+}
+
+.drawing-card__meta {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.drawing-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.drawing-table-desktop {
+  display: block;
+}
+
+.drawing-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+.drawing-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+}
+
+.drawing-icon-btn:hover:not(:disabled) {
+  background: var(--sm-blue-50);
+  border-color: var(--sm-blue-200);
+  color: var(--sm-blue-700);
+}
+
+.drawing-icon-btn--warn {
+  color: #b45309;
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.drawing-icon-btn--info {
+  color: #0369a1;
+  border-color: #bae6fd;
+  background: #f0f9ff;
+}
+
+.drawing-icon-btn--success {
+  color: #047857;
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+
+.drawing-icon-btn--danger {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.drawing-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--sm-blue-200);
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.8rem;
+}
+
+.drawing-file-chip button {
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close-btn {
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 0;
+  border-radius: 4px;
+}
+
+.modal-close-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.modal-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.modal-header-row h2 {
+  margin: 0;
+}
+
+.drawing-viewer-backdrop {
+  z-index: 110;
+}
+
+.drawing-viewer-modal {
+  background: #fff;
+  border-radius: 10px;
+  width: min(96vw, 1280px);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.drawing-viewer-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  height: min(78vh, 900px);
+}
+
+.drawing-history-sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+  background: #f9fafb;
+}
+
+.drawing-history-sidebar h3 {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.drawing-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.drawing-history-item {
+  width: 100%;
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  background: transparent;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+}
+
+.drawing-history-item:hover {
+  background: #f3f4f6;
+}
+
+.drawing-history-item--active {
+  background: #eff6ff;
+  border-left: 3px solid var(--sm-blue-600);
+}
+
+.drawing-history-item__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.drawing-history-item__version {
+  font-weight: 700;
+  color: #111827;
+}
+
+.drawing-history-item__date {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.drawing-history-item__reason {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #4b5563;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drawing-viewer-main {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.drawing-pdf-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  background: #1e293b;
+  user-select: none;
+}
+
+.drawing-pdf-toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.drawing-pdf-toolbar__left,
+.drawing-pdf-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.drawing-pdf-toolbar__title {
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.drawing-pdf-toolbar__zoom {
+  color: #fff;
+  font-size: 0.85rem;
+  min-width: 2.5rem;
+  text-align: center;
+}
+
+.drawing-pdf-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+}
+
+.drawing-pdf-toolbar button:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.drawing-pdf-toolbar .btn-promote {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: auto;
+  height: auto;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: #d97706;
+  margin-left: 0.5rem;
+}
+
+.drawing-pdf-toolbar .btn-promote:hover {
+  background: #b45309;
+}
+
+.drawing-pdf-scroll {
+  height: 100%;
+  overflow: auto;
+  padding: 3.25rem 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.drawing-pdf-page {
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s ease-out;
+  transform-origin: top center;
+}
+
+.drawing-pdf-loading,
+.drawing-pdf-empty {
+  color: #e5e7eb;
+  padding: 2rem;
+  text-align: center;
+}
+
+.drawing-alert-panel {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 6px;
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+@media (max-width: 900px) {
+  .drawing-filter-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .drawing-table-desktop {
+    display: none;
+  }
+
+  .drawing-card-list {
+    display: flex;
+  }
+
+  .drawing-viewer-body {
+    flex-direction: column;
+    height: auto;
+    max-height: 78vh;
+  }
+
+  .drawing-history-sidebar {
+    width: 100%;
+    max-height: 180px;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+}
+
+@media (max-width: 560px) {
+  .drawing-filter-grid {
+    grid-template-columns: 1fr;
+  }
+}

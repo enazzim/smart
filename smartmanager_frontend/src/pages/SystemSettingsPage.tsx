@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
   createBackup,
+  createFullBackup,
   deleteBackup,
+  deleteFullBackup,
   downloadBackup,
-  fetchBackups,
+  fetchBackupList,
   restoreBackup,
-  type BackupFileInfo,
+  restoreFullBackup,
+  type BackupListItem,
 } from '../api/systemBackup';
 import {
   fetchSystemSettings,
@@ -177,7 +180,7 @@ function formatFileSize(bytes: number): string {
 }
 
 function BackupPanel() {
-  const [backups, setBackups] = useState<BackupFileInfo[]>([]);
+  const [backups, setBackups] = useState<BackupListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -189,7 +192,7 @@ function BackupPanel() {
     setLoading(true);
     setError(null);
     try {
-      setBackups(await fetchBackups());
+      setBackups(await fetchBackupList());
     } catch (e) {
       setError(e instanceof Error ? e.message : '백업 목록 조회 실패');
       setBackups([]);
@@ -215,7 +218,7 @@ function BackupPanel() {
     setError(null);
   };
 
-  const onCreate = async () => {
+  const onCreateDb = async () => {
     const reason = backupReason.trim();
     if (!reason) {
       setError('백업 사유를 입력해 주세요.');
@@ -226,12 +229,29 @@ function BackupPanel() {
     setMessage(null);
     try {
       const created = await createBackup(reason);
-      setMessage(`백업을 저장했습니다: ${created.fileName}`);
+      setMessage(`DB 백업을 저장했습니다: ${created.fileName}`);
       setCreateModalOpen(false);
       setBackupReason('');
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : '백업 저장 실패');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onCreateFull = async () => {
+    setSubmitting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const created = await createFullBackup();
+      setMessage(
+        `전체 백업을 저장했습니다: ${created.setName} (도면 PDF ${created.drawingPdfFileCount}건)`,
+      );
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '전체 백업 저장 실패');
     } finally {
       setSubmitting(false);
     }
@@ -251,14 +271,19 @@ function BackupPanel() {
     }
   };
 
-  const onDelete = async (fileName: string) => {
-    if (!window.confirm(`백업 파일을 삭제하시겠습니까?\n${fileName}`)) return;
+  const onDelete = async (item: BackupListItem) => {
+    const label = item.kind === 'db-only' ? item.fileName : item.setName;
+    if (!window.confirm(`백업을 삭제하시겠습니까?\n${label}`)) return;
     setSubmitting(true);
     setError(null);
     setMessage(null);
     try {
-      await deleteBackup(fileName);
-      setMessage(`삭제했습니다: ${fileName}`);
+      if (item.kind === 'db-only') {
+        await deleteBackup(item.fileName);
+      } else {
+        await deleteFullBackup(item.setName);
+      }
+      setMessage(`삭제했습니다: ${label}`);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : '삭제 실패');
@@ -267,20 +292,25 @@ function BackupPanel() {
     }
   };
 
-  const onRestore = async (fileName: string) => {
-    if (
-      !window.confirm(
-        `현재 데이터베이스가 백업 시점으로 덮어씌워집니다.\n복구 후 재로그인이 필요할 수 있습니다.\n\n적용하시겠습니까?\n${fileName}`,
-      )
-    ) {
+  const onRestore = async (item: BackupListItem) => {
+    const label = item.kind === 'db-only' ? item.fileName : item.setName;
+    const confirmMessage =
+      item.kind === 'full'
+        ? `현재 데이터베이스와 도면 PDF가 백업 시점으로 덮어씌워집니다.\n복구 중 도면 업로드·삭제를 하지 마세요.\n복구 후 재로그인이 필요할 수 있습니다.\n\n적용하시겠습니까?\n${label}`
+        : `현재 데이터베이스가 백업 시점으로 덮어씌워집니다.\n복구 후 재로그인이 필요할 수 있습니다.\n\n적용하시겠습니까?\n${label}`;
+    if (!window.confirm(confirmMessage)) {
       return;
     }
     setSubmitting(true);
     setError(null);
     setMessage(null);
     try {
-      await restoreBackup(fileName);
-      setMessage(`복구를 적용했습니다. 재로그인해 주세요. (${fileName})`);
+      if (item.kind === 'db-only') {
+        await restoreBackup(item.fileName);
+      } else {
+        await restoreFullBackup(item.setName);
+      }
+      setMessage(`복구를 적용했습니다. 재로그인해 주세요. (${label})`);
     } catch (e) {
       setError(e instanceof Error ? e.message : '복구 실패');
     } finally {
@@ -292,16 +322,20 @@ function BackupPanel() {
     <section className="panel">
       <h2>데이터 백업 및 복구</h2>
       <p className="hint-text">
-        백업 파일은 프로젝트 <code>backup</code> 폴더에 저장됩니다. 복구(적용)는 현재 DB 전체를 덮어쓰므로
-        로컬 개발 환경에서만 사용하세요.
+        백업 파일은 프로젝트 <code>backup</code> 폴더에 저장됩니다. <strong>전체 백업</strong>은 DB와 도면 PDF(
+        <code>drawing-storage/pdf</code>)를 한 세트로 보관합니다. DB 백업은 사유 입력이 필요합니다. 복구(적용)는
+        현재 데이터를 덮어쓰므로 로컬 개발 환경에서만 사용하세요.
       </p>
       <div className="form-actions">
-        <button type="button" disabled={submitting} onClick={openCreateModal}>
-          {submitting ? '처리 중…' : '백업 저장'}
+        <button type="button" className="secondary" disabled={submitting} onClick={openCreateModal}>
+          {submitting ? '처리 중…' : 'DB 백업 저장'}
+        </button>
+        <button type="button" disabled={submitting} onClick={() => void onCreateFull()}>
+          {submitting ? '처리 중…' : '전체 백업 (DB+도면 PDF)'}
         </button>
       </div>
       {message && <p>{message}</p>}
-      {error && <div className="error">{error}</div>}
+      {error && !createModalOpen && <div className="error">{error}</div>}
       {loading ? (
         <p>불러오는 중…</p>
       ) : backups.length === 0 ? (
@@ -310,7 +344,8 @@ function BackupPanel() {
         <table>
           <thead>
             <tr>
-              <th>파일명</th>
+              <th>구분</th>
+              <th>이름</th>
               <th>백업 사유</th>
               <th>크기</th>
               <th>생성일시</th>
@@ -318,39 +353,55 @@ function BackupPanel() {
             </tr>
           </thead>
           <tbody>
-            {backups.map((file) => (
-              <tr key={file.fileName}>
-                <td>{file.fileName}</td>
-                <td>{file.reason?.trim() || '—'}</td>
-                <td>{formatFileSize(file.fileSizeBytes)}</td>
-                <td>{formatDateTime(file.createdAt)}</td>
-                <td className="actions">
-                  <button type="button" disabled={submitting} onClick={() => void onDownload(file.fileName)}>
-                    저장
-                  </button>
-                  <button type="button" disabled={submitting} onClick={() => void onRestore(file.fileName)}>
-                    적용
-                  </button>
-                  <button type="button" className="danger" disabled={submitting} onClick={() => void onDelete(file.fileName)}>
-                    삭제
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {backups.map((item) => {
+              const key = item.kind === 'db-only' ? item.fileName : item.setName;
+              const label = item.kind === 'db-only' ? item.fileName : item.setName;
+              const size = item.kind === 'db-only' ? item.fileSizeBytes : item.totalSizeBytes;
+              const typeLabel =
+                item.kind === 'db-only' ? 'DB만' : `전체 (PDF ${item.drawingPdfFileCount}건)`;
+              const reason = item.kind === 'db-only' ? item.reason?.trim() || '—' : '—';
+              return (
+                <tr key={key}>
+                  <td>{typeLabel}</td>
+                  <td>{label}</td>
+                  <td>{reason}</td>
+                  <td>{formatFileSize(size)}</td>
+                  <td>{formatDateTime(item.createdAt)}</td>
+                  <td className="actions">
+                    {item.kind === 'db-only' && (
+                      <button type="button" disabled={submitting} onClick={() => void onDownload(item.fileName)}>
+                        저장
+                      </button>
+                    )}
+                    <button type="button" disabled={submitting} onClick={() => void onRestore(item)}>
+                      적용
+                    </button>
+                    <button
+                      type="button"
+                      className="danger"
+                      disabled={submitting}
+                      onClick={() => void onDelete(item)}
+                    >
+                      삭제
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
       {createModalOpen && (
         <div className="modal-backdrop" role="presentation" onClick={closeCreateModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>백업 저장</h2>
+            <h2>DB 백업 저장</h2>
             <div className="form-grid">
               <label>
                 백업 사유 *
                 <input
                   value={backupReason}
                   maxLength={500}
-                  placeholder="예: P0 E2E 검증 전, 마이그레이션 적용 전"
+                  placeholder="예: A/S 품목 납품가능, 마이그레이션 적용 전"
                   onChange={(e) => setBackupReason(e.target.value)}
                   autoFocus
                 />
@@ -358,7 +409,7 @@ function BackupPanel() {
             </div>
             {error && <div className="error">{error}</div>}
             <div className="form-actions">
-              <button type="button" disabled={submitting} onClick={() => void onCreate()}>
+              <button type="button" disabled={submitting} onClick={() => void onCreateDb()}>
                 {submitting ? '저장 중…' : '저장'}
               </button>
               <button type="button" className="secondary" disabled={submitting} onClick={closeCreateModal}>

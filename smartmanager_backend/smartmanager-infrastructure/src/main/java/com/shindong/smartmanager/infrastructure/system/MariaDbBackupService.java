@@ -70,6 +70,13 @@ public class MariaDbBackupService {
         String normalizedReason = normalizeReason(reason);
         String fileName = "smartmanager_" + LocalDateTime.now().format(FILE_NAME_FORMAT) + ".sql";
         Path target = backupDirectory.resolve(fileName);
+        createBackupAt(target);
+        writeMetadata(target, normalizedReason);
+        return toView(target);
+    }
+
+    public BackupFileView createBackupAt(Path targetSqlFile) {
+        Path target = targetSqlFile.toAbsolutePath().normalize();
         JdbcTarget targetDb = parseJdbcUrl(jdbcUrl);
         String dumpExecutable = resolveExecutable("mariadb-dump");
         ensureExecutableAvailable(dumpExecutable, "mariadb-dump");
@@ -89,9 +96,19 @@ public class MariaDbBackupService {
         command.add("--events");
         command.add(targetDb.database());
         try {
+            if (target.getParent() != null) {
+                Files.createDirectories(target.getParent());
+            }
             runToFile(command, target);
-            writeMetadata(target, normalizedReason);
             return toView(target);
+        } catch (IOException ex) {
+            try {
+                Files.deleteIfExists(target);
+                Files.deleteIfExists(metadataPath(target));
+            } catch (IOException ignored) {
+                // ignore cleanup failure
+            }
+            throw new IllegalStateException("백업 파일 생성에 실패했습니다.", ex);
         } catch (RuntimeException ex) {
             try {
                 Files.deleteIfExists(target);
@@ -114,7 +131,14 @@ public class MariaDbBackupService {
     }
 
     public void restoreBackup(String fileName) {
-        Path path = resolveBackupFile(fileName);
+        restoreBackupFromPath(resolveBackupFile(fileName));
+    }
+
+    public void restoreBackupFromPath(Path sqlFile) {
+        Path path = sqlFile.toAbsolutePath().normalize();
+        if (!Files.exists(path) || !Files.isRegularFile(path)) {
+            throw new IllegalArgumentException("백업 SQL 파일을 찾을 수 없습니다: " + path);
+        }
         JdbcTarget targetDb = parseJdbcUrl(jdbcUrl);
         List<String> command = new ArrayList<>();
         String mariadbExecutable = resolveExecutable("mariadb");
@@ -131,6 +155,10 @@ public class MariaDbBackupService {
         command.add("--password=" + password);
         command.add(targetDb.database());
         runFromFile(command, path);
+    }
+
+    public Path getBackupDirectory() {
+        return backupDirectory;
     }
 
     public Path getBackupFilePath(String fileName) {

@@ -57,6 +57,14 @@ public final class EventTypes {
     public static final String WORK_CENTER_CALENDAR_DAY_UPDATED = "WorkCenterCalendarDayUpdated";
     public static final String WORK_CENTER_CALENDAR_DAY_DELETED = "WorkCenterCalendarDayDeleted";
 
+    public static final String DRAWING_REGISTERED = "DrawingRegistered";
+    public static final String DRAWING_REVISED = "DrawingRevised";
+    public static final String DRAWING_DELETED = "DrawingDeleted";
+    public static final String DRAWING_RESTORED = "DrawingRestored";
+    public static final String DRAWING_INFO_UPDATED = "DrawingInfoUpdated";
+    public static final String DRAWING_PROMOTED = "DrawingPromoted";
+    public static final String DRAWING_HARD_DELETED = "DrawingHardDeleted";
+
     public static final String SALES_ORDER_REGISTERED = "SalesOrderRegistered";
     public static final String SALES_ORDER_UPDATED = "SalesOrderUpdated";
     public static final String SALES_ORDER_CONFIRMED = "SalesOrderConfirmed";

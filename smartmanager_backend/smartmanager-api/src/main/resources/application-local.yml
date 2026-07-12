@@ -40,3 +40,6 @@ smartmanager:
   backup:
     dir: ../../backup
     # mariadb-bin-dir: (선택) PATH에 mariadb-dump/mariadb가 없을 때만 MariaDB bin 폴더 지정
+  drawing:
+    storage-dir: ../../drawing-storage/pdf
+    max-file-size-bytes: 104857600
