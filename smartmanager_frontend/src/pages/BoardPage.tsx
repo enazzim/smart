@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import RichTextEditor from '../components/board/RichTextEditor';
+import NewPostBadge from '../components/board/NewPostBadge';
 import {
   BOARD_TYPE_LABELS,
   type BoardAttachment,
@@ -223,9 +224,12 @@ function BoardListView({
                 <tr key={item.id}>
                   <td>{total - page * PAGE_SIZE - index}</td>
                   <td>
-                    <button type="button" className="link-button" onClick={() => onNavigateDetail(item.id)}>
-                      {item.pinned ? '[고정] ' : ''}
-                      {item.title}
+                    <button type="button" className="link-button board-title-link" onClick={() => onNavigateDetail(item.id)}>
+                      <span className="board-title-text">
+                        {item.pinned ? '[고정] ' : ''}
+                        {item.title}
+                      </span>
+                      <NewPostBadge createdAt={item.createdAt} />
                     </button>
                   </td>
                   <td>{item.authorName}</td>
@@ -580,7 +584,7 @@ function BoardComposeView({
           setTitle('');
           setFiles([]);
         } else if (composeMode === 'edit' && postId != null) {
-          const post = await fetchBoardPost(boardType, postId);
+          const post = await fetchBoardPost(boardType, postId, { incrementView: false });
           if (!post.canEdit) {
             setError('본인이 작성한 글만 수정할 수 있습니다.');
             return;

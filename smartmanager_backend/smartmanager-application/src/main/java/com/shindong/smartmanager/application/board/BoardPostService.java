@@ -55,8 +55,10 @@ public class BoardPostService {
 
     public BoardPostDetailView getDetail(long postId, long actorUserId, boolean incrementViewCount) {
         BoardPostRepository.BoardPostRecord post = findActivePost(postId);
-        if (incrementViewCount) {
+        boolean shouldIncrement = incrementViewCount && !isAuthor(post, actorUserId);
+        if (shouldIncrement) {
             boardPostRepository.incrementViewCount(postId);
+            post = findActivePost(postId);
         }
         return toDetail(post, actorUserId, true);
     }

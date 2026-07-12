@@ -100,8 +100,14 @@ export async function fetchBoardPosts(
   return handleResponse<BoardPostPage>(res);
 }
 
-export async function fetchBoardPost(boardType: BoardType, postId: number): Promise<BoardPostDetail> {
-  const res = await apiFetch(`/api/v1/boards/${boardType}/posts/${postId}`);
+export async function fetchBoardPost(
+  boardType: BoardType,
+  postId: number,
+  options?: { incrementView?: boolean },
+): Promise<BoardPostDetail> {
+  const incrementView = options?.incrementView !== false;
+  const suffix = incrementView ? '' : '?incrementView=false';
+  const res = await apiFetch(`/api/v1/boards/${boardType}/posts/${postId}${suffix}`);
   return handleResponse<BoardPostDetail>(res);
 }
 
@@ -229,6 +235,23 @@ export function formatBoardDate(value: string | null | undefined): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${month}/${day}`;
+}
+
+/** 로컬 기준으로 당일 등록(또는 당일 일자) 여부 */
+export function isRegisteredToday(value: string | null | undefined, now = new Date()): boolean {
+  if (!value) return false;
+  const raw = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [y, m, d] = raw.split('-').map(Number);
+    return y === now.getFullYear() && m === now.getMonth() + 1 && d === now.getDate();
+  }
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return false;
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
 }
 
 export function formatFileSize(bytes: number): string {

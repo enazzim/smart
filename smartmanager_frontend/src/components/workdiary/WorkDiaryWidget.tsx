@@ -1,5 +1,6 @@
 import type { WorkDiaryListItem } from '../../api/workDiary';
 import { formatWorkDiaryDate } from '../../api/workDiary';
+import NewPostBadge from '../board/NewPostBadge';
 
 interface WorkDiaryWidgetProps {
   title: string;
@@ -40,7 +41,10 @@ export default function WorkDiaryWidget({
                 onClick={() => onOpenItem?.(item.id)}
               >
                 <span className="board-widget-title">
-                  {item.workDateTitle || `${item.authorName} 업무일지`}
+                  <span className="board-widget-title-text">
+                    {item.workDateTitle || `${item.authorName} 업무일지`}
+                  </span>
+                  <NewPostBadge dateValue={item.workDate} />
                 </span>
                 <span className="board-widget-date">{formatWorkDiaryDate(item.workDate)}</span>
               </button>

@@ -58,10 +58,16 @@ public class BoardPostController {
     }
 
     @GetMapping("/{boardType}/posts/{postId}")
-    public BoardPostDetailResponse get(@PathVariable String boardType, @PathVariable long postId) {
+    public BoardPostDetailResponse get(
+            @PathVariable String boardType,
+            @PathVariable long postId,
+            @RequestParam(defaultValue = "true") boolean incrementView
+    ) {
         BoardPostApplicationService.parseBoardType(boardType);
         var principal = SecurityUtils.requirePrincipal();
-        return BoardPostDetailResponse.from(boardPostApplicationService.getDetail(postId, principal.userId()));
+        return BoardPostDetailResponse.from(
+                boardPostApplicationService.getDetail(postId, principal.userId(), incrementView)
+        );
     }
 
     @PostMapping(path = "/{boardType}/posts", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

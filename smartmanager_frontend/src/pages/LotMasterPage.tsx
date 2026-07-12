@@ -11,47 +11,13 @@ import {
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { useAuth } from '../context/AuthContext';
-import {
-  formatInventoryLocation,
-  INVENTORY_LOCATION_FILTER_OPTIONS,
-} from '../utils/inventoryLocation';
+import { INVENTORY_LOCATION_FILTER_OPTIONS } from '../utils/inventoryLocation';
 import { formatInteger, formatQty } from '../utils/numberFormat';
 
 const ALL_ITEM_CLASSES: PropertyClassification[] = ['원자재', '제품', '상품', '공정품'];
 
-type EditForm = {
-  status: LotStatus;
-  p1: string;
-  p2: string;
-  expiryDate: string;
-  certificateRef: string;
-  remark: string;
-};
-
-function emptyEditForm(): EditForm {
-  return {
-    status: 'ACTIVE',
-    p1: '',
-    p2: '',
-    expiryDate: '',
-    certificateRef: '',
-    remark: '',
-  };
-}
-
 function sumLotQty(lot: LotRow): number {
   return lot.balances.reduce((sum, row) => sum + Number(row.qtyOnHand ?? 0), 0);
-}
-
-function toEditForm(lot: LotRow): EditForm {
-  return {
-    status: lot.status,
-    p1: lot.p1 ?? '',
-    p2: lot.p2 ?? '',
-    expiryDate: lot.expiryDate ?? '',
-    certificateRef: lot.certificateRef ?? '',
-    remark: lot.remark ?? '',
-  };
 }
 
 export default function LotMasterPage() {
@@ -72,8 +38,9 @@ export default function LotMasterPage() {
   const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
   const [createLotNo, setCreateLotNo] = useState('');
   const [autoGenerate, setAutoGenerate] = useState(true);
-  const [createForm, setCreateForm] = useState(() => emptyEditForm());
-  const [editForm, setEditForm] = useState(() => emptyEditForm());
+  const [createRemark, setCreateRemark] = useState('');
+  const [editStatus, setEditStatus] = useState<LotStatus>('ACTIVE');
+  const [editRemark, setEditRemark] = useState('');
 
   const selectedLot = useMemo(
     () => lots.find((lot) => lot.id === selectedId) ?? null,
@@ -107,9 +74,11 @@ export default function LotMasterPage() {
 
   useEffect(() => {
     if (selectedLot) {
-      setEditForm(toEditForm(selectedLot));
+      setEditStatus(selectedLot.status);
+      setEditRemark(selectedLot.remark ?? '');
     } else {
-      setEditForm(emptyEditForm());
+      setEditStatus('ACTIVE');
+      setEditRemark('');
     }
   }, [selectedLot]);
 
@@ -117,7 +86,7 @@ export default function LotMasterPage() {
     setSelectedItem(null);
     setCreateLotNo('');
     setAutoGenerate(true);
-    setCreateForm(emptyEditForm());
+    setCreateRemark('');
   };
 
   const onSelectRow = (lot: LotRow) => {
@@ -156,11 +125,7 @@ export default function LotMasterPage() {
         lotNo: autoGenerate ? undefined : createLotNo.trim(),
         autoGenerate,
         originType: 'MANUAL',
-        p1: createForm.p1 || undefined,
-        p2: createForm.p2 || undefined,
-        expiryDate: createForm.expiryDate || undefined,
-        certificateRef: createForm.certificateRef || undefined,
-        remark: createForm.remark || undefined,
+        remark: createRemark.trim() || undefined,
       });
       setMessage(`Lot ${created.lotNo} 를 등록했습니다.`);
       resetCreateForm();
@@ -181,12 +146,12 @@ export default function LotMasterPage() {
     setMessage(null);
     try {
       const updated = await updateLot(selectedLot.id, {
-        status: editForm.status,
-        p1: editForm.p1 || undefined,
-        p2: editForm.p2 || undefined,
-        expiryDate: editForm.expiryDate || null,
-        certificateRef: editForm.certificateRef || undefined,
-        remark: editForm.remark || undefined,
+        status: editStatus,
+        p1: selectedLot.p1 ?? undefined,
+        p2: selectedLot.p2 ?? undefined,
+        expiryDate: selectedLot.expiryDate ?? null,
+        certificateRef: selectedLot.certificateRef ?? undefined,
+        remark: editRemark.trim() || undefined,
       });
       setMessage(`Lot ${updated.lotNo} 를 수정했습니다.`);
       await loadLots();
@@ -231,9 +196,7 @@ export default function LotMasterPage() {
         상태: row.statusLabel,
         출처: row.originTypeLabel,
         총잔량: sumLotQty(row),
-        P1: row.p1 ?? '',
-        P2: row.p2 ?? '',
-        유효기한: row.expiryDate ?? '',
+        슬롯: row.balances.length,
         비고: row.remark ?? '',
       })),
     [lots],
@@ -296,13 +259,21 @@ export default function LotMasterPage() {
             {selectedItem && !selectedItem.lotTracked && (
               <p className="error-banner">선택한 품목은 Lot 추적이 꺼져 있습니다.</p>
             )}
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={autoGenerate}
-                onChange={(e) => setAutoGenerate(e.target.checked)}
-              />
+            <label>
               Lot번호 자동 채번
+              <select
+                value={autoGenerate ? 'YES' : 'NO'}
+                onChange={(e) => {
+                  const next = e.target.value === 'YES';
+                  setAutoGenerate(next);
+                  if (next) {
+                    setCreateLotNo('');
+                  }
+                }}
+              >
+                <option value="YES">예</option>
+                <option value="NO">아니오</option>
+              </select>
             </label>
             <label>
               Lot번호 {autoGenerate ? '' : '*'}
@@ -311,43 +282,12 @@ export default function LotMasterPage() {
                 onChange={(e) => setCreateLotNo(e.target.value)}
                 disabled={autoGenerate}
                 required={!autoGenerate}
-              />
-            </label>
-            <label>
-              P1
-              <input
-                value={createForm.p1}
-                onChange={(e) => setCreateForm({ ...createForm, p1: e.target.value })}
-              />
-            </label>
-            <label>
-              P2
-              <input
-                value={createForm.p2}
-                onChange={(e) => setCreateForm({ ...createForm, p2: e.target.value })}
-              />
-            </label>
-            <label>
-              유효기한
-              <input
-                type="date"
-                value={createForm.expiryDate}
-                onChange={(e) => setCreateForm({ ...createForm, expiryDate: e.target.value })}
-              />
-            </label>
-            <label>
-              성적서 참조
-              <input
-                value={createForm.certificateRef}
-                onChange={(e) => setCreateForm({ ...createForm, certificateRef: e.target.value })}
+                placeholder={autoGenerate ? '등록 시 자동 부여' : '공급처·기존 Lot번호 입력'}
               />
             </label>
             <label>
               비고
-              <input
-                value={createForm.remark}
-                onChange={(e) => setCreateForm({ ...createForm, remark: e.target.value })}
-              />
+              <input value={createRemark} onChange={(e) => setCreateRemark(e.target.value)} />
             </label>
             <div className="form-actions">
               <button type="submit" disabled={submitting}>
@@ -373,6 +313,10 @@ export default function LotMasterPage() {
           </div>
           <form onSubmit={(e) => void onUpdate(e)} className="form-grid form-grid-wide">
             <label>
+              Lot번호
+              <input readOnly className="readonly" value={selectedLot.lotNo} />
+            </label>
+            <label>
               품목
               <input
                 readOnly
@@ -381,8 +325,17 @@ export default function LotMasterPage() {
               />
             </label>
             <label>
-              Lot번호
-              <input readOnly className="readonly" value={selectedLot.lotNo} />
+              상태 *
+              <select
+                required
+                value={editStatus}
+                disabled={!canEdit}
+                onChange={(e) => setEditStatus(e.target.value as LotStatus)}
+              >
+                <option value="ACTIVE">활성</option>
+                <option value="BLOCKED">차단</option>
+                <option value="DEPLETED">소진</option>
+              </select>
             </label>
             <label>
               출처
@@ -393,57 +346,15 @@ export default function LotMasterPage() {
               <input readOnly className="readonly" value={formatQty(sumLotQty(selectedLot))} />
             </label>
             <label>
-              상태 *
-              <select
-                required
-                value={editForm.status}
-                disabled={!canEdit}
-                onChange={(e) => setEditForm({ ...editForm, status: e.target.value as LotStatus })}
-              >
-                <option value="ACTIVE">활성</option>
-                <option value="BLOCKED">차단</option>
-                <option value="DEPLETED">소진</option>
-              </select>
-            </label>
-            <label>
-              P1
-              <input
-                value={editForm.p1}
-                disabled={!canEdit}
-                onChange={(e) => setEditForm({ ...editForm, p1: e.target.value })}
-              />
-            </label>
-            <label>
-              P2
-              <input
-                value={editForm.p2}
-                disabled={!canEdit}
-                onChange={(e) => setEditForm({ ...editForm, p2: e.target.value })}
-              />
-            </label>
-            <label>
-              유효기한
-              <input
-                type="date"
-                value={editForm.expiryDate}
-                disabled={!canEdit}
-                onChange={(e) => setEditForm({ ...editForm, expiryDate: e.target.value })}
-              />
-            </label>
-            <label>
-              성적서 참조
-              <input
-                value={editForm.certificateRef}
-                disabled={!canEdit}
-                onChange={(e) => setEditForm({ ...editForm, certificateRef: e.target.value })}
-              />
+              슬롯
+              <input readOnly className="readonly" value={formatInteger(selectedLot.balances.length)} />
             </label>
             <label>
               비고
               <input
-                value={editForm.remark}
+                value={editRemark}
                 disabled={!canEdit}
-                onChange={(e) => setEditForm({ ...editForm, remark: e.target.value })}
+                onChange={(e) => setEditRemark(e.target.value)}
               />
             </label>
             {canEdit && (
@@ -463,34 +374,6 @@ export default function LotMasterPage() {
               </div>
             )}
           </form>
-
-          {selectedLot.balances.length > 0 && (
-            <div className="table-wrap" style={{ marginTop: '1rem' }}>
-              <h3>슬롯 잔량</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>창고</th>
-                    <th className="num">잔량</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedLot.balances.map((bal) => (
-                    <tr key={bal.id}>
-                      <td>
-                        {bal.locationLabel ||
-                          formatInventoryLocation(bal.locationCode, {
-                            outputProcessSequence: bal.outputProcessSequence,
-                            outputProcessName: bal.outputProcessName,
-                          })}
-                      </td>
-                      <td className="num">{formatQty(bal.qtyOnHand)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </section>
       )}
 
@@ -512,14 +395,13 @@ export default function LotMasterPage() {
                 <th>출처</th>
                 <th className="num">총잔량</th>
                 <th className="num">슬롯</th>
-                <th>유효기한</th>
                 <th>비고</th>
               </tr>
             </thead>
             <tbody>
               {lots.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>Lot가 없습니다.</td>
+                  <td colSpan={7}>Lot가 없습니다.</td>
                 </tr>
               ) : (
                 lots.map((row) => (
@@ -537,7 +419,6 @@ export default function LotMasterPage() {
                     <td>{row.originTypeLabel}</td>
                     <td className="num">{formatQty(sumLotQty(row))}</td>
                     <td className="num">{formatInteger(row.balances.length)}</td>
-                    <td>{row.expiryDate ?? '—'}</td>
                     <td>{row.remark ?? '—'}</td>
                   </tr>
                 ))

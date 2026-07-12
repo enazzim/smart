@@ -87,7 +87,7 @@ function isRadioSetting(settingKey: string): boolean {
   );
 }
 
-function SettingsTable({
+function SettingsList({
   settings,
   draftValues,
   submittingKey,
@@ -101,31 +101,31 @@ function SettingsTable({
   onSave: (setting: SystemSetting) => void;
 }) {
   if (settings.length === 0) {
-    return <p>관리 가능한 설정이 없습니다.</p>;
+    return <p className="settings-empty">관리 가능한 설정이 없습니다.</p>;
   }
 
   return (
-    <table>
-      <thead>
-        <tr>
-          <th>설정</th>
-          <th>설명</th>
-          <th>값</th>
-          <th>최종 수정</th>
-          <th>관리</th>
-        </tr>
-      </thead>
-      <tbody>
-        {settings.map((setting) => {
-          const draftValue = draftValues[setting.settingKey] ?? setting.value;
-          const dirty = draftValue !== setting.value;
-          return (
-            <tr key={setting.settingKey}>
-              <td>{setting.label}</td>
-              <td>{setting.description}</td>
-              <td>
+    <ul className="settings-list">
+      {settings.map((setting) => {
+        const draftValue = draftValues[setting.settingKey] ?? setting.value;
+        const dirty = draftValue !== setting.value;
+        const meta = [
+          setting.updatedAt ? formatDateTime(setting.updatedAt) : null,
+          setting.updatedBy || null,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        return (
+          <li key={setting.settingKey} className={`settings-item${dirty ? ' is-dirty' : ''}`}>
+            <div className="settings-item-main">
+              <div className="settings-item-copy">
+                <strong>{setting.label}</strong>
+                <p>{setting.description}</p>
+                {meta ? <span className="settings-item-meta">{meta}</span> : null}
+              </div>
+              <div className="settings-item-controls">
                 {isRadioSetting(setting.settingKey) ? (
-                  <div className="radio-group">
+                  <div className="radio-group radio-group-inline">
                     {setting.allowedValues.map((value) => (
                       <label key={value} className="radio-inline">
                         <input
@@ -151,12 +151,6 @@ function SettingsTable({
                     ))}
                   </select>
                 )}
-              </td>
-              <td>
-                {formatDateTime(setting.updatedAt)}
-                {setting.updatedBy ? ` / ${setting.updatedBy}` : ''}
-              </td>
-              <td className="actions">
                 <button
                   type="button"
                   disabled={!dirty || submittingKey === setting.settingKey}
@@ -164,12 +158,12 @@ function SettingsTable({
                 >
                   {submittingKey === setting.settingKey ? '저장 중…' : '저장'}
                 </button>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -320,76 +314,79 @@ function BackupPanel() {
 
   return (
     <section className="panel">
-      <h2>데이터 백업 및 복구</h2>
-      <p className="hint-text">
-        백업 파일은 프로젝트 <code>backup</code> 폴더에 저장됩니다. <strong>전체 백업</strong>은 DB와 도면 PDF(
-        <code>drawing-storage/pdf</code>)를 한 세트로 보관합니다. DB 백업은 사유 입력이 필요합니다. 복구(적용)는
-        현재 데이터를 덮어쓰므로 로컬 개발 환경에서만 사용하세요.
-      </p>
-      <div className="form-actions">
-        <button type="button" className="secondary" disabled={submitting} onClick={openCreateModal}>
-          {submitting ? '처리 중…' : 'DB 백업 저장'}
-        </button>
-        <button type="button" disabled={submitting} onClick={() => void onCreateFull()}>
-          {submitting ? '처리 중…' : '전체 백업 (DB+도면 PDF)'}
-        </button>
+      <div className="panel-header-row">
+        <h2>데이터 백업 및 복구</h2>
+        <div className="inline-actions">
+          <button type="button" className="secondary" disabled={submitting} onClick={openCreateModal}>
+            {submitting ? '처리 중…' : 'DB 백업'}
+          </button>
+          <button type="button" disabled={submitting} onClick={() => void onCreateFull()}>
+            {submitting ? '처리 중…' : '전체 백업'}
+          </button>
+        </div>
       </div>
-      {message && <p>{message}</p>}
+      <p className="hint-text">
+        프로젝트 <code>backup</code> 폴더에 저장됩니다. 전체 백업은 DB+도면 PDF 세트이며, 복구는 현재 데이터를
+        덮어씁니다.
+      </p>
+      {message && <p className="settings-toast">{message}</p>}
       {error && !createModalOpen && <div className="error">{error}</div>}
       {loading ? (
         <p>불러오는 중…</p>
       ) : backups.length === 0 ? (
-        <p>저장된 백업이 없습니다.</p>
+        <p className="settings-empty">저장된 백업이 없습니다.</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>구분</th>
-              <th>이름</th>
-              <th>백업 사유</th>
-              <th>크기</th>
-              <th>생성일시</th>
-              <th>관리</th>
-            </tr>
-          </thead>
-          <tbody>
-            {backups.map((item) => {
-              const key = item.kind === 'db-only' ? item.fileName : item.setName;
-              const label = item.kind === 'db-only' ? item.fileName : item.setName;
-              const size = item.kind === 'db-only' ? item.fileSizeBytes : item.totalSizeBytes;
-              const typeLabel =
-                item.kind === 'db-only' ? 'DB만' : `전체 (PDF ${item.drawingPdfFileCount}건)`;
-              const reason = item.kind === 'db-only' ? item.reason?.trim() || '—' : '—';
-              return (
-                <tr key={key}>
-                  <td>{typeLabel}</td>
-                  <td>{label}</td>
-                  <td>{reason}</td>
-                  <td>{formatFileSize(size)}</td>
-                  <td>{formatDateTime(item.createdAt)}</td>
-                  <td className="actions">
-                    {item.kind === 'db-only' && (
-                      <button type="button" disabled={submitting} onClick={() => void onDownload(item.fileName)}>
-                        저장
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>구분</th>
+                <th>이름</th>
+                <th>백업 사유</th>
+                <th>크기</th>
+                <th>생성일시</th>
+                <th>관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {backups.map((item) => {
+                const key = item.kind === 'db-only' ? item.fileName : item.setName;
+                const label = item.kind === 'db-only' ? item.fileName : item.setName;
+                const size = item.kind === 'db-only' ? item.fileSizeBytes : item.totalSizeBytes;
+                const typeLabel =
+                  item.kind === 'db-only' ? 'DB만' : `전체 (PDF ${item.drawingPdfFileCount}건)`;
+                const reason = item.kind === 'db-only' ? item.reason?.trim() || '—' : '—';
+                return (
+                  <tr key={key}>
+                    <td>{typeLabel}</td>
+                    <td>{label}</td>
+                    <td>{reason}</td>
+                    <td>{formatFileSize(size)}</td>
+                    <td>{formatDateTime(item.createdAt)}</td>
+                    <td className="actions">
+                      {item.kind === 'db-only' && (
+                        <button type="button" disabled={submitting} onClick={() => void onDownload(item.fileName)}>
+                          저장
+                        </button>
+                      )}
+                      <button type="button" disabled={submitting} onClick={() => void onRestore(item)}>
+                        적용
                       </button>
-                    )}
-                    <button type="button" disabled={submitting} onClick={() => void onRestore(item)}>
-                      적용
-                    </button>
-                    <button
-                      type="button"
-                      className="danger"
-                      disabled={submitting}
-                      onClick={() => void onDelete(item)}
-                    >
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                      <button
+                        type="button"
+                        className="danger"
+                        disabled={submitting}
+                        onClick={() => void onDelete(item)}
+                      >
+                        삭제
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
       {createModalOpen && (
         <div className="modal-backdrop" role="presentation" onClick={closeCreateModal}>
@@ -490,83 +487,44 @@ export default function SystemSettingsPage() {
   const mrpSettings = settings.filter((row) => row.settingKey.startsWith('mrp.'));
   const productionSettings = settings.filter((row) => row.settingKey.startsWith('production.'));
 
+  const settingSections = [
+    { key: 'closing', title: '회계마감', settings: closingSettings },
+    { key: 'inventory', title: '재고', settings: inventorySettings },
+    { key: 'production', title: '생산', settings: productionSettings },
+    { key: 'mrp', title: 'MRP', settings: mrpSettings },
+  ] as const;
+
   return (
-    <div className="page">
+    <div className="page system-settings-page">
       <header className="page-header">
         <div>
           <h1>시스템 설정</h1>
-          <p>
-            전역 비즈니스 정책(Feature Flags)을 관리합니다. 매입마감일은 입고·매입승인·월마감 회계월 판정에, 자재투입
-            여부는 생산 워크플로에, 마이너스 재고 허용은 모든 창고 입·출고 처리에 반영됩니다.
-          </p>
+          <p>전역 비즈니스 정책(Feature Flags)을 관리합니다.</p>
         </div>
       </header>
-      {message && <p>{message}</p>}
+      {message && <p className="settings-toast">{message}</p>}
       {error && <div className="error">{error}</div>}
 
-      <section className="panel">
-        <h2>회계마감</h2>
-        <p className="hint-text">
-          입고·외주입고·기타매입·품질검사·매입승인 화면의 매입년도·매입월 자동 계산과 월마감 회계월 판정에
-          적용됩니다.
-        </p>
-        {loading ? (
+      {loading ? (
+        <section className="panel">
           <p>불러오는 중…</p>
-        ) : (
-          <SettingsTable
-            settings={closingSettings}
-            draftValues={draftValues}
-            submittingKey={submittingKey}
-            onDraftChange={(key, value) => setDraftValues((prev) => ({ ...prev, [key]: value }))}
-            onSave={(setting) => void onSave(setting)}
-          />
-        )}
-      </section>
-
-      <section className="panel">
-        <h2>재고</h2>
-        {loading ? (
-          <p>불러오는 중…</p>
-        ) : (
-          <SettingsTable
-            settings={inventorySettings}
-            draftValues={draftValues}
-            submittingKey={submittingKey}
-            onDraftChange={(key, value) => setDraftValues((prev) => ({ ...prev, [key]: value }))}
-            onSave={(setting) => void onSave(setting)}
-          />
-        )}
-      </section>
-
-      <section className="panel">
-        <h2>생산</h2>
-        {loading ? (
-          <p>불러오는 중…</p>
-        ) : (
-          <SettingsTable
-            settings={productionSettings}
-            draftValues={draftValues}
-            submittingKey={submittingKey}
-            onDraftChange={(key, value) => setDraftValues((prev) => ({ ...prev, [key]: value }))}
-            onSave={(setting) => void onSave(setting)}
-          />
-        )}
-      </section>
-
-      <section className="panel">
-        <h2>MRP</h2>
-        {loading ? (
-          <p>불러오는 중…</p>
-        ) : (
-          <SettingsTable
-            settings={mrpSettings}
-            draftValues={draftValues}
-            submittingKey={submittingKey}
-            onDraftChange={(key, value) => setDraftValues((prev) => ({ ...prev, [key]: value }))}
-            onSave={(setting) => void onSave(setting)}
-          />
-        )}
-      </section>
+        </section>
+      ) : (
+        settingSections
+          .filter((section) => section.settings.length > 0)
+          .map((section) => (
+            <section key={section.key} className="panel">
+              <h2>{section.title}</h2>
+              <SettingsList
+                settings={section.settings}
+                draftValues={draftValues}
+                submittingKey={submittingKey}
+                onDraftChange={(key, value) => setDraftValues((prev) => ({ ...prev, [key]: value }))}
+                onSave={(setting) => void onSave(setting)}
+              />
+            </section>
+          ))
+      )}
 
       <BackupPanel />
     </div>

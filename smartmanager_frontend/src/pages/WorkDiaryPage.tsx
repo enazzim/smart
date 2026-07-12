@@ -23,6 +23,7 @@ import {
   type WorkDiaryTemplate,
 } from '../api/workDiary';
 import { WorkDiaryTemplatesCatalog } from '../components/workdiary/WorkDiaryTemplatePanel';
+import NewPostBadge from '../components/board/NewPostBadge';
 import WorkDiaryChecklistField from '../components/workdiary/WorkDiaryChecklistField';
 import { mergeFieldValues, checklistValueOrEmpty, textareaValue } from '../components/workdiary/workDiaryFieldUtils';
 
@@ -249,7 +250,12 @@ function WorkDiaryListView({
                 items.map((row) => (
                   <tr key={row.id} className="clickable-row" onClick={() => onNavigateDetail(row.id)}>
                     <td>{formatWorkDiaryDate(row.workDate)}</td>
-                    <td>{row.workDateTitle || '—'}</td>
+                    <td>
+                      <span className="board-title-link">
+                        <span className="board-title-text">{row.workDateTitle || '—'}</span>
+                        <NewPostBadge dateValue={row.workDate} />
+                      </span>
+                    </td>
                     {canApprove && <td>{row.authorName}</td>}
                     <td>{row.workDiaryGroupName || '—'}</td>
                     <td>{WORK_DIARY_STATUS_LABELS[row.status]}</td>

@@ -1,5 +1,6 @@
 import type { BoardPostSummary } from '../../api/board';
 import { formatBoardDate } from '../../api/board';
+import NewPostBadge from './NewPostBadge';
 
 interface BoardWidgetProps {
   title: string;
@@ -40,8 +41,11 @@ export default function BoardWidget({
                 onClick={() => onOpenPost?.(item.id)}
               >
                 <span className="board-widget-title">
-                  {item.hasAttachment ? '📎 ' : ''}
-                  {item.title || '(제목 없음)'}
+                  <span className="board-widget-title-text">
+                    {item.hasAttachment ? '📎 ' : ''}
+                    {item.title || '(제목 없음)'}
+                  </span>
+                  <NewPostBadge createdAt={item.createdAt} />
                 </span>
                 <span className="board-widget-date">{formatBoardDate(item.createdAt)}</span>
               </button>
