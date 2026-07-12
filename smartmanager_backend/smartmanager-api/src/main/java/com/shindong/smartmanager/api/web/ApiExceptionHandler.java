@@ -14,8 +14,12 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        String detail = ex.getMessage();
+        String message = (detail != null && !detail.isBlank() && !detail.equalsIgnoreCase("Access Denied"))
+                ? detail
+                : "접근 권한이 없습니다.";
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new ApiErrorResponse("ACCESS_DENIED", ex.getMessage()));
+                .body(new ApiErrorResponse("ACCESS_DENIED", message));
     }
 
     @ExceptionHandler(AppBusinessException.class)

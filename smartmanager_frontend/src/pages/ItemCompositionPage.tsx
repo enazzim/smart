@@ -109,8 +109,9 @@ function BomTreeRows({
 }
 
 export default function ItemCompositionPage() {
-  const { canWrite } = useAuth();
-  const canEditLot = canWrite('basis:item:write');
+  const { currentUser } = useAuth();
+  /** 백엔드 @BasisAuthorize.ItemWrite 와 동일 기준 (VIEWER 역할과 무관) */
+  const canEditLot = Boolean(currentUser?.authorities.includes('basis:item:write'));
 
   const [rows, setRows] = useState<ItemComposition[]>([]);
   const [filterParent, setFilterParent] = useState<ItemSearchSelection | null>(null);

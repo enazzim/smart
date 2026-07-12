@@ -71,8 +71,13 @@ export async function handleResponse<T>(response: Response): Promise<T> {
     throw new Error(apiErrorMessage(message, '인증이 필요합니다. 다시 로그인해 주세요.'));
   }
   if (response.status === 403) {
-    const body = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(apiErrorMessage(body.message, '접근 권한이 없습니다.'));
+    const body = await response.json().catch(() => ({ message: '' }));
+    const raw = typeof body.message === 'string' ? body.message.trim() : '';
+    const normalized =
+      !raw || raw === 'Forbidden' || raw.toLowerCase() === 'access denied'
+        ? '접근 권한이 없습니다. 로그아웃 후 다시 로그인해 보세요.'
+        : raw;
+    throw new Error(apiErrorMessage(normalized, '접근 권한이 없습니다.'));
   }
   if (!response.ok) {
     const body = await response.json().catch(() => ({ message: response.statusText }));

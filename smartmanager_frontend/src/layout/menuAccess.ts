@@ -95,9 +95,9 @@ export function canAccessSelfAccount(roleCodes: string[], authorities: string[])
   return authorities.includes('basis:user:read');
 }
 
-/** VIEWER 포함 시 등록·수정·삭제 불가 (SYSTEM_ADMIN 제외) */
+/** VIEWER 포함 시 등록·수정·삭제 불가 (SYSTEM_ADMIN·BASIS_MANAGER 제외) */
 export function isTransactionReadOnly(roleCodes: string[]): boolean {
-  if (roleCodes.includes('SYSTEM_ADMIN')) {
+  if (roleCodes.includes('SYSTEM_ADMIN') || roleCodes.includes('BASIS_MANAGER')) {
     return false;
   }
   return roleCodes.includes('VIEWER');

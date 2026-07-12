@@ -21,6 +21,8 @@ public final class FlywayMigrateLocal {
         Flyway flyway = Flyway.configure()
                 .dataSource(JDBC_URL, USER, PASSWORD)
                 .locations("classpath:db/migration")
+                // 브랜치 전환으로 중간 버전 이력이 비는 경우(로컬) 허용
+                .outOfOrder(true)
                 .load();
         MigrateResult result = flyway.migrate();
         System.out.println("Flyway migrate completed.");
