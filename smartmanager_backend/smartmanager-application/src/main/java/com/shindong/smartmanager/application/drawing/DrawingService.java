@@ -11,17 +11,20 @@ import java.util.List;
 public class DrawingService {
 
     private final DrawingRepository drawingRepository;
+    private final DrawingReferenceService drawingReferenceService;
     private final DomainEventStore domainEventStore;
     private final ItemRepository itemRepository;
     private final DrawingRevisionNotifier drawingRevisionNotifier;
 
     public DrawingService(
             DrawingRepository drawingRepository,
+            DrawingReferenceService drawingReferenceService,
             DomainEventStore domainEventStore,
             ItemRepository itemRepository,
             DrawingRevisionNotifier drawingRevisionNotifier
     ) {
         this.drawingRepository = drawingRepository;
+        this.drawingReferenceService = drawingReferenceService;
         this.domainEventStore = domainEventStore;
         this.itemRepository = itemRepository;
         this.drawingRevisionNotifier = drawingRevisionNotifier;
@@ -103,7 +106,7 @@ public class DrawingService {
             newMinor++;
         }
 
-        drawingRepository.saveHistory(
+        String newHistoryId = drawingRepository.saveHistory(
                 latest.masterId(),
                 latest.drawingType(),
                 newMajor,
@@ -113,6 +116,7 @@ public class DrawingService {
                 command.changeType(),
                 command.changeReason()
         );
+        drawingReferenceService.copySnapshot(latest.id(), newHistoryId, actorUserId);
 
         if ("MAJOR".equalsIgnoreCase(command.changeType())) {
             drawingRevisionNotifier.notifyMajorRevision(partNo, newMajor);
@@ -180,6 +184,11 @@ public class DrawingService {
             }
         }
 
+        List<String> historyIds = drawingRepository.findHistoriesByMasterId(masterId).stream()
+                .map(DrawingHistoryView::id)
+                .toList();
+        drawingReferenceService.deleteReferencesForHistories(historyIds);
+
         drawingRepository.deleteAllHistoriesByMasterId(masterId);
         drawingRepository.hardDeleteMaster(masterId);
         appendEvent(EventTypes.DRAWING_HARD_DELETED, masterId, actorUserId, master.partNo());
@@ -193,8 +202,10 @@ public class DrawingService {
             throw new IllegalStateException("이미 양산품입니다.");
         }
 
+        drawingReferenceService.assertProdChildrenForPromote(latest.id());
+
         drawingRepository.markHistoryAsOld(latest.id());
-        drawingRepository.saveHistory(
+        String newHistoryId = drawingRepository.saveHistory(
                 latest.masterId(),
                 DrawingType.PROD,
                 1,
@@ -204,6 +215,7 @@ public class DrawingService {
                 "MAJOR",
                 "개발품 -> 양산품 이관"
         );
+        drawingReferenceService.copySnapshot(latest.id(), newHistoryId, actorUserId);
 
         drawingRevisionNotifier.notifyMajorRevision(partNo, 1);
 

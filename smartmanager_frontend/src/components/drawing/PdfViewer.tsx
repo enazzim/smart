@@ -1,5 +1,5 @@
 import { ZoomIn, ZoomOut, Maximize, Download } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { drawingPdfAuthHeaders } from '../../api/drawing';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -26,6 +26,11 @@ export default function PdfViewer({ pdfUrl, partNo, toolbarActions, onError }: P
     }),
     [pdfUrl],
   );
+
+  useEffect(() => {
+    setNumPages(undefined);
+    setZoom(100);
+  }, [pdfUrl]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -86,6 +91,7 @@ export default function PdfViewer({ pdfUrl, partNo, toolbarActions, onError }: P
 
       <div className="drawing-pdf-scroll">
         <Document
+          key={pdfUrl}
           file={fileSource}
           onLoadSuccess={({ numPages: pages }) => setNumPages(pages)}
           loading={<p className="drawing-pdf-loading">PDF 불러오는 중…</p>}

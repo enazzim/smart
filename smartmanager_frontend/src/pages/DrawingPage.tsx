@@ -4,10 +4,12 @@ import { Plus, Edit, Eye, Trash2, RotateCcw, FileUp, Download } from 'lucide-rea
 import {
   deleteDrawing,
   fetchDeletedDrawings,
+  fetchDrawingReferenceIntegrity,
   fetchDrawings,
   hardDeleteDrawing,
   restoreDrawing,
   type DrawingListItem,
+  type DrawingReferenceIntegrityIssue,
   type DrawingType,
 } from '../api/drawing';
 import DrawingUploadModal from '../components/drawing/DrawingUploadModal';
@@ -64,6 +66,9 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   const [isSyncingOffline, setIsSyncingOffline] = useState(false);
   const [cachedPartNos, setCachedPartNos] = useState<string[]>([]);
   const [offlineMessage, setOfflineMessage] = useState<string | null>(null);
+  const [integrityOpen, setIntegrityOpen] = useState(false);
+  const [integrityLoading, setIntegrityLoading] = useState(false);
+  const [integrityIssues, setIntegrityIssues] = useState<DrawingReferenceIntegrityIssue[]>([]);
 
   const { data: drawings = [], isLoading, isError } = useQuery({
     queryKey: ['drawings'],
@@ -181,6 +186,24 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
     [currentData, tab, searchPartNo, searchModelGroup, searchDate, searchItem],
   );
 
+  const handleIntegrityScan = async () => {
+    setIntegrityLoading(true);
+    setIntegrityOpen(true);
+    try {
+      const issues = await fetchDrawingReferenceIntegrity();
+      setIntegrityIssues(issues);
+      if (issues.length === 0) {
+        showSuccess('구성 참조 정합 검사: 문제 없음');
+      }
+    } catch (err) {
+      setIntegrityIssues([]);
+      showError(err instanceof Error ? err.message : '정합 검사에 실패했습니다.');
+      setIntegrityOpen(false);
+    } finally {
+      setIntegrityLoading(false);
+    }
+  };
+
   const handleOfflineSync = async () => {
     if (tab === 'deleted') {
       return;
@@ -227,24 +250,34 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
           <h1>도면 관리 현황</h1>
           <p>개발·양산 도면 등록, 개정, PDF 열람 및 품목 연동을 관리합니다.</p>
         </div>
-        {!readOnly && (
-          <div className="inline-actions">
-            <button
-              type="button"
-              className="secondary"
-              disabled={isSyncingOffline || tab === 'deleted' || filteredDrawings.length === 0}
-              title={tab === 'deleted' ? '삭제된 도면은 오프라인 동기화 대상이 아닙니다.' : undefined}
-              onClick={() => void handleOfflineSync()}
-            >
-              <Download size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-              {isSyncingOffline ? '동기화 중…' : '오늘 작업 도면 동기화'}
-            </button>
-            <button type="button" onClick={() => setIsModalOpen(true)}>
-              <Plus size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-              도면 등록
-            </button>
-          </div>
-        )}
+        <div className="inline-actions">
+          <button
+            type="button"
+            className="secondary"
+            disabled={integrityLoading}
+            onClick={() => void handleIntegrityScan()}
+          >
+            {integrityLoading ? '정합 검사 중…' : '구성 정합 검사'}
+          </button>
+          {!readOnly && (
+            <>
+              <button
+                type="button"
+                className="secondary"
+                disabled={isSyncingOffline || tab === 'deleted' || filteredDrawings.length === 0}
+                title={tab === 'deleted' ? '삭제된 도면은 오프라인 동기화 대상이 아닙니다.' : undefined}
+                onClick={() => void handleOfflineSync()}
+              >
+                <Download size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                {isSyncingOffline ? '동기화 중…' : '오늘 작업 도면 동기화'}
+              </button>
+              <button type="button" onClick={() => setIsModalOpen(true)}>
+                <Plus size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                도면 등록
+              </button>
+            </>
+          )}
+        </div>
       </header>
 
       {message && <p className="success-banner">{message}</p>}
@@ -297,6 +330,37 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
         </button>
       </div>
 
+      {integrityOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setIntegrityOpen(false)}>
+          <div className="modal" role="dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 720 }}>
+            <h2>구성 참조 정합 검사</h2>
+            {integrityLoading ? (
+              <p>검사 중…</p>
+            ) : integrityIssues.length === 0 ? (
+              <p className="hint">문제가 발견되지 않았습니다.</p>
+            ) : (
+              <ul className="drawing-integrity-list">
+                {integrityIssues.map((issue, index) => (
+                  <li key={`${issue.code}-${issue.parentHistoryId}-${issue.childHistoryId ?? index}`}>
+                    <strong>[{issue.code}]</strong> {issue.message}
+                    <br />
+                    <span className="hint">
+                      부모 {issue.parentPartNo}
+                      {issue.childPartNo ? ` → 자식 ${issue.childPartNo}` : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="form-actions">
+              <button type="button" className="secondary" onClick={() => setIntegrityOpen(false)}>
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!readOnly && (
         <DrawingUploadModal
           open={isModalOpen}
@@ -345,6 +409,7 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
           drawingType={viewingDrawing.type}
           isDeleted={tab === 'deleted'}
           readOnly={readOnly}
+          canManage={!readOnly}
           actorUserId={actorUserId}
           onSuccess={showSuccess}
           onError={showError}

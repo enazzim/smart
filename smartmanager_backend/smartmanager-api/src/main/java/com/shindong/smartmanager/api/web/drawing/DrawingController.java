@@ -76,6 +76,56 @@ public class DrawingController {
                 .toList();
     }
 
+    @GetMapping("/reference-integrity")
+    public List<DrawingReferenceIntegrityResponse> referenceIntegrity() {
+        return drawingApplicationService.scanReferenceIntegrity().stream()
+                .map(DrawingReferenceIntegrityResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/{id}/reference-candidates")
+    public List<DrawingReferenceCandidateResponse> referenceCandidates(@PathVariable("id") String id) {
+        return drawingApplicationService.listBomReferenceCandidates(id).stream()
+                .map(DrawingReferenceCandidateResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/history/{historyId}/where-used")
+    public List<DrawingReferenceResponse.DrawingWhereUsedResponse> whereUsed(
+            @PathVariable("historyId") String historyId
+    ) {
+        return drawingApplicationService.listWhereUsed(historyId).stream()
+                .map(DrawingReferenceResponse::fromWhereUsed)
+                .toList();
+    }
+
+    @GetMapping("/{id}/history/{historyId}/references")
+    public List<DrawingReferenceResponse> references(
+            @PathVariable("id") String id,
+            @PathVariable("historyId") String historyId
+    ) {
+        return drawingApplicationService.listReferences(id, historyId).stream()
+                .map(DrawingReferenceResponse::from)
+                .toList();
+    }
+
+    @PutMapping("/{id}/history/{historyId}/references")
+    @BasisAuthorize.DrawingWrite
+    public ResponseEntity<Map<String, String>> replaceReferences(
+            @PathVariable("id") String id,
+            @PathVariable("historyId") String historyId,
+            @RequestBody DrawingReferenceResponse.ReplaceRequest request,
+            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+    ) {
+        drawingApplicationService.replaceReferences(
+                id,
+                historyId,
+                request == null ? List.of() : request.toCommands(),
+                resolveActor(actorUserId)
+        );
+        return ResponseEntity.ok(Map.of("message", "도면 구성 참조가 저장되었습니다."));
+    }
+
     @GetMapping("/{id}/history")
     public List<DrawingHistoryResponse> history(@PathVariable("id") String id) {
         return drawingApplicationService.listHistories(id).stream()

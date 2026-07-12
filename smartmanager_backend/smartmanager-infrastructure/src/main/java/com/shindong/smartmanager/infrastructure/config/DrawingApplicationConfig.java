@@ -1,5 +1,8 @@
 package com.shindong.smartmanager.infrastructure.config;
 
+import com.shindong.smartmanager.application.bom.ItemCompositionService;
+import com.shindong.smartmanager.application.drawing.DrawingReferenceRepository;
+import com.shindong.smartmanager.application.drawing.DrawingReferenceService;
 import com.shindong.smartmanager.application.drawing.DrawingRepository;
 import com.shindong.smartmanager.application.drawing.DrawingRevisionNotifier;
 import com.shindong.smartmanager.application.drawing.DrawingService;
@@ -14,14 +17,31 @@ import org.springframework.context.annotation.Configuration;
 public class DrawingApplicationConfig {
 
     @Bean
+    public DrawingReferenceService drawingReferenceService(
+            DrawingRepository drawingRepository,
+            DrawingReferenceRepository drawingReferenceRepository,
+            ItemCompositionService itemCompositionService,
+            ItemRepository itemRepository
+    ) {
+        return new DrawingReferenceService(
+                drawingRepository,
+                drawingReferenceRepository,
+                itemCompositionService,
+                itemRepository
+        );
+    }
+
+    @Bean
     public DrawingService drawingService(
             DrawingRepository drawingRepository,
+            DrawingReferenceService drawingReferenceService,
             DomainEventStore domainEventStore,
             ItemRepository itemRepository,
             DrawingRevisionNotifier drawingRevisionNotifier
     ) {
         return new DrawingService(
                 drawingRepository,
+                drawingReferenceService,
                 domainEventStore,
                 itemRepository,
                 drawingRevisionNotifier
