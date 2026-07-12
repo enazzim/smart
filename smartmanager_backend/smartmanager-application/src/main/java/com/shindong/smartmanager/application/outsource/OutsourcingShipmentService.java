@@ -225,12 +225,16 @@ public class OutsourcingShipmentService {
                                 + ")을 초과하는 출고수량입니다.");
             }
 
-            List<OutsourcingShipmentInputSaveCommand> inputs = consumptionCalculator.calculateInputLines(
-                    context.order(),
-                    context.line(),
-                    lineCommand.shipmentQty(),
-                    actorUserId
+            List<OutsourcingShipmentInputSaveCommand> inputs = mergeInputLots(
+                    consumptionCalculator.calculateInputLines(
+                            context.order(),
+                            context.line(),
+                            lineCommand.shipmentQty(),
+                            actorUserId
+                    ),
+                    lineCommand.inputLots()
             );
+            validateInputLots(inputs);
             inventoryService.assertSufficientStock(shipmentDate, context.order().partnerId(), inputs);
             lineSaves.add(new OutsourcingShipmentLineSaveCommand(
                     lineCommand.orderLineId(),
@@ -288,6 +292,7 @@ public class OutsourcingShipmentService {
                     .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + lineCommand.parentItemId()));
 
             List<OutsourcingShipmentInputSaveCommand> inputs = resolveAdvanceInputLines(lineCommand, command.partnerId(), actorUserId);
+            validateInputLots(inputs);
             inventoryService.assertSufficientStock(shipmentDate, command.partnerId(), inputs);
             lineSaves.add(new OutsourcingShipmentLineSaveCommand(
                     null,
@@ -341,7 +346,8 @@ public class OutsourcingShipmentService {
                             input.issueQty(),
                             input.sourceLocationCode(),
                             input.sourceProcessId(),
-                            input.inputProcessId()
+                            input.inputProcessId(),
+                            input.lotId()
                     ))
                     .toList();
 
@@ -409,7 +415,8 @@ public class OutsourcingShipmentService {
                             input.inputProcessId(),
                             inputProcess != null ? inputProcess.processSequenceNum() : null,
                             inputProcess != null ? inputProcess.processName() : "",
-                            onHand
+                            onHand,
+                            item.lotTracked()
                     );
                 })
                 .toList();
@@ -445,6 +452,45 @@ public class OutsourcingShipmentService {
                 lineCommand.referenceQty(),
                 actorUserId
         );
+    }
+
+    private List<OutsourcingShipmentInputSaveCommand> mergeInputLots(
+            List<OutsourcingShipmentInputSaveCommand> inputs,
+            List<OutsourcingShipmentInputLotCommand> inputLots
+    ) {
+        Map<Long, Long> lotByItemId = new HashMap<>();
+        if (inputLots != null) {
+            for (OutsourcingShipmentInputLotCommand lot : inputLots) {
+                if (lot != null && lot.lotId() != null) {
+                    lotByItemId.put(lot.itemId(), lot.lotId());
+                }
+            }
+        }
+        return inputs.stream()
+                .map(input -> new OutsourcingShipmentInputSaveCommand(
+                        input.itemId(),
+                        input.itemCompositionId(),
+                        input.issueQty(),
+                        input.sourceLocationCode(),
+                        input.sourceProcessId(),
+                        input.inputProcessId(),
+                        lotByItemId.getOrDefault(input.itemId(), input.lotId())
+                ))
+                .toList();
+    }
+
+    private void validateInputLots(List<OutsourcingShipmentInputSaveCommand> inputs) {
+        for (OutsourcingShipmentInputSaveCommand input : inputs) {
+            var item = itemRepository.findActiveById(input.itemId())
+                    .orElseThrow(() -> new IllegalArgumentException("투입 품목을 찾을 수 없습니다: " + input.itemId()));
+            if (item.lotTracked()) {
+                if (input.lotId() == null) {
+                    throw new IllegalArgumentException("Lot 추적 품목은 Lot를 선택해야 합니다: " + item.itemNo());
+                }
+            } else if (input.lotId() != null) {
+                throw new IllegalArgumentException("Lot 비추적 품목은 Lot를 지정할 수 없습니다: " + item.itemNo());
+            }
+        }
     }
 
     private void validatePartner(long partnerId) {

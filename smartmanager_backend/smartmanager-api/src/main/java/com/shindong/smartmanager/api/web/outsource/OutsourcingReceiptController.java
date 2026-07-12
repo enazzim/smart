@@ -82,7 +82,16 @@ public class OutsourcingReceiptController {
                         request.lines().stream()
                                 .map(line -> new CreateOutsourcingReceiptLineCommand(
                                         line.outsourcingOrderLineId(),
-                                        line.receiptQty()
+                                        line.receiptQty(),
+                                        line.lotNo(),
+                                        Boolean.TRUE.equals(line.autoGenerateLot()),
+                                        line.lotId(),
+                                        line.inputLots() == null ? java.util.List.of() : line.inputLots().stream()
+                                                .map(lot -> new com.shindong.smartmanager.application.outsource.OutsourcingReceiptInputLotCommand(
+                                                        lot.itemId(),
+                                                        lot.lotId()
+                                                ))
+                                                .toList()
                                 ))
                                 .toList()
                 ),
@@ -108,7 +117,17 @@ public class OutsourcingReceiptController {
 
     public record CreateOutsourcingReceiptLineRequest(
             @NotNull Long outsourcingOrderLineId,
-            @NotNull BigDecimal receiptQty
+            @NotNull BigDecimal receiptQty,
+            String lotNo,
+            Boolean autoGenerateLot,
+            Long lotId,
+            List<CreateOutsourcingReceiptInputLotRequest> inputLots
+    ) {
+    }
+
+    public record CreateOutsourcingReceiptInputLotRequest(
+            @NotNull Long itemId,
+            Long lotId
     ) {
     }
 }

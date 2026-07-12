@@ -10,7 +10,7 @@ public record CreateItemRequest(
         @NotBlank String itemNo,
         @NotBlank String itemName,
         @NotNull PropertyClassification propertyClassification,
-        String modelType,
+        @NotBlank(message = "기종은 필수입니다.") String modelType,
         @NotBlank String unit,
         String standard,
         BigDecimal standardUnitCost,
@@ -18,6 +18,10 @@ public record CreateItemRequest(
         Integer leadTime,
         BigDecimal safetyStockQuantity,
         BigDecimal orderIntervalQuantity,
-        BigDecimal minOrderQuantity
+        BigDecimal minOrderQuantity,
+        Boolean lotTracked
 ) {
+    public boolean lotTrackedOrDefault() {
+        return lotTracked != null && lotTracked;
+    }
 }

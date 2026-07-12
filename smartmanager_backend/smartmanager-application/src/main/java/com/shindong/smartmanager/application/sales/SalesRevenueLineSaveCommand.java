@@ -7,6 +7,7 @@ public record SalesRevenueLineSaveCommand(
         BigDecimal revenueQty,
         long itemId,
         BigDecimal unitPrice,
-        BigDecimal amount
+        BigDecimal amount,
+        Long lotId
 ) {
 }

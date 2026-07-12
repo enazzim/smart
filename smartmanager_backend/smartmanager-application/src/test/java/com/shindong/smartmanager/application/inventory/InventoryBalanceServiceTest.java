@@ -318,8 +318,14 @@ class InventoryBalanceServiceTest {
                     movement.amount(),
                     movement.referenceType(),
                     movement.referenceId(),
-                    movement.movementDate()
+                    movement.movementDate(),
+                    movement.lotId()
             );
+        }
+
+        @Override
+        public Optional<Long> findActiveLotIdByReference(String referenceType, long referenceId) {
+            return Optional.empty();
         }
     }
 

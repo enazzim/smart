@@ -8,6 +8,7 @@ public record OutsourcingReceiptLineSaveCommand(
         BigDecimal receiptQty,
         BigDecimal postedQty,
         BigDecimal unitPrice,
-        BigDecimal amount
+        BigDecimal amount,
+        Long lotId
 ) {
 }

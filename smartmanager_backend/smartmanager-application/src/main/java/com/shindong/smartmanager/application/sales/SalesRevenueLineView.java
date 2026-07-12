@@ -14,6 +14,7 @@ public record SalesRevenueLineView(
         String itemName,
         BigDecimal revenueQty,
         BigDecimal unitPrice,
-        BigDecimal amount
+        BigDecimal amount,
+        Long lotId
 ) {
 }

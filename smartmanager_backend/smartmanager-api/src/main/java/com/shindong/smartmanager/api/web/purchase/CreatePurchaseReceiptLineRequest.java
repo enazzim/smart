@@ -6,6 +6,8 @@ import java.math.BigDecimal;
 
 public record CreatePurchaseReceiptLineRequest(
         @NotNull Long purchaseOrderLineId,
-        @NotNull @Positive BigDecimal receiptQty
+        @NotNull @Positive BigDecimal receiptQty,
+        String lotNo,
+        Boolean autoGenerateLot
 ) {
 }

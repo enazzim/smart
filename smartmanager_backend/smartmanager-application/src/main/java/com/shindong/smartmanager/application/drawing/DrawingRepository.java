@@ -9,7 +9,7 @@ public interface DrawingRepository {
 
     boolean existsActiveByPartNo(String partNo);
 
-    String saveMaster(String partNo, String partName, String modelGroup, Long itemId, String actorUserId);
+    String saveMaster(String partNo, String partName, String modelType, Long itemId, String actorUserId);
 
     Optional<DrawingMasterView> findMasterById(String id);
 
@@ -23,7 +23,7 @@ public interface DrawingRepository {
             String id,
             String partNo,
             String partName,
-            String modelGroup,
+            String modelType,
             Long itemId,
             String actorUserId
     );

@@ -187,7 +187,7 @@ public class DrawingController {
         DrawingRegisterCommand command = new DrawingRegisterCommand(
                 request.partNo(),
                 request.partName(),
-                request.modelGroup(),
+                request.modelType(),
                 request.itemId(),
                 request.drawingType(),
                 filePath,
@@ -264,7 +264,7 @@ public class DrawingController {
         DrawingInfoUpdateCommand command = new DrawingInfoUpdateCommand(
                 request.partNo(),
                 request.partName(),
-                request.modelGroup(),
+                request.modelType(),
                 request.itemId()
         );
         drawingApplicationService.updateInfo(id, command, resolveActor(actorUserId));

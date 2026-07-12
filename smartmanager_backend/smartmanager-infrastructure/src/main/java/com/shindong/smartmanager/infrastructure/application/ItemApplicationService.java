@@ -28,6 +28,11 @@ public class ItemApplicationService {
     }
 
     @Transactional
+    public ItemView updateLotTracked(long id, boolean lotTracked, String actorUserId) {
+        return itemService.updateLotTracked(id, lotTracked, actorUserId);
+    }
+
+    @Transactional
     public void delete(long id, String actorUserId) {
         itemService.delete(id, actorUserId);
     }

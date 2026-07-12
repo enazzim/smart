@@ -10,6 +10,7 @@ import com.shindong.smartmanager.application.process.ProcessView;
 import com.shindong.smartmanager.application.process.WipBalanceProjector;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
 import com.shindong.smartmanager.domain.item.PropertyClassification;
+import com.shindong.smartmanager.domain.process.ProcessVariant;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -157,6 +158,7 @@ public class WorkReportConsumptionInventoryService {
                 line.sourceProcessId(),
                 null,
                 null,
+                line.lotId(),
                 actorUserId
         ));
     }
@@ -171,12 +173,17 @@ public class WorkReportConsumptionInventoryService {
                 .orElseThrow(() -> new IllegalArgumentException("투입 품목을 찾을 수 없습니다: " + issueLine.itemId()));
 
         if (item.propertyClassification() == PropertyClassification.원자재) {
+            if (item.lotTracked() && issueLine.lotId() == null) {
+                throw new IllegalArgumentException(
+                        "Lot 추적 품목은 Lot를 선택해야 합니다: " + item.itemNo());
+            }
             return new WorkReportConsumptionSaveCommand(
                     item.id(),
                     issueLine.itemCompositionId(),
                     issueLine.issueQty(),
                     LOCATION_RAW,
-                    null
+                    null,
+                    issueLine.lotId()
             );
         }
         Long wipSourceProcessId = resolveWipSourceProcessId(
@@ -186,20 +193,25 @@ public class WorkReportConsumptionInventoryService {
                 currentProcessSequenceNum
         );
         if (wipSourceProcessId != null) {
+            if (item.lotTracked() && issueLine.lotId() == null) {
+                throw new IllegalArgumentException(
+                        "Lot 추적 품목은 Lot를 선택해야 합니다: " + item.itemNo());
+            }
             return new WorkReportConsumptionSaveCommand(
                     item.id(),
                     issueLine.itemCompositionId(),
                     issueLine.issueQty(),
                     LOCATION_WIP,
-                    wipSourceProcessId
+                    wipSourceProcessId,
+                    issueLine.lotId()
             );
         }
         throw new IllegalArgumentException("투입할 수 없는 품목 분류입니다: " + item.propertyClassification());
     }
 
     /**
-     * 비첫 공정에서 모품목을 직전 공정 WIP에서 투입할 때는 품목 분류(제품·상품·공정품)와 무관하게
-     * 라우트상 직전 공정 WIP를 사용합니다.
+     * 비첫 공정에서 모품목(자기 자신) 투입은 직전 공정 실적이 넣어 둔 <b>현재 공정 WIP</b>를 사용한다.
+     * (WorkReportInventoryService: 완료 시 next process WIP IN)
      */
     private Long resolveWipSourceProcessId(
             long itemId,
@@ -210,9 +222,10 @@ public class WorkReportConsumptionInventoryService {
         if (itemId == parentItemId
                 && !ProcessSequenceNavigator.isFirstProcess(
                         processRepository, parentItemId, currentProcessSequenceNum)) {
-            return ProcessSequenceNavigator.findImmediatePriorProcess(
-                            processRepository, parentItemId, currentProcessSequenceNum)
+            return processRepository.findAllActiveByItemId(parentItemId, ProcessVariant.plan).stream()
+                    .filter(process -> process.processSequenceNum() == currentProcessSequenceNum)
                     .map(ProcessView::id)
+                    .findFirst()
                     .orElse(null);
         }
         if (classification == PropertyClassification.공정품) {

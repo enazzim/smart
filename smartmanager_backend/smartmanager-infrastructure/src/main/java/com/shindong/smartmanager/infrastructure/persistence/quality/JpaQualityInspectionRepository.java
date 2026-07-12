@@ -324,7 +324,8 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
                 orderNo,
                 receiptDate,
                 entity.getCreatedAt(),
-                entity.getCompletedAt()
+                entity.getCompletedAt(),
+                item != null && item.isLotTracked()
         );
     }
 }

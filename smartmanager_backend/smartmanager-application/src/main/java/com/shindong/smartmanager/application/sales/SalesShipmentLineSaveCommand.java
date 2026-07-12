@@ -7,6 +7,7 @@ public record SalesShipmentLineSaveCommand(
         BigDecimal shipmentQty,
         long itemId,
         BigDecimal unitPrice,
-        BigDecimal amount
+        BigDecimal amount,
+        Long lotId
 ) {
 }

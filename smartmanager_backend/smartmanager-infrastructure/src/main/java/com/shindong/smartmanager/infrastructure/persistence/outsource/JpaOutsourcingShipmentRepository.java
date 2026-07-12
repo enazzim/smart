@@ -107,6 +107,7 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
                 inputLine.setSourceLocationCode(input.sourceLocationCode());
                 inputLine.setSourceProcessId(input.sourceProcessId());
                 inputLine.setInputProcessId(input.inputProcessId());
+                inputLine.setLotId(input.lotId());
                 inputLine.setRecordingState(ACTIVE);
                 inputLineRepository.save(inputLine);
             }
@@ -216,7 +217,8 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
                                 input.getIssueQty(),
                                 input.getSourceLocationCode(),
                                 input.getSourceProcessId(),
-                                input.getInputProcessId()
+                                input.getInputProcessId(),
+                                input.getLotId()
                         );
                     })
                     .toList();

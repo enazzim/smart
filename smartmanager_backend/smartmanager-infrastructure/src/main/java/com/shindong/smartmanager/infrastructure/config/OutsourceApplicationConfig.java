@@ -19,7 +19,7 @@ import com.shindong.smartmanager.application.company.CompanyRepository;
 import com.shindong.smartmanager.application.event.DomainEventStore;
 
 import com.shindong.smartmanager.application.inventory.InventoryBalanceService;
-
+import com.shindong.smartmanager.application.inventory.LotService;
 import com.shindong.smartmanager.application.item.ItemRepository;
 
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderRepository;
@@ -236,6 +236,8 @@ public class OutsourceApplicationConfig {
             OutsourceHistoryRepository outsourceHistoryRepository,
             QualityInspectionRepository qualityInspectionRepository,
             OutsourcingReceiptInventoryService outsourcingReceiptInventoryService,
+            ItemRepository itemRepository,
+            LotService lotService,
             PartnerLedgerService partnerLedgerService,
             MonthClosingService monthClosingService,
             FiscalCalendarService fiscalCalendarService,
@@ -247,6 +249,8 @@ public class OutsourceApplicationConfig {
                 outsourceHistoryRepository,
                 qualityInspectionRepository,
                 outsourcingReceiptInventoryService,
+                itemRepository,
+                lotService,
                 partnerLedgerService,
                 monthClosingService,
                 fiscalCalendarService,

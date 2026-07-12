@@ -36,7 +36,8 @@ record OutsourcingShipmentInputPreviewLineResponse(
         long inputProcessId,
         Short processSequenceNum,
         String inputProcessName,
-        BigDecimal onHandQty
+        BigDecimal onHandQty,
+        boolean lotTracked
 ) {
     static OutsourcingShipmentInputPreviewLineResponse from(OutsourcingShipmentInputPreviewLineView view) {
         return new OutsourcingShipmentInputPreviewLineResponse(
@@ -52,7 +53,8 @@ record OutsourcingShipmentInputPreviewLineResponse(
                 view.inputProcessId(),
                 view.processSequenceNum(),
                 view.inputProcessName(),
-                view.onHandQty()
+                view.onHandQty(),
+                view.lotTracked()
         );
     }
 }

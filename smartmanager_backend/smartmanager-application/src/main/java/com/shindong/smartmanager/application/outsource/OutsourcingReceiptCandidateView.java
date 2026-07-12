@@ -21,6 +21,7 @@ public record OutsourcingReceiptCandidateView(
         BigDecimal waitingInspectionQty,
         BigDecimal remainQty,
         BigDecimal unitPrice,
-        LocalDate requestedDeliveryDate
+        LocalDate requestedDeliveryDate,
+        boolean lotTracked
 ) {
 }

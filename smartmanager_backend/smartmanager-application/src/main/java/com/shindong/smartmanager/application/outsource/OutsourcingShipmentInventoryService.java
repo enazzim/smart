@@ -99,6 +99,12 @@ public class OutsourcingShipmentInventoryService {
                     actorUserId
             );
 
+            Long lotId = line.lotId();
+            if (reverse && lotId == null) {
+                lotId = inventoryBalanceService.findLotIdByReference(REFERENCE_TYPE, shipmentId)
+                        .orElse(null);
+            }
+
             inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
                     line.itemId(),
                     line.sourceLocationCode(),
@@ -111,6 +117,7 @@ public class OutsourcingShipmentInventoryService {
                     line.sourceProcessId(),
                     null,
                     null,
+                    lotId,
                     actorUserId
             ));
             inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
@@ -125,6 +132,7 @@ public class OutsourcingShipmentInventoryService {
                     null,
                     line.inputProcessId(),
                     partnerId,
+                    lotId,
                     actorUserId
             ));
         }

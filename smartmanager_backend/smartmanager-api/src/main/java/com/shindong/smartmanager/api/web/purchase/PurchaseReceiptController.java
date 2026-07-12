@@ -85,7 +85,9 @@ public class PurchaseReceiptController {
                         request.lines().stream()
                                 .map(line -> new CreatePurchaseReceiptLineCommand(
                                         line.purchaseOrderLineId(),
-                                        line.receiptQty()
+                                        line.receiptQty(),
+                                        line.lotNo(),
+                                        Boolean.TRUE.equals(line.autoGenerateLot())
                                 ))
                                 .toList()
                 ),

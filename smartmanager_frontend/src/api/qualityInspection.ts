@@ -21,6 +21,7 @@ export interface QualityInspection {
   receiptDate?: string | null;
   createdAt: string;
   completedAt?: string | null;
+  lotTracked: boolean;
 }
 
 export interface QualityInspectionListParams {
@@ -44,6 +45,8 @@ export interface CompleteQualityInspectionRequest {
   completedDate: string;
   fiscalYear?: number;
   fiscalMonth?: number;
+  lotNo?: string;
+  autoGenerateLot?: boolean;
 }
 
 function buildQuery(params?: QualityInspectionListParams): string {

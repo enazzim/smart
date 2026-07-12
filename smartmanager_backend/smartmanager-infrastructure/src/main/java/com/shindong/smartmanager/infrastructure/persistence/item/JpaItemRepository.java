@@ -56,6 +56,19 @@ public class JpaItemRepository implements ItemRepository {
 
     @Override
     @Transactional
+    public void updateLotTracked(long id, boolean lotTracked, String actorUserId) {
+        ItemJpaEntity entity = itemRepository.findByIdAndRecordingState(id, 1)
+                .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + id));
+        entity.setLotTracked(lotTracked);
+        Instant now = Instant.now();
+        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedAt(now);
+        itemRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
     public void softDelete(long id, String actorUserId) {
         ItemJpaEntity entity = itemRepository.findByIdAndRecordingState(id, 1)
                 .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + id));
@@ -98,6 +111,7 @@ public class JpaItemRepository implements ItemRepository {
         entity.setSafetyStockQuantity(command.safetyStockQuantity());
         entity.setOrderIntervalQuantity(command.orderIntervalQuantity());
         entity.setMinOrderQuantity(command.minOrderQuantity());
+        entity.setLotTracked(command.lotTracked());
     }
 
     private void applyUpdate(ItemJpaEntity entity, ItemUpdateCommand command) {
@@ -112,6 +126,7 @@ public class JpaItemRepository implements ItemRepository {
         entity.setSafetyStockQuantity(command.safetyStockQuantity());
         entity.setOrderIntervalQuantity(command.orderIntervalQuantity());
         entity.setMinOrderQuantity(command.minOrderQuantity());
+        entity.setLotTracked(command.lotTracked());
     }
 
     private ItemView toView(ItemJpaEntity entity) {
@@ -129,6 +144,7 @@ public class JpaItemRepository implements ItemRepository {
                 entity.getSafetyStockQuantity(),
                 entity.getOrderIntervalQuantity(),
                 entity.getMinOrderQuantity(),
+                entity.isLotTracked(),
                 entity.getCreatedAt()
         );
     }

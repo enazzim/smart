@@ -82,7 +82,7 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
         StringBuilder sql = new StringBuilder("""
                 SELECT ss.id, shl.id, ss.shipment_no, ss.shipment_date, ss.partner_id, c.company_name,
                        shl.sales_order_line_id, so.order_no, shl.item_id, i.item_no, i.item_name,
-                       shl.shipment_qty, shl.invoiced_qty, shl.unit_price
+                       shl.shipment_qty, shl.invoiced_qty, shl.unit_price, i.lot_tracked, shl.lot_id
                 FROM sales_shipment_line shl
                 JOIN sales_shipment ss ON ss.id = shl.sales_shipment_id
                 JOIN company c ON c.id = ss.partner_id
@@ -166,7 +166,9 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
                     deliveryOnHand,
                     unitPrice,
                     billable,
-                    message
+                    message,
+                    toBooleanFlag(row[14]),
+                    row[15] != null ? ((Number) row[15]).longValue() : null
             ));
         }
         return result;
@@ -235,6 +237,7 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
             line.setRevenueQty(lineCommand.revenueQty());
             line.setUnitPrice(lineCommand.unitPrice());
             line.setAmount(lineCommand.amount());
+            line.setLotId(lineCommand.lotId());
             line.setRecordingState(ACTIVE);
             line.setCreatedBy(actorUserId);
             line.setCreatedById(actorUserId);
@@ -341,7 +344,8 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
                     item != null ? item.getItemName() : "",
                     lineEntity.getRevenueQty(),
                     lineEntity.getUnitPrice(),
-                    lineEntity.getAmount()
+                    lineEntity.getAmount(),
+                    lineEntity.getLotId()
             ));
         }
         return new SalesRevenueView(
@@ -382,6 +386,20 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
     private SalesShipmentLineJpaEntity requireActiveShipmentLine(long lineId) {
         return shipmentLineRepository.findByIdAndRecordingState(lineId, ACTIVE)
                 .orElseThrow(() -> new IllegalArgumentException("출고 라인을 찾을 수 없습니다: " + lineId));
+    }
+
+    private static boolean toBooleanFlag(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        String text = value.toString().trim();
+        return "1".equals(text) || "true".equalsIgnoreCase(text) || "Y".equalsIgnoreCase(text);
     }
 
     private static BigDecimal toBigDecimal(Object value) {

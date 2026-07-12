@@ -25,6 +25,7 @@ import EtcPurchaseReceiptPage from '../pages/EtcPurchaseReceiptPage';
 import PartnerPaymentPage from '../pages/PartnerPaymentPage';
 import PayableApprovalPage from '../pages/PayableApprovalPage';
 import InventoryLedgerPage from '../pages/InventoryLedgerPage';
+import LotMasterPage from '../pages/LotMasterPage';
 import MiscStockMovementPage from '../pages/MiscStockMovementPage';
 import WorkPlanPage from '../pages/WorkPlanPage';
 import WorkCenterLoadPage from '../pages/WorkCenterLoadPage';
@@ -89,7 +90,7 @@ export type PurchasePageId =
   | 'purchase-payable-approval'
   | 'purchase-payment';
 
-export type InventoryPageId = 'inventory-misc-movement' | 'inventory-ledger';
+export type InventoryPageId = 'inventory-misc-movement' | 'inventory-ledger' | 'inventory-lot';
 
 export type OutsourcePageId = 'outsource-order' | 'outsource-shipment' | 'outsource-receipt';
 
@@ -157,6 +158,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     children: [
       { id: 'inventory-misc-movement', label: '기타 입출고' },
       { id: 'inventory-ledger', label: '재고·원장' },
+      { id: 'inventory-lot', label: 'Lot 마스터' },
     ],
   },
   {
@@ -339,6 +341,9 @@ export function renderPurchasePage(page: PurchasePageId) {
 export function renderInventoryPage(page: InventoryPageId) {
   if (page === 'inventory-misc-movement') {
     return <MiscStockMovementPage />;
+  }
+  if (page === 'inventory-lot') {
+    return <LotMasterPage />;
   }
   return <InventoryLedgerPage />;
 }

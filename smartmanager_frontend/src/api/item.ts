@@ -8,7 +8,7 @@ export interface Item {
   itemNo: string;
   itemName: string;
   propertyClassification: PropertyClassification;
-  modelType?: string | null;
+  modelType: string;
   unit: string;
   standard?: string | null;
   standardUnitCost?: number | null;
@@ -17,6 +17,7 @@ export interface Item {
   safetyStockQuantity?: number | null;
   orderIntervalQuantity?: number | null;
   minOrderQuantity?: number | null;
+  lotTracked: boolean;
   createdAt: string;
 }
 
@@ -24,7 +25,7 @@ export interface CreateItemRequest {
   itemNo: string;
   itemName: string;
   propertyClassification: PropertyClassification;
-  modelType?: string;
+  modelType: string;
   unit: string;
   standard?: string;
   standardUnitCost?: number;
@@ -33,6 +34,7 @@ export interface CreateItemRequest {
   safetyStockQuantity?: number;
   orderIntervalQuantity?: number;
   minOrderQuantity?: number;
+  lotTracked?: boolean;
 }
 
 export type UpdateItemRequest = Omit<CreateItemRequest, 'itemNo'>;
@@ -64,6 +66,16 @@ export async function updateItem(id: number, payload: UpdateItemRequest): Promis
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export async function updateItemLotTracked(id: number, lotTracked: boolean): Promise<Item> {
+  return handleResponse<Item>(
+    await apiFetch(`${API_BASE}/${id}/lot-tracked`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lotTracked }),
     }),
   );
 }

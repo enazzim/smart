@@ -24,8 +24,8 @@ public class DrawingMasterJpaEntity {
     @Column(name = "part_name", nullable = false, length = 100)
     private String partName;
 
-    @Column(name = "model_group", nullable = false, length = 50)
-    private String modelGroup;
+    @Column(name = "model_type", nullable = false, length = 50)
+    private String modelType;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "item_id")
@@ -76,12 +76,12 @@ public class DrawingMasterJpaEntity {
         this.partName = partName;
     }
 
-    public String getModelGroup() {
-        return modelGroup;
+    public String getModelType() {
+        return modelType;
     }
 
-    public void setModelGroup(String modelGroup) {
-        this.modelGroup = modelGroup;
+    public void setModelType(String modelType) {
+        this.modelType = modelType;
     }
 
     public ItemJpaEntity getItem() {

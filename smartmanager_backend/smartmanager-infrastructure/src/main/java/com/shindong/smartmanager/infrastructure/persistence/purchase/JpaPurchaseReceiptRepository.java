@@ -66,7 +66,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
     public List<PurchaseReceiptCandidateView> findReceiptCandidates(PurchaseReceiptCandidateCriteria criteria) {
         StringBuilder sql = new StringBuilder("""
                 SELECT po.id, pol.id, po.order_no, po.order_date, po.partner_id, c.company_name,
-                       pol.item_id, i.item_no, i.item_name, i.check_distinction,
+                       pol.item_id, i.item_no, i.item_name, i.check_distinction, i.lot_tracked,
                        pol.order_qty, pol.received_qty, pol.waiting_inspection_qty,
                        pol.unit_price, pol.requested_delivery_date
                 FROM purchase_order_line pol
@@ -113,13 +113,14 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
         List<Object[]> rows = query.getResultList();
         List<PurchaseReceiptCandidateView> result = new ArrayList<>();
         for (Object[] row : rows) {
-            BigDecimal orderQty = toBigDecimal(row[10]);
-            BigDecimal receivedQty = toBigDecimal(row[11]);
-            BigDecimal waitingQty = toBigDecimal(row[12]);
+            BigDecimal orderQty = toBigDecimal(row[11]);
+            BigDecimal receivedQty = toBigDecimal(row[12]);
+            BigDecimal waitingQty = toBigDecimal(row[13]);
             BigDecimal remainQty = orderQty.subtract(receivedQty).subtract(waitingQty);
             CheckDistinction checkDistinction = row[9] != null
                     ? CheckDistinction.valueOf(row[9].toString())
                     : CheckDistinction.NONE;
+            boolean lotTracked = toBooleanFlag(row[10]);
             result.add(new PurchaseReceiptCandidateView(
                     ((Number) row[0]).longValue(),
                     ((Number) row[1]).longValue(),
@@ -131,12 +132,13 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
                     row[7].toString(),
                     row[8].toString(),
                     checkDistinction,
+                    lotTracked,
                     orderQty,
                     receivedQty,
                     remainQty,
                     waitingQty,
-                    toBigDecimal(row[13]),
-                    row[14] != null ? toLocalDate(row[14]) : null
+                    toBigDecimal(row[14]),
+                    row[15] != null ? toLocalDate(row[15]) : null
             ));
         }
         return result;
@@ -316,6 +318,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
                 item != null && item.getCheckDistinction() != null
                         ? item.getCheckDistinction().name()
                         : CheckDistinction.NONE.name(),
+                item != null && item.isLotTracked(),
                 line.getOrderQty(),
                 line.getReceivedQty() != null ? line.getReceivedQty() : BigDecimal.ZERO,
                 line.getWaitingInspectionQty() != null ? line.getWaitingInspectionQty() : BigDecimal.ZERO,
@@ -491,6 +494,20 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
                 entity.getCreatedBy(),
                 lineViews
         );
+    }
+
+    private static boolean toBooleanFlag(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        String text = value.toString().trim();
+        return "1".equals(text) || "true".equalsIgnoreCase(text) || "Y".equalsIgnoreCase(text);
     }
 
     private static BigDecimal toBigDecimal(Object value) {

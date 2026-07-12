@@ -2,6 +2,8 @@ package com.shindong.smartmanager.application.sales;
 
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.event.DomainEventStore;
+import com.shindong.smartmanager.application.item.ItemRepository;
+import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.domain.event.AggregateTypes;
 import com.shindong.smartmanager.domain.event.DomainEvent;
 import com.shindong.smartmanager.domain.event.EventTypes;
@@ -11,7 +13,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,17 +23,20 @@ public class SalesShipmentService {
 
     private final SalesShipmentRepository salesShipmentRepository;
     private final SalesShipmentInventoryService inventoryService;
+    private final ItemRepository itemRepository;
     private final MonthClosingService monthClosingService;
     private final DomainEventStore domainEventStore;
 
     public SalesShipmentService(
             SalesShipmentRepository salesShipmentRepository,
             SalesShipmentInventoryService inventoryService,
+            ItemRepository itemRepository,
             MonthClosingService monthClosingService,
             DomainEventStore domainEventStore
     ) {
         this.salesShipmentRepository = salesShipmentRepository;
         this.inventoryService = inventoryService;
+        this.itemRepository = itemRepository;
         this.monthClosingService = monthClosingService;
         this.domainEventStore = domainEventStore;
     }
@@ -100,12 +104,14 @@ public class SalesShipmentService {
             SalesOrderLineShipmentContext context = contextByLineId.get(lineCommand.salesOrderLineId());
             orderIds.add(context.salesOrderId());
             BigDecimal amount = lineAmount(lineCommand.shipmentQty(), context.unitPrice());
+            Long lotId = resolveLotId(context, lineCommand.lotId());
             lineSaves.add(new SalesShipmentLineSaveCommand(
                     lineCommand.salesOrderLineId(),
                     lineCommand.shipmentQty(),
                     context.itemId(),
                     context.unitPrice(),
-                    amount
+                    amount,
+                    lotId
             ));
             inventoryService.assertSufficientSalesStock(
                     shipmentDate,
@@ -133,6 +139,7 @@ public class SalesShipmentService {
                     context.propertyClassification(),
                     line.shipmentQty(),
                     line.amount(),
+                    line.lotId(),
                     actorUserId
             );
             salesShipmentRepository.addShippedQty(line.salesOrderLineId(), line.shipmentQty(), actorUserId);
@@ -161,6 +168,7 @@ public class SalesShipmentService {
                     context.propertyClassification(),
                     line.shipmentQty(),
                     line.amount(),
+                    line.lotId(),
                     actorUserId
             );
             salesShipmentRepository.subtractShippedQty(line.salesOrderLineId(), line.shipmentQty(), actorUserId);
@@ -181,6 +189,22 @@ public class SalesShipmentService {
                             + ", 잔량=" + context.remainingQty().stripTrailingZeros().toPlainString()
             );
         }
+        resolveLotId(context, line.lotId());
+    }
+
+    private Long resolveLotId(SalesOrderLineShipmentContext context, Long lotId) {
+        ItemView item = itemRepository.findActiveById(context.itemId())
+                .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + context.itemId()));
+        if (item.lotTracked()) {
+            if (lotId == null) {
+                throw new IllegalArgumentException("Lot 추적 품목은 Lot를 선택해야 합니다: " + item.itemNo());
+            }
+            return lotId;
+        }
+        if (lotId != null) {
+            throw new IllegalArgumentException("Lot 비추적 품목은 Lot를 지정할 수 없습니다: " + item.itemNo());
+        }
+        return null;
     }
 
     static BigDecimal lineAmount(BigDecimal qty, BigDecimal unitPrice) {

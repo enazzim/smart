@@ -13,6 +13,7 @@ public record SalesShipmentLineView(
         String itemName,
         BigDecimal shipmentQty,
         BigDecimal unitPrice,
-        BigDecimal amount
+        BigDecimal amount,
+        Long lotId
 ) {
 }

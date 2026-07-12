@@ -1,7 +1,12 @@
 -- =============================================================================
 -- DRAFT — NOT APPLIED BY FLYWAY
--- Ref: docs/step0/d5-lot-traceability.md v0.1
--- Copy to smartmanager-infrastructure/.../db/migration/ after Part 06 + review
+-- Ref: docs/step0/lot-integration-design.md v1.1 · d5-lot-traceability.md
+-- 실적용 시 분할·재부여:
+--   V077  item.lot_tracked, model_type (적용됨)
+--   V078  inventory_lot, inventory_lot_balance, lot_number_sequence (적용됨)
+--   V079  stock_movement.lot_id, lot_genealogy
+-- 저장소 최신 migration: V078 — 본 초안은 참고용(전체 CREATE stock_movement 포함, 실적용과 다름)
+-- Copy to smartmanager-infrastructure/.../db/migration/ after review
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------

@@ -261,6 +261,7 @@ public class JpaWorkReportRepository implements WorkReportRepository {
             entity.setIssueQty(command.issueQty());
             entity.setLocationCode(command.locationCode());
             entity.setSourceProcessId(command.sourceProcessId());
+            entity.setLotId(command.lotId());
             entity.setRecordingState(ACTIVE);
             entity.setCreatedBy(actorUserId);
             entity.setCreatedById(actorUserId);
@@ -297,6 +298,25 @@ public class JpaWorkReportRepository implements WorkReportRepository {
         }
     }
 
+    @Override
+    @Transactional
+    public void updateOutputLotId(long workReportId, Long outputLotId, String actorUserId) {
+        WorkReportJpaEntity entity = workReportRepository.findByIdAndRecordingStateAndStatus(
+                        workReportId, ACTIVE, WorkReportStatus.REGISTERED)
+                .orElseThrow(() -> new IllegalArgumentException("작업일보를 찾을 수 없습니다: " + workReportId));
+        entity.setOutputLotId(outputLotId);
+        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedAt(Instant.now());
+        workReportRepository.save(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Long> findOutputLotId(long workReportId) {
+        return workReportRepository.findById(workReportId).map(WorkReportJpaEntity::getOutputLotId);
+    }
+
     private WorkReportConsumptionRecordView toConsumptionRecord(WorkReportConsumptionLineJpaEntity entity) {
         return new WorkReportConsumptionRecordView(
                 entity.getId(),
@@ -306,7 +326,8 @@ public class JpaWorkReportRepository implements WorkReportRepository {
                 entity.getItemCompositionId(),
                 entity.getIssueQty(),
                 entity.getLocationCode(),
-                entity.getSourceProcessId()
+                entity.getSourceProcessId(),
+                entity.getLotId()
         );
     }
 

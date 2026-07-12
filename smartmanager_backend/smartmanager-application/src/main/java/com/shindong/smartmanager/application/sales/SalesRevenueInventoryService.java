@@ -9,6 +9,7 @@ import java.time.LocalDate;
 public class SalesRevenueInventoryService {
 
     private static final String REFERENCE_TYPE = "SALES_REVENUE";
+    private static final String REFERENCE_TYPE_CANCEL = "SALES_REVENUE_CANCEL";
 
     private final InventoryBalanceService inventoryBalanceService;
 
@@ -40,6 +41,7 @@ public class SalesRevenueInventoryService {
             String itemNo,
             BigDecimal qty,
             BigDecimal amount,
+            Long lotId,
             String actorUserId
     ) {
         assertSufficientDeliveryStock(revenueDate, itemId, itemNo, qty);
@@ -55,6 +57,7 @@ public class SalesRevenueInventoryService {
                 null,
                 null,
                 null,
+                lotId,
                 actorUserId
         ));
     }
@@ -65,8 +68,12 @@ public class SalesRevenueInventoryService {
             long itemId,
             BigDecimal qty,
             BigDecimal amount,
+            Long lotId,
             String actorUserId
     ) {
+        Long resolvedLotId = lotId != null
+                ? lotId
+                : inventoryBalanceService.findLotIdByReference(REFERENCE_TYPE, revenueLineId).orElse(null);
         inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
                 itemId,
                 "DELIVERY",
@@ -74,11 +81,12 @@ public class SalesRevenueInventoryService {
                 StockMovementType.IN,
                 qty,
                 amount,
-                REFERENCE_TYPE + "_CANCEL",
+                REFERENCE_TYPE_CANCEL,
                 revenueLineId,
                 null,
                 null,
                 null,
+                resolvedLotId,
                 actorUserId
         ));
     }

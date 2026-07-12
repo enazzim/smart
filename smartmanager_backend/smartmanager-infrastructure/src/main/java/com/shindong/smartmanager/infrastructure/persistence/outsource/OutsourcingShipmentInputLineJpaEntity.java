@@ -40,6 +40,9 @@ public class OutsourcingShipmentInputLineJpaEntity {
     @Column(name = "input_process_id", nullable = false)
     private Long inputProcessId;
 
+    @Column(name = "lot_id")
+    private Long lotId;
+
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
 
@@ -112,6 +115,14 @@ public class OutsourcingShipmentInputLineJpaEntity {
 
     public void setInputProcessId(Long inputProcessId) {
         this.inputProcessId = inputProcessId;
+    }
+
+    public Long getLotId() {
+        return lotId;
+    }
+
+    public void setLotId(Long lotId) {
+        this.lotId = lotId;
     }
 
     public int getRecordingState() {

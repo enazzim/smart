@@ -14,8 +14,8 @@
 |------|------|------|
 | **A** | 본 문서 + `schema-drafts/` SQL 초안 | **v0.2** |
 | **B** | `stock_movement` · `inventory_balance_monthly` Flyway | **✅ V028 적용됨** |
-| **C** | [`lot-integration-design.md`](./lot-integration-design.md) 연동 설계 확정 | **v1.0** |
-| **D** | Flyway V070+ · Lot API·TX 연동 (LOT-1~) | **미착수** |
+| **C** | [`lot-integration-design.md`](./lot-integration-design.md) 연동 설계 확정 | **v1.1** (Flyway·출고 경로 보정) |
+| **D** | Flyway **V077+** · Lot API·TX 연동 (LOT-1~) | **미착수** |
 
 **원칙:** Projector가 만드는 것은 **재고 슬롯**(`inventory_balance`)이며, Lot 번호·계보는 **트랜잭션(TX) + `stock_movement`** 에서만 생성·이동한다.  
 외주단가 등록(`OutsourceInputBalanceProjector`)과 Lot는 **독립**이다.
@@ -145,11 +145,11 @@ TX API(구매입고 등)는 요청 DTO에 `lotNo` 또는 `autoGenerateLot: true`
 
 | 파일 | 위치 | 비고 |
 |------|------|------|
-| `V007__lot_traceability.sql` | `docs/step0/schema-drafts/` | **미적용** — 검토 후 `db/migration/` 복사 |
-| 선행 | `stock_movement` 본 테이블 | sample §3 — Lot 없이도 INF Wave에서 먼저 가능 |
+| `V007__lot_traceability.sql` | `docs/step0/schema-drafts/` | **미적용** — 실번호는 [`lot-integration-design.md`](./lot-integration-design.md) §9 **V077~V079** |
+| 선행 | `stock_movement` 본 테이블 | ✅ V028 적용됨 · Lot 컬럼은 V078 ALTER |
 
-`V007`은 `stock_movement` 정의를 **Lot 컬럼 포함 한 번에** 스케치한다.  
-실제 적용 시 `stock_movement`만 먼저 분리(`V007`) → Lot(`V008`)로 쪼개도 됨.
+`V007` 초안은 역사적 스케치다. 저장소에 `V070`~`V076`이 있으므로 Lot는 **V077부터** 적용한다.  
+상세 분할·영업출고 이중 경로(SALES / WIP→DELIVERY)는 연동 설계서 SSOT를 따른다.
 
 ---
 
@@ -162,7 +162,7 @@ TX API(구매입고 등)는 요청 DTO에 `lotNo` 또는 `autoGenerateLot: true`
 | **LOT-2** | TX1 구매입고 Lot 생성·RAW 잔량 | LOT-1 |
 | **LOT-3** | 작업실적 투입/산출 + genealogy | BOM·공정 TX |
 | **LOT-4** | 외주·영업 출고 Lot 이동 | OUTSOURCE TX |
-| **LOT-5** | ETL `LotLedger` → `inventory_lot` | Cut-over |
+| **LOT-5** | UI(원장 Lot 탭·Lot 마스터) · 레거시 ETL **N/A** (미운영) | Cut-over |
 
 ---
 

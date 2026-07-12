@@ -1,13 +1,16 @@
 # KIT_ERP 재고·원장·구매 설계서
 
-> **문서 버전:** 1.2  
+> **문서 버전:** 1.3  
 > **작성일:** 2026-06-22  
+> **개정:** 2026-07-12 — §3.4 Lot 계층 · 재고·원장 Lot 탭 · Lot 마스터  
 > **대상 스택:** Spring Boot 3.5 + MariaDB  
 > **레거시:** `RMS_MT`, `BS_MT`, `DS_MT`, `PS_MT`, `OS_MT`, `BSI_MT`, `Register.cs` (BuyingDelivery)  
 > **관련 문서:**  
 > - [기준정보 구현 설계서](./basis-information-implementation-spec.md)  
 > - [시스템정보 설계서](./system-information-spec.md)  
-> - [업무 흐름 TO-BE](./business-workflow-revision.md)
+> - [업무 흐름 TO-BE](./business-workflow-revision.md)  
+> - [LOT 연동 설계서](../../docs/step0/lot-integration-design.md)  
+> - [Domain Event · Projector · Lot](../../docs/step0/domain-event-projector-matrix.md) §11  
 
 ---
 
@@ -36,9 +39,12 @@
 
 | 계층 | 테이블 | 역할 |
 |------|--------|------|
-| 이력 | `stock_movement` | 건별 입출고 (SH_HT, BOS_HT 대체) |
-| 현재고 | `inventory_balance` | 오늘 잔고 |
+| 이력 | `stock_movement` | 건별 입출고 (SH_HT, BOS_HT 대체) · **`lot_id` nullable** |
+| 현재고 | `inventory_balance` | 오늘 잔고 (슬롯 집계) |
 | 월별 | `inventory_balance_monthly` | 입고/출고/재고 (화면용) |
+| Lot 마스터 | `inventory_lot` | 배치 식별 (`lot_tracked` 품목) |
+| Lot 잔량 | `inventory_lot_balance` | Lot × 슬롯 현재고 |
+| 계보 | `lot_genealogy` | 투입→산출 CONSUME/PRODUCE |
 
 ### 3.1 inventory_location (시드)
 
@@ -79,6 +85,53 @@
 ```
 
 조회 시 1~12월 배열 또는 SQL 피벗. **가로 48컬럼 테이블 사용 안 함.**
+
+### 3.4 Lot 계층 (`lot_id`)
+
+> 상세: [`docs/step0/lot-integration-design.md`](../../docs/step0/lot-integration-design.md)
+
+슬롯 집계(`inventory_balance`)와 **별도**로 Lot 잔량을 둔다. Projector는 슬롯만 ensure하고 Lot는 만들지 않는다.
+
+```text
+item.lot_tracked = 1
+  → stock_movement.lot_id NOT NULL (앱 검증)
+  → inventory_lot_balance 동일 TX 갱신 (LotInventoryService)
+
+item.lot_tracked = 0
+  → stock_movement.lot_id IS NULL
+  → inventory_lot_balance 행 없음
+```
+
+| 컬럼/테이블 | 설명 |
+|-------------|------|
+| `stock_movement.lot_id` | FK → `inventory_lot.id` (V079) |
+| `inventory_lot` | Lot 번호·상태·origin (V078) |
+| `inventory_lot_balance` | UK `(lot_id, inventory_balance_id)` · `qty_on_hand` |
+| `lot_genealogy` | parent/child Lot · CONSUME/PRODUCE (작업실적) |
+
+**조회 UI:** 재고·원장 → **Lot** 탭 (`InventoryLedgerPage`) — 목록·슬롯 잔량·이력·계보.  
+**마스터 UI:** 재고 → **Lot 마스터** (`LotMasterPage`) — 수동 등록·상태 변경.  
+상세: [lot-integration-design.md §8.1–8.2](../../docs/step0/lot-integration-design.md)
+
+**정합성 (애플리케이션):**
+
+```text
+∀ 슬롯 B:
+  SUM(inventory_lot_balance.qty_on_hand WHERE balance_id = B)
+    ≈ inventory_balance.stock_qty   (lot_tracked 품목 합산 검증)
+```
+
+**TX 경로 예:**
+
+| TX | 슬롯 | Lot |
+|----|------|-----|
+| 구매입고 | RAW IN | Lot 생성 + RAW lot_balance↑ |
+| 작업실적 투입 | RAW/WIP OUT | 투입 lot_balance↓ + genealogy |
+| 작업실적 산출 | WIP/SALES IN | 산출 Lot + lot_balance↑ |
+| 영업출고 | SALES\|WIP OUT · DELIVERY IN | **동일 lot_id** 슬롯 이동 |
+| 매출 | DELIVERY OUT | lot_balance↓ · 전 슬롯 0 → `DEPLETED` |
+
+진입점: `InventoryBalanceService.recordMovement(RecordStockMovementCommand)` — `lotId` 포함.
 
 ---
 
@@ -235,3 +288,6 @@ com.kit.erp.purchasing  ? PurchaseReceiptService
 | 1.0 | 2026-06-22 | 초안 — 통합재고, 원장, 구매입고, 연도운영 |
 | 1.1 | 2026-07-05 | §6 구매입고·QI — [purchase-receipt-quality-spec.md](./purchase-receipt-quality-spec.md) |
 | 1.2 | 2026-07-05 | §2.1 1액션, §3.1 SALES/DELIVERY 역할, 생산·영업 이동, QI 검사품만 |
+| 1.3 | 2026-07-12 | §3.4 Lot 계층 · `stock_movement.lot_id` · lot-integration-design 링크 |
+| 1.4 | 2026-07-12 | §3.4 재고·원장 Lot 탭 조회 UI 링크 |
+| 1.5 | 2026-07-12 | §3.4 Lot 마스터 화면 링크 |

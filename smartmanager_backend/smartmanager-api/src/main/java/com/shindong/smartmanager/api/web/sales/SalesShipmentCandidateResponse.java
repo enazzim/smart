@@ -20,7 +20,10 @@ public record SalesShipmentCandidateResponse(
         BigDecimal salesOnHandQty,
         BigDecimal wipOnHandQty,
         boolean shippable,
-        String shippableMessage
+        String shippableMessage,
+        boolean lotTracked,
+        String lotLocationCode,
+        Long finalProcessId
 ) {
     public static SalesShipmentCandidateResponse from(SalesShipmentCandidateView view) {
         return new SalesShipmentCandidateResponse(
@@ -39,7 +42,10 @@ public record SalesShipmentCandidateResponse(
                 view.salesOnHandQty(),
                 view.wipOnHandQty(),
                 view.shippable(),
-                view.shippableMessage()
+                view.shippableMessage(),
+                view.lotTracked(),
+                view.lotLocationCode(),
+                view.finalProcessId()
         );
     }
 }

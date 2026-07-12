@@ -11,8 +11,34 @@ public record CompleteQualityInspectionCommand(
         Long unsuitabilityStatusCodeId,
         LocalDate completedDate,
         Integer fiscalYear,
-        Integer fiscalMonth
+        Integer fiscalMonth,
+        String lotNo,
+        boolean autoGenerateLot
 ) {
+    public CompleteQualityInspectionCommand(
+            BigDecimal passedQty,
+            BigDecimal failedQty,
+            Long inspectionDecisionCodeId,
+            Long unsuitabilityCauseCodeId,
+            Long unsuitabilityStatusCodeId,
+            LocalDate completedDate,
+            Integer fiscalYear,
+            Integer fiscalMonth
+    ) {
+        this(
+                passedQty,
+                failedQty,
+                inspectionDecisionCodeId,
+                unsuitabilityCauseCodeId,
+                unsuitabilityStatusCodeId,
+                completedDate,
+                fiscalYear,
+                fiscalMonth,
+                null,
+                false
+        );
+    }
+
     public CompleteQualityInspectionCommand {
         if (passedQty == null || failedQty == null) {
             throw new IllegalArgumentException("합격·불량 수량은 필수입니다.");

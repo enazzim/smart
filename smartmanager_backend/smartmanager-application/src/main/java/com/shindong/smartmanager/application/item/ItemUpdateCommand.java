@@ -15,6 +15,7 @@ public record ItemUpdateCommand(
         Integer leadTime,
         BigDecimal safetyStockQuantity,
         BigDecimal orderIntervalQuantity,
-        BigDecimal minOrderQuantity
+        BigDecimal minOrderQuantity,
+        boolean lotTracked
 ) {
 }

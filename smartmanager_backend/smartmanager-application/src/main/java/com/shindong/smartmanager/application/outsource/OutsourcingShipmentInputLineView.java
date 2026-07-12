@@ -10,6 +10,7 @@ public record OutsourcingShipmentInputLineView(
         BigDecimal issueQty,
         String sourceLocationCode,
         Long sourceProcessId,
-        long inputProcessId
+        long inputProcessId,
+        Long lotId
 ) {
 }

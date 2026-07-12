@@ -1,19 +1,28 @@
 # D4 — 품목 (`ItemInfo` → `II_MT`)
 
-> Step 0 산출물 · **확정 v0.2** (11필드 슬림 · 재고 Lazy · sample 정합)  
+> Step 0 산출물 · **확정 v0.3** (기종 필수 · Lot 추적 플래그 · sample 정합)  
 > SSOT (레거시 감사): `KIT_ERP/BasisInformation/MasterInfoRecordRUD.cs` `m_FieldName[1]` (59필드)  
 > 화면: `ItemInfo.aspx` / `ItemInfo.aspx.cs`  
 > SmartManager: `item` + `inventory_location`(시드) + `inventory_balance` Lazy  
 > 내용키: `item_no` ← `ItemNum` (UNIQUE)  
 > PK: `id` ← `ItemInfoIndex`
 
-**관련:** [`step0-plan-D1-D4.md`](./step0-plan-D1-D4.md) · [`domain-event-projector-matrix.md`](./domain-event-projector-matrix.md) §3 · [시스템 컬럼 규칙](../../.cursor/rules/master-audit-fields.mdc) · TO-BE [`results/sample/basis-item-spec.md`](../../results/sample/basis-item-spec.md) · [`inventory-ledger-spec.md`](../../results/sample/inventory-ledger-spec.md)
+**관련:** [`step0-plan-D1-D4.md`](./step0-plan-D1-D4.md) · [`domain-event-projector-matrix.md`](./domain-event-projector-matrix.md) §3 · [시스템 컬럼 규칙](../../.cursor/rules/master-audit-fields.mdc) · TO-BE [`results/sample/basis-item-spec.md`](../../results/sample/basis-item-spec.md) · [`inventory-ledger-spec.md`](../../results/sample/inventory-ledger-spec.md) · Lot: [`lot-integration-design.md`](./lot-integration-design.md)
+
+### v0.3 변경 요약 (2026-07-12)
+
+| 항목 | 내용 |
+|------|------|
+| 기종 | `modelType` / `model_type` **필수** (도면 `model_type`과 동일 개념) |
+| Lot 추적 | `lotTracked` / `lot_tracked` 추가 · 기본 `false`/`0` · 수정 가능 |
+| 일괄등록 | 품목 템플릿에 기종 필수 · `Lot추적` 컬럼(Y/N, 기본 N) |
+| Flyway | `V077__item_lot_tracked_and_model_type.sql` |
 
 ### v0.2 변경 요약 (확정)
 
 | 항목 | v0.1 | v0.2 |
 |------|------|------|
-| 업무 필드 | 59필드 매트릭스 | **11필드 슬림** |
+| 업무 필드 | 59필드 매트릭스 | **11필드 슬림** (+기종은 V062, v0.3에서 필수화) |
 | 자산분류 | 레거시 6종 | **4종** (원자재·제품·상품·공정품) |
 | 등록 부수효과 | `InventorySlotProjector` | **없음** — 첫 TX·공정 시 `ensureBalance()` |
 | 영업창고 | SALES 1 (유지) | **SALES 1** (`inventory_location` 시드) |
@@ -41,21 +50,23 @@
 
 ---
 
-## 2. SmartManager 스키마 — `item` (11 업무 필드)
+## 2. SmartManager 스키마 — `item` (업무 필드)
 
 | # | UI 라벨 | React field | DB 컬럼 | 타입 | 필수 | 비고 |
 |---|---------|-------------|---------|------|------|------|
 | 1 | 품목번호 | itemNo | item_no | string | Y | 내용키 · 수정 불가 |
 | 2 | 품목명 | itemName | item_name | string | Y | |
 | 3 | 자산분류 | propertyClassification | property_classification | enum | Y | §2.1 |
-| 4 | 단위 | unit | unit | string/code | Y | PUC `0400` 또는 자유입력 |
-| 5 | 규격 | standard | standard | string | N | |
-| 6 | 기준단가 | standardUnitCost | standard_unit_cost | decimal | N | 단가 마스터와 별도 |
-| 7 | 검사구분 | checkDistinction | check_distinction | enum | N | 구매입고 POST 분기 |
-| 8 | 리드타임 | leadTime | lead_time | int | N | 일 단위 · MRP |
-| 9 | 안전재고량 | safetyStockQuantity | safety_stock_quantity | decimal | N | |
-| 10 | 발주간격수량 | orderIntervalQuantity | order_interval_quantity | decimal | N | |
-| 11 | 최소발주량 | minOrderQuantity | min_order_quantity | decimal | N | |
+| 4 | 기종 | modelType | model_type | string | Y | 도면 `drawing_master.model_type`과 동일 개념 (V062·V077) |
+| 5 | 단위 | unit | unit | string/code | Y | PUC `0400` 또는 자유입력 |
+| 6 | 규격 | standard | standard | string | N | |
+| 7 | 기준단가 | standardUnitCost | standard_unit_cost | decimal | N | 단가 마스터와 별도 |
+| 8 | 검사구분 | checkDistinction | check_distinction | enum | N | 구매입고 POST 분기 |
+| 9 | 리드타임 | leadTime | lead_time | int | N | 일 단위 · MRP |
+| 10 | 안전재고량 | safetyStockQuantity | safety_stock_quantity | decimal | N | |
+| 11 | 발주간격수량 | orderIntervalQuantity | order_interval_quantity | decimal | N | |
+| 12 | 최소발주량 | minOrderQuantity | min_order_quantity | decimal | N | |
+| 13 | Lot 추적 | lotTracked | lot_tracked | boolean | Y(기본0) | V077 · `1`이면 입출고 시 lot 필수 |
 | — | (PK) | id | id | bigint | 시스템 | |
 | — | 레코드상태 | recordingState | recording_state | boolean | 시스템 | 소프트 삭제 |
 | — | 감사 4+4 | createdAt… | created_* / updated_* | | 시스템 | [공통 규칙](../../.cursor/rules/master-audit-fields.mdc) |
@@ -91,7 +102,7 @@ inventory_location (시드: RAW, SALES, DELIVERY, WIP, OUTSOURCE)
 | `GET /api/v1/basis/items?itemNo=&itemName=` | 목록 (`recording_state=1`) |
 | `GET /api/v1/basis/items/{id}` | 상세 |
 | `GET /api/v1/basis/items/by-no/{itemNo}` | 내용키 조회 |
-| `POST /api/v1/basis/items` | 11필드만 · 시스템 컬럼 거부/무시 |
+| `POST /api/v1/basis/items` | 업무 필드 · `modelType` 필수 · `lotTracked` 기본 false · 시스템 컬럼 거부/무시 |
 | `PUT /api/v1/basis/items/{id}` | `item_no` 변경 불가 |
 | `DELETE` | `recording_state=0` |
 | 이벤트 | `ItemRegistered` / `Updated` / `Deleted` — **재고 Projector 없음** |

@@ -10,7 +10,7 @@ interface DrawingInfoEditModalProps {
   drawingId: string;
   initialPartNo: string;
   initialPartName: string;
-  initialModelGroup: string;
+  initialModelType: string;
   initialItemId?: number | null;
   initialItemNo?: string | null;
   actorUserId?: string;
@@ -24,7 +24,7 @@ export default function DrawingInfoEditModal({
   drawingId,
   initialPartNo,
   initialPartName,
-  initialModelGroup,
+  initialModelType,
   initialItemId,
   initialItemNo,
   actorUserId,
@@ -34,7 +34,7 @@ export default function DrawingInfoEditModal({
   const queryClient = useQueryClient();
   const [partNo, setPartNo] = useState(initialPartNo);
   const [partName, setPartName] = useState(initialPartName);
-  const [modelGroup, setModelGroup] = useState(initialModelGroup);
+  const [modelType, setModelType] = useState(initialModelType);
   const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -43,7 +43,7 @@ export default function DrawingInfoEditModal({
     if (open) {
       setPartNo(initialPartNo);
       setPartName(initialPartName);
-      setModelGroup(initialModelGroup);
+      setModelType(initialModelType);
       setSelectedItem(
         initialItemId && initialItemNo
           ? { id: initialItemId, itemNo: initialItemNo, itemName: initialPartName }
@@ -51,7 +51,7 @@ export default function DrawingInfoEditModal({
       );
       setLocalError(null);
     }
-  }, [open, initialPartNo, initialPartName, initialModelGroup, initialItemId, initialItemNo]);
+  }, [open, initialPartNo, initialPartName, initialModelType, initialItemId, initialItemNo]);
 
   if (!open) {
     return null;
@@ -61,7 +61,7 @@ export default function DrawingInfoEditModal({
     e.preventDefault();
     setLocalError(null);
 
-    if (!partNo.trim() || !partName.trim() || !modelGroup.trim()) {
+    if (!partNo.trim() || !partName.trim() || !modelType.trim()) {
       setLocalError('모든 필수 정보를 입력해 주세요.');
       return;
     }
@@ -73,7 +73,7 @@ export default function DrawingInfoEditModal({
         {
           partNo,
           partName,
-          modelGroup,
+          modelType,
           itemId: selectedItem?.id ?? null,
         },
         actorUserId,
@@ -124,7 +124,7 @@ export default function DrawingInfoEditModal({
             </label>
             <label>
               기종 *
-              <input value={modelGroup} onChange={(e) => setModelGroup(e.target.value)} disabled={isLoading} />
+              <input value={modelType} onChange={(e) => setModelType(e.target.value)} disabled={isLoading} />
             </label>
           </div>
 
@@ -132,7 +132,7 @@ export default function DrawingInfoEditModal({
             <button type="button" className="secondary" onClick={onClose} disabled={isLoading}>
               취소
             </button>
-            <button type="submit" disabled={isLoading || !partNo || !partName || !modelGroup}>
+            <button type="submit" disabled={isLoading || !partNo || !partName || !modelType}>
               {isLoading ? '저장 중…' : '저장'}
             </button>
           </div>

@@ -82,7 +82,7 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
         StringBuilder sql = new StringBuilder("""
                 SELECT so.id, sol.id, so.order_no, so.order_date, so.partner_id, c.company_name,
                        sol.item_id, i.item_no, i.item_name, i.property_classification,
-                       sol.order_qty, sol.shipped_qty, sol.delivery_date
+                       sol.order_qty, sol.shipped_qty, sol.delivery_date, i.lot_tracked
                 FROM sales_order_line sol
                 JOIN sales_order so ON so.id = sol.sales_order_id
                 JOIN company c ON c.id = so.partner_id
@@ -152,6 +152,11 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
                             + ")가 출고 잔량보다 적을 수 있습니다.";
                 }
             }
+            boolean lotTracked = toBooleanFlag(row[13]);
+            String lotLocationCode = propertyClassification.shipmentFromWipFinalProcess() ? "WIP" : "SALES";
+            Long finalProcessId = propertyClassification.shipmentFromWipFinalProcess()
+                    ? salesShipmentInventoryService.resolveFinalProcessId(itemId, propertyClassification)
+                    : null;
             result.add(new SalesShipmentCandidateView(
                     ((Number) row[1]).longValue(),
                     ((Number) row[0]).longValue(),
@@ -168,7 +173,10 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
                     salesOnHand,
                     wipOnHand,
                     shippable,
-                    message
+                    message,
+                    lotTracked,
+                    lotLocationCode,
+                    finalProcessId
             ));
         }
         return result;
@@ -228,6 +236,7 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
             line.setShipmentQty(lineCommand.shipmentQty());
             line.setUnitPrice(lineCommand.unitPrice());
             line.setAmount(lineCommand.amount());
+            line.setLotId(lineCommand.lotId());
             line.setRecordingState(ACTIVE);
             line.setCreatedBy(actorUserId);
             line.setCreatedById(actorUserId);
@@ -356,7 +365,8 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
                     item != null ? item.getItemName() : "",
                     lineEntity.getShipmentQty(),
                     lineEntity.getUnitPrice(),
-                    lineEntity.getAmount()
+                    lineEntity.getAmount(),
+                    lineEntity.getLotId()
             ));
         }
         boolean cancelable = entity.getStatus() == SalesShipmentStatus.ISSUED && !hasInvoicedQty;
@@ -398,6 +408,20 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
     private SalesOrderLineJpaEntity requireActiveLine(long lineId) {
         return orderLineRepository.findByIdAndRecordingState(lineId, ACTIVE)
                 .orElseThrow(() -> new IllegalArgumentException("수주 라인을 찾을 수 없습니다: " + lineId));
+    }
+
+    private static boolean toBooleanFlag(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        String text = value.toString().trim();
+        return "1".equals(text) || "true".equalsIgnoreCase(text) || "Y".equalsIgnoreCase(text);
     }
 
     private static BigDecimal toBigDecimal(Object value) {

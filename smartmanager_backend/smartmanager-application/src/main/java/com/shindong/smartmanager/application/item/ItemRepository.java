@@ -11,6 +11,8 @@ public interface ItemRepository {
 
     void update(long id, ItemUpdateCommand command, String actorUserId);
 
+    void updateLotTracked(long id, boolean lotTracked, String actorUserId);
+
     void softDelete(long id, String actorUserId);
 
     List<ItemView> findAllActive(String itemNoQuery, String itemNameQuery);

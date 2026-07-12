@@ -31,7 +31,7 @@ function getLegacyInventoryPageFromPurchase(selection: AppSelection): InventoryP
     return null;
   }
   const page = selection.page as string;
-  if (page === 'inventory-misc-movement' || page === 'inventory-ledger') {
+  if (page === 'inventory-misc-movement' || page === 'inventory-ledger' || page === 'inventory-lot') {
     return page as InventoryPageId;
   }
   return null;

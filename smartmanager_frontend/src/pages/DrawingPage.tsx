@@ -54,13 +54,13 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
     id: string;
     partNo: string;
     partName: string;
-    modelGroup: string;
+    modelType: string;
     itemId?: number | null;
     itemNo?: string | null;
   } | null>(null);
 
   const [searchPartNo, setSearchPartNo] = useState('');
-  const [searchModelGroup, setSearchModelGroup] = useState('');
+  const [searchModelType, setSearchModelType] = useState('');
   const [searchDate, setSearchDate] = useState('');
   const [searchItem, setSearchItem] = useState<ItemSearchSelection | null>(null);
   const [isSyncingOffline, setIsSyncingOffline] = useState(false);
@@ -176,14 +176,14 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
         const matchType =
           tab === 'dev' ? row.drawingType === 'DEV' : tab === 'prod' ? row.drawingType === 'PROD' : true;
         const matchPartNo = row.partNo.toLowerCase().includes(searchPartNo.toLowerCase());
-        const matchModelGroup = row.modelGroup.toLowerCase().includes(searchModelGroup.toLowerCase());
+        const matchModelType = row.modelType.toLowerCase().includes(searchModelType.toLowerCase());
         const matchDate = searchDate ? row.updatedAt.startsWith(searchDate) : true;
         const matchItem = searchItem
           ? row.itemNo?.toLowerCase() === searchItem.itemNo.toLowerCase() || row.itemId === searchItem.id
           : true;
-        return matchType && matchPartNo && matchModelGroup && matchDate && matchItem;
+        return matchType && matchPartNo && matchModelType && matchDate && matchItem;
       }),
-    [currentData, tab, searchPartNo, searchModelGroup, searchDate, searchItem],
+    [currentData, tab, searchPartNo, searchModelType, searchDate, searchItem],
   );
 
   const handleIntegrityScan = async () => {
@@ -305,7 +305,7 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
           </label>
           <label>
             <span>기종 검색</span>
-            <input placeholder="예: 로더" value={searchModelGroup} onChange={(e) => setSearchModelGroup(e.target.value)} />
+            <input placeholder="예: 로더" value={searchModelType} onChange={(e) => setSearchModelType(e.target.value)} />
           </label>
           <label>
             <span>등록일 검색</span>
@@ -391,7 +391,7 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
           drawingId={editingDrawing.id}
           initialPartNo={editingDrawing.partNo}
           initialPartName={editingDrawing.partName}
-          initialModelGroup={editingDrawing.modelGroup}
+          initialModelType={editingDrawing.modelType}
           initialItemId={editingDrawing.itemId}
           initialItemNo={editingDrawing.itemNo}
           actorUserId={actorUserId}
@@ -431,7 +431,7 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
                     </span>
                   </div>
                   <p className="drawing-card__meta">
-                    {row.partName} | {row.modelGroup}
+                    {row.partName} | {row.modelType}
                     {row.itemNo ? ` | 품목 ${row.itemNo}` : ''}
                   </p>
                   <p className="hint">최근 등록일: {row.updatedAt}</p>
@@ -461,7 +461,7 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
                       </td>
                       <td>{row.itemNo ?? '—'}</td>
                       <td>{row.partName}</td>
-                      <td>{row.modelGroup}</td>
+                      <td>{row.modelType}</td>
                       <td>
                         <span className="drawing-version-badge">
                           V{row.majorVersion}.{row.minorVersion}
@@ -493,7 +493,7 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
                 id: row.id,
                 partNo: row.partNo,
                 partName: row.partName,
-                modelGroup: row.modelGroup,
+                modelType: row.modelType,
                 itemId: row.itemId,
                 itemNo: row.itemNo,
               })

@@ -8,6 +8,9 @@ import com.shindong.smartmanager.application.inventory.InventoryLedgerQueryServi
 import com.shindong.smartmanager.application.inventory.InventoryLedgerRepository;
 import com.shindong.smartmanager.application.inventory.InventoryLocationQueryRepository;
 import com.shindong.smartmanager.application.inventory.InventoryStockBalanceRepository;
+import com.shindong.smartmanager.application.inventory.LotInventoryService;
+import com.shindong.smartmanager.application.inventory.LotRepository;
+import com.shindong.smartmanager.application.inventory.LotService;
 import com.shindong.smartmanager.application.inventory.MiscStockMovementInventoryService;
 import com.shindong.smartmanager.application.inventory.MiscStockMovementRepository;
 import com.shindong.smartmanager.application.inventory.MiscStockMovementResolver;
@@ -24,6 +27,16 @@ import org.springframework.context.annotation.Configuration;
 public class InventoryApplicationConfig {
 
     @Bean
+    public LotInventoryService lotInventoryService(LotRepository lotRepository, ItemRepository itemRepository) {
+        return new LotInventoryService(lotRepository, itemRepository);
+    }
+
+    @Bean
+    public LotService lotService(LotRepository lotRepository, ItemRepository itemRepository) {
+        return new LotService(lotRepository, itemRepository);
+    }
+
+    @Bean
     public InventoryBalanceService inventoryBalanceService(
             InventoryLocationQueryRepository locationRepository,
             InventoryStockBalanceRepository balanceRepository,
@@ -31,7 +44,8 @@ public class InventoryApplicationConfig {
             InventoryBalanceMonthlyRepository monthlyRepository,
             FiscalCalendarService fiscalCalendarService,
             MonthClosingService monthClosingService,
-            SystemSettingService systemSettingService
+            SystemSettingService systemSettingService,
+            LotInventoryService lotInventoryService
     ) {
         return new InventoryBalanceService(
                 locationRepository,
@@ -40,7 +54,8 @@ public class InventoryApplicationConfig {
                 monthlyRepository,
                 fiscalCalendarService,
                 monthClosingService,
-                systemSettingService
+                systemSettingService,
+                lotInventoryService
         );
     }
 
@@ -70,6 +85,7 @@ public class InventoryApplicationConfig {
             ItemRepository itemRepository,
             MiscStockMovementResolver miscStockMovementResolver,
             MiscStockMovementInventoryService miscStockMovementInventoryService,
+            LotService lotService,
             MonthClosingService monthClosingService
     ) {
         return new MiscStockMovementService(
@@ -77,6 +93,7 @@ public class InventoryApplicationConfig {
                 itemRepository,
                 miscStockMovementResolver,
                 miscStockMovementInventoryService,
+                lotService,
                 monthClosingService
         );
     }

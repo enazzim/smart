@@ -10,6 +10,7 @@ public record WorkReportConsumptionRecordView(
         Long itemCompositionId,
         BigDecimal issueQty,
         String locationCode,
-        Long sourceProcessId
+        Long sourceProcessId,
+        Long lotId
 ) {
 }

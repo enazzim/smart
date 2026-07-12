@@ -5,7 +5,6 @@ import com.shindong.smartmanager.application.inventory.RecordStockMovementComman
 import com.shindong.smartmanager.application.process.ProcessItemInventorySupport;
 import com.shindong.smartmanager.application.process.ProcessRepository;
 import com.shindong.smartmanager.application.process.WipBalanceProjector;
-import com.shindong.smartmanager.domain.inventory.InventoryLocationLabels;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
 import com.shindong.smartmanager.domain.item.PropertyClassification;
 import java.math.BigDecimal;
@@ -88,6 +87,21 @@ public class SalesShipmentInventoryService {
                 .orElse(BigDecimal.ZERO);
     }
 
+    public Long resolveFinalProcessId(long itemId, PropertyClassification propertyClassification) {
+        if (propertyClassification == null || !propertyClassification.shipmentFromWipFinalProcess()) {
+            return null;
+        }
+        return ProcessItemInventorySupport.resolveFinalInhouseProcessId(processRepository, itemId)
+                .orElse(null);
+    }
+
+    public String resolveSourceLocationCode(PropertyClassification propertyClassification) {
+        if (propertyClassification != null && propertyClassification.shipmentFromWipFinalProcess()) {
+            return LOCATION_WIP;
+        }
+        return LOCATION_SALES;
+    }
+
     public void applyRegistration(
             LocalDate shipmentDate,
             long shipmentLineId,
@@ -96,17 +110,18 @@ public class SalesShipmentInventoryService {
             PropertyClassification propertyClassification,
             BigDecimal qty,
             BigDecimal amount,
+            Long lotId,
             String actorUserId
     ) {
         if (propertyClassification != null && propertyClassification.shipmentFromWipFinalProcess()) {
             applyProcessItemRegistration(
-                    shipmentDate, shipmentLineId, itemId, itemNo, qty, amount, actorUserId);
+                    shipmentDate, shipmentLineId, itemId, itemNo, qty, amount, lotId, actorUserId);
             return;
         }
         inventoryBalanceService.assertSufficientStockForOutbound(
                 itemId, itemNo, LOCATION_SALES, shipmentDate, qty, null, null);
-        recordSalesOut(shipmentDate, shipmentLineId, itemId, qty, amount, actorUserId);
-        recordDeliveryIn(shipmentDate, shipmentLineId, itemId, qty, amount, actorUserId);
+        recordSalesOut(shipmentDate, shipmentLineId, itemId, qty, amount, lotId, actorUserId);
+        recordDeliveryIn(shipmentDate, shipmentLineId, itemId, qty, amount, lotId, actorUserId);
     }
 
     public void applyCancellation(
@@ -117,15 +132,25 @@ public class SalesShipmentInventoryService {
             PropertyClassification propertyClassification,
             BigDecimal qty,
             BigDecimal amount,
+            Long lotId,
             String actorUserId
     ) {
+        Long resolvedLotId = resolveCancelLotId(shipmentLineId, lotId);
         if (propertyClassification != null && propertyClassification.shipmentFromWipFinalProcess()) {
             applyProcessItemCancellation(
-                    shipmentDate, shipmentLineId, itemId, itemNo, qty, amount, actorUserId);
+                    shipmentDate, shipmentLineId, itemId, itemNo, qty, amount, resolvedLotId, actorUserId);
             return;
         }
-        recordDeliveryOut(shipmentDate, shipmentLineId, itemId, qty, amount, actorUserId);
-        recordSalesIn(shipmentDate, shipmentLineId, itemId, qty, amount, actorUserId);
+        recordDeliveryOut(shipmentDate, shipmentLineId, itemId, qty, amount, resolvedLotId, actorUserId);
+        recordSalesIn(shipmentDate, shipmentLineId, itemId, qty, amount, resolvedLotId, actorUserId);
+    }
+
+    private Long resolveCancelLotId(long shipmentLineId, Long preferredLotId) {
+        if (preferredLotId != null) {
+            return preferredLotId;
+        }
+        return inventoryBalanceService.findLotIdByReference(REFERENCE_TYPE, shipmentLineId)
+                .orElse(null);
     }
 
     private void applyProcessItemRegistration(
@@ -135,6 +160,7 @@ public class SalesShipmentInventoryService {
             String itemNo,
             BigDecimal qty,
             BigDecimal amount,
+            Long lotId,
             String actorUserId
     ) {
         long finalProcessId = ProcessItemInventorySupport.requireFinalInhouseProcessId(
@@ -142,8 +168,8 @@ public class SalesShipmentInventoryService {
         wipBalanceProjector.ensure(itemId, finalProcessId, actorUserId);
         inventoryBalanceService.assertSufficientStockForOutbound(
                 itemId, itemNo, LOCATION_WIP, shipmentDate, qty, finalProcessId, null);
-        recordWipOut(shipmentDate, shipmentLineId, itemId, qty, finalProcessId, actorUserId);
-        recordDeliveryIn(shipmentDate, shipmentLineId, itemId, qty, amount, actorUserId);
+        recordWipOut(shipmentDate, shipmentLineId, itemId, qty, finalProcessId, lotId, actorUserId);
+        recordDeliveryIn(shipmentDate, shipmentLineId, itemId, qty, amount, lotId, actorUserId);
     }
 
     private void applyProcessItemCancellation(
@@ -153,13 +179,14 @@ public class SalesShipmentInventoryService {
             String itemNo,
             BigDecimal qty,
             BigDecimal amount,
+            Long lotId,
             String actorUserId
     ) {
         long finalProcessId = ProcessItemInventorySupport.requireFinalInhouseProcessId(
                 processRepository, itemId, itemNo);
         wipBalanceProjector.ensure(itemId, finalProcessId, actorUserId);
-        recordDeliveryOut(shipmentDate, shipmentLineId, itemId, qty, amount, actorUserId);
-        recordWipIn(shipmentDate, shipmentLineId, itemId, qty, finalProcessId, actorUserId);
+        recordDeliveryOut(shipmentDate, shipmentLineId, itemId, qty, amount, lotId, actorUserId);
+        recordWipIn(shipmentDate, shipmentLineId, itemId, qty, finalProcessId, lotId, actorUserId);
     }
 
     private void recordWipOut(
@@ -168,6 +195,7 @@ public class SalesShipmentInventoryService {
             long itemId,
             BigDecimal qty,
             long outputProcessId,
+            Long lotId,
             String actorUserId
     ) {
         inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
@@ -182,6 +210,7 @@ public class SalesShipmentInventoryService {
                 outputProcessId,
                 null,
                 null,
+                lotId,
                 actorUserId
         ));
     }
@@ -192,6 +221,7 @@ public class SalesShipmentInventoryService {
             long itemId,
             BigDecimal qty,
             long outputProcessId,
+            Long lotId,
             String actorUserId
     ) {
         inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
@@ -206,6 +236,7 @@ public class SalesShipmentInventoryService {
                 outputProcessId,
                 null,
                 null,
+                lotId,
                 actorUserId
         ));
     }
@@ -216,6 +247,7 @@ public class SalesShipmentInventoryService {
             long itemId,
             BigDecimal qty,
             BigDecimal amount,
+            Long lotId,
             String actorUserId
     ) {
         inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
@@ -230,6 +262,7 @@ public class SalesShipmentInventoryService {
                 null,
                 null,
                 null,
+                lotId,
                 actorUserId
         ));
     }
@@ -240,6 +273,7 @@ public class SalesShipmentInventoryService {
             long itemId,
             BigDecimal qty,
             BigDecimal amount,
+            Long lotId,
             String actorUserId
     ) {
         inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
@@ -254,6 +288,7 @@ public class SalesShipmentInventoryService {
                 null,
                 null,
                 null,
+                lotId,
                 actorUserId
         ));
     }
@@ -264,6 +299,7 @@ public class SalesShipmentInventoryService {
             long itemId,
             BigDecimal qty,
             BigDecimal amount,
+            Long lotId,
             String actorUserId
     ) {
         inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
@@ -278,6 +314,7 @@ public class SalesShipmentInventoryService {
                 null,
                 null,
                 null,
+                lotId,
                 actorUserId
         ));
     }
@@ -288,6 +325,7 @@ public class SalesShipmentInventoryService {
             long itemId,
             BigDecimal qty,
             BigDecimal amount,
+            Long lotId,
             String actorUserId
     ) {
         inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
@@ -302,6 +340,7 @@ public class SalesShipmentInventoryService {
                 null,
                 null,
                 null,
+                lotId,
                 actorUserId
         ));
     }

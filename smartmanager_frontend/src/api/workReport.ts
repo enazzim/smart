@@ -57,6 +57,7 @@ export interface WorkReportIssueLineRequest {
   itemCompositionId?: number | null;
   itemId: number;
   issueQty: number;
+  lotId?: number | null;
 }
 
 export interface WorkReportIssueOnHand {
@@ -70,6 +71,8 @@ export interface WorkReportConsumptionLine {
   itemNo: string;
   itemName: string;
   propertyClassification: string;
+  lotTracked: boolean;
+  locationCode: string;
   unitRatio: number;
   requiredQty: number;
   issuedQty: number;

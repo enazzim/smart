@@ -31,4 +31,8 @@ public interface WorkReportRepository {
     List<WorkReportConsumptionRecordView> findActiveConsumptionLinesByReportId(long workReportId);
 
     void deactivateConsumptionLinesByReportId(long workReportId, String actorUserId);
+
+    void updateOutputLotId(long workReportId, Long outputLotId, String actorUserId);
+
+    Optional<Long> findOutputLotId(long workReportId);
 }

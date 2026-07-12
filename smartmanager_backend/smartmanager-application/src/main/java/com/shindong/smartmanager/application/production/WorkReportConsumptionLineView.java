@@ -8,6 +8,8 @@ public record WorkReportConsumptionLineView(
         String itemNo,
         String itemName,
         String propertyClassification,
+        boolean lotTracked,
+        String locationCode,
         BigDecimal unitRatio,
         BigDecimal requiredQty,
         BigDecimal issuedQty,

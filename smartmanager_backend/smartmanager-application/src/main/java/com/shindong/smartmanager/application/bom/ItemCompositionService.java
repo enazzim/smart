@@ -2,6 +2,7 @@ package com.shindong.smartmanager.application.bom;
 
 import com.shindong.smartmanager.application.event.DomainEventStore;
 import com.shindong.smartmanager.application.item.ItemRepository;
+import com.shindong.smartmanager.application.item.ItemService;
 import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.process.ProcessRepository;
 import com.shindong.smartmanager.application.unitprice.UnitPriceRepository;
@@ -22,7 +23,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class ItemCompositionService {
@@ -34,6 +37,7 @@ public class ItemCompositionService {
 
     private final ItemCompositionRepository itemCompositionRepository;
     private final ItemRepository itemRepository;
+    private final ItemService itemService;
     private final ProcessRepository processRepository;
     private final UnitPriceRepository unitPriceRepository;
     private final BomHistoryProjector bomHistoryProjector;
@@ -42,6 +46,7 @@ public class ItemCompositionService {
     public ItemCompositionService(
             ItemCompositionRepository itemCompositionRepository,
             ItemRepository itemRepository,
+            ItemService itemService,
             ProcessRepository processRepository,
             UnitPriceRepository unitPriceRepository,
             BomHistoryProjector bomHistoryProjector,
@@ -49,6 +54,7 @@ public class ItemCompositionService {
     ) {
         this.itemCompositionRepository = itemCompositionRepository;
         this.itemRepository = itemRepository;
+        this.itemService = itemService;
         this.processRepository = processRepository;
         this.unitPriceRepository = unitPriceRepository;
         this.bomHistoryProjector = bomHistoryProjector;
@@ -140,6 +146,76 @@ public class ItemCompositionService {
         return itemCompositionRepository.findActiveByChildItemId(child.id());
     }
 
+    /**
+     * 정전개 트리에서 Lot 미추적 품목을 미리보기한다. 트리 밖 모품목이 있으면 otherParentItemNos에 담는다.
+     */
+    public List<LotTrackedEnablePreviewItem> previewEnableLotTracked(String rootItemNum) {
+        BomTreeNode root = explode(rootItemNum);
+        Set<Long> treeItemIds = new HashSet<>();
+        Map<Long, BomTreeNode> uniqueNodes = new LinkedHashMap<>();
+        collectExplosionNodes(root, treeItemIds, uniqueNodes);
+
+        List<LotTrackedEnablePreviewItem> result = new ArrayList<>();
+        for (BomTreeNode node : uniqueNodes.values()) {
+            List<String> otherParents = itemCompositionRepository.findActiveByChildItemId(node.itemId()).stream()
+                    .filter(line -> !treeItemIds.contains(line.parentItemId()))
+                    .map(ItemCompositionView::parentItemNo)
+                    .distinct()
+                    .sorted()
+                    .toList();
+            result.add(new LotTrackedEnablePreviewItem(
+                    node.itemId(),
+                    node.itemNum(),
+                    node.itemName(),
+                    node.lotTracked(),
+                    otherParents
+            ));
+        }
+        result.sort(Comparator.comparing(LotTrackedEnablePreviewItem::itemNo));
+        return result;
+    }
+
+    /**
+     * 정전개 트리에 속하고 현재 Lot 미추적인 품목만 Lot 추적을 켠다.
+     */
+    public int enableLotTracked(String rootItemNum, List<Long> itemIds, String actorUserId) {
+        if (itemIds == null || itemIds.isEmpty()) {
+            throw new IllegalArgumentException("Lot 추적 설정 대상 품목이 없습니다.");
+        }
+        BomTreeNode root = explode(rootItemNum);
+        Set<Long> treeItemIds = new HashSet<>();
+        Map<Long, BomTreeNode> uniqueNodes = new LinkedHashMap<>();
+        collectExplosionNodes(root, treeItemIds, uniqueNodes);
+
+        int updated = 0;
+        Set<Long> requested = new HashSet<>(itemIds);
+        for (Long itemId : requested) {
+            BomTreeNode node = uniqueNodes.get(itemId);
+            if (node == null) {
+                throw new IllegalArgumentException(
+                        "정전개 트리에 없는 품목은 일괄 설정할 수 없습니다: " + itemId);
+            }
+            if (node.lotTracked()) {
+                continue;
+            }
+            itemService.updateLotTracked(itemId, true, actorUserId);
+            updated++;
+        }
+        return updated;
+    }
+
+    private static void collectExplosionNodes(
+            BomTreeNode node,
+            Set<Long> treeItemIds,
+            Map<Long, BomTreeNode> uniqueNodes
+    ) {
+        treeItemIds.add(node.itemId());
+        uniqueNodes.putIfAbsent(node.itemId(), node);
+        for (BomTreeNode child : node.children()) {
+            collectExplosionNodes(child, treeItemIds, uniqueNodes);
+        }
+    }
+
     public int copyBom(String sourceItemNum, String targetItemNum, String actorUserId) {
         if (sourceItemNum.equals(targetItemNum)) {
             throw new IllegalArgumentException("원본과 대상 모품목이 같을 수 없습니다.");
@@ -205,11 +281,13 @@ public class ItemCompositionService {
         List<BomVendorPriceView> outsourcePrices = resolveOutsourcePrices(item, refDate);
         List<BomVendorPriceView> purchasePrices = resolvePurchasePrices(item, refDate);
         return new BomTreeNode(
+                item.id(),
                 item.itemNo(),
                 item.itemName(),
                 item.propertyClassification(),
                 level,
                 cumulativeQuantity.setScale(4, RoundingMode.HALF_UP),
+                item.lotTracked(),
                 outsourcePrices,
                 purchasePrices,
                 children

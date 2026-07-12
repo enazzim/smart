@@ -1,21 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { PropertyClassification } from '../api/item';
+import { updateItemLotTracked } from '../api/item';
 import type {
   BomTreeNode,
   CreateItemCompositionRequest,
   ItemComposition,
+  LotTrackedEnablePreviewItem,
 } from '../api/itemComposition';
 import {
   copyBom,
   createItemComposition,
   deleteItemComposition,
+  enableLotTrackedForExplosion,
   fetchBomExplosion,
   fetchBomReverse,
   fetchItemCompositions,
+  previewEnableLotTracked,
   updateItemComposition,
 } from '../api/itemComposition';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import { useAuth } from '../context/AuthContext';
 import { downloadExplosionExcel, downloadReverseExcel } from '../utils/bomExcelExport';
 import { formatQty } from '../utils/numberFormat';
 
@@ -42,7 +47,20 @@ function formatVendorPrices(prices: BomTreeNode['outsourcePrices']): string {
     .join('\n');
 }
 
-function BomTreeRows({ node, path = 'root' }: { node: BomTreeNode; path?: string }) {
+function BomTreeRows({
+  node,
+  path = 'root',
+  canEditLot,
+  busyItemId,
+  onToggleLot,
+}: {
+  node: BomTreeNode;
+  path?: string;
+  canEditLot: boolean;
+  busyItemId: number | null;
+  onToggleLot: (node: BomTreeNode) => void;
+}) {
+  const busy = busyItemId === node.itemId;
   return (
     <>
       <tr>
@@ -52,6 +70,22 @@ function BomTreeRows({ node, path = 'root' }: { node: BomTreeNode; path?: string
         <td>{node.itemNum}</td>
         <td>{node.itemName}</td>
         <td>{node.propertyClassification}</td>
+        <td>{node.lotTracked ? '예' : '아니오'}</td>
+        <td className="actions">
+          {canEditLot ? (
+            <button
+              type="button"
+              className="btn-action"
+              disabled={busy || busyItemId != null}
+              onClick={() => onToggleLot(node)}
+              title="품목 마스터 Lot 추적을 변경합니다 (다른 BOM 공유 품목에도 적용)"
+            >
+              {busy ? '저장 중…' : node.lotTracked ? '해제' : '설정'}
+            </button>
+          ) : (
+            '—'
+          )}
+        </td>
         <td>{node.quantity}</td>
         <td className="bom-vendor-cell" style={{ whiteSpace: 'pre-line' }}>
           {formatVendorPrices(node.outsourcePrices ?? [])}
@@ -65,6 +99,9 @@ function BomTreeRows({ node, path = 'root' }: { node: BomTreeNode; path?: string
           key={`${path}/${child.itemNum}-${index}`}
           node={child}
           path={`${path}/${child.itemNum}-${index}`}
+          canEditLot={canEditLot}
+          busyItemId={busyItemId}
+          onToggleLot={onToggleLot}
         />
       ))}
     </>
@@ -72,11 +109,15 @@ function BomTreeRows({ node, path = 'root' }: { node: BomTreeNode; path?: string
 }
 
 export default function ItemCompositionPage() {
+  const { canWrite } = useAuth();
+  const canEditLot = canWrite('basis:item:write');
+
   const [rows, setRows] = useState<ItemComposition[]>([]);
   const [filterParent, setFilterParent] = useState<ItemSearchSelection | null>(null);
   const [filterChild, setFilterChild] = useState<ItemSearchSelection | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [lotBusyItemId, setLotBusyItemId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -89,6 +130,9 @@ export default function ItemCompositionPage() {
   const [childQty, setChildQty] = useState('1');
 
   const [explosionTree, setExplosionTree] = useState<BomTreeNode | null>(null);
+  const [lotEnablePreview, setLotEnablePreview] = useState<LotTrackedEnablePreviewItem[] | null>(null);
+  const [lotEnableSelectedIds, setLotEnableSelectedIds] = useState<Set<number>>(new Set());
+  const [lotEnableBusy, setLotEnableBusy] = useState(false);
   const [reverseRows, setReverseRows] = useState<ItemComposition[]>([]);
   const [reverseItemNum, setReverseItemNum] = useState('');
 
@@ -136,6 +180,9 @@ export default function ItemCompositionPage() {
   const closeModal = () => {
     setModal(null);
     setExplosionTree(null);
+    setLotEnablePreview(null);
+    setLotEnableSelectedIds(new Set());
+    setLotEnableBusy(false);
     setReverseRows([]);
     setReverseItemNum('');
     setCopySource(null);
@@ -168,7 +215,7 @@ export default function ItemCompositionPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const onSubmitForm = async (e: React.FormEvent) => {
+  const onSubmitForm = async (e: FormEvent) => {
     e.preventDefault();
     const pQty = Number(parentQty);
     const cQty = Number(childQty);
@@ -233,11 +280,122 @@ export default function ItemCompositionPage() {
     setError(null);
     try {
       setExplosionTree(await fetchBomExplosion(itemNum));
+      setLotEnablePreview(null);
+      setLotEnableSelectedIds(new Set());
       setModal('explosion');
     } catch (err) {
       setError(err instanceof Error ? err.message : '정전개 실패');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const refreshExplosionTree = useCallback(async () => {
+    const itemNum = filterParent?.itemNo ?? explosionTree?.itemNum;
+    if (!itemNum) {
+      return;
+    }
+    setExplosionTree(await fetchBomExplosion(itemNum));
+  }, [filterParent?.itemNo, explosionTree?.itemNum]);
+
+  const onToggleLot = async (node: BomTreeNode) => {
+    if (!canEditLot) {
+      return;
+    }
+    const next = !node.lotTracked;
+    if (!next) {
+      const ok = window.confirm(
+        `품목 「${node.itemNum} ${node.itemName}」의 Lot 추적을 해제하시겠습니까?\n\n` +
+          '품목 마스터 값이 변경되며, 다른 BOM에서 쓰는 동일 품목에도 적용됩니다.',
+      );
+      if (!ok) {
+        return;
+      }
+    }
+    setLotBusyItemId(node.itemId);
+    setError(null);
+    try {
+      await updateItemLotTracked(node.itemId, next);
+      await refreshExplosionTree();
+      setToast(
+        next
+          ? `「${node.itemNum}」 Lot 추적을 설정했습니다.`
+          : `「${node.itemNum}」 Lot 추적을 해제했습니다.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Lot 추적 변경 실패');
+    } finally {
+      setLotBusyItemId(null);
+    }
+  };
+
+  const openLotEnablePreview = async () => {
+    const itemNum = explosionTree?.itemNum ?? filterParent?.itemNo;
+    if (!itemNum || !canEditLot) {
+      return;
+    }
+    setLotEnableBusy(true);
+    setError(null);
+    try {
+      const preview = await previewEnableLotTracked(itemNum);
+      setLotEnablePreview(preview);
+      setLotEnableSelectedIds(
+        new Set(preview.filter((row) => !row.alreadyLotTracked).map((row) => row.itemId)),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Lot 일괄 설정 미리보기 실패');
+    } finally {
+      setLotEnableBusy(false);
+    }
+  };
+
+  const toggleLotEnableSelection = (itemId: number) => {
+    setLotEnableSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
+  const applyLotEnableBulk = async () => {
+    const itemNum = explosionTree?.itemNum ?? filterParent?.itemNo;
+    if (!itemNum || !canEditLot) {
+      return;
+    }
+    const ids = Array.from(lotEnableSelectedIds);
+    if (ids.length === 0) {
+      setError('Lot 추적 설정 대상을 선택해 주세요.');
+      return;
+    }
+    const sharedCount =
+      lotEnablePreview?.filter(
+        (row) => lotEnableSelectedIds.has(row.itemId) && row.otherParentItemNos.length > 0,
+      ).length ?? 0;
+    const ok = window.confirm(
+      `선택한 ${ids.length}개 품목의 Lot 추적을 설정하시겠습니까?` +
+        (sharedCount > 0
+          ? `\n\n이 중 ${sharedCount}개 품목은 현재 정전개 밖의 다른 모품목 BOM에도 쓰입니다.`
+          : ''),
+    );
+    if (!ok) {
+      return;
+    }
+    setLotEnableBusy(true);
+    setError(null);
+    try {
+      const result = await enableLotTrackedForExplosion(itemNum, ids);
+      setLotEnablePreview(null);
+      setLotEnableSelectedIds(new Set());
+      await refreshExplosionTree();
+      setToast(`Lot 추적 ${result.updatedCount}건을 설정했습니다.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Lot 일괄 설정 실패');
+    } finally {
+      setLotEnableBusy(false);
     }
   };
 
@@ -267,7 +425,7 @@ export default function ItemCompositionPage() {
     setError(null);
   };
 
-  const onCopy = async (e: React.FormEvent) => {
+  const onCopy = async (e: FormEvent) => {
     e.preventDefault();
     if (!copySource?.itemNo || !copyTarget?.itemNo) {
       setError('원본·대상 모품목을 선택해 주세요.');
@@ -492,7 +650,117 @@ export default function ItemCompositionPage() {
           >
             {modal === 'explosion' && explosionTree && (
               <>
-                <h2>BOM 정전개 — {explosionTree.itemNum}</h2>
+                <div className="panel-header-row">
+                  <h2>BOM 정전개 — {explosionTree.itemNum}</h2>
+                  {canEditLot && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={lotEnableBusy || lotBusyItemId != null}
+                      onClick={() => void openLotEnablePreview()}
+                    >
+                      {lotEnableBusy && !lotEnablePreview ? '미리보기…' : '트리 Lot 일괄 설정'}
+                    </button>
+                  )}
+                </div>
+                <p className="hint-text">
+                  Lot추적 설정/해제는 품목 마스터에 저장됩니다. 동일 품목이 다른 BOM에 있으면 함께 반영됩니다.
+                </p>
+
+                {lotEnablePreview && (
+                  <section className="detail-panel" style={{ marginBottom: '1rem' }}>
+                    <div className="panel-header-row">
+                      <h3>Lot 일괄 설정 미리보기</h3>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={lotEnableBusy}
+                        onClick={() => {
+                          setLotEnablePreview(null);
+                          setLotEnableSelectedIds(new Set());
+                        }}
+                      >
+                        닫기
+                      </button>
+                    </div>
+                    <p className="hint-text">
+                      이미 Lot 추적 중인 품목은 제외됩니다. 「공유」는 현재 정전개 트리 밖의 모품목입니다.
+                    </p>
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>선택</th>
+                            <th>품목번호</th>
+                            <th>품목명</th>
+                            <th>현재</th>
+                            <th>공유 모품목</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {lotEnablePreview.length === 0 ? (
+                            <tr>
+                              <td colSpan={5}>대상 품목이 없습니다.</td>
+                            </tr>
+                          ) : (
+                            lotEnablePreview.map((row) => {
+                              const selectable = !row.alreadyLotTracked;
+                              const shared = row.otherParentItemNos.length > 0;
+                              return (
+                                <tr key={row.itemId} className={shared && selectable ? 'is-selected' : undefined}>
+                                  <td>
+                                    {selectable ? (
+                                      <input
+                                        type="checkbox"
+                                        checked={lotEnableSelectedIds.has(row.itemId)}
+                                        disabled={lotEnableBusy}
+                                        onChange={() => toggleLotEnableSelection(row.itemId)}
+                                      />
+                                    ) : (
+                                      '—'
+                                    )}
+                                  </td>
+                                  <td>{row.itemNo}</td>
+                                  <td>{row.itemName}</td>
+                                  <td>{row.alreadyLotTracked ? '예' : '아니오'}</td>
+                                  <td>
+                                    {shared ? row.otherParentItemNos.join(', ') : '—'}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="form-actions">
+                      <button
+                        type="button"
+                        disabled={lotEnableBusy || lotEnableSelectedIds.size === 0}
+                        onClick={() => void applyLotEnableBulk()}
+                      >
+                        {lotEnableBusy ? '적용 중…' : `선택 ${lotEnableSelectedIds.size}건 설정`}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={lotEnableBusy}
+                        onClick={() =>
+                          setLotEnableSelectedIds(
+                            new Set(
+                              lotEnablePreview
+                                .filter((row) => !row.alreadyLotTracked)
+                                .map((row) => row.itemId),
+                            ),
+                          )
+                        }
+                      >
+                        미추적 전체 선택
+                      </button>
+                    </div>
+                  </section>
+                )}
+
                 <table>
                   <thead>
                     <tr>
@@ -500,13 +768,20 @@ export default function ItemCompositionPage() {
                       <th>품목번호</th>
                       <th>품목명</th>
                       <th>자산분류</th>
+                      <th>Lot추적</th>
+                      <th>변경</th>
                       <th>누적수량</th>
                       <th>외주거래처·단가</th>
                       <th>구매거래처·단가</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <BomTreeRows node={explosionTree} />
+                    <BomTreeRows
+                      node={explosionTree}
+                      canEditLot={canEditLot}
+                      busyItemId={lotBusyItemId}
+                      onToggleLot={(node) => void onToggleLot(node)}
+                    />
                   </tbody>
                 </table>
                 <div className="form-actions">

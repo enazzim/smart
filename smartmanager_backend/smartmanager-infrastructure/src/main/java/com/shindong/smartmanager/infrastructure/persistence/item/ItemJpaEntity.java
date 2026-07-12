@@ -31,7 +31,7 @@ public class ItemJpaEntity {
     @Column(name = "property_classification", nullable = false, length = 20)
     private PropertyClassification propertyClassification;
 
-    @Column(name = "model_type", length = 100)
+    @Column(name = "model_type", nullable = false, length = 100)
     private String modelType;
 
     @Column(name = "unit", nullable = false, length = 20)
@@ -58,6 +58,9 @@ public class ItemJpaEntity {
 
     @Column(name = "min_order_quantity")
     private BigDecimal minOrderQuantity;
+
+    @Column(name = "lot_tracked", nullable = false, columnDefinition = "TINYINT")
+    private boolean lotTracked = false;
 
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
@@ -181,6 +184,14 @@ public class ItemJpaEntity {
 
     public void setMinOrderQuantity(BigDecimal minOrderQuantity) {
         this.minOrderQuantity = minOrderQuantity;
+    }
+
+    public boolean isLotTracked() {
+        return lotTracked;
+    }
+
+    public void setLotTracked(boolean lotTracked) {
+        this.lotTracked = lotTracked;
     }
 
     public int getRecordingState() {

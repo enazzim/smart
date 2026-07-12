@@ -12,6 +12,8 @@ public record CompleteQualityInspectionRequest(
         Long unsuitabilityStatusCodeId,
         @NotNull LocalDate completedDate,
         Integer fiscalYear,
-        Integer fiscalMonth
+        Integer fiscalMonth,
+        String lotNo,
+        Boolean autoGenerateLot
 ) {
 }

@@ -13,6 +13,7 @@ export interface PurchaseReceiptCandidate {
   itemNum: string;
   itemName: string;
   checkDistinction: CheckDistinction;
+  lotTracked: boolean;
   orderQty: number;
   receivedQty: number;
   remainQty: number;
@@ -33,6 +34,8 @@ export interface PurchaseReceiptCandidateParams {
 export interface CreatePurchaseReceiptLineRequest {
   purchaseOrderLineId: number;
   receiptQty: number;
+  lotNo?: string;
+  autoGenerateLot?: boolean;
 }
 
 export interface CreatePurchaseReceiptRequest {

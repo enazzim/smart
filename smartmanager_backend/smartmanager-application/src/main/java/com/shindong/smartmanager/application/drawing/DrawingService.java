@@ -31,7 +31,7 @@ public class DrawingService {
     }
 
     public String register(DrawingRegisterCommand command, String actorUserId) {
-        validatePartInfo(command.partNo(), command.partName(), command.modelGroup());
+        validatePartInfo(command.partNo(), command.partName(), command.modelType());
         validateItemId(command.itemId());
         if (command.drawingType() == null) {
             throw new IllegalArgumentException("도면 구분(DEV/PROD)은 필수입니다.");
@@ -48,7 +48,7 @@ public class DrawingService {
         String masterId = drawingRepository.saveMaster(
                 command.partNo(),
                 command.partName(),
-                command.modelGroup(),
+                command.modelType(),
                 command.itemId(),
                 actorUserId
         );
@@ -150,7 +150,7 @@ public class DrawingService {
     }
 
     public void updateInfo(String masterId, DrawingInfoUpdateCommand command, String actorUserId) {
-        validatePartInfo(command.partNo(), command.partName(), command.modelGroup());
+        validatePartInfo(command.partNo(), command.partName(), command.modelType());
         validateItemId(command.itemId());
 
         DrawingMasterView master = drawingRepository.findMasterById(masterId)
@@ -164,7 +164,7 @@ public class DrawingService {
                 masterId,
                 command.partNo(),
                 command.partName(),
-                command.modelGroup(),
+                command.modelType(),
                 command.itemId(),
                 actorUserId
         );
@@ -227,14 +227,14 @@ public class DrawingService {
         return drawingRepository.existsActiveByPartNo(partNo);
     }
 
-    private void validatePartInfo(String partNo, String partName, String modelGroup) {
+    private void validatePartInfo(String partNo, String partName, String modelType) {
         if (partNo == null || partNo.isBlank()) {
             throw new IllegalArgumentException("품번은 필수입니다.");
         }
         if (partName == null || partName.isBlank()) {
             throw new IllegalArgumentException("품명은 필수입니다.");
         }
-        if (modelGroup == null || modelGroup.isBlank()) {
+        if (modelType == null || modelType.isBlank()) {
             throw new IllegalArgumentException("기종은 필수입니다.");
         }
     }

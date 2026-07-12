@@ -14,6 +14,8 @@ export type ItemSearchSelection = {
   itemNo: string;
   itemName: string;
   propertyClassification?: PropertyClassification;
+  modelType?: string | null;
+  lotTracked?: boolean;
 };
 
 function formatItemLabel(item: ItemSearchSelection) {
@@ -56,6 +58,8 @@ async function loadProductItems(
       itemNo: item.itemNo,
       itemName: item.itemName,
       propertyClassification: item.propertyClassification,
+      modelType: item.modelType,
+      lotTracked: item.lotTracked,
     }));
 }
 

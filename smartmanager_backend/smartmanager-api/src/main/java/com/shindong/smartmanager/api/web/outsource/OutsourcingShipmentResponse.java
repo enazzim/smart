@@ -102,7 +102,8 @@ record OutsourcingShipmentInputLineResponse(
         BigDecimal issueQty,
         String sourceLocationCode,
         Long sourceProcessId,
-        long inputProcessId
+        long inputProcessId,
+        Long lotId
 ) {
     static OutsourcingShipmentInputLineResponse from(OutsourcingShipmentInputLineView view) {
         return new OutsourcingShipmentInputLineResponse(
@@ -113,7 +114,8 @@ record OutsourcingShipmentInputLineResponse(
                 view.issueQty(),
                 view.sourceLocationCode(),
                 view.sourceProcessId(),
-                view.inputProcessId()
+                view.inputProcessId(),
+                view.lotId()
         );
     }
 }

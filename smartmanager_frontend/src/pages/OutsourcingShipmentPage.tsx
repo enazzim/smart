@@ -15,6 +15,7 @@ import {
   type OutsourcingShipmentInputPreviewLine,
   type OutsourcingShipmentListParams,
 } from '../api/outsourcingShipment';
+import { fetchAvailableLots, type LotRow } from '../api/lot';
 import type { PropertyClassification } from '../api/item';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
@@ -39,14 +40,38 @@ function advanceInputLineKey(line: OutsourcingShipmentInputPreviewLine): string 
 type AdvanceInputLineEdit = OutsourcingShipmentInputPreviewLine & {
   lineKey: string;
   issueQtyText: string;
+  lotId: number | null;
+  availableLots: LotRow[];
 };
 
-function toAdvanceInputLineEdits(lines: OutsourcingShipmentInputPreviewLine[]): AdvanceInputLineEdit[] {
-  return lines.map((line) => ({
-    ...line,
-    lineKey: advanceInputLineKey(line),
-    issueQtyText: String(line.issueQty),
-  }));
+async function toAdvanceInputLineEdits(
+  lines: OutsourcingShipmentInputPreviewLine[],
+): Promise<AdvanceInputLineEdit[]> {
+  return Promise.all(
+    lines.map(async (line) => {
+      let availableLots: LotRow[] = [];
+      let lotId: number | null = null;
+      if (line.lotTracked) {
+        try {
+          availableLots = await fetchAvailableLots(
+            line.itemId,
+            line.sourceLocationCode,
+            line.sourceProcessId,
+          );
+          if (availableLots.length === 1) lotId = availableLots[0].id;
+        } catch {
+          availableLots = [];
+        }
+      }
+      return {
+        ...line,
+        lineKey: advanceInputLineKey(line),
+        issueQtyText: String(line.issueQty),
+        lotId,
+        availableLots,
+      };
+    }),
+  );
 }
 
 function todayIso(): string {
@@ -96,6 +121,39 @@ export default function OutsourcingShipmentPage() {
   const [advanceError, setAdvanceError] = useState<string | null>(null);
   const [loadingAdvanceOptions, setLoadingAdvanceOptions] = useState(false);
   const [loadingAdvancePreview, setLoadingAdvancePreview] = useState(false);
+  /** 발주출고 미리보기 라인별 Lot 선택: `${orderLineId}:${itemId}:${inputProcessId}` */
+  const [previewLotIdByKey, setPreviewLotIdByKey] = useState<Record<string, number | null>>({});
+  const [previewLotsByKey, setPreviewLotsByKey] = useState<Record<string, LotRow[]>>({});
+
+  const previewLotKey = (orderLineId: number, line: OutsourcingShipmentInputPreviewLine) =>
+    `${orderLineId}:${line.itemId}:${line.inputProcessId}:${line.itemCompositionId ?? 0}`;
+
+  const loadPreviewLots = async (orderLineId: number, preview: OutsourcingShipmentInputPreview) => {
+    const nextLots: Record<string, LotRow[]> = {};
+    const nextIds: Record<string, number | null> = {};
+    for (const line of preview.lines) {
+      const key = previewLotKey(orderLineId, line);
+      if (!line.lotTracked) {
+        nextLots[key] = [];
+        nextIds[key] = null;
+        continue;
+      }
+      try {
+        const lots = await fetchAvailableLots(
+          line.itemId,
+          line.sourceLocationCode,
+          line.sourceProcessId,
+        );
+        nextLots[key] = lots;
+        nextIds[key] = lots.length === 1 ? lots[0].id : null;
+      } catch {
+        nextLots[key] = [];
+        nextIds[key] = null;
+      }
+    }
+    setPreviewLotsByKey((prev) => ({ ...prev, ...nextLots }));
+    setPreviewLotIdByKey((prev) => ({ ...prev, ...nextIds }));
+  };
 
   const loadCandidates = useCallback(async () => {
     setLoadingCandidates(true);
@@ -230,7 +288,7 @@ export default function OutsourcingShipmentPage() {
         referenceQty,
         shipmentDate,
       );
-      setAdvanceInputEdits(toAdvanceInputLineEdits(preview.lines));
+      setAdvanceInputEdits(await toAdvanceInputLineEdits(preview.lines));
       setEditingAdvanceLineKey(null);
     } catch (e) {
       setAdvanceInputEdits([]);
@@ -273,20 +331,24 @@ export default function OutsourcingShipmentPage() {
       setAdvanceError('투입 미리보기를 먼저 실행하세요.');
       return;
     }
-    const inputLines = advanceInputEdits
-      .map((line) => {
-        const issueQty = Number(line.issueQtyText);
-        if (!Number.isFinite(issueQty) || issueQty <= 0) return null;
-        return {
-          itemId: line.itemId,
-          itemCompositionId: line.itemCompositionId ?? undefined,
-          issueQty,
-          sourceLocationCode: line.sourceLocationCode,
-          sourceProcessId: line.sourceProcessId ?? undefined,
-          inputProcessId: line.inputProcessId,
-        };
-      })
-      .filter((line): line is NonNullable<typeof line> => line != null);
+    const inputLines = [];
+    for (const line of advanceInputEdits) {
+      const issueQty = Number(line.issueQtyText);
+      if (!Number.isFinite(issueQty) || issueQty <= 0) continue;
+      if (line.lotTracked && line.lotId == null) {
+        setAdvanceError(`Lot 추적 품목은 Lot를 선택해야 합니다: ${line.itemNo}`);
+        return;
+      }
+      inputLines.push({
+        itemId: line.itemId,
+        itemCompositionId: line.itemCompositionId ?? undefined,
+        issueQty,
+        sourceLocationCode: line.sourceLocationCode,
+        sourceProcessId: line.sourceProcessId ?? undefined,
+        inputProcessId: line.inputProcessId,
+        lotId: line.lotTracked ? line.lotId : null,
+      });
+    }
     if (inputLines.length === 0) {
       setAdvanceError('투입수량은 0보다 커야 합니다.');
       return;
@@ -364,6 +426,7 @@ export default function OutsourcingShipmentPage() {
     try {
       const preview = await fetchOutsourcingShipmentInputPreview(row.orderLineId, qty, shipmentDate);
       setPreviewByLineId((prev) => ({ ...prev, [row.orderLineId]: preview }));
+      await loadPreviewLots(row.orderLineId, preview);
     } catch (e) {
       setCandidateError(e instanceof Error ? e.message : '투입 미리보기 조회 실패');
     } finally {
@@ -380,6 +443,7 @@ export default function OutsourcingShipmentPage() {
     try {
       const preview = await fetchOutsourcingShipmentInputPreview(orderLineId, qty, shipmentDate);
       setPreviewByLineId((prev) => ({ ...prev, [orderLineId]: preview }));
+      await loadPreviewLots(orderLineId, preview);
     } catch (e) {
       setCandidateError(e instanceof Error ? e.message : '투입 미리보기 조회 실패');
     } finally {
@@ -388,13 +452,15 @@ export default function OutsourcingShipmentPage() {
   };
 
   const onCreateShipments = async () => {
-    const lines = [...selectedLineIds].map((orderLineId) => {
-      const row = candidates.find((candidate) => candidate.orderLineId === orderLineId);
-      const qty = parseQty(shipmentQtyByLineId[orderLineId] ?? (row ? String(row.remainingQty) : ''));
-      return qty != null ? { orderLineId, shipmentQty: qty } : null;
-    }).filter((line): line is { orderLineId: number; shipmentQty: number } => line != null);
+    const baseLines = [...selectedLineIds]
+      .map((orderLineId) => {
+        const row = candidates.find((candidate) => candidate.orderLineId === orderLineId);
+        const qty = parseQty(shipmentQtyByLineId[orderLineId] ?? (row ? String(row.remainingQty) : ''));
+        return qty != null ? { orderLineId, shipmentQty: qty } : null;
+      })
+      .filter((line): line is { orderLineId: number; shipmentQty: number } => line != null);
 
-    if (lines.length === 0) {
+    if (baseLines.length === 0) {
       setShipmentError('출고할 발주 라인과 수량을 선택하세요.');
       return;
     }
@@ -403,11 +469,50 @@ export default function OutsourcingShipmentPage() {
     setShipmentError(null);
     setMessage(null);
     try {
+      const lines = await Promise.all(
+        baseLines.map(async (line) => {
+          let preview = previewByLineId[line.orderLineId];
+          if (!preview) {
+            preview = await fetchOutsourcingShipmentInputPreview(
+              line.orderLineId,
+              line.shipmentQty,
+              shipmentDate,
+            );
+            await loadPreviewLots(line.orderLineId, preview);
+          }
+          const inputLots = [];
+          for (const input of preview.lines) {
+            if (!input.lotTracked) {
+              inputLots.push({ itemId: input.itemId, lotId: null as number | null });
+              continue;
+            }
+            const key = previewLotKey(line.orderLineId, input);
+            let lotId = previewLotIdByKey[key] ?? null;
+            if (lotId == null) {
+              const lots = await fetchAvailableLots(
+                input.itemId,
+                input.sourceLocationCode,
+                input.sourceProcessId,
+              );
+              if (lots.length === 1) lotId = lots[0].id;
+            }
+            if (lotId == null) {
+              throw new Error(
+                `Lot 추적 품목은 Lot를 선택해야 합니다: ${input.itemNo} (투입 미리보기를 펼쳐 Lot를 선택하세요)`,
+              );
+            }
+            inputLots.push({ itemId: input.itemId, lotId });
+          }
+          return { ...line, inputLots };
+        }),
+      );
       const created = await createOutsourcingShipment({ shipmentDate, lines });
       setMessage(`외주출고 ${created.shipmentNo}을(를) 등록했습니다.`);
       setSelectedLineIds(new Set());
       setExpandedLineIds(new Set());
       setPreviewByLineId({});
+      setPreviewLotIdByKey({});
+      setPreviewLotsByKey({});
       await loadCandidates();
       await loadShipments();
     } catch (e) {
@@ -535,6 +640,7 @@ export default function OutsourcingShipmentPage() {
                   <th>공정</th>
                   <th>분류</th>
                   <th>창고</th>
+                  <th>Lot</th>
                   <th className="num">투입수량</th>
                   <th className="num">현재고</th>
                 </tr>
@@ -544,11 +650,38 @@ export default function OutsourcingShipmentPage() {
                   <tr key={line.lineKey}>
                     <td>
                       {line.itemNo} {line.itemName}
+                      {line.lotTracked ? ' · Lot' : ''}
                     </td>
                     <td>{line.processSequenceNum ?? '-'}</td>
                     <td>{line.inputProcessName || '-'}</td>
                     <td>{line.propertyClassification}</td>
                     <td>{formatInventoryLocation(line.sourceLocationCode)}</td>
+                    <td>
+                      {line.lotTracked ? (
+                        <select
+                          value={line.lotId ?? ''}
+                          disabled={submitting}
+                          onChange={(e) =>
+                            setAdvanceInputEdits((rows) =>
+                              rows.map((row) =>
+                                row.lineKey === line.lineKey
+                                  ? { ...row, lotId: e.target.value ? Number(e.target.value) : null }
+                                  : row,
+                              ),
+                            )
+                          }
+                        >
+                          <option value="">선택</option>
+                          {line.availableLots.map((lot) => (
+                            <option key={lot.id} value={lot.id}>
+                              {lot.lotNo}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td className="num issue-qty-cell">
                       {editingAdvanceLineKey === line.lineKey ? (
                         <input
@@ -699,24 +832,52 @@ export default function OutsourcingShipmentPage() {
                                     <th>공정</th>
                                     <th>분류</th>
                                     <th>창고</th>
+                                    <th>Lot</th>
                                     <th className="num">투입수량</th>
                                     <th className="num">현재고</th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {preview.lines.map((line) => (
+                                  {preview.lines.map((line) => {
+                                    const lotKey = previewLotKey(row.orderLineId, line);
+                                    return (
                                     <tr key={`${line.itemId}-${line.inputProcessId}`}>
                                       <td>
                                         {line.itemNo} {line.itemName}
+                                        {line.lotTracked ? ' · Lot' : ''}
                                       </td>
                                       <td>{line.processSequenceNum ?? '-'}</td>
                                       <td>{line.inputProcessName || '-'}</td>
                                       <td>{line.propertyClassification}</td>
                                       <td>{formatInventoryLocation(line.sourceLocationCode)}</td>
+                                      <td>
+                                        {line.lotTracked ? (
+                                          <select
+                                            value={previewLotIdByKey[lotKey] ?? ''}
+                                            disabled={submitting}
+                                            onChange={(e) =>
+                                              setPreviewLotIdByKey((prev) => ({
+                                                ...prev,
+                                                [lotKey]: e.target.value ? Number(e.target.value) : null,
+                                              }))
+                                            }
+                                          >
+                                            <option value="">선택</option>
+                                            {(previewLotsByKey[lotKey] ?? []).map((lot) => (
+                                              <option key={lot.id} value={lot.id}>
+                                                {lot.lotNo}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        ) : (
+                                          '—'
+                                        )}
+                                      </td>
                                       <td className="num">{formatQty(line.issueQty)}</td>
                                       <td className="num">{formatQty(line.onHandQty)}</td>
                                     </tr>
-                                  ))}
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             ) : (

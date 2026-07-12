@@ -15,10 +15,21 @@ import { fetchWorkStandards } from '../api/workStandard';
 import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import WorkerSearchField from '../components/WorkerSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import { fetchAvailableLots, type LotRow } from '../api/lot';
 import { formatQty } from '../utils/numberFormat';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function lotQtyOnHand(lot: LotRow, locationCode: string, sourceProcessId?: number | null): number {
+  return lot.balances
+    .filter(
+      (b) =>
+        b.locationCode === locationCode &&
+        (sourceProcessId == null || b.outputProcessId === sourceProcessId),
+    )
+    .reduce((sum, b) => sum + (b.qtyOnHand ?? 0), 0);
 }
 
 function parseQty(value: string): number | null {
@@ -53,12 +64,17 @@ interface IssueLineEdit {
   itemNo: string;
   itemName: string;
   propertyClassification: string;
+  lotTracked: boolean;
+  locationCode: string;
+  sourceProcessId: number | null;
   sourceProcessName: string | null;
   unitRatio: number;
   requiredQty: number;
   onHandQty: number;
   checked: boolean;
   issueQty: string;
+  lotId: number | null;
+  availableLots: LotRow[];
 }
 
 export default function WorkReportPage() {
@@ -237,10 +253,34 @@ export default function WorkReportPage() {
         const onHandList = await fetchWorkReportIssueOnHand(selected.id, reportDate);
         if (cancelled) return;
         const onHandByItemId = new Map(onHandList.map((row) => [row.itemId, row.onHandQty]));
+
+        const lotResults = await Promise.all(
+          status.lines.map(async (line) => {
+            if (!line.lotTracked) return [] as LotRow[];
+            try {
+              return await fetchAvailableLots(
+                line.itemId,
+                line.locationCode || 'RAW',
+                line.sourceProcessId,
+              );
+            } catch {
+              return [] as LotRow[];
+            }
+          }),
+        );
+        if (cancelled) return;
+
         setIssueLineEdits((prev) => {
-          const checkedMap = new Map(prev.map((line) => [line.lineKey, line.checked]));
-          return status.lines.map((line) => {
+          const prevMap = new Map(prev.map((line) => [line.lineKey, line]));
+          return status.lines.map((line, index) => {
             const lineKey = consumptionLineKey(line);
+            const previous = prevMap.get(lineKey);
+            const availableLots = lotResults[index] ?? [];
+            const previousLotId = previous?.lotId ?? null;
+            const lotStillAvailable =
+              previousLotId != null && availableLots.some((lot) => lot.id === previousLotId);
+            const autoLotId =
+              line.lotTracked && availableLots.length === 1 ? availableLots[0].id : null;
             return {
               lineKey,
               itemCompositionId: line.itemCompositionId,
@@ -248,12 +288,17 @@ export default function WorkReportPage() {
               itemNo: line.itemNo,
               itemName: line.itemName,
               propertyClassification: line.propertyClassification,
+              lotTracked: Boolean(line.lotTracked),
+              locationCode: line.locationCode || 'RAW',
+              sourceProcessId: line.sourceProcessId ?? null,
               sourceProcessName: line.sourceProcessName ?? null,
               unitRatio: line.unitRatio,
               requiredQty: line.requiredQty,
               onHandQty: onHandByItemId.get(line.itemId) ?? 0,
-              checked: checkedMap.get(lineKey) ?? true,
+              checked: previous?.checked ?? true,
               issueQty: calcIssueQty(line.unitRatio, pending),
+              lotId: lotStillAvailable ? previousLotId : autoLotId,
+              availableLots,
             };
           });
         });
@@ -282,6 +327,12 @@ export default function WorkReportPage() {
   const toggleIssueLine = (lineKey: string, checked: boolean) => {
     setIssueLineEdits((lines) =>
       lines.map((line) => (line.lineKey === lineKey ? { ...line, checked } : line)),
+    );
+  };
+
+  const setIssueLineLot = (lineKey: string, lotId: number | null) => {
+    setIssueLineEdits((lines) =>
+      lines.map((line) => (line.lineKey === lineKey ? { ...line, lotId } : line)),
     );
   };
 
@@ -315,6 +366,23 @@ export default function WorkReportPage() {
       (line) => line.checked && Number(line.issueQty) > 0 && Number(line.issueQty) > line.onHandQty,
     );
 
+  const hasMissingLot =
+    !effectiveMaterialIssueEnabled &&
+    issueLineEdits.some(
+      (line) => line.checked && line.lotTracked && Number(line.issueQty) > 0 && line.lotId == null,
+    );
+
+  const hasLotShortage =
+    !effectiveMaterialIssueEnabled &&
+    issueLineEdits.some((line) => {
+      if (!line.checked || !line.lotTracked || line.lotId == null || Number(line.issueQty) <= 0) {
+        return false;
+      }
+      const lot = line.availableLots.find((row) => row.id === line.lotId);
+      if (!lot) return true;
+      return lotQtyOnHand(lot, line.locationCode, line.sourceProcessId) < Number(line.issueQty);
+    });
+
   const onRegister = async () => {
     if (!selected) return;
     syncScrapQty(workQty, goodQty);
@@ -343,7 +411,17 @@ export default function WorkReportPage() {
       }
 
       if (!effectiveMaterialIssueEnabled && hasStockShortage) {
-        setModalError('창고 재고가 부족합니다. 투입량을 확인하거나 입고 후 다시 시도하세요.');
+        setModalError('창고 재고가 부족합니다. 투입량 또는 입고를 확인하세요.');
+        setSubmitting(false);
+        return;
+      }
+      if (!effectiveMaterialIssueEnabled && hasMissingLot) {
+        setModalError('Lot 추적 품목은 Lot를 선택해 주세요.');
+        setSubmitting(false);
+        return;
+      }
+      if (!effectiveMaterialIssueEnabled && hasLotShortage) {
+        setModalError('선택한 Lot 잔량이 부족합니다. Lot 또는 투입량을 확인해 주세요.');
         setSubmitting(false);
         return;
       }
@@ -357,6 +435,7 @@ export default function WorkReportPage() {
               itemId: line.itemId,
               issueQty:
                 goodQty !== appliedGoodQty ? Number(calcIssueQty(line.unitRatio, good)) : Number(line.issueQty),
+              lotId: line.lotTracked ? line.lotId : null,
             }))
             .filter((line) => line.issueQty > 0);
 
@@ -658,6 +737,12 @@ export default function WorkReportPage() {
                 {hasStockShortage && (
                   <p className="error-banner">창고 재고가 부족한 품목이 있습니다. 투입량 또는 입고를 확인하세요.</p>
                 )}
+                {hasMissingLot && (
+                  <p className="error-banner">Lot 추적 품목은 Lot를 선택해 주세요.</p>
+                )}
+                {hasLotShortage && (
+                  <p className="error-banner">선택한 Lot 잔량이 부족합니다.</p>
+                )}
               <div className="table-wrap">
                 <table>
                   <thead>
@@ -667,6 +752,7 @@ export default function WorkReportPage() {
                       <th>분류</th>
                       <th>소요</th>
                       <th>현재고</th>
+                      <th>Lot</th>
                       <th>투입량</th>
                     </tr>
                   </thead>
@@ -683,6 +769,7 @@ export default function WorkReportPage() {
                         </td>
                         <td>
                           {line.itemNo} {line.itemName}
+                          {line.lotTracked ? ' · Lot' : ''}
                         </td>
                         <td>
                           {formatConsumptionClassification({
@@ -692,6 +779,29 @@ export default function WorkReportPage() {
                         </td>
                         <td>{formatQty(line.requiredQty)}</td>
                         <td>{formatQty(line.onHandQty)}</td>
+                        <td>
+                          {line.lotTracked ? (
+                            <select
+                              value={line.lotId ?? ''}
+                              disabled={submitting || !line.checked}
+                              onChange={(e) =>
+                                setIssueLineLot(
+                                  line.lineKey,
+                                  e.target.value ? Number(e.target.value) : null,
+                                )
+                              }
+                            >
+                              <option value="">선택</option>
+                              {line.availableLots.map((lot) => (
+                                <option key={lot.id} value={lot.id}>
+                                  {lot.lotNo} ({formatQty(lotQtyOnHand(lot, line.locationCode, line.sourceProcessId))})
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
                         <td className="issue-qty-cell">
                           {editingIssueLineId === line.lineKey ? (
                             <input
@@ -743,7 +853,9 @@ export default function WorkReportPage() {
                 disabled={
                   submitting ||
                   (effectiveMaterialIssueEnabled && consumptionLines.length > 0 && !allSatisfied) ||
-                  hasStockShortage
+                  hasStockShortage ||
+                  hasMissingLot ||
+                  hasLotShortage
                 }
                 onClick={() => void onRegister()}
               >

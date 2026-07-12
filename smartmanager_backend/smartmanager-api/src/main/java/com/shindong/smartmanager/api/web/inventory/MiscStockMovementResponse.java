@@ -1,6 +1,5 @@
 package com.shindong.smartmanager.api.web.inventory;
 
-import com.shindong.smartmanager.application.inventory.MiscStockMovementPreviewView;
 import com.shindong.smartmanager.application.inventory.MiscStockMovementView;
 import com.shindong.smartmanager.domain.inventory.MiscStockMovementDirection;
 import com.shindong.smartmanager.domain.inventory.MiscStockMovementStatus;
@@ -30,7 +29,8 @@ public record MiscStockMovementResponse(
         String note,
         MiscStockMovementStatus status,
         String statusLabel,
-        Instant createdAt
+        Instant createdAt,
+        Long lotId
 ) {
     public static MiscStockMovementResponse from(MiscStockMovementView view) {
         return new MiscStockMovementResponse(
@@ -54,7 +54,8 @@ public record MiscStockMovementResponse(
                 view.note(),
                 view.status(),
                 view.status() == MiscStockMovementStatus.REGISTERED ? "등록" : "취소",
-                view.createdAt()
+                view.createdAt(),
+                view.lotId()
         );
     }
 }

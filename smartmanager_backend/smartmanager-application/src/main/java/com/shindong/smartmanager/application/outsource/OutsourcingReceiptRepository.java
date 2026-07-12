@@ -28,6 +28,8 @@ public interface OutsourcingReceiptRepository {
 
     void updateReceiptLinePostedQty(long receiptLineId, BigDecimal postedQty, String actorUserId);
 
+    void updateReceiptLineLotId(long receiptLineId, Long lotId, String actorUserId);
+
     void updateReceiptStatus(long receiptId, String actorUserId);
 
     void subtractReceivedQty(long orderLineId, BigDecimal qty, String actorUserId);

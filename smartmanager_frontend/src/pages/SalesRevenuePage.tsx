@@ -9,6 +9,7 @@ import {
   type SalesRevenueCandidateParams,
   type SalesRevenueListParams,
 } from '../api/salesRevenue';
+import { fetchAvailableLots, type LotRow } from '../api/lot';
 import { INVENTORY_LOCATION_LABEL, translateInventoryLocationInText } from '../utils/inventoryLocation';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatAmount, formatQty } from '../utils/numberFormat';
@@ -47,6 +48,8 @@ export default function SalesRevenuePage() {
   }));
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
   const [revenueQtyByLineId, setRevenueQtyByLineId] = useState<Record<number, string>>({});
+  const [lotIdByLineId, setLotIdByLineId] = useState<Record<number, number | null>>({});
+  const [lotsByLineId, setLotsByLineId] = useState<Record<number, LotRow[]>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [loadingRevenues, setLoadingRevenues] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -131,16 +134,51 @@ export default function SalesRevenuePage() {
       else next.delete(shipmentLineId);
       return next;
     });
+    if (checked) {
+      const row = candidates.find((candidate) => candidate.shipmentLineId === shipmentLineId);
+      if (row?.lotTracked) {
+        void (async () => {
+          try {
+            const lots = await fetchAvailableLots(row.itemId, 'DELIVERY', null);
+            setLotsByLineId((prev) => ({ ...prev, [shipmentLineId]: lots }));
+            const preferred =
+              row.shipmentLotId != null && lots.some((lot) => lot.id === row.shipmentLotId)
+                ? row.shipmentLotId
+                : lots.length === 1
+                  ? lots[0].id
+                  : null;
+            setLotIdByLineId((prev) => ({ ...prev, [shipmentLineId]: preferred }));
+          } catch {
+            setLotsByLineId((prev) => ({ ...prev, [shipmentLineId]: [] }));
+          }
+        })();
+      }
+    }
   };
 
   const onCreateRevenues = async () => {
-    const lines = [...selectedLineIds]
-      .map((shipmentLineId) => {
-        const row = candidates.find((candidate) => candidate.shipmentLineId === shipmentLineId);
-        const qty = parseQty(revenueQtyByLineId[shipmentLineId] ?? (row ? String(row.remainingQty) : ''));
-        return qty != null ? { salesShipmentLineId: shipmentLineId, revenueQty: qty } : null;
-      })
-      .filter((line): line is { salesShipmentLineId: number; revenueQty: number } => line != null);
+    const mapped = [...selectedLineIds].map((shipmentLineId) => {
+      const row = candidates.find((candidate) => candidate.shipmentLineId === shipmentLineId);
+      const qty = parseQty(revenueQtyByLineId[shipmentLineId] ?? (row ? String(row.remainingQty) : ''));
+      if (qty == null || !row) return null;
+      if (row.lotTracked && lotIdByLineId[shipmentLineId] == null) {
+        return { error: `Lot 추적 품목은 Lot를 선택해야 합니다: ${row.itemNo}` };
+      }
+      return {
+        salesShipmentLineId: shipmentLineId,
+        revenueQty: qty,
+        lotId: row.lotTracked ? lotIdByLineId[shipmentLineId] ?? null : null,
+      };
+    });
+    const lotError = mapped.find((line) => line && 'error' in line);
+    if (lotError && 'error' in lotError) {
+      setRevenueError(String(lotError.error));
+      return;
+    }
+    const lines = mapped.filter(
+      (line): line is { salesShipmentLineId: number; revenueQty: number; lotId: number | null } =>
+        line != null && !('error' in line),
+    );
 
     if (lines.length === 0) {
       setRevenueError('매출 등록할 출고 라인과 수량을 선택하세요.');
@@ -154,6 +192,7 @@ export default function SalesRevenuePage() {
       const created = await createSalesRevenue({ revenueDate, lines });
       setMessage(`매출 ${created.revenueNo}을(를) 등록했습니다. (${INVENTORY_LOCATION_LABEL.DELIVERY} 감소)`);
       setSelectedLineIds(new Set());
+      setLotIdByLineId({});
       await loadCandidates();
       await loadRevenues();
     } catch (e) {
@@ -305,6 +344,7 @@ export default function SalesRevenuePage() {
                     <th className="num">단가</th>
                     <th className="num">{INVENTORY_LOCATION_LABEL.DELIVERY} 재고</th>
                     <th>매출수량 입력</th>
+                    <th>Lot</th>
                     <th>비고</th>
                   </tr>
                 </thead>
@@ -325,6 +365,7 @@ export default function SalesRevenuePage() {
                       <td>{row.orderNo}</td>
                       <td>
                         {row.itemNo} {row.itemName}
+                        {row.lotTracked ? ' · Lot' : ''}
                       </td>
                       <td className="num">{formatQty(row.shippedQty)}</td>
                       <td className="num">{formatQty(row.invoicedQty)}</td>
@@ -332,6 +373,29 @@ export default function SalesRevenuePage() {
                       <td className="num">{formatAmount(row.unitPrice)}</td>
                       <td className="num">{formatQty(row.deliveryOnHandQty)}</td>
                       <td>{renderCandidateQtyInput(row)}</td>
+                      <td>
+                        {row.lotTracked ? (
+                          <select
+                            value={lotIdByLineId[row.shipmentLineId] ?? ''}
+                            disabled={submitting || !selectedLineIds.has(row.shipmentLineId)}
+                            onChange={(e) =>
+                              setLotIdByLineId((prev) => ({
+                                ...prev,
+                                [row.shipmentLineId]: e.target.value ? Number(e.target.value) : null,
+                              }))
+                            }
+                          >
+                            <option value="">선택</option>
+                            {(lotsByLineId[row.shipmentLineId] ?? []).map((lot) => (
+                              <option key={lot.id} value={lot.id}>
+                                {lot.lotNo}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td>{billableLabel(row)}</td>
                     </tr>
                   ))}

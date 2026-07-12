@@ -7,7 +7,7 @@ public record DrawingListView(
         String id,
         String partNo,
         String partName,
-        String modelGroup,
+        String modelType,
         Long itemId,
         String itemNo,
         int majorVersion,

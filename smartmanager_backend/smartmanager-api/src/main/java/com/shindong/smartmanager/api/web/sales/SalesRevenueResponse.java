@@ -59,7 +59,8 @@ record SalesRevenueLineResponse(
         String itemName,
         BigDecimal revenueQty,
         BigDecimal unitPrice,
-        BigDecimal amount
+        BigDecimal amount,
+        Long lotId
 ) {
     static SalesRevenueLineResponse from(SalesRevenueLineView view) {
         return new SalesRevenueLineResponse(
@@ -74,7 +75,8 @@ record SalesRevenueLineResponse(
                 view.itemName(),
                 view.revenueQty(),
                 view.unitPrice(),
-                view.amount()
+                view.amount(),
+                view.lotId()
         );
     }
 }

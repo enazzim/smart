@@ -15,6 +15,7 @@ public record PurchaseReceiptCandidateView(
         String itemNum,
         String itemName,
         CheckDistinction checkDistinction,
+        boolean lotTracked,
         BigDecimal orderQty,
         BigDecimal receivedQty,
         BigDecimal remainQty,

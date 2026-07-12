@@ -49,7 +49,8 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
                    COALESCE(rc.small_name, '') AS reason_label,
                    m.note,
                    m.status,
-                   m.created_at
+                   m.created_at,
+                   m.lot_id
             FROM misc_stock_movement m
             JOIN item i ON i.id = m.item_id AND i.recording_state = 1
             LEFT JOIN process_sequence ps ON ps.id = m.output_process_id AND ps.recording_state = 1
@@ -106,6 +107,7 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
         entity.setItemId(command.itemId());
         entity.setLocationCode(command.locationCode());
         entity.setOutputProcessId(command.outputProcessId());
+        entity.setLotId(command.lotId());
         entity.setQty(command.qty());
         entity.setReasonCodeId(command.reasonCodeId());
         entity.setNote(command.note());
@@ -144,6 +146,7 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
         entity.setItemId(command.itemId());
         entity.setLocationCode(command.locationCode());
         entity.setOutputProcessId(command.outputProcessId());
+        entity.setLotId(command.lotId());
         entity.setQty(command.qty());
         entity.setReasonCodeId(command.reasonCodeId());
         entity.setNote(command.note());
@@ -250,7 +253,8 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
                 row[14] != null ? row[14].toString() : null,
                 row[15] != null ? row[15].toString() : null,
                 MiscStockMovementStatus.valueOf(row[16].toString()),
-                toInstant(row[17])
+                toInstant(row[17]),
+                row.length > 18 && row[18] != null ? ((Number) row[18]).longValue() : null
         );
     }
 
@@ -292,7 +296,8 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
                 reason != null ? reason.getSmallName() : null,
                 entity.getNote(),
                 entity.getStatus(),
-                entity.getCreatedAt()
+                entity.getCreatedAt(),
+                entity.getLotId()
         );
     }
 

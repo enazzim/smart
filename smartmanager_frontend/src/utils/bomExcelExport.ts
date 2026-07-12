@@ -26,6 +26,7 @@ function flattenExplosion(node: BomTreeNode): Record<string, string | number>[] 
       품목번호: current.itemNum,
       품목명: current.itemName,
       자산분류: current.propertyClassification,
+      Lot추적: current.lotTracked ? '예' : '아니오',
       누적수량: current.quantity,
       '외주거래처·단가': flattenVendorPrices(current.outsourcePrices),
       '구매거래처·단가': flattenVendorPrices(current.purchasePrices),

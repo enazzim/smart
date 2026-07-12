@@ -12,6 +12,7 @@ import java.time.LocalDate;
 /**
  * 재고 수량 변경의 단일 진입점. 모든 입·출고 TX는 {@link #recordMovement}를 통해야 하며,
  * 마이너스 재고 허용 여부는 {@link SystemSettingService#isNegativeStockAllowed()}로 일괄 적용된다.
+ * lot_tracked 품목은 {@link LotInventoryService}로 Lot 슬롯 잔량을 동일 TX에서 맞춘다.
  */
 public class InventoryBalanceService {
 
@@ -22,7 +23,29 @@ public class InventoryBalanceService {
     private final FiscalCalendarService fiscalCalendarService;
     private final MonthClosingService monthClosingService;
     private final SystemSettingService systemSettingService;
+    private final LotInventoryService lotInventoryService;
 
+    public InventoryBalanceService(
+            InventoryLocationQueryRepository locationRepository,
+            InventoryStockBalanceRepository balanceRepository,
+            StockMovementRepository movementRepository,
+            InventoryBalanceMonthlyRepository monthlyRepository,
+            FiscalCalendarService fiscalCalendarService,
+            MonthClosingService monthClosingService,
+            SystemSettingService systemSettingService,
+            LotInventoryService lotInventoryService
+    ) {
+        this.locationRepository = locationRepository;
+        this.balanceRepository = balanceRepository;
+        this.movementRepository = movementRepository;
+        this.monthlyRepository = monthlyRepository;
+        this.fiscalCalendarService = fiscalCalendarService;
+        this.monthClosingService = monthClosingService;
+        this.systemSettingService = systemSettingService;
+        this.lotInventoryService = lotInventoryService;
+    }
+
+    /** 테스트용 — Lot 연동 없이 슬롯 재고만 검증 */
     public InventoryBalanceService(
             InventoryLocationQueryRepository locationRepository,
             InventoryStockBalanceRepository balanceRepository,
@@ -32,13 +55,16 @@ public class InventoryBalanceService {
             MonthClosingService monthClosingService,
             SystemSettingService systemSettingService
     ) {
-        this.locationRepository = locationRepository;
-        this.balanceRepository = balanceRepository;
-        this.movementRepository = movementRepository;
-        this.monthlyRepository = monthlyRepository;
-        this.fiscalCalendarService = fiscalCalendarService;
-        this.monthClosingService = monthClosingService;
-        this.systemSettingService = systemSettingService;
+        this(
+                locationRepository,
+                balanceRepository,
+                movementRepository,
+                monthlyRepository,
+                fiscalCalendarService,
+                monthClosingService,
+                systemSettingService,
+                null
+        );
     }
 
     public InventoryBalanceSlotView ensureBalance(InventoryBalanceKey key) {
@@ -135,6 +161,19 @@ public class InventoryBalanceService {
                 newAmount
         ));
 
+        if (lotInventoryService != null) {
+            lotInventoryService.applyLotMovement(
+                    command.itemId(),
+                    command.lotId(),
+                    updated.id(),
+                    command.movementType(),
+                    command.qty(),
+                    command.actorUserId()
+            );
+        } else if (command.lotId() != null) {
+            throw new IllegalStateException("LotInventoryService가 구성되지 않았습니다.");
+        }
+
         StockMovementView movement = movementRepository.save(new StockMovementView(
                 0L,
                 updated.id(),
@@ -147,12 +186,17 @@ public class InventoryBalanceService {
                 command.amount(),
                 command.referenceType(),
                 command.referenceId(),
-                command.movementDate()
+                command.movementDate(),
+                command.lotId()
         ));
 
         applyMonthly(updated.id(), fiscalMonth, command.movementType(), command.qty(), command.amount(), signedQty);
 
         return movement;
+    }
+
+    public java.util.Optional<Long> findLotIdByReference(String referenceType, long referenceId) {
+        return movementRepository.findActiveLotIdByReference(referenceType, referenceId);
     }
 
     private void applyMonthly(

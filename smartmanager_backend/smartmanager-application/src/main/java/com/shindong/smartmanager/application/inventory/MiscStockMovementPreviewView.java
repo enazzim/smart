@@ -14,6 +14,7 @@ public record MiscStockMovementPreviewView(
         Short outputProcessSequence,
         String outputProcessName,
         boolean processRequired,
-        BigDecimal onHandQty
+        BigDecimal onHandQty,
+        boolean lotTracked
 ) {
 }

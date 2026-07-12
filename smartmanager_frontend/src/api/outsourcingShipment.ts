@@ -37,6 +37,7 @@ export interface OutsourcingShipmentInputPreviewLine {
   processSequenceNum?: number | null;
   inputProcessName: string;
   onHandQty: number;
+  lotTracked: boolean;
 }
 
 export interface OutsourcingShipmentInputPreview {
@@ -63,6 +64,7 @@ export interface OutsourcingShipmentInputLine {
   sourceLocationCode: string;
   sourceProcessId?: number | null;
   inputProcessId: number;
+  lotId?: number | null;
 }
 
 export interface OutsourcingShipmentLine {
@@ -145,7 +147,11 @@ export async function fetchOutsourcingShipments(
 
 export async function createOutsourcingShipment(payload: {
   shipmentDate: string;
-  lines: Array<{ orderLineId: number; shipmentQty: number }>;
+  lines: Array<{
+    orderLineId: number;
+    shipmentQty: number;
+    inputLots?: Array<{ itemId: number; lotId?: number | null }>;
+  }>;
 }): Promise<OutsourcingShipment> {
   return handleResponse(
     await apiFetch('/api/v1/outsource/shipments', {
@@ -199,6 +205,7 @@ export interface OutsourcingAdvanceInputLine {
   sourceLocationCode: string;
   sourceProcessId?: number | null;
   inputProcessId: number;
+  lotId?: number | null;
 }
 
 export async function createOutsourcingAdvanceShipment(payload: {

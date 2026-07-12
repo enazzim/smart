@@ -80,7 +80,9 @@ public class QualityInspectionController {
                         request.unsuitabilityStatusCodeId(),
                         request.completedDate(),
                         request.fiscalYear(),
-                        request.fiscalMonth()
+                        request.fiscalMonth(),
+                        request.lotNo(),
+                        Boolean.TRUE.equals(request.autoGenerateLot())
                 ),
                 principal.loginId()
         ));

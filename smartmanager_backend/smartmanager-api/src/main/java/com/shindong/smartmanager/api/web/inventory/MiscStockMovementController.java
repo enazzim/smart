@@ -77,7 +77,10 @@ public class MiscStockMovementController {
                         request.processSequenceId(),
                         request.qty(),
                         request.reasonCodeId(),
-                        request.note()
+                        request.note(),
+                        request.lotId(),
+                        request.lotNo(),
+                        Boolean.TRUE.equals(request.autoGenerateLot())
                 ),
                 principal.loginId()
         ));
@@ -99,7 +102,10 @@ public class MiscStockMovementController {
                         request.processSequenceId(),
                         request.qty(),
                         request.reasonCodeId(),
-                        request.note()
+                        request.note(),
+                        request.lotId(),
+                        request.lotNo(),
+                        Boolean.TRUE.equals(request.autoGenerateLot())
                 ),
                 principal.loginId()
         ));
@@ -120,7 +126,10 @@ public class MiscStockMovementController {
             Long processSequenceId,
             @NotNull @Positive BigDecimal qty,
             Long reasonCodeId,
-            String note
+            String note,
+            Long lotId,
+            String lotNo,
+            Boolean autoGenerateLot
     ) {
     }
 }

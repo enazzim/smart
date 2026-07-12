@@ -751,6 +751,11 @@ button[disabled] {
   white-space: nowrap;
 }
 
+.app-main .table-wrap > table tbody tr.is-selected,
+.ui-table-wrap > table tbody tr.is-selected {
+  background: color-mix(in srgb, var(--sm-blue-100, #dbeafe) 80%, transparent);
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

@@ -58,12 +58,14 @@ public class SalesApplicationConfig {
     public SalesShipmentService salesShipmentService(
             SalesShipmentRepository salesShipmentRepository,
             SalesShipmentInventoryService salesShipmentInventoryService,
+            ItemRepository itemRepository,
             MonthClosingService monthClosingService,
             DomainEventStore domainEventStore
     ) {
         return new SalesShipmentService(
                 salesShipmentRepository,
                 salesShipmentInventoryService,
+                itemRepository,
                 monthClosingService,
                 domainEventStore
         );
@@ -98,6 +100,7 @@ public class SalesApplicationConfig {
             SalesRevenueRepository salesRevenueRepository,
             SalesHistoryRepository salesHistoryRepository,
             SalesRevenueInventoryService salesRevenueInventoryService,
+            ItemRepository itemRepository,
             PartnerLedgerService partnerLedgerService,
             FiscalCalendarService fiscalCalendarService,
             MonthClosingService monthClosingService,
@@ -107,6 +110,7 @@ public class SalesApplicationConfig {
                 salesRevenueRepository,
                 salesHistoryRepository,
                 salesRevenueInventoryService,
+                itemRepository,
                 partnerLedgerService,
                 fiscalCalendarService,
                 monthClosingService,

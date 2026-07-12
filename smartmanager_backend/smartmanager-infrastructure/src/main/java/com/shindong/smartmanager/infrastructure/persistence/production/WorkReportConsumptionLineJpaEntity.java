@@ -38,6 +38,9 @@ public class WorkReportConsumptionLineJpaEntity {
     @Column(name = "source_process_id")
     private Long sourceProcessId;
 
+    @Column(name = "lot_id")
+    private Long lotId;
+
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
 
@@ -117,6 +120,14 @@ public class WorkReportConsumptionLineJpaEntity {
 
     public void setSourceProcessId(Long sourceProcessId) {
         this.sourceProcessId = sourceProcessId;
+    }
+
+    public Long getLotId() {
+        return lotId;
+    }
+
+    public void setLotId(Long lotId) {
+        this.lotId = lotId;
     }
 
     public int getRecordingState() {

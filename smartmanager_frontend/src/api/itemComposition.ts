@@ -22,11 +22,13 @@ export interface BomVendorPrice {
 }
 
 export interface BomTreeNode {
+  itemId: number;
   itemNum: string;
   itemName: string;
   propertyClassification: string;
   level: number;
   quantity: number;
+  lotTracked: boolean;
   outsourcePrices: BomVendorPrice[];
   purchasePrices: BomVendorPrice[];
   children: BomTreeNode[];
@@ -109,6 +111,35 @@ export async function fetchBomExplosion(itemNum: string): Promise<BomTreeNode> {
 export async function fetchBomReverse(itemNum: string): Promise<ItemComposition[]> {
   return handleResponse<ItemComposition[]>(
     await apiFetch(`${API_BASE}/${encodeURIComponent(itemNum)}/reverse`),
+  );
+}
+
+export interface LotTrackedEnablePreviewItem {
+  itemId: number;
+  itemNo: string;
+  itemName: string;
+  alreadyLotTracked: boolean;
+  otherParentItemNos: string[];
+}
+
+export async function previewEnableLotTracked(itemNum: string): Promise<LotTrackedEnablePreviewItem[]> {
+  return handleResponse(
+    await apiFetch(`${API_BASE}/${encodeURIComponent(itemNum)}/lot-tracked/enable-preview`, {
+      method: 'POST',
+    }),
+  );
+}
+
+export async function enableLotTrackedForExplosion(
+  itemNum: string,
+  itemIds: number[],
+): Promise<{ updatedCount: number }> {
+  return handleResponse(
+    await apiFetch(`${API_BASE}/${encodeURIComponent(itemNum)}/lot-tracked/enable`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemIds }),
+    }),
   );
 }
 

@@ -19,6 +19,9 @@ export interface SalesShipmentCandidate {
   wipOnHandQty: number;
   shippable: boolean;
   shippableMessage?: string | null;
+  lotTracked: boolean;
+  lotLocationCode: string;
+  finalProcessId?: number | null;
 }
 
 export interface SalesShipmentLine {
@@ -33,6 +36,7 @@ export interface SalesShipmentLine {
   shipmentQty: number;
   unitPrice: number;
   amount: number;
+  lotId?: number | null;
 }
 
 export interface SalesShipment {
@@ -106,7 +110,7 @@ export async function fetchSalesShipments(params?: SalesShipmentListParams): Pro
 
 export async function createSalesShipment(payload: {
   shipmentDate: string;
-  lines: Array<{ salesOrderLineId: number; shipmentQty: number }>;
+  lines: Array<{ salesOrderLineId: number; shipmentQty: number; lotId?: number | null }>;
 }): Promise<SalesShipment> {
   return handleResponse(
     await apiFetch('/api/v1/sales/shipments', {

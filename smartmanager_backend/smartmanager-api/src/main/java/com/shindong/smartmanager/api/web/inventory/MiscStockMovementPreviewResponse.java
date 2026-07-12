@@ -15,7 +15,8 @@ public record MiscStockMovementPreviewResponse(
         Short outputProcessSequence,
         String outputProcessName,
         boolean processRequired,
-        BigDecimal onHandQty
+        BigDecimal onHandQty,
+        boolean lotTracked
 ) {
     public static MiscStockMovementPreviewResponse from(MiscStockMovementPreviewView view) {
         return new MiscStockMovementPreviewResponse(
@@ -29,7 +30,8 @@ public record MiscStockMovementPreviewResponse(
                 view.outputProcessSequence(),
                 view.outputProcessName(),
                 view.processRequired(),
-                view.onHandQty()
+                view.onHandQty(),
+                view.lotTracked()
         );
     }
 }

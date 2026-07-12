@@ -15,7 +15,8 @@ public record OutsourcingReceiptLineResponse(
         BigDecimal unitPrice,
         BigDecimal amount,
         Long qualityInspectionId,
-        boolean stockPosted
+        boolean stockPosted,
+        Long lotId
 ) {
     public static OutsourcingReceiptLineResponse from(OutsourcingReceiptLineView view) {
         return new OutsourcingReceiptLineResponse(
@@ -30,7 +31,8 @@ public record OutsourcingReceiptLineResponse(
                 view.unitPrice(),
                 view.amount(),
                 view.qualityInspectionId(),
-                view.stockPosted()
+                view.stockPosted(),
+                view.lotId()
         );
     }
 }

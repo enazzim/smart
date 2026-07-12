@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 public record CreateSalesRevenueLineCommand(
         long salesShipmentLineId,
-        BigDecimal revenueQty
+        BigDecimal revenueQty,
+        Long lotId
 ) {
 }

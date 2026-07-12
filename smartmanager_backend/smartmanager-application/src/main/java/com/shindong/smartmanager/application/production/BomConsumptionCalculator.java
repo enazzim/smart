@@ -89,6 +89,12 @@ public class BomConsumptionCalculator {
         ).orElseThrow(() -> new IllegalArgumentException(
                 "직전 공정을 찾을 수 없습니다. 공정 계획을 확인해 주세요."));
 
+        ProcessView currentProcess = processRepository.findAllActiveByItemId(parentItemId, ProcessVariant.plan).stream()
+                .filter(process -> process.processSequenceNum() == currentProcessSequenceNum)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "현재 공정을 찾을 수 없습니다. 공정 계획을 확인해 주세요."));
+
         ItemView parent = itemRepository.findActiveById(parentItemId)
                 .orElseThrow(() -> new IllegalArgumentException("모품목을 찾을 수 없습니다: " + parentItemId));
 
@@ -97,18 +103,22 @@ public class BomConsumptionCalculator {
         BigDecimal remainingQty = requiredQty.subtract(issuedQty).max(BigDecimal.ZERO);
         boolean satisfied = goodQty.compareTo(BigDecimal.ZERO) == 0 || issuedQty.compareTo(requiredQty) >= 0;
 
+        // 직전 공정 완료분은 WorkReportInventoryService가 다음(현재) 공정 WIP에 IN 한다.
+        // 투입 슬롯은 현재 공정 WIP, 표시명은 직전 공정명(출처)을 유지한다.
         return List.of(new WorkReportConsumptionLineView(
                 null,
                 parent.id(),
                 parent.itemNo(),
                 parent.itemName(),
                 parent.propertyClassification().name(),
+                parent.lotTracked(),
+                "WIP",
                 BigDecimal.ONE.setScale(QTY_SCALE, QTY_ROUNDING),
                 requiredQty,
                 issuedQty,
                 remainingQty,
                 satisfied,
-                priorProcess.id(),
+                currentProcess.id(),
                 priorProcess.processName(),
                 requiredQty
         ));
@@ -147,6 +157,8 @@ public class BomConsumptionCalculator {
                     child.itemNo(),
                     child.itemName(),
                     child.propertyClassification().name(),
+                    child.lotTracked(),
+                    child.propertyClassification() == PropertyClassification.원자재 ? "RAW" : "WIP",
                     unitRatio,
                     requiredQty,
                     issuedQty,

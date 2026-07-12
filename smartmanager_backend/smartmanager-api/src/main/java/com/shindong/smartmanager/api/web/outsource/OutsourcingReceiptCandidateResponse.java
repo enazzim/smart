@@ -22,7 +22,8 @@ public record OutsourcingReceiptCandidateResponse(
         BigDecimal waitingInspectionQty,
         BigDecimal remainQty,
         BigDecimal unitPrice,
-        LocalDate requestedDeliveryDate
+        LocalDate requestedDeliveryDate,
+        boolean lotTracked
 ) {
     public static OutsourcingReceiptCandidateResponse from(OutsourcingReceiptCandidateView view) {
         return new OutsourcingReceiptCandidateResponse(
@@ -43,7 +44,8 @@ public record OutsourcingReceiptCandidateResponse(
                 view.waitingInspectionQty(),
                 view.remainQty(),
                 view.unitPrice(),
-                view.requestedDeliveryDate()
+                view.requestedDeliveryDate(),
+                view.lotTracked()
         );
     }
 }

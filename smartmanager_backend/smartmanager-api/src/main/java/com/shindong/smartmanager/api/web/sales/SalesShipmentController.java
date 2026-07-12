@@ -81,7 +81,8 @@ public class SalesShipmentController {
                         request.lines().stream()
                                 .map(line -> new CreateSalesShipmentLineCommand(
                                         line.salesOrderLineId(),
-                                        line.shipmentQty()
+                                        line.shipmentQty(),
+                                        line.lotId()
                                 ))
                                 .toList()
                 ),
@@ -105,7 +106,8 @@ public class SalesShipmentController {
 
     public record CreateSalesShipmentLineRequest(
             @NotNull Long salesOrderLineId,
-            @NotNull BigDecimal shipmentQty
+            @NotNull BigDecimal shipmentQty,
+            Long lotId
     ) {
     }
 }

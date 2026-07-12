@@ -11,6 +11,9 @@ public record CreateMiscStockMovementCommand(
         Long processSequenceId,
         BigDecimal qty,
         Long reasonCodeId,
-        String note
+        String note,
+        Long lotId,
+        String lotNo,
+        boolean autoGenerateLot
 ) {
 }

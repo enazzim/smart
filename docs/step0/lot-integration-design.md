@@ -1,14 +1,15 @@
 # SmartManager — LOT 연동 설계서
 
-> **문서 버전:** 1.0  
+> **문서 버전:** 2.5  
 > **작성일:** 2026-07-10  
-> **상태:** TO-BE 확정 초안 — **미구현**  
+> **개정:** 2026-07-12 — §8.3 BOM 정전개 Lot 일괄 ON(3단계)  
+> **상태:** TO-BE — **LOT-5 완료** · BOM 정전개 Lot 표시·행별·일괄 ON  
 > **관련 문서:**  
 > - [D5 Lot 추적 개요](./d5-lot-traceability.md)  
 > - [재고·원장 SSOT](../../results/sample/inventory-ledger-spec.md)  
 > - [TX 취소·삭제 정책](./tx-cancel-delete-policy.md)  
 > - [Domain Event · Projector 매핑](./domain-event-projector-matrix.md)  
-> - 스키마 초안 [`schema-drafts/V007__lot_traceability.sql`](./schema-drafts/V007__lot_traceability.sql)  
+> - 스키마 초안 [`schema-drafts/V007__lot_traceability.sql`](./schema-drafts/V007__lot_traceability.sql) · [`V078`](./schema-drafts/V078__inventory_lot.sql) · [`V079`](./schema-drafts/V079__stock_movement_lot_and_genealogy.sql)  
 > - 레거시 스키마 [`results/mariadb_schema.sql`](../../results/mariadb_schema.sql) (`LotLedger`, `LotNum` 컬럼)
 
 ---
@@ -44,18 +45,24 @@ inventory_balance_monthly  ← 슬롯별 월별 입·출·잔
 - **모든 TX 재고 반영:** `*InventoryService`가 위 메서드를 동기 호출
 - **취소 정책:** 역방향 `stock_movement` INSERT + `*_CANCEL` reference_type ([tx-cancel-delete-policy](./tx-cancel-delete-policy.md))
 
-### 2.2 없는 것 (Gap)
+### 2.2 구현 현황 (LOT-5 기준)
 
 | 항목 | 상태 |
 |------|------|
-| `item.lot_tracked` | ❌ |
-| `inventory_lot`, `inventory_lot_balance`, `lot_genealogy` | ❌ |
-| `stock_movement.lot_id` | ❌ |
-| Lot CRUD API / Lot 조회 화면 | ❌ |
-| 구매입고·작업실적·출고 DTO의 `lotNo` | ❌ |
-| 레거시 `LotLedger` ETL | ❌ |
+| `item.lot_tracked` | ✅ V077 · 품목/일괄등록 UI (기본 0) |
+| `item.model_type` 필수 | ✅ V077 · API/화면 필수 |
+| `drawing_master.model_type` | ✅ V077 (`model_group` 개명) — 품목 기종과 동일 개념 |
+| `inventory_lot`, `inventory_lot_balance`, `lot_genealogy` | ✅ V078 · V079 |
+| `stock_movement.lot_id` | ✅ V079 |
+| Lot CRUD API | ✅ `/api/v1/inventory/lots` · available · genealogy · movements |
+| Lot 조회·관리 화면 | ✅ 재고·원장 Lot 탭 · Lot 마스터 (`inventory-lot`) |
+| 구매입고·품질·작업실적·외주·영업·기타입출고 Lot | ✅ LOT-2~4 TX 연동 |
+| 레거시 `LotLedger` ETL | **N/A** — 레거시 Lot 미운영 (§11) |
 
-**결론:** 현재는 **집계 재고만 추적** 가능하며, 동일 품목 내 **배치별 역추적·정추적은 불가**하다.
+**결론:** `lot_tracked = 1` 품목은 **신규 TX부터** Lot 생성·이동·계보·원장 조회가 가능하다.  
+과거 레거시 재고는 슬롯 집계만 유지한다(ETL 스킵).  
+의도적 비범위: Lot 분할·병합 UI, FIFO 자동 배정, 입출고 이력 탭 `lotNo` 컬럼(후속).  
+BOM 정전개 Lot 표시·행별·일괄 ON: §8.3.
 
 ### 2.3 기타구매입고
 
@@ -243,7 +250,7 @@ public record RecordStockMovementCommand(
 | `createOnProduction(itemId, lotNo, parentLotIds, qty)` | 작업실적 산출 Lot + genealogy |
 | `resolveOrCreate(itemId, lotNo, autoGenerate)` | 수동 입력 또는 자동 채번 |
 | `assertSufficientLotQty(lotId, balanceId, qty)` | 출고·투입 전 검증 |
-| `findAvailableLots(itemId, locationCode, processId)` | 출고 화면 Lot 선택 목록 |
+| `findAvailableLots(itemId, locationCode, processId)` | 출고·투입 Lot 선택. 영업출고 공정품은 `WIP`+최종공정Id |
 
 ### 6.4 REST API (신규)
 
@@ -251,11 +258,14 @@ Base: `/api/v1/inventory/lots`
 
 | Method | Endpoint | 권한 | 설명 |
 |--------|----------|------|------|
-| `GET` | `/` | `inventory:read` | 품목·창고·상태 필터 |
-| `GET` | `/{id}` | `inventory:read` | 상세 + 슬롯별 잔량 |
-| `GET` | `/{id}/genealogy` | `inventory:read` | `direction=UP\|DOWN` 계보 |
-| `GET` | `/{id}/movements` | `inventory:read` | `stock_movement` 페이지 |
-| `POST` | `/` | `inventory:write` | 수동 Lot 등록 (관리자) |
+| `GET` | `/` | `inventory:lot:read` | 품목·창고·상태 필터 |
+| `GET` | `/available` | `inventory:lot:read` | 출고·투입 가능 Lot (`qty>0`, ACTIVE) |
+| `GET` | `/{id}` | `inventory:lot:read` | 상세 + 슬롯별 잔량 |
+| `GET` | `/{id}/genealogy` | `inventory:lot:read` | `direction=UP\|DOWN` 계보 (V079+) |
+| `GET` | `/{id}/movements` | `inventory:lot:read` | `stock_movement` 페이지 (V079+) |
+| `POST` | `/` | `inventory:lot:write` | 수동 Lot 등록 (관리자) |
+| `PUT` | `/{id}` | `inventory:lot:write` | 상태·비고 등 수정 |
+| `DELETE` | `/{id}` | `inventory:lot:write` | 소프트 삭제 (`recording_state=0`, 잔량 0만) |
 
 기존 TX API는 라인 DTO에 아래 필드를 **선택 추가**한다.
 
@@ -282,8 +292,8 @@ type LotLineInput = {
 | 5 | 작업실적 투입 | `WorkReportConsumptionInventoryService` | RAW/WIP OUT | 투입 Lot CONSUME + genealogy | LOT-3 |
 | 6 | 외주출고 | `OutsourcingShipmentInventoryService` | OUTSOURCE/WIP | Lot **이동** (슬롯 간) | LOT-4 |
 | 7 | 외주입고 | `OutsourcingReceiptInventoryService` | WIP IN | Lot 생성 또는 기존 Lot 입고 | LOT-4 |
-| 8 | 영업출고 | `SalesShipmentInventoryService` | SALES OUT + DELIVERY IN | Lot **소비**, 잔량 0 → `DEPLETED` | LOT-4 |
-| 9 | 매출인식 | `SalesRevenueInventoryService` | DELIVERY OUT | Lot 소비 (출고 Lot와 동일) | LOT-4 |
+| 8 | 영업출고 | `SalesShipmentInventoryService` | **(A)** 상품·제품: SALES OUT + DELIVERY IN<br>**(B)** 공정품: WIP(최종공정) OUT + DELIVERY IN | 원창고→DELIVERY **Lot 슬롯 이동** (동일 `lot_id`) | LOT-4 |
+| 9 | 매출인식 | `SalesRevenueInventoryService` | DELIVERY OUT | DELIVERY Lot 잔량↓ · 전 슬롯 0이면 `DEPLETED` | LOT-4 |
 | 10 | 기타입출고 | `MiscStockMovementInventoryService` | IN/OUT | Lot 수동 지정 (관리자) | LOT-4 |
 | — | 기타구매입고 | `EtcPurchaseReceiptService` | **없음** | **미적용** | — |
 
@@ -340,9 +350,29 @@ sequenceDiagram
 
 ### 7.4 영업출고 (LOT-4)
 
-- `SalesShipmentPage`: 출고 라인별 Lot 선택 (FIFO 기본 정렬 옵션 — v1.1)
-- 출고 수량 = 선택 Lot 잔량 이하 검증
-- 전량 출고 시 `inventory_lot.status = DEPLETED`
+AS-IS 재고 경로(`SalesShipmentInventoryService`, `PropertyClassification`)와 **동일하게** Lot를 맞춘다.
+
+| 품목 분류 | 출고 원창고 | 도착 | 코드 기준 |
+|-----------|-------------|------|-----------|
+| **상품·제품** | `SALES` | `DELIVERY` IN | 기본 경로 |
+| **공정품** | `WIP` + **최종 사내 공정** (`process_id`) | `DELIVERY` IN | `shipmentFromWipFinalProcess() == true` |
+
+```text
+(A) 상품·제품
+  Lot @ SALES  ──OUT──►  (잔량↓)     DELIVERY ──IN──►  Lot @ DELIVERY (동일 lot_id 이동)
+(B) 공정품
+  Lot @ WIP(최종공정) ──OUT──►       DELIVERY ──IN──►  Lot @ DELIVERY (동일 lot_id 이동)
+```
+
+- **Lot 의미:** “소비(소멸)”가 아니라 **원창고 → 납품창고 슬롯 이동**. 매출인식(`SalesRevenueInventoryService`)에서 `DELIVERY` OUT 시 최종 소진·`DEPLETED` 후보.
+- `SalesShipmentPage`: 출고 라인별 Lot 선택. 후보 조회는 분류에 따라  
+  - 상품·제품 → `findAvailableLots(itemId, SALES, processId=null)`  
+  - 공정품 → `findAvailableLots(itemId, WIP, processId=최종공정Id)`
+- 출고 수량 ≤ 선택 Lot의 **해당 슬롯 잔량** 검증
+- 원창고 슬롯 잔량 0이 되어도 Lot 마스터는 DELIVERY에 잔량이 있으면 `ACTIVE` 유지. `DEPLETED`는 **전 슬롯 잔량 합 = 0**일 때(통상 매출인식 후)
+- FIFO 기본 정렬 옵션 — v1.1
+
+취소 시 AS-IS와 동일하게 역방향: DELIVERY OUT + (SALES|WIP) IN, 동일 `lot_id`.
 
 ### 7.5 취소 TX
 
@@ -359,42 +389,138 @@ sequenceDiagram
 | 화면 | 변경 |
 |------|------|
 | **품목** (`ItemPage`) | `Lot 추적` 체크박스 (`lot_tracked`) |
-| **재고·원장** (`InventoryLedgerPage`) | 탭 추가: **Lot 잔량** / Lot 이력 drill-down |
+| **재고·원장** (`InventoryLedgerPage`) | 탭 추가: **Lot 잔량** / Lot 이력·계보 drill-down (LOT-5 UI) |
+| **Lot 마스터** (`LotMasterPage`) | 목록·수동 등록·상태 변경·잔량0 삭제 (LOT-5 UI) |
+| **품목구성** (`ItemCompositionPage`) | 정전개 Lot 표시·행별·일괄 ON (§8.3) |
 | **구매입고** | 라인별 Lot 입력 |
 | **품질검사** | 검사완료 시 Lot (검사품) |
 | **작업실적** | 투입 Lot 선택, 산출 Lot 생성 |
 | **외주출고·입고** | Lot 이동·생성 |
-| **영업출고** | Lot 선택 출고 |
+| **영업출고** | Lot 선택 출고 — 상품·제품은 SALES, 공정품은 WIP(최종공정) 후보 |
 | **기타입출고** | Lot 수동 지정 (선택) |
+
+### 8.1 재고·원장 — Lot 탭 (LOT-5 UI)
+
+**목적:** 슬롯 잔고(재고 잔고 탭)와 별도로, **Lot 단위 잔량·이력·계보**를 한 화면에서 조회한다.  
+등록·상태 변경은 §8.2 **Lot 마스터** 메뉴에서 수행한다.
+
+| 구분 | 내용 |
+|------|------|
+| 메뉴 | 기존 `inventory-ledger` (재고·원장) 3번째 탭 **Lot** |
+| 권한 | `inventory:lot:read` (목록·상세·이력·계보) — MANAGER/ADMIN은 V078에서 ledger·lot 동시 부여 |
+| 필터 | 품번(`itemNo`), Lot번호(`lotNo`), 창고(`locationCode`), 상태(`ACTIVE`/`BLOCKED`/`DEPLETED`) |
+| 목록 | `GET /api/v1/inventory/lots` — Lot 행 + `balances[]` 슬롯 잔량. 표시용 **총잔량** = `sum(qtyOnHand)` |
+| drill-down | 행 선택 시 패널: (1) 슬롯 잔량 (2) Lot 입출고 이력 (3) 계보 UP/DOWN |
+| 이력 API | `GET /api/v1/inventory/lots/{id}/movements` — `stock_movement.lot_id` 기준, 최대 500건, 일자·id DESC |
+| 계보 API | `GET /api/v1/inventory/lots/{id}/genealogy?direction=UP\|DOWN` (기존) |
+| 비범위 | Lot 병합·분할 UI, FIFO 자동 배정, 입출고 이력 탭의 `lotNo` 컬럼(후속), 수동 등록·상태 변경(→ §8.2) |
+
+**조회 흐름**
+
+```text
+[필터] → GET /lots → 목록 선택
+                      ├─ balances (응답 내)
+                      ├─ GET /lots/{id}/movements
+                      └─ GET /lots/{id}/genealogy?direction=UP|DOWN
+                         └─ 계보 행 클릭 → 해당 lotId로 재선택(drill)
+```
+
+### 8.2 Lot 마스터 화면 (선택 · LOT-5 UI)
+
+**목적:** 레거시 `LotNumberManagement` / `LotLedger`에 대응하는 **Lot 마스터 CRUD**.  
+TX 중 자동 생성되지 않은 Lot를 사전 등록하거나, 품질 이슈 등으로 **상태(ACTIVE/BLOCKED/DEPLETED)**·비고를 변경한다.
+
+| 구분 | 내용 |
+|------|------|
+| 메뉴 | 재고 → **Lot 마스터** (`inventory-lot`) |
+| 권한 | 조회 `inventory:lot:read` · 등록/수정/삭제 `inventory:lot:write` |
+| 필터 | 품번, Lot번호, 창고, 상태 (재고·원장 Lot 탭과 동일) |
+| 목록 | `GET /api/v1/inventory/lots` — 선택 시 수정 폼 로드 |
+| 등록 | `POST /api/v1/inventory/lots` — 품목(`lot_tracked=1`만), Lot번호 수동 또는 `autoGenerate`, origin=`MANUAL` |
+| 수정 | `PUT /api/v1/inventory/lots/{id}` — 상태·P1/P2·유효기한·성적서·비고 (품목·Lot번호 변경 불가) |
+| 삭제 | `DELETE /api/v1/inventory/lots/{id}` — 전 슬롯 잔량 0일 때만 소프트 삭제 |
+| 비범위 | 재고 수량 직접 조정(기타입출고·TX 경로), 병합·분할 UI, 계보 편집 |
+
+**등록 규칙**
+
+```text
+품목.lot_tracked = 1 필수 (백엔드·UI 검증)
+lotNo 수동 입력 XOR autoGenerate=true
+품목+lotNo UK — 중복 시 거부
+생성 직후 status=ACTIVE, inventory_lot_balance 없음(잔량 0)
+```
+
+**상태 변경 가이드**
+
+| 상태 | 의미 | UI |
+|------|------|-----|
+| `ACTIVE` | 출고·투입 가능 | 기본 |
+| `BLOCKED` | 품질 등 보류 — available 조회에서 제외 | 수동 전환 |
+| `DEPLETED` | 전 슬롯 잔량 0 (시스템도 자동 설정 가능) | 수동 표시 가능, 잔량 있으면 비권장 |
+
+재고·원장 Lot 탭과의 역할: **원장 Lot 탭 = 조회·추적**, **Lot 마스터 = 등록·유지보수**.
+
+### 8.3 BOM 정전개 — Lot 추적 표시·행별·일괄 설정
+
+**목적:** 모품목 정전개 시 BOM 트리 각 노드의 `item.lot_tracked`를 확인하고, 품목 단위로 Lot 추적을 켠다.
+
+| 구분 | 내용 |
+|------|------|
+| 화면 | 기준정보 → 품목구성 → **정전개** 모달 |
+| API 조회 | `GET .../explosion` — `BomTreeNode.itemId`, `lotTracked` |
+| API 행별 | `PATCH /api/v1/basis/items/{id}/lot-tracked` |
+| API 일괄 미리보기 | `POST .../plan/{itemNum}/lot-tracked/enable-preview` |
+| API 일괄 적용 | `POST .../plan/{itemNum}/lot-tracked/enable` — `{ "itemIds": [...] }` (`basis:item:write`) |
+| **1단계** | Lot추적 컬럼·엑셀 표시 |
+| **2단계** | 행별 설정/해제 (해제 시 확인) |
+| **3단계** | **트리 일괄 ON만** — 미리보기(대상·이미 ON 제외)·**공유 경고**(정전개 트리 밖의 모품목) |
+| 일괄 OFF | **하지 않음** (실수·잔량 리스크) |
+
+**공유 경고 정의:** 자품목의 활성 BOM 모품목 중, **현재 정전개 트리에 포함되지 않은** 모품목 번호 목록.
+
+```text
+정전개 → enable-preview(루트)
+       → 대상 목록 + otherParentItemNos[]
+       → 사용자 확인·선택 → enable(itemIds)
+       → 정전개 재조회
+```
 
 ---
 
 ## 9. Flyway 마이그레이션 전략
 
-| 버전 | 내용 | 비고 |
-|------|------|------|
-| **V070** | `item.lot_tracked`, `inventory_lot`, `inventory_lot_balance`, `lot_number_sequence` | Lot 기반 |
-| **V071** | `stock_movement.lot_id` FK, `lot_genealogy` | V028 위 ALTER |
-| **V072** | Lot 조회용 인덱스·권한 시드 (`inventory:lot:read` 등) | 선택 |
+> **번호 충돌 주의:** 저장소에 이미 `V070`~`V076`이 존재한다  
+> (VIEWER 권한·마감컷오버·도면 V072~V076). Lot는 **`V077`부터** 부여한다.  
+> 초안 파일명 `schema-drafts/V007__*` 는 역사적 스케치이며, 실적용 시 아래 번호로 분할·복사한다.
+
+| 실적용 버전 | 내용 | 비고 |
+|-------------|------|------|
+| **V077** | `item.lot_tracked`, `item.model_type` NOT NULL, `drawing_master.model_group`→`model_type` | ✅ 적용 (품목·도면 기종 통일) |
+| **V078** | `inventory_lot`, `inventory_lot_balance`, `lot_number_sequence`, `inventory:lot:read\|write` | ✅ 적용 (Lot 마스터 + CRUD API) |
+| **V079** | `stock_movement.lot_id` FK, `lot_genealogy` | ✅ 적용 (genealogy 링크·조회 API 포함) |
+| **V080** | `work_report_consumption_line.lot_id`, `work_report.output_lot_id` | ✅ 적용 (작업일보 투입 Lot UI·산출 Lot) |
+| **V081** | TX 라인 `lot_id` (sales_shipment/revenue, outsourcing input/receipt, misc) | ✅ 적용 (LOT-4) |
 
 `schema-drafts/V007` 전체를 그대로 적용하지 않는다. V028 `stock_movement` 스키마(`movement_type`, `reference_type`, `fiscal_month` 등)를 유지한다.
+
+적용 전: `db/migration` 최신 번호가 `V076`인지 재확인. 도면 등 후속 마이그레이션이 더 있으면 Lot 시작 번호를 그에 맞게 올린다.
 
 ---
 
 ## 10. 구현 Wave
 
 ```text
-LOT-0  문서 확정 (본 문서 + d5)
+LOT-0  문서 확정 (본 문서 + d5) — v1.1 Flyway·출고 경로 보정 포함
   ↓
-LOT-1  Flyway V070–V071 · LotService · Lot CRUD API · 품목 lot_tracked UI
+LOT-1  Flyway V077(품목 lot_tracked·기종필수·도면 model_type) · 이어서 V078 Lot 테이블 · LotService · Lot CRUD API
   ↓
 LOT-2  구매입고 + 품질검사 Lot 생성·RAW 입고
   ↓
 LOT-3  작업실적 투입/산출 + lot_genealogy
   ↓
-LOT-4  외주·영업·기타입출고 Lot 이동·소비
+LOT-4  외주·영업(상품·제품 SALES / 공정품 WIP)·기타입출고 Lot 이동·소비
   ↓
-LOT-5  레거시 LotLedger·LotNum ETL · 재고 원장 Lot 탭
+LOT-5  재고 원장 Lot 탭 · Lot 마스터 화면 · 레거시 ETL N/A(스킵)
 ```
 
 ### 선행 조건 (이미 충족)
@@ -409,23 +535,35 @@ LOT-5  레거시 LotLedger·LotNum ETL · 재고 원장 Lot 탭
 |------|-----------|
 | LOT-1 | Lot 수동 등록 API, 품목 `lot_tracked` 저장, 빈 DB 마이그레이션 성공 |
 | LOT-2 | 무검사 구매입고 E2E: Lot 생성 → RAW 잔량 → 원장 조회 |
-| LOT-3 | 작업실적 1건: 투입 Lot 소비 + 산출 Lot 생성 + genealogy 조회 API |
-| LOT-4 | 영업출고 1건: Lot 선택 → DEPLETED |
-| LOT-5 | 레거시 `LotLedger` 100건 이상 ETL 검증 리포트 |
+| LOT-3 | 작업실적 1건: 투입 Lot 소비 + 산출 Lot 생성 + genealogy(CONSUME/PRODUCE) + 조회 API |
+| LOT-4 | 영업출고 1건(상품·제품 SALES) + 공정품 1건(WIP 최종공정) → DELIVERY Lot 잔량 확인 |
+| LOT-5 | 재고·원장 Lot 탭 ✅ · Lot 마스터 화면 ✅ · 레거시 ETL **N/A(스킵)** ✅ |
 
 ---
 
-## 11. 레거시 ETL (LOT-5)
+## 11. 레거시 ETL (LOT-5) — **N/A (스킵)**
+
+> **결정 (2026-07-12):** 레거시 운영에서 Lot가 **구현·사용되지 않았다.**  
+> 스키마에 `LotLedger`·TX `LotNum` 컬럼은 존재하나 실데이터가 없거나 미사용이므로  
+> **Cut-over ETL·검증 리포트를 수행하지 않는다.**
+
+| 항목 | 조치 |
+|------|------|
+| `LotLedger` → `inventory_lot` | **스킵** |
+| `BD_HT.LotNum` 등 TX 소급 | **스킵** |
+| `stock_movement.lot_id` backfill | **스킵** |
+| `lot_tracked` Cut-over 일괄 ON | **스킵** — 품목 마스터에서 필요 시 개별 설정 (기본 0) |
+
+**운영 방침:** Lot 추적은 SmartManager **신규 TX부터** 적용한다.  
+과거 재고는 슬롯 집계(`inventory_balance`)만 유지하며, Lot 잔량·계보는 이관하지 않는다.
+
+**(참고) 만일 나중에 레거시 Lot 실사용이 확인되면** 아래 매핑을 재개한다.
 
 | 레거시 | TO-BE |
 |--------|-------|
 | `LotLedger` | `inventory_lot` (`origin_type = MANUAL`) |
 | `BD_HT.LotNum` 등 TX | `inventory_lot` + `stock_movement` 소급 (가능한 경우) |
-| `LotLedger.P1`, `P2` | `inventory_lot.p1`, `p2` (번호 규칙 placeholder) |
-
-ETL 시 `lot_tracked` 기본값:
-- 원자재·상품: `1` (정책 확정 후 조정)
-- 공정품·제품: BOM·공정 정책에 따라 개별 매핑
+| `LotLedger.P1`, `P2` | `inventory_lot.p1`, `p2` |
 
 ---
 
@@ -455,16 +593,29 @@ ETL 시 `lot_tracked` 기본값:
 
 ## 14. 체크리스트 (구현 시)
 
-- [ ] Flyway V070–V071 적용
-- [ ] `RecordStockMovementCommand.lotId` + `LotInventoryService`
-- [ ] `item.lot_tracked` API·UI
-- [ ] `/api/v1/inventory/lots` CRUD·조회
-- [ ] `PurchaseReceiptService` Lot 연동
-- [ ] `WorkReport*InventoryService` + genealogy
-- [ ] `SalesShipmentInventoryService` Lot 소비
-- [ ] `domain-event-projector-matrix.md` § Lot 절 추가
-- [ ] `inventory-ledger-spec.md` § `lot_id` 반영
-- [ ] 통합 테스트: 입고 → 투입 → 산출 → 출고 E2E
+- [x] Flyway V077 (`lot_tracked` · `model_type` 필수 · 도면 `model_type` 통일)
+- [x] `item.lot_tracked` API·UI · 일괄등록
+- [x] 품목 `modelType` 필수 (등록·수정·일괄)
+- [x] Flyway V078 (`inventory_lot` · balance · sequence · `inventory:lot:*`)
+- [x] `LotService` · `/api/v1/inventory/lots` CRUD·조회·available
+- [x] Flyway V079 (`stock_movement.lot_id` · `lot_genealogy`)
+- [x] `RecordStockMovementCommand.lotId` + `LotInventoryService`
+- [x] `PurchaseReceiptService` / 품질검사 Lot 연동 (무검사·검사완료)
+- [x] `WorkReport*InventoryService` + genealogy (CONSUME/PRODUCE · 취소 소프트 무효화 · `GET /lots/{id}/genealogy`)
+- [x] SalesShipmentInventoryService Lot 이동 (SALES|WIP → DELIVERY)
+- [x] SalesRevenueInventoryService DELIVERY Lot OUT
+- [x] OutsourcingShipmentInventoryService / OutsourcingReceiptInventoryService Lot 이동·입고 생성
+- [x] MiscStockMovementInventoryService Lot 지정
+- [x] Flyway V081 TX lot_id 컬럼
+- [x] `domain-event-projector-matrix.md` §11 Lot 절 추가
+- [x] `inventory-ledger-spec.md` §3.4 `lot_id` 반영
+- [x] 통합 테스트: 입고 → 투입 → 산출 → 출고 E2E (`LotTraceabilityFlowTest`)
+- [x] 재고·원장 Lot 탭: 잔량 목록 + 슬롯/이력/계보 drill-down · `GET /lots/{id}/movements`
+- [x] Lot 마스터 화면: 목록·수동 등록·상태 변경·잔량0 삭제 (`inventory-lot`)
+- [x] 레거시 `LotLedger`·TX `LotNum` ETL — **N/A(스킵)** (레거시 Lot 미운영, §11)
+- [x] BOM 정전개 Lot 추적 컬럼 표시 (§8.3 1단계)
+- [x] BOM 정전개 행별 Lot 설정 (§8.3 2단계 · `PATCH .../lot-tracked`)
+- [x] BOM 정전개 트리 Lot 일괄 ON (§8.3 3단계 · preview/enable)
 
 ---
 
@@ -481,4 +632,27 @@ D5 초안은 `PurchaseReceiptPosted` 등 **도메인 이벤트 Listener**를 제
 
 ---
 
-*v1.0 · Git commit은 사용자 요청 시*
+## 16. 변경 이력
+
+| 버전 | 일자 | 내용 |
+|------|------|------|
+| 1.0 | 2026-07-10 | LOT 연동 초안 확정 |
+| 1.1 | 2026-07-12 | Flyway **V077–V079**로 재부여(기존 V070–V076과 충돌 해소). 영업출고 Lot를 AS-IS 이중 경로(상품·제품 SALES / 공정품 WIP 최종공정 → DELIVERY)에 맞춤. 출고 시 DEPLETED는 전 슬롯 잔량 0 기준으로 정정 |
+| 1.2 | 2026-07-12 | V077 적용: `item.lot_tracked`·`model_type` 필수·도면 `model_group`→`model_type`. 품목/일괄등록 UI 반영. Lot 테이블은 V078로 순연 |
+| 1.3 | 2026-07-12 | V078 적용: `inventory_lot`·balance·sequence·권한. `LotService`·`/api/v1/inventory/lots` CRUD·available. genealogy·TX 연동은 V079/LOT-2+ |
+| 1.4 | 2026-07-12 | V079·LOT-2: `stock_movement.lot_id`·`lot_genealogy`·`LotInventoryService`. 구매입고/품질검사 Lot 생성·RAW/SALES IN·취소 역분개 |
+| 1.5 | 2026-07-12 | V080·작업일보 투입/산출 Lot UI·WIP 슬롯 정합 |
+| 1.6 | 2026-07-12 | LOT-3 genealogy: 작업실적 CONSUME/PRODUCE 기록·취소 소프트 무효화·`GET /lots/{id}/genealogy` |
+| 1.7 | 2026-07-12 | LOT-4: V081 TX `lot_id`, 영업출고·매출·외주출고/입고·기타입출고 Inventory/API/FE Lot 연동 |
+| 1.8 | 2026-07-12 | 체크리스트 잔여: projector-matrix §11 · inventory-ledger §3.4 · `LotTraceabilityFlowTest` E2E |
+| 1.9 | 2026-07-12 | LOT-5 UI: 재고·원장 Lot 탭 · `GET /lots/{id}/movements` · §8.1 설계 |
+| 2.0 | 2026-07-12 | LOT-5 UI: Lot 마스터 화면 · §8.2 · 메뉴 `inventory-lot` |
+| 2.1 | 2026-07-12 | §11 레거시 Lot ETL **N/A(스킵)** · 체크리스트·LOT-5 완료 기준 반영 |
+| 2.2 | 2026-07-12 | §2.2 Gap 표 → **구현 현황**으로 정정 (LOT-5 완료와 문서 일치) |
+| 2.3 | 2026-07-12 | §8.3 BOM 정전개 `lotTracked` 표시(1단계) · API/UI/엑셀 |
+| 2.4 | 2026-07-12 | §8.3 2단계: 행별 Lot 설정 · `PATCH /items/{id}/lot-tracked` |
+| 2.5 | 2026-07-12 | §8.3 3단계: 트리 Lot 일괄 ON · enable-preview / enable |
+
+---
+
+*v2.5 · Git commit은 사용자 요청 시*

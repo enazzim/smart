@@ -6,7 +6,7 @@ export interface DrawingListItem {
   id: string;
   partNo: string;
   partName: string;
-  modelGroup: string;
+  modelType: string;
   itemId?: number | null;
   itemNo?: string | null;
   majorVersion: number;
@@ -28,7 +28,7 @@ export interface DrawingHistoryItem {
 export interface DrawingRegisterPayload {
   partNo: string;
   partName: string;
-  modelGroup: string;
+  modelType: string;
   itemId?: number | null;
   drawingType: DrawingType;
 }
@@ -41,7 +41,7 @@ export interface DrawingRevisePayload {
 export interface DrawingInfoUpdatePayload {
   partNo: string;
   partName: string;
-  modelGroup: string;
+  modelType: string;
   itemId?: number | null;
 }
 

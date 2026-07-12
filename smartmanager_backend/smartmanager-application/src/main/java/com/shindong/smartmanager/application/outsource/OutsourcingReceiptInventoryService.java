@@ -10,12 +10,12 @@ import com.shindong.smartmanager.application.process.ProcessSequenceNavigator;
 import com.shindong.smartmanager.application.process.WipBalanceProjector;
 import com.shindong.smartmanager.application.system.SystemSettingService;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
-import com.shindong.smartmanager.domain.item.PropertyClassification;
 import com.shindong.smartmanager.domain.process.ProcessVariant;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Year;
 import java.util.List;
+import java.util.Map;
 
 public class OutsourcingReceiptInventoryService {
 
@@ -92,9 +92,12 @@ public class OutsourcingReceiptInventoryService {
             OutsourcingOrderLineView orderLine,
             BigDecimal receiptQty,
             BigDecimal amount,
+            Long inboundLotId,
+            Map<Long, Long> outsourceLotIdByItemId,
             String actorUserId
     ) {
-        apply(receiptDate, receiptId, partnerId, order, orderLine, receiptQty, receiptQty, amount, actorUserId, false);
+        apply(receiptDate, receiptId, partnerId, order, orderLine, receiptQty, receiptQty, amount,
+                inboundLotId, outsourceLotIdByItemId, actorUserId, false);
     }
 
     public void applyRegistration(
@@ -106,9 +109,12 @@ public class OutsourcingReceiptInventoryService {
             BigDecimal outsourceDecreaseQty,
             BigDecimal inboundQty,
             BigDecimal amount,
+            Long inboundLotId,
+            Map<Long, Long> outsourceLotIdByItemId,
             String actorUserId
     ) {
-        apply(receiptDate, receiptId, partnerId, order, orderLine, outsourceDecreaseQty, inboundQty, amount, actorUserId, false);
+        apply(receiptDate, receiptId, partnerId, order, orderLine, outsourceDecreaseQty, inboundQty, amount,
+                inboundLotId, outsourceLotIdByItemId, actorUserId, false);
     }
 
     public void applyCancellation(
@@ -119,9 +125,12 @@ public class OutsourcingReceiptInventoryService {
             OutsourcingOrderLineView orderLine,
             BigDecimal receiptQty,
             BigDecimal amount,
+            Long inboundLotId,
+            Map<Long, Long> outsourceLotIdByItemId,
             String actorUserId
     ) {
-        apply(receiptDate, receiptId, partnerId, order, orderLine, receiptQty, receiptQty, amount, actorUserId, true);
+        apply(receiptDate, receiptId, partnerId, order, orderLine, receiptQty, receiptQty, amount,
+                inboundLotId, outsourceLotIdByItemId, actorUserId, true);
     }
 
     public void applyCancellation(
@@ -133,9 +142,12 @@ public class OutsourcingReceiptInventoryService {
             BigDecimal outsourceDecreaseQty,
             BigDecimal inboundQty,
             BigDecimal amount,
+            Long inboundLotId,
+            Map<Long, Long> outsourceLotIdByItemId,
             String actorUserId
     ) {
-        apply(receiptDate, receiptId, partnerId, order, orderLine, outsourceDecreaseQty, inboundQty, amount, actorUserId, true);
+        apply(receiptDate, receiptId, partnerId, order, orderLine, outsourceDecreaseQty, inboundQty, amount,
+                inboundLotId, outsourceLotIdByItemId, actorUserId, true);
     }
 
     private void apply(
@@ -147,6 +159,8 @@ public class OutsourcingReceiptInventoryService {
             BigDecimal outsourceDecreaseQty,
             BigDecimal inboundQty,
             BigDecimal amount,
+            Long inboundLotId,
+            Map<Long, Long> outsourceLotIdByItemId,
             String actorUserId,
             boolean reverse
     ) {
@@ -158,18 +172,26 @@ public class OutsourcingReceiptInventoryService {
                     order,
                     orderLine,
                     outsourceDecreaseQty,
+                    outsourceLotIdByItemId,
                     actorUserId,
                     reverse
             );
         }
 
         if (inboundQty.compareTo(BigDecimal.ZERO) > 0) {
+            Long resolvedInboundLotId = inboundLotId;
+            if (reverse && resolvedInboundLotId == null) {
+                resolvedInboundLotId = inventoryBalanceService
+                        .findLotIdByReference(REFERENCE_TYPE, receiptId)
+                        .orElse(null);
+            }
             applyInbound(
                     receiptDate,
                     receiptId,
                     orderLine,
                     inboundQty,
                     amount,
+                    resolvedInboundLotId,
                     actorUserId,
                     reverse
             );
@@ -183,6 +205,7 @@ public class OutsourcingReceiptInventoryService {
             OutsourcingOrderView order,
             OutsourcingOrderLineView orderLine,
             BigDecimal outsourceDecreaseQty,
+            Map<Long, Long> outsourceLotIdByItemId,
             String actorUserId,
             boolean reverse
     ) {
@@ -204,6 +227,16 @@ public class OutsourcingReceiptInventoryService {
                     line.inputProcessId(),
                     actorUserId
             );
+            Long lotId = outsourceLotIdByItemId != null
+                    ? outsourceLotIdByItemId.get(line.itemId())
+                    : null;
+            if (lotId == null) {
+                lotId = line.lotId();
+            }
+            if (reverse && lotId == null) {
+                lotId = inventoryBalanceService.findLotIdByReference(REFERENCE_TYPE, receiptId)
+                        .orElse(null);
+            }
             inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
                     line.itemId(),
                     LOCATION_OUTSOURCE,
@@ -216,6 +249,7 @@ public class OutsourcingReceiptInventoryService {
                     null,
                     line.inputProcessId(),
                     partnerId,
+                    lotId,
                     actorUserId
             ));
         }
@@ -227,6 +261,7 @@ public class OutsourcingReceiptInventoryService {
             OutsourcingOrderLineView orderLine,
             BigDecimal inboundQty,
             BigDecimal amount,
+            Long inboundLotId,
             String actorUserId,
             boolean reverse
     ) {
@@ -255,6 +290,7 @@ public class OutsourcingReceiptInventoryService {
                     null,
                     null,
                     null,
+                    inboundLotId,
                     actorUserId
             ));
             return;
@@ -273,6 +309,7 @@ public class OutsourcingReceiptInventoryService {
                 endProcessId,
                 null,
                 null,
+                inboundLotId,
                 actorUserId
         ));
     }

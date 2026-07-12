@@ -5,7 +5,7 @@ import com.shindong.smartmanager.domain.drawing.DrawingType;
 public record DrawingRegisterCommand(
         String partNo,
         String partName,
-        String modelGroup,
+        String modelType,
         Long itemId,
         DrawingType drawingType,
         String filePath,

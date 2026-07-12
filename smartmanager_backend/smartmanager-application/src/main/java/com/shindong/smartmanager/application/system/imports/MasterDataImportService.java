@@ -118,7 +118,7 @@ public class MasterDataImportService {
                             row.itemNo().trim(),
                             row.itemName().trim(),
                             row.propertyClassification(),
-                            blankToNull(row.modelType()),
+                            row.modelType().trim(),
                             row.unit().trim(),
                             blankToNull(row.standard()),
                             row.standardUnitCost(),
@@ -126,7 +126,8 @@ public class MasterDataImportService {
                             row.leadTime(),
                             row.safetyStockQuantity(),
                             row.orderIntervalQuantity(),
-                            row.minOrderQuantity()
+                            row.minOrderQuantity(),
+                            row.lotTracked()
                     ),
                     actorUserId
             );

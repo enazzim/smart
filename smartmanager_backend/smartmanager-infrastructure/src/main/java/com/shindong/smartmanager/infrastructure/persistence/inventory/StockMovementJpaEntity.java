@@ -64,6 +64,9 @@ public class StockMovementJpaEntity {
     @Column(name = "partner_id")
     private Long partnerId;
 
+    @Column(name = "lot_id")
+    private Long lotId;
+
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
 
@@ -193,6 +196,14 @@ public class StockMovementJpaEntity {
 
     public void setPartnerId(Long partnerId) {
         this.partnerId = partnerId;
+    }
+
+    public Long getLotId() {
+        return lotId;
+    }
+
+    public void setLotId(Long lotId) {
+        this.lotId = lotId;
     }
 
     public int getRecordingState() {

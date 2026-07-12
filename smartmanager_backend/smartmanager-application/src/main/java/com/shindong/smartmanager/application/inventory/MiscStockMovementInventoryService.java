@@ -103,6 +103,12 @@ public class MiscStockMovementInventoryService {
             );
         }
 
+        Long lotId = movement.lotId();
+        if (reverse && lotId == null) {
+            lotId = inventoryBalanceService.findLotIdByReference(REFERENCE_TYPE, movement.id())
+                    .orElse(null);
+        }
+
         inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
                 movement.itemId(),
                 movement.locationCode(),
@@ -115,6 +121,7 @@ public class MiscStockMovementInventoryService {
                 movement.outputProcessId(),
                 null,
                 null,
+                lotId,
                 actorUserId
         ));
     }

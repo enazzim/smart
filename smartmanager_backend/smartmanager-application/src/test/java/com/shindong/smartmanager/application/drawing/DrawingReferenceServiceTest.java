@@ -154,7 +154,7 @@ class DrawingReferenceServiceTest {
         }
 
         @Override
-        public String saveMaster(String partNo, String partName, String modelGroup, Long itemId, String actorUserId) {
+        public String saveMaster(String partNo, String partName, String modelType, Long itemId, String actorUserId) {
             throw new UnsupportedOperationException();
         }
 
@@ -182,7 +182,7 @@ class DrawingReferenceServiceTest {
 
         @Override
         public void updateMasterInfo(
-                String id, String partNo, String partName, String modelGroup, Long itemId, String actorUserId
+                String id, String partNo, String partName, String modelType, Long itemId, String actorUserId
         ) {
             throw new UnsupportedOperationException();
         }
@@ -223,7 +223,7 @@ class DrawingReferenceServiceTest {
                     continue;
                 }
                 list.add(new DrawingListView(
-                        m.id(), m.partNo(), m.partName(), m.modelGroup(), m.itemId(), null,
+                        m.id(), m.partNo(), m.partName(), m.modelType(), m.itemId(), null,
                         h.majorVersion(), h.minorVersion(), h.createdAt(), h.drawingType()
                 ));
             }

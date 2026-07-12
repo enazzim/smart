@@ -41,6 +41,9 @@ public class SalesShipmentLineJpaEntity {
     @Column(name = "invoiced_qty", nullable = false, precision = 18, scale = 4)
     private BigDecimal invoicedQty = BigDecimal.ZERO;
 
+    @Column(name = "lot_id")
+    private Long lotId;
+
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
 
@@ -131,6 +134,14 @@ public class SalesShipmentLineJpaEntity {
 
     public void setInvoicedQty(BigDecimal invoicedQty) {
         this.invoicedQty = invoicedQty;
+    }
+
+    public Long getLotId() {
+        return lotId;
+    }
+
+    public void setLotId(Long lotId) {
+        this.lotId = lotId;
     }
 
     public int getRecordingState() {

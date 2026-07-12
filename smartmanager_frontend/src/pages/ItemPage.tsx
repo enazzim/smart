@@ -8,7 +8,7 @@ import type {
 } from '../api/item';
 import { createItem, deleteItem, fetchItems, updateItem } from '../api/item';
 import GridExcelExportButton from '../components/GridExcelExportButton';
-import { formatInteger } from '../utils/numberFormat';
+import { formatAmount, formatInteger } from '../utils/numberFormat';
 
 const PROPERTY_OPTIONS: PropertyClassification[] = ['원자재', '제품', '상품', '공정품'];
 
@@ -21,15 +21,17 @@ const emptyForm: CreateItemRequest = {
   itemNo: '',
   itemName: '',
   propertyClassification: '제품',
+  modelType: '',
   unit: 'EA',
   checkDistinction: 'NONE',
+  lotTracked: false,
 };
 
 function toUpdatePayload(item: Item): UpdateItemRequest {
   return {
     itemName: item.itemName,
     propertyClassification: item.propertyClassification,
-    modelType: item.modelType ?? undefined,
+    modelType: item.modelType,
     unit: item.unit,
     standard: item.standard ?? undefined,
     standardUnitCost: item.standardUnitCost ?? undefined,
@@ -38,6 +40,7 @@ function toUpdatePayload(item: Item): UpdateItemRequest {
     safetyStockQuantity: item.safetyStockQuantity ?? undefined,
     orderIntervalQuantity: item.orderIntervalQuantity ?? undefined,
     minOrderQuantity: item.minOrderQuantity ?? undefined,
+    lotTracked: item.lotTracked,
   };
 }
 
@@ -68,8 +71,13 @@ export default function ItemPage() {
         품목명: item.itemName,
         자산분류: item.propertyClassification,
         기종: item.modelType ?? '',
+        Lot추적: item.lotTracked ? 'Y' : 'N',
         단위: item.unit,
         규격: item.standard ?? '',
+        기준단가: item.standardUnitCost ?? '',
+        검사구분:
+          CHECK_OPTIONS.find((opt) => opt.value === (item.checkDistinction ?? 'NONE'))?.label ??
+          '',
       })),
     [items],
   );
@@ -144,7 +152,7 @@ export default function ItemPage() {
     <div className="page">
       <header className="page-header">
         <h1>품목 (Item)</h1>
-        <p>12필드 CRUD — 등록 시 재고 행 미생성 (Lazy)</p>
+        <p>기종·Lot추적 포함 CRUD — 등록 시 재고 행 미생성 (Lazy)</p>
       </header>
 
       {error && <div className="error">{error}</div>}
@@ -187,10 +195,11 @@ export default function ItemPage() {
             </select>
           </label>
           <label>
-            기종
+            기종 *
             <input
-              value={form.modelType ?? ''}
-              onChange={(e) => setForm({ ...form, modelType: e.target.value || undefined })}
+              required
+              value={form.modelType}
+              onChange={(e) => setForm({ ...form, modelType: e.target.value })}
             />
           </label>
           <label>
@@ -207,6 +216,16 @@ export default function ItemPage() {
               value={form.standard ?? ''}
               onChange={(e) => setForm({ ...form, standard: e.target.value })}
             />
+          </label>
+          <label>
+            Lot 추적
+            <select
+              value={form.lotTracked ? 'Y' : 'N'}
+              onChange={(e) => setForm({ ...form, lotTracked: e.target.value === 'Y' })}
+            >
+              <option value="N">아니오</option>
+              <option value="Y">예</option>
+            </select>
           </label>
           <label>
             기준단가
@@ -328,8 +347,11 @@ export default function ItemPage() {
                 <th>품목명</th>
                 <th>자산분류</th>
                 <th>기종</th>
+                <th>Lot추적</th>
                 <th>단위</th>
                 <th>규격</th>
+                <th className="num">기준단가</th>
+                <th>검사구분</th>
                 <th>작업</th>
               </tr>
             </thead>
@@ -341,8 +363,16 @@ export default function ItemPage() {
                   <td>{item.itemName}</td>
                   <td>{item.propertyClassification}</td>
                   <td>{item.modelType ?? ''}</td>
+                  <td>{item.lotTracked ? 'Y' : 'N'}</td>
                   <td>{item.unit}</td>
                   <td>{item.standard ?? ''}</td>
+                  <td className="num">
+                    {item.standardUnitCost != null ? formatAmount(item.standardUnitCost) : ''}
+                  </td>
+                  <td>
+                    {CHECK_OPTIONS.find((opt) => opt.value === (item.checkDistinction ?? 'NONE'))
+                      ?.label ?? ''}
+                  </td>
                   <td className="actions">
                     <button type="button" className="btn-action" onClick={() => startEdit(item)}>
                       수정

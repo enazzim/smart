@@ -75,6 +75,30 @@ public class ItemCompositionController {
                 .toList();
     }
 
+    @PostMapping("/{itemNum}/lot-tracked/enable-preview")
+    @BasisAuthorize.ItemWrite
+    public List<LotTrackedEnablePreviewResponse> enableLotTrackedPreview(@PathVariable String itemNum) {
+        return itemCompositionApplicationService.previewEnableLotTracked(itemNum).stream()
+                .map(LotTrackedEnablePreviewResponse::from)
+                .toList();
+    }
+
+    @PostMapping("/{itemNum}/lot-tracked/enable")
+    @BasisAuthorize.ItemWrite
+    public LotTrackedEnableResponse enableLotTracked(
+            @PathVariable String itemNum,
+            @Valid @RequestBody LotTrackedEnableRequest request,
+            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+    ) {
+        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        int updated = itemCompositionApplicationService.enableLotTracked(
+                itemNum,
+                request.itemIds(),
+                actor
+        );
+        return new LotTrackedEnableResponse(updated);
+    }
+
     @GetMapping("/by-parent/{parentItemNum}")
     public List<ItemCompositionResponse> listByParent(@PathVariable String parentItemNum) {
         return itemCompositionApplicationService.listByParentItemNo(parentItemNum).stream()

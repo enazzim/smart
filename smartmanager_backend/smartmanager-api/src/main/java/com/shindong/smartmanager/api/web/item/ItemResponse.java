@@ -20,6 +20,7 @@ public record ItemResponse(
         BigDecimal safetyStockQuantity,
         BigDecimal orderIntervalQuantity,
         BigDecimal minOrderQuantity,
+        boolean lotTracked,
         Instant createdAt
 ) {
     public static ItemResponse from(ItemView view) {
@@ -37,6 +38,7 @@ public record ItemResponse(
                 view.safetyStockQuantity(),
                 view.orderIntervalQuantity(),
                 view.minOrderQuantity(),
+                view.lotTracked(),
                 view.createdAt()
         );
     }

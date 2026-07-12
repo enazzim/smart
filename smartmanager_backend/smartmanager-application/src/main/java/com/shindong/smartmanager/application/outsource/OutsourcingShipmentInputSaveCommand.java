@@ -8,6 +8,17 @@ public record OutsourcingShipmentInputSaveCommand(
         BigDecimal issueQty,
         String sourceLocationCode,
         Long sourceProcessId,
-        long inputProcessId
+        long inputProcessId,
+        Long lotId
 ) {
+    public OutsourcingShipmentInputSaveCommand(
+            long itemId,
+            Long itemCompositionId,
+            BigDecimal issueQty,
+            String sourceLocationCode,
+            Long sourceProcessId,
+            long inputProcessId
+    ) {
+        this(itemId, itemCompositionId, issueQty, sourceLocationCode, sourceProcessId, inputProcessId, null);
+    }
 }

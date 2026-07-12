@@ -3,6 +3,7 @@ package com.shindong.smartmanager.application.inventory;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
+import com.shindong.smartmanager.domain.inventory.LotOriginType;
 import com.shindong.smartmanager.domain.inventory.MiscStockMovementDirection;
 import com.shindong.smartmanager.domain.inventory.MiscStockMovementStatus;
 import java.math.BigDecimal;
@@ -17,6 +18,7 @@ public class MiscStockMovementService {
     private final ItemRepository itemRepository;
     private final MiscStockMovementResolver resolver;
     private final MiscStockMovementInventoryService inventoryService;
+    private final LotService lotService;
     private final MonthClosingService monthClosingService;
 
     public MiscStockMovementService(
@@ -24,12 +26,14 @@ public class MiscStockMovementService {
             ItemRepository itemRepository,
             MiscStockMovementResolver resolver,
             MiscStockMovementInventoryService inventoryService,
+            LotService lotService,
             MonthClosingService monthClosingService
     ) {
         this.miscStockMovementRepository = miscStockMovementRepository;
         this.itemRepository = itemRepository;
         this.resolver = resolver;
         this.inventoryService = inventoryService;
+        this.lotService = lotService;
         this.monthClosingService = monthClosingService;
     }
 
@@ -73,7 +77,8 @@ public class MiscStockMovementService {
                 target.outputProcessSequence(),
                 target.outputProcessName(),
                 target.processRequired(),
-                onHand
+                onHand,
+                item.lotTracked()
         );
     }
 
@@ -83,6 +88,7 @@ public class MiscStockMovementService {
         monthClosingService.assertTransactionOpen(command.movementDate());
 
         MiscStockMovementTarget target = resolver.resolve(item, command.processSequenceId());
+        Long lotId = resolveLotId(item, command, actorUserId);
         MiscStockMovementView saved = miscStockMovementRepository.save(
                 new MiscStockMovementSaveCommand(
                         command.movementDate(),
@@ -92,7 +98,8 @@ public class MiscStockMovementService {
                         target.outputProcessId(),
                         normalizeQty(command.qty()),
                         command.reasonCodeId(),
-                        normalizeNote(command.note())
+                        normalizeNote(command.note()),
+                        lotId
                 ),
                 nextMovementNo(command.movementDate()),
                 actorUserId
@@ -119,6 +126,7 @@ public class MiscStockMovementService {
 
         ItemView item = requireItem(command.itemId());
         MiscStockMovementTarget target = resolver.resolve(item, command.processSequenceId());
+        Long lotId = resolveLotId(item, command, actorUserId);
         MiscStockMovementView updated = miscStockMovementRepository.update(
                 id,
                 new MiscStockMovementSaveCommand(
@@ -129,7 +137,8 @@ public class MiscStockMovementService {
                         target.outputProcessId(),
                         normalizeQty(command.qty()),
                         command.reasonCodeId(),
-                        normalizeNote(command.note())
+                        normalizeNote(command.note()),
+                        lotId
                 ),
                 actorUserId
         );
@@ -155,6 +164,49 @@ public class MiscStockMovementService {
             inventoryService.applyCancellation(movement, item.itemNo(), actorUserId);
         }
         miscStockMovementRepository.delete(id);
+    }
+
+    private Long resolveLotId(ItemView item, CreateMiscStockMovementCommand command, String actorUserId) {
+        if (!item.lotTracked()) {
+            if (command.lotId() != null || command.autoGenerateLot()
+                    || (command.lotNo() != null && !command.lotNo().isBlank())) {
+                throw new IllegalArgumentException("Lot 비추적 품목은 Lot를 지정할 수 없습니다: " + item.itemNo());
+            }
+            return null;
+        }
+        if (command.movementDirection() == MiscStockMovementDirection.OUT) {
+            if (command.lotId() == null) {
+                throw new IllegalArgumentException("Lot 추적 품목 출고는 Lot를 선택해야 합니다: " + item.itemNo());
+            }
+            return command.lotId();
+        }
+        // IN: select existing or create
+        if (command.lotId() != null) {
+            return command.lotId();
+        }
+        if (command.autoGenerateLot()) {
+            LotView created = lotService.resolveOrCreate(item.id(), null, true, actorUserId);
+            return lotService.createOnReceipt(
+                    item.id(),
+                    created.lotNo(),
+                    LotOriginType.ADJUSTMENT,
+                    "misc_stock_movement",
+                    null,
+                    actorUserId
+            ).id();
+        }
+        if (command.lotNo() == null || command.lotNo().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Lot 추적 품목 입고는 Lot 선택·번호 또는 자동생성이 필요합니다: " + item.itemNo());
+        }
+        return lotService.createOnReceipt(
+                item.id(),
+                command.lotNo().trim(),
+                LotOriginType.ADJUSTMENT,
+                "misc_stock_movement",
+                null,
+                actorUserId
+        ).id();
     }
 
     private void validateCommand(CreateMiscStockMovementCommand command) {

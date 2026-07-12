@@ -11,6 +11,7 @@ import {
   type MiscStockMovementPreview,
   type MiscStockMovementRow,
 } from '../api/miscStockMovement';
+import { fetchAvailableLots, type LotRow } from '../api/lot';
 import { fetchSmallPublicCodes, type PublicCodeSmall } from '../api/publicCode';
 import { fetchProcessPlans, type ProcessPlan } from '../api/process';
 import { formatQty } from '../utils/numberFormat';
@@ -44,6 +45,10 @@ export default function MiscStockMovementPage() {
   const [qty, setQty] = useState('');
   const [reasonCodeId, setReasonCodeId] = useState<number | ''>('');
   const [note, setNote] = useState('');
+  const [lotId, setLotId] = useState<number | null>(null);
+  const [lotNo, setLotNo] = useState('');
+  const [autoGenerateLot, setAutoGenerateLot] = useState(false);
+  const [availableLots, setAvailableLots] = useState<LotRow[]>([]);
   const [movementDate, setMovementDate] = useState(todayIso());
 
   const [filterItemNo, setFilterItemNo] = useState('');
@@ -96,13 +101,36 @@ export default function MiscStockMovementPage() {
     }
     setLoadingPreview(true);
     try {
-      setPreview(
-        await fetchMiscStockMovementPreview(
-          selectedItem.id,
-          processSequenceId === '' ? null : processSequenceId,
-          movementDate,
-        ),
+      const nextPreview = await fetchMiscStockMovementPreview(
+        selectedItem.id,
+        processSequenceId === '' ? null : processSequenceId,
+        movementDate,
       );
+      setPreview(nextPreview);
+      if (nextPreview.lotTracked) {
+        try {
+          const lots = await fetchAvailableLots(
+            selectedItem.id,
+            nextPreview.locationCode,
+            nextPreview.outputProcessId,
+          );
+          setAvailableLots(lots);
+          setLotId((prev) =>
+            prev != null && lots.some((lot) => lot.id === prev)
+              ? prev
+              : lots.length === 1
+                ? lots[0].id
+                : null,
+          );
+        } catch {
+          setAvailableLots([]);
+        }
+      } else {
+        setAvailableLots([]);
+        setLotId(null);
+        setLotNo('');
+        setAutoGenerateLot(false);
+      }
     } catch (e) {
       setPreview(null);
       setError(e instanceof Error ? e.message : '현재고 조회 실패');
@@ -156,6 +184,10 @@ export default function MiscStockMovementPage() {
     setQty('');
     setReasonCodeId('');
     setNote('');
+    setLotId(null);
+    setLotNo('');
+    setAutoGenerateLot(false);
+    setAvailableLots([]);
     setMovementDate(todayIso());
   };
 
@@ -183,7 +215,25 @@ export default function MiscStockMovementPage() {
       qty: parsedQty,
       reasonCodeId: reasonCodeId === '' ? null : reasonCodeId,
       note: note.trim() || undefined,
+      lotId: preview?.lotTracked && movementDirection === 'OUT' ? lotId : movementDirection === 'IN' && lotId != null ? lotId : null,
+      lotNo: preview?.lotTracked && movementDirection === 'IN' && !autoGenerateLot && lotId == null ? lotNo.trim() || undefined : undefined,
+      autoGenerateLot: preview?.lotTracked && movementDirection === 'IN' ? autoGenerateLot : false,
     };
+
+    if (preview?.lotTracked && movementDirection === 'OUT' && lotId == null) {
+      setError('Lot 추적 품목 출고는 Lot를 선택해야 합니다.');
+      return;
+    }
+    if (
+      preview?.lotTracked &&
+      movementDirection === 'IN' &&
+      !autoGenerateLot &&
+      lotId == null &&
+      !lotNo.trim()
+    ) {
+      setError('Lot 추적 품목 입고는 Lot 선택·번호 또는 자동생성이 필요합니다.');
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -321,7 +371,75 @@ export default function MiscStockMovementPage() {
               창고: {preview?.locationLabel ?? (loadingPreview ? '확인 중…' : '—')}
               {' · '}
               현재고: {preview ? formatQty(preview.onHandQty) : loadingPreview ? '확인 중…' : '—'}
+              {preview?.lotTracked ? ' · Lot 추적' : ''}
             </p>
+          )}
+
+          {preview?.lotTracked && (
+            <div className="search-row misc-movement-row">
+              {movementDirection === 'OUT' ? (
+                <label>
+                  Lot
+                  <select
+                    value={lotId ?? ''}
+                    onChange={(e) => setLotId(e.target.value ? Number(e.target.value) : null)}
+                    disabled={submitting}
+                  >
+                    <option value="">선택</option>
+                    {availableLots.map((lot) => (
+                      <option key={lot.id} value={lot.id}>
+                        {lot.lotNo}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={autoGenerateLot}
+                      onChange={(e) => {
+                        setAutoGenerateLot(e.target.checked);
+                        if (e.target.checked) {
+                          setLotNo('');
+                          setLotId(null);
+                        }
+                      }}
+                      disabled={submitting}
+                    />
+                    Lot 자동생성
+                  </label>
+                  <label>
+                    Lot 선택
+                    <select
+                      value={lotId ?? ''}
+                      disabled={submitting || autoGenerateLot}
+                      onChange={(e) => {
+                        setLotId(e.target.value ? Number(e.target.value) : null);
+                        if (e.target.value) setLotNo('');
+                      }}
+                    >
+                      <option value="">신규 번호 입력</option>
+                      {availableLots.map((lot) => (
+                        <option key={lot.id} value={lot.id}>
+                          {lot.lotNo}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Lot 번호
+                    <input
+                      value={lotNo}
+                      disabled={submitting || autoGenerateLot || lotId != null}
+                      onChange={(e) => setLotNo(e.target.value)}
+                      placeholder="수동 입력"
+                    />
+                  </label>
+                </>
+              )}
+            </div>
           )}
 
           {processRequired && (

@@ -6,6 +6,8 @@ import com.shindong.smartmanager.application.common.AppErrorCode;
 import com.shindong.smartmanager.application.closing.FiscalCalendarService;
 import com.shindong.smartmanager.application.closing.FiscalPeriod;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
+import com.shindong.smartmanager.application.inventory.LotGenealogyParentQty;
+import com.shindong.smartmanager.application.inventory.LotService;
 import com.shindong.smartmanager.application.system.SystemSettingService;
 import com.shindong.smartmanager.domain.process.WorkDistinction;
 import com.shindong.smartmanager.domain.production.WorkReportHistorySourceType;
@@ -31,6 +33,7 @@ public class WorkReportService {
     private final MaterialIssueRepository materialIssueRepository;
     private final ItemCompositionRepository itemCompositionRepository;
     private final SystemSettingService systemSettingService;
+    private final LotService lotService;
 
     public WorkReportService(
             WorkReportRepository workReportRepository,
@@ -44,7 +47,8 @@ public class WorkReportService {
             BomConsumptionCalculator bomConsumptionCalculator,
             MaterialIssueRepository materialIssueRepository,
             ItemCompositionRepository itemCompositionRepository,
-            SystemSettingService systemSettingService
+            SystemSettingService systemSettingService,
+            LotService lotService
     ) {
         this.workReportRepository = workReportRepository;
         this.workOrderRepository = workOrderRepository;
@@ -58,6 +62,7 @@ public class WorkReportService {
         this.materialIssueRepository = materialIssueRepository;
         this.itemCompositionRepository = itemCompositionRepository;
         this.systemSettingService = systemSettingService;
+        this.lotService = lotService;
     }
 
     public List<WorkOrderView> listReportTargets() {
@@ -140,6 +145,8 @@ public class WorkReportService {
                             line.itemNo(),
                             line.itemName(),
                             line.propertyClassification(),
+                            line.lotTracked(),
+                            line.locationCode(),
                             line.unitRatio(),
                             line.requiredQty(),
                             BigDecimal.ZERO,
@@ -175,13 +182,17 @@ public class WorkReportService {
 
         boolean materialIssueEnabled = systemSettingService.isMaterialIssueEnabled();
         List<WorkReportConsumptionSaveCommand> consumptionCommands = List.of();
+        Long preferredWipLotId = null;
+        List<LotGenealogyParentQty> genealogyParents = new ArrayList<>();
         if (materialIssueEnabled) {
             assertMaterialIssueSatisfied(context, command.goodQty());
         } else {
+            SplitIssueLines split = splitIssueLines(context.itemId(), command.issueLines());
+            preferredWipLotId = split.preferredWipLotId();
             consumptionCommands = resolveConsumptionCommands(
                     context,
                     command.goodQty(),
-                    command.issueLines(),
+                    split.materialLines(),
                     actorUserId
             );
             if (!consumptionCommands.isEmpty()) {
@@ -218,15 +229,23 @@ public class WorkReportService {
                     consumptionRecords,
                     actorUserId
             );
+            genealogyParents.addAll(toGenealogyParents(consumptionRecords));
         }
 
-        workReportInventoryService.applyRegistration(
+        Long outputLotId = workReportInventoryService.applyRegistration(
                 context,
                 command.goodQty(),
                 scrapQty,
                 saved.id(),
+                preferredWipLotId,
+                null,
+                true,
                 actorUserId
         );
+        if (outputLotId != null) {
+            workReportRepository.updateOutputLotId(saved.id(), outputLotId, actorUserId);
+            lotService.recordWorkReportGenealogy(saved.id(), outputLotId, genealogyParents, actorUserId);
+        }
 
         FiscalPeriod period = fiscalCalendarService.resolvePeriod(command.reportDate());
         workReportRepository.saveHistory(
@@ -273,11 +292,15 @@ public class WorkReportService {
             workReportRepository.deactivateConsumptionLinesByReportId(report.id(), actorUserId);
         }
 
+        lotService.deactivateWorkReportGenealogy(report.id());
+
+        Long outputLotId = workReportRepository.findOutputLotId(report.id()).orElse(null);
         workReportInventoryService.applyCancellation(
                 context,
                 report.goodQty(),
                 report.scrapQty(),
                 report.id(),
+                outputLotId,
                 actorUserId
         );
 
@@ -315,6 +338,10 @@ public class WorkReportService {
             if (line.issueQty() == null || line.issueQty().compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
+            // 모품목 직전공정 투입은 WorkReportInventoryService가 현재 공정 WIP에서 처리한다.
+            if (line.itemCompositionId() == null && line.itemId() == context.itemId()) {
+                continue;
+            }
             result.add(workReportConsumptionInventoryService.resolveSaveCommand(
                     line,
                     context.itemId(),
@@ -323,6 +350,40 @@ public class WorkReportService {
             ));
         }
         return result;
+    }
+
+    /**
+     * 비첫 공정 모품목 라인의 lotId는 WIP 이동용으로 분리하고, BOM 자재만 백플러시 소비한다.
+     */
+    private SplitIssueLines splitIssueLines(long parentItemId, List<WorkReportIssueLineCommand> issueLines) {
+        if (issueLines == null || issueLines.isEmpty()) {
+            return new SplitIssueLines(null, List.of());
+        }
+        Long preferredWipLotId = null;
+        List<WorkReportIssueLineCommand> materialLines = new ArrayList<>();
+        for (WorkReportIssueLineCommand line : issueLines) {
+            if (line.itemCompositionId() == null && line.itemId() == parentItemId) {
+                preferredWipLotId = line.lotId();
+            } else {
+                materialLines.add(line);
+            }
+        }
+        return new SplitIssueLines(preferredWipLotId, materialLines);
+    }
+
+    private record SplitIssueLines(Long preferredWipLotId, List<WorkReportIssueLineCommand> materialLines) {
+    }
+
+    private static List<LotGenealogyParentQty> toGenealogyParents(List<WorkReportConsumptionRecordView> records) {
+        List<LotGenealogyParentQty> parents = new ArrayList<>();
+        for (WorkReportConsumptionRecordView record : records) {
+            if (record.lotId() == null || record.issueQty() == null
+                    || record.issueQty().compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            parents.add(new LotGenealogyParentQty(record.lotId(), record.issueQty()));
+        }
+        return parents;
     }
 
     private void assertMaterialIssueSatisfied(WorkReportRegistrationContext context, BigDecimal pendingGoodQty) {

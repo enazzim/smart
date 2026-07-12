@@ -38,6 +38,9 @@ public class SalesRevenueLineJpaEntity {
     @Column(name = "amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
 
+    @Column(name = "lot_id")
+    private Long lotId;
+
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
 
@@ -120,6 +123,14 @@ public class SalesRevenueLineJpaEntity {
 
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
+    }
+
+    public Long getLotId() {
+        return lotId;
+    }
+
+    public void setLotId(Long lotId) {
+        this.lotId = lotId;
     }
 
     public int getRecordingState() {

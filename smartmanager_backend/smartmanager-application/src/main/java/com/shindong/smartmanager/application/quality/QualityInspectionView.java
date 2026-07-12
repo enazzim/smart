@@ -23,6 +23,7 @@ public record QualityInspectionView(
         String orderNo,
         LocalDate receiptDate,
         Instant createdAt,
-        Instant completedAt
+        Instant completedAt,
+        boolean lotTracked
 ) {
 }

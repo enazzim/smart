@@ -21,6 +21,8 @@ public record SalesRevenueCandidateView(
         BigDecimal deliveryOnHandQty,
         BigDecimal unitPrice,
         boolean billable,
-        String billableMessage
+        String billableMessage,
+        boolean lotTracked,
+        Long shipmentLotId
 ) {
 }

@@ -7,6 +7,7 @@ public record WorkReportConsumptionSaveCommand(
         Long itemCompositionId,
         BigDecimal issueQty,
         String locationCode,
-        Long sourceProcessId
+        Long sourceProcessId,
+        Long lotId
 ) {
 }

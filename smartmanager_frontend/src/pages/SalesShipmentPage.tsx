@@ -9,6 +9,7 @@ import {
   type SalesShipmentCandidateParams,
   type SalesShipmentListParams,
 } from '../api/salesShipment';
+import { fetchAvailableLots, type LotRow } from '../api/lot';
 import {
   INVENTORY_LOCATION_LABEL,
   translateInventoryLocationInText,
@@ -43,6 +44,18 @@ function formatShipmentStock(row: SalesShipmentCandidate): string {
   return formatQty(row.salesOnHandQty);
 }
 
+function lotQtyOnHand(lot: LotRow, locationCode: string, processId?: number | null): number {
+  return lot.balances
+    .filter(
+      (b) =>
+        b.locationCode === locationCode &&
+        (processId == null
+          ? b.outputProcessId == null
+          : b.outputProcessId === processId),
+    )
+    .reduce((sum, b) => sum + Number(b.qtyOnHand || 0), 0);
+}
+
 export default function SalesShipmentPage() {
   const [candidates, setCandidates] = useState<SalesShipmentCandidate[]>([]);
   const [shipments, setShipments] = useState<SalesShipment[]>([]);
@@ -58,6 +71,8 @@ export default function SalesShipmentPage() {
   }));
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
   const [shipmentQtyByLineId, setShipmentQtyByLineId] = useState<Record<number, string>>({});
+  const [lotIdByLineId, setLotIdByLineId] = useState<Record<number, number | null>>({});
+  const [lotsByLineId, setLotsByLineId] = useState<Record<number, LotRow[]>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [loadingShipments, setLoadingShipments] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -141,6 +156,34 @@ export default function SalesShipmentPage() {
       else next.delete(orderLineId);
       return next;
     });
+    if (checked) {
+      const row = candidates.find((candidate) => candidate.orderLineId === orderLineId);
+      if (row?.lotTracked) {
+        void loadLotsForCandidate(row);
+      }
+    }
+  };
+
+  const loadLotsForCandidate = async (row: SalesShipmentCandidate) => {
+    try {
+      const lots = await fetchAvailableLots(
+        row.itemId,
+        row.lotLocationCode || 'SALES',
+        row.finalProcessId,
+      );
+      setLotsByLineId((prev) => ({ ...prev, [row.orderLineId]: lots }));
+      setLotIdByLineId((prev) => ({
+        ...prev,
+        [row.orderLineId]:
+          prev[row.orderLineId] != null && lots.some((lot) => lot.id === prev[row.orderLineId])
+            ? prev[row.orderLineId]
+            : lots.length === 1
+              ? lots[0].id
+              : null,
+      }));
+    } catch {
+      setLotsByLineId((prev) => ({ ...prev, [row.orderLineId]: [] }));
+    }
   };
 
   const onCreateShipments = async () => {
@@ -148,11 +191,29 @@ export default function SalesShipmentPage() {
       .map((orderLineId) => {
         const row = candidates.find((candidate) => candidate.orderLineId === orderLineId);
         const qty = parseQty(shipmentQtyByLineId[orderLineId] ?? (row ? String(row.remainingQty) : ''));
-        return qty != null ? { salesOrderLineId: orderLineId, shipmentQty: qty } : null;
+        if (qty == null || !row) return null;
+        if (row.lotTracked && lotIdByLineId[orderLineId] == null) {
+          return { error: `Lot 추적 품목은 Lot를 선택해야 합니다: ${row.itemNo}` };
+        }
+        return {
+          salesOrderLineId: orderLineId,
+          shipmentQty: qty,
+          lotId: row.lotTracked ? lotIdByLineId[orderLineId] ?? null : null,
+        };
       })
-      .filter((line): line is { salesOrderLineId: number; shipmentQty: number } => line != null);
+      .filter((line): line is NonNullable<typeof line> => line != null);
 
-    if (lines.length === 0) {
+    const lotError = lines.find((line) => 'error' in line);
+    if (lotError && 'error' in lotError) {
+      setShipmentError(String(lotError.error));
+      return;
+    }
+    const payloadLines = lines.filter(
+      (line): line is { salesOrderLineId: number; shipmentQty: number; lotId: number | null } =>
+        !('error' in line),
+    );
+
+    if (payloadLines.length === 0) {
       setShipmentError('출고할 수주 라인과 수량을 선택하세요.');
       return;
     }
@@ -161,11 +222,12 @@ export default function SalesShipmentPage() {
     setShipmentError(null);
     setMessage(null);
     try {
-      const created = await createSalesShipment({ shipmentDate, lines });
+      const created = await createSalesShipment({ shipmentDate, lines: payloadLines });
       setMessage(
         `출고·납품 ${created.shipmentNo}을(를) 등록했습니다. (${INVENTORY_LOCATION_LABEL.SALES} → ${INVENTORY_LOCATION_LABEL.DELIVERY})`,
       );
       setSelectedLineIds(new Set());
+      setLotIdByLineId({});
       await loadCandidates();
       await loadShipments();
     } catch (e) {
@@ -315,6 +377,7 @@ export default function SalesShipmentPage() {
                     <th className="num">잔량</th>
                     <th className="num">출고가용재고</th>
                     <th>출고수량 입력</th>
+                    <th>Lot</th>
                     <th>비고</th>
                   </tr>
                 </thead>
@@ -334,12 +397,43 @@ export default function SalesShipmentPage() {
                       <td>{row.partnerName}</td>
                       <td>
                         {row.itemNo} {row.itemName}
+                        {row.lotTracked ? ' · Lot' : ''}
                       </td>
                       <td className="num">{formatQty(row.orderQty)}</td>
                       <td className="num">{formatQty(row.shippedQty)}</td>
                       <td className="num">{formatQty(row.remainingQty)}</td>
                       <td className="num">{formatShipmentStock(row)}</td>
                       <td>{renderShipmentQtyInput(row)}</td>
+                      <td>
+                        {row.lotTracked ? (
+                          <select
+                            value={lotIdByLineId[row.orderLineId] ?? ''}
+                            disabled={submitting || !selectedLineIds.has(row.orderLineId)}
+                            onChange={(e) =>
+                              setLotIdByLineId((prev) => ({
+                                ...prev,
+                                [row.orderLineId]: e.target.value ? Number(e.target.value) : null,
+                              }))
+                            }
+                            onFocus={() => {
+                              if (!lotsByLineId[row.orderLineId]) void loadLotsForCandidate(row);
+                            }}
+                          >
+                            <option value="">선택</option>
+                            {(lotsByLineId[row.orderLineId] ?? []).map((lot) => (
+                              <option key={lot.id} value={lot.id}>
+                                {lot.lotNo} (
+                                {formatQty(
+                                  lotQtyOnHand(lot, row.lotLocationCode || 'SALES', row.finalProcessId),
+                                )}
+                                )
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td>{shippableLabel(row)}</td>
                     </tr>
                   ))}

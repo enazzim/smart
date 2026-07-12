@@ -16,8 +16,41 @@ public record RecordStockMovementCommand(
         Long outputProcessId,
         Long inputProcessId,
         Long partnerId,
+        Long lotId,
         String actorUserId
 ) {
+    /** Lot 미지정 (비추적 품목·기존 호출 호환) */
+    public RecordStockMovementCommand(
+            long itemId,
+            String locationCode,
+            LocalDate movementDate,
+            StockMovementType movementType,
+            BigDecimal qty,
+            BigDecimal amount,
+            String referenceType,
+            long referenceId,
+            Long outputProcessId,
+            Long inputProcessId,
+            Long partnerId,
+            String actorUserId
+    ) {
+        this(
+                itemId,
+                locationCode,
+                movementDate,
+                movementType,
+                qty,
+                amount,
+                referenceType,
+                referenceId,
+                outputProcessId,
+                inputProcessId,
+                partnerId,
+                null,
+                actorUserId
+        );
+    }
+
     public RecordStockMovementCommand {
         if (qty == null || qty.compareTo(BigDecimal.ZERO) == 0) {
             throw new IllegalArgumentException("수량은 0이 아니어야 합니다.");

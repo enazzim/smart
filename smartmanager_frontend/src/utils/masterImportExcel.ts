@@ -50,11 +50,12 @@ export const IMPORT_DOMAINS: ImportDomainConfig[] = [
     order: 2,
     headers: [
       '품목번호', '품목명', '자산분류', '기종', '단위', '규격', '표준원가', '검사구분',
-      '리드타임', '안전재고', '발주간격', '최소발주량',
+      '리드타임', '안전재고', '발주간격', '최소발주량', 'Lot추적',
     ],
     sampleRow: {
-      품목번호: 'ITEM-001', 품목명: '샘플품목', 자산분류: '제품', 기종: '', 단위: 'EA', 규격: '',
+      품목번호: 'ITEM-001', 품목명: '샘플품목', 자산분류: '제품', 기종: '로더', 단위: 'EA', 규격: '',
       표준원가: 1000, 검사구분: 'NONE', 리드타임: 0, 안전재고: '', 발주간격: '', 최소발주량: '',
+      Lot추적: 'N',
     },
     fileName: '품목일괄등록양식.xlsx',
     sheetName: '품목',
@@ -127,6 +128,14 @@ export const IMPORT_DOMAINS: ImportDomainConfig[] = [
   },
 ];
 
+function parseLotTrackedFlag(value: unknown): boolean {
+  const raw = cellString(value).trim().toLowerCase();
+  if (!raw) {
+    return false;
+  }
+  return raw === 'y' || raw === 'yes' || raw === 'true' || raw === '1' || raw === '예';
+}
+
 function cellString(value: unknown): string {
   if (value == null) return '';
   return String(value).trim();
@@ -185,7 +194,7 @@ function mapRow(domain: ImportDomain, row: Record<string, unknown>): Record<stri
         itemNo: cellString(row['품목번호']),
         itemName: cellString(row['품목명']),
         propertyClassification: cellString(row['자산분류']),
-        modelType: cellString(row['기종']) || null,
+        modelType: cellString(row['기종']),
         unit: cellString(row['단위']),
         standard: cellString(row['규격']) || null,
         standardUnitCost: cellNumber(row['표준원가']) ?? null,
@@ -194,6 +203,7 @@ function mapRow(domain: ImportDomain, row: Record<string, unknown>): Record<stri
         safetyStockQuantity: cellNumber(row['안전재고']) ?? null,
         orderIntervalQuantity: cellNumber(row['발주간격']) ?? null,
         minOrderQuantity: cellNumber(row['최소발주량']) ?? null,
+        lotTracked: parseLotTrackedFlag(row['Lot추적']),
       };
     case 'item-composition':
       return {
@@ -272,7 +282,7 @@ function getRequiredFields(domain: ImportDomain): string[] {
     case 'company':
       return ['companyName', 'presidentName', 'businessRegNo', 'businessAddress', 'roles'];
     case 'item':
-      return ['itemNo', 'itemName', 'propertyClassification', 'unit'];
+      return ['itemNo', 'itemName', 'propertyClassification', 'modelType', 'unit'];
     case 'item-composition':
       return ['parentItemNum', 'childItemNum', 'parentQuantity', 'childQuantity'];
     case 'work-center':

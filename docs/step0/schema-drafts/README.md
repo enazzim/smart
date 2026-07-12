@@ -4,16 +4,17 @@
 
 | 파일 | 목적 | 적용 시점 (합의) |
 |------|------|------------------|
-| `V007__lot_traceability.sql` | Lot 추적 + `stock_movement` 스케치 | Lot 연동 설계 확정 후 · **실번호 V076+로 재부여** (V028 ALTER만) |
-| `V076__drawing_reference.sql` | 도면 history 간 참조(pin) | [`drawing-reference-design.md`](../drawing-reference-design.md) DR-1 · 빈 번호 확인 후 migration 복사 |
+| `V007__lot_traceability.sql` | Lot 추적 + `stock_movement` 스케치 | [`lot-integration-design.md`](../lot-integration-design.md) §9 — **실번호 V078~** (Lot 테이블) |
+| `V076__drawing_reference.sql` | 도면 history 간 참조(pin) | [`drawing-reference-design.md`](../drawing-reference-design.md) · **적용됨** |
+| `V077__item_lot_tracked_and_model_type.sql` | 품목 `lot_tracked` · `model_type` 필수 · 도면 `model_type` 통일 | **적용됨** (`db/migration/V077__…`) |
+| `V078__inventory_lot.sql` | Lot 마스터·잔량·채번·권한 | **적용됨** (`db/migration/V078__…`) |
+| `V079__stock_movement_lot_and_genealogy.sql` | `stock_movement.lot_id` · `lot_genealogy` | **적용됨** (`db/migration/V079__…`) |
 
-적용 절차:
+### Lot 실적용 번호 (2026-07-12 기준)
 
-1. 해당 step0 설계서 검토·확정
-2. 파일명의 `V00x`가 저장소 최신 Flyway와 충돌하지 않는지 확인 (필요 시 번호만 변경)
-3. `smartmanager-infrastructure/src/main/resources/db/migration/` 로 복사
-4. 로컬 Flyway 적용 후 API Wave 착수
-
-설계 SSOT:
-- Lot: [`../lot-integration-design.md`](../lot-integration-design.md) · [`../d5-lot-traceability.md`](../d5-lot-traceability.md)
-- 도면 참조: [`../drawing-reference-design.md`](../drawing-reference-design.md)
+| 초안 / 내용 | 실적용 |
+|-------------|--------|
+| 품목 lot_tracked · model_type 필수 · 도면 model_type | **V077** ✅ |
+| `inventory_lot` 등 Lot 마스터·잔량·채번 (+ `inventory:lot:*` 권한) | **V078** ✅ |
+| `stock_movement.lot_id` · `lot_genealogy` | **V079** ✅ |
+| 추가 인덱스 (선택) | **V080** |

@@ -48,6 +48,9 @@ public class WorkReportJpaEntity {
     @Column(name = "worker_name", length = 100)
     private String workerName;
 
+    @Column(name = "output_lot_id")
+    private Long outputLotId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private WorkReportStatus status = WorkReportStatus.REGISTERED;
@@ -153,6 +156,14 @@ public class WorkReportJpaEntity {
 
     public void setWorkerName(String workerName) {
         this.workerName = workerName;
+    }
+
+    public Long getOutputLotId() {
+        return outputLotId;
+    }
+
+    public void setOutputLotId(Long outputLotId) {
+        this.outputLotId = outputLotId;
     }
 
     public WorkReportStatus getStatus() {

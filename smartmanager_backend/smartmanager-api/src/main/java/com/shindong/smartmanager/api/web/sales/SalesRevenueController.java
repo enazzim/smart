@@ -82,7 +82,8 @@ public class SalesRevenueController {
                         request.lines().stream()
                                 .map(line -> new CreateSalesRevenueLineCommand(
                                         line.salesShipmentLineId(),
-                                        line.revenueQty()
+                                        line.revenueQty(),
+                                        line.lotId()
                                 ))
                                 .toList()
                 ),
@@ -106,7 +107,8 @@ public class SalesRevenueController {
 
     public record CreateSalesRevenueLineRequest(
             @NotNull Long salesShipmentLineId,
-            @NotNull BigDecimal revenueQty
+            @NotNull BigDecimal revenueQty,
+            Long lotId
     ) {
     }
 }

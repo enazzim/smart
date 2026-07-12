@@ -54,6 +54,8 @@ export default function QualityInspectionPage() {
   const [selected, setSelected] = useState<QualityInspection | null>(null);
   const [passedQty, setPassedQty] = useState('');
   const [failedQty, setFailedQty] = useState('');
+  const [lotNo, setLotNo] = useState('');
+  const [autoGenerateLot, setAutoGenerateLot] = useState(false);
   const [completedDate, setCompletedDate] = useState(todayIso());
   const { fiscalCutoverSetting } = useMaterialIssueSetting();
   const fiscalPeriod = useFiscalPeriod(completedDate, fiscalCutoverSetting);
@@ -134,6 +136,8 @@ export default function QualityInspectionPage() {
     setSelected(null);
     setPassedQty('');
     setFailedQty('');
+    setLotNo('');
+    setAutoGenerateLot(false);
   };
 
   const onComplete = async () => {
@@ -148,6 +152,16 @@ export default function QualityInspectionPage() {
       setError(`합격+불량은 의뢰수량(${formatQty(selected.requestQty)})과 같아야 합니다.`);
       return;
     }
+    if (
+      selected.sourceType === 'PURCHASE' &&
+      selected.lotTracked &&
+      passed > 0 &&
+      !autoGenerateLot &&
+      !lotNo.trim()
+    ) {
+      setError('Lot 추적 품목은 Lot 번호를 입력하거나 자동생성을 선택해 주세요.');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     setSuccess(null);
@@ -158,6 +172,8 @@ export default function QualityInspectionPage() {
         completedDate,
         fiscalYear: fiscalPeriod.period.fiscalYear,
         fiscalMonth: fiscalPeriod.period.fiscalMonth,
+        lotNo: lotNo.trim() || undefined,
+        autoGenerateLot,
       });
       setSuccess('검사 완료 처리되었습니다. 합격 수량이 창고에 반영되었습니다.');
       closeModal();
@@ -458,6 +474,27 @@ export default function QualityInspectionPage() {
               불량 수량
               <input type="number" min={0} step="any" value={failedQty} onChange={(e) => setFailedQty(e.target.value)} />
             </label>
+            {selected.sourceType === 'PURCHASE' && selected.lotTracked && (
+              <>
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={autoGenerateLot}
+                    onChange={(e) => setAutoGenerateLot(e.target.checked)}
+                  />
+                  Lot 자동생성
+                </label>
+                <label>
+                  Lot 번호
+                  <input
+                    value={lotNo}
+                    disabled={autoGenerateLot}
+                    onChange={(e) => setLotNo(e.target.value)}
+                    placeholder="수동 입력 시"
+                  />
+                </label>
+              </>
+            )}
             <label>
               검사완료일
               <input type="date" value={completedDate} onChange={(e) => setCompletedDate(e.target.value)} />

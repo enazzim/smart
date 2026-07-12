@@ -391,4 +391,47 @@ SmartManager에서는 **관계형 FK는 부모 테이블 PK(대리키)만** 사�
 
 ---
 
+## 11. Lot 추적 (LOT Wave) — Projector vs TX
+
+> SSOT: [`lot-integration-design.md`](./lot-integration-design.md)  
+> Flyway: V077(`item.lot_tracked`) · V078(Lot 마스터) · V079(`stock_movement.lot_id`·`lot_genealogy`) · V080(작업일보) · V081(출고·매출·외주·기타입출고)
+
+### 11.1 원칙
+
+| 계층 | 담당 | Lot |
+|------|------|-----|
+| **Projector** (`WipBalanceProjector`, `OutsourceInputBalanceProjector`, …) | 기준정보 이벤트 → **슬롯** `inventory_balance` ensure | **Lot를 만들지 않음** |
+| **TX `*InventoryService`** | 구매·실적·출고 등 → `InventoryBalanceService.recordMovement` | `lot_tracked`면 `lotId` 필수 · `LotInventoryService`가 `inventory_lot_balance` 동기 갱신 |
+
+D5 초안의 `InventoryOn*Listener`는 **채택하지 않는다**. Lot는 기존 TX와 **동일 `@Transactional`** 에서 검증·반영한다.
+
+### 11.2 TX → Lot 동작 맵
+
+| Trigger (화면/서비스) | 슬롯 이동 | Lot |
+|----------------------|-----------|-----|
+| 구매입고·품질검사 합격 | RAW/SALES IN | `createOnReceipt` + `lot_id` |
+| 작업일보 투입 | RAW/WIP OUT | 투입 `lotId` · genealogy **CONSUME** |
+| 작업일보 산출 | WIP/SALES IN | `createOnProduction` · genealogy **PRODUCE** |
+| 영업출고 | SALES\|WIP → DELIVERY | **동일 `lot_id` 슬롯 이동** |
+| 매출인식 | DELIVERY OUT | Lot 잔량↓ · 전 슬롯 0이면 `DEPLETED` |
+| 외주출고 | source → OUTSOURCE | 동일 `lot_id` 이동 |
+| 외주입고 | OUTSOURCE OUT · WIP\|SALES IN | 소비 Lot + 산출 Lot(생성/지정) |
+| 기타입출고 | 해당 location IN/OUT | 수동 `lotId` / 입고 시 생성 |
+
+취소: 역분개 `*_CANCEL` + **동일 `lot_id`**. genealogy는 `recording_state=0` 소프트 무효화 (작업실적).
+
+### 11.3 조회
+
+| API | 용도 |
+|-----|------|
+| `GET /api/v1/inventory/lots/available` | 출고·투입 후보 (`qty_on_hand > 0`, ACTIVE) |
+| `GET /api/v1/inventory/lots/{id}/genealogy?direction=UP\|DOWN` | 계보 |
+
+### 11.4 §2 Projector 표와의 관계
+
+§2의 `ItemRegistered` / `ProcessRegistered` 등 **기준정보 Projector는 변경 없음**.  
+Lot 마스터·잔량·계보는 **TX 전용**이며 `domain_event` 리플레이 대상에 포함하려면 Wave 2 이후 별도 이벤트 타입을 정의한다.
+
+---
+
 *작성 기준: KIT_ERP `MasterInfoRecordRUD.cs`, `Register.cs` (외주출고·외주납품)*

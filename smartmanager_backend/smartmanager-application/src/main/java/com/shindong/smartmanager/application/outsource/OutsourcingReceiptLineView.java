@@ -14,6 +14,7 @@ public record OutsourcingReceiptLineView(
         BigDecimal unitPrice,
         BigDecimal amount,
         Long qualityInspectionId,
-        boolean stockPosted
+        boolean stockPosted,
+        Long lotId
 ) {
 }

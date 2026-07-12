@@ -26,6 +26,7 @@ public record MiscStockMovementView(
         String reasonLabel,
         String note,
         MiscStockMovementStatus status,
-        Instant createdAt
+        Instant createdAt,
+        Long lotId
 ) {
 }

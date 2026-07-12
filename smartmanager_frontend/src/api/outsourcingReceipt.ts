@@ -23,6 +23,7 @@ export interface OutsourcingReceiptCandidate {
   remainQty: number;
   unitPrice: number;
   requestedDeliveryDate?: string | null;
+  lotTracked: boolean;
 }
 
 export interface OutsourcingReceiptCandidateParams {
@@ -47,6 +48,7 @@ export interface OutsourcingReceiptLine {
   amount: number;
   qualityInspectionId?: number | null;
   stockPosted: boolean;
+  lotId?: number | null;
 }
 
 export interface OutsourcingReceipt {
@@ -113,7 +115,14 @@ export async function createOutsourcingReceipt(payload: {
   receiptDate: string;
   fiscalYear?: number;
   fiscalMonth?: number;
-  lines: Array<{ outsourcingOrderLineId: number; receiptQty: number }>;
+  lines: Array<{
+    outsourcingOrderLineId: number;
+    receiptQty: number;
+    lotNo?: string;
+    autoGenerateLot?: boolean;
+    lotId?: number | null;
+    inputLots?: Array<{ itemId: number; lotId?: number | null }>;
+  }>;
 }): Promise<OutsourcingReceipt> {
   return handleResponse(
     await apiFetch('/api/v1/outsource/receipts', {

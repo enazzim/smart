@@ -203,6 +203,7 @@ export default function OutsourcingReceiptPage() {
         lines: linesToSubmit.map(({ row, qty }) => ({
           outsourcingOrderLineId: row.outsourcingOrderLineId,
           receiptQty: qty,
+          autoGenerateLot: row.lotTracked && row.checkDistinction === 'NONE' ? true : undefined,
         })),
       });
       const partnerCount = new Set(linesToSubmit.map(({ row }) => row.partnerId)).size;

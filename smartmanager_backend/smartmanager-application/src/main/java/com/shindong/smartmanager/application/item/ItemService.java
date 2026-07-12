@@ -17,7 +17,13 @@ public class ItemService {
     }
 
     public ItemView register(ItemCommand command, String actorUserId) {
-        validateCommand(command.itemNo(), command.itemName(), command.propertyClassification(), command.unit());
+        validateCommand(
+                command.itemNo(),
+                command.itemName(),
+                command.propertyClassification(),
+                command.modelType(),
+                command.unit()
+        );
         if (itemRepository.existsActiveByItemNo(command.itemNo())) {
             throw new IllegalArgumentException("이미 등록된 품목번호입니다: " + command.itemNo());
         }
@@ -38,7 +44,7 @@ public class ItemService {
 
     public ItemView update(long id, ItemUpdateCommand command, String actorUserId) {
         ItemView existing = getActive(id);
-        validateUpdate(command.itemName(), command.propertyClassification(), command.unit());
+        validateUpdate(command.itemName(), command.propertyClassification(), command.modelType(), command.unit());
 
         itemRepository.update(id, command, actorUserId);
 
@@ -51,6 +57,20 @@ public class ItemService {
                 buildPayload(id, existing.itemNo(), command.itemName(), command.propertyClassification().name())
         ));
 
+        return getActive(id);
+    }
+
+    public ItemView updateLotTracked(long id, boolean lotTracked, String actorUserId) {
+        ItemView existing = getActive(id);
+        itemRepository.updateLotTracked(id, lotTracked, actorUserId);
+        domainEventStore.append(DomainEvent.create(
+                EventTypes.ITEM_UPDATED,
+                1,
+                AggregateTypes.ITEM,
+                String.valueOf(id),
+                actorUserId,
+                buildPayload(id, existing.itemNo(), existing.itemName(), existing.propertyClassification().name())
+        ));
         return getActive(id);
     }
 
@@ -88,17 +108,19 @@ public class ItemService {
             String itemNo,
             String itemName,
             com.shindong.smartmanager.domain.item.PropertyClassification propertyClassification,
+            String modelType,
             String unit
     ) {
         if (itemNo == null || itemNo.isBlank()) {
             throw new IllegalArgumentException("품목번호는 필수입니다.");
         }
-        validateUpdate(itemName, propertyClassification, unit);
+        validateUpdate(itemName, propertyClassification, modelType, unit);
     }
 
     private void validateUpdate(
             String itemName,
             com.shindong.smartmanager.domain.item.PropertyClassification propertyClassification,
+            String modelType,
             String unit
     ) {
         if (itemName == null || itemName.isBlank()) {
@@ -106,6 +128,9 @@ public class ItemService {
         }
         if (propertyClassification == null) {
             throw new IllegalArgumentException("자산분류는 필수입니다.");
+        }
+        if (modelType == null || modelType.isBlank()) {
+            throw new IllegalArgumentException("기종은 필수입니다.");
         }
         if (unit == null || unit.isBlank()) {
             throw new IllegalArgumentException("단위는 필수입니다.");

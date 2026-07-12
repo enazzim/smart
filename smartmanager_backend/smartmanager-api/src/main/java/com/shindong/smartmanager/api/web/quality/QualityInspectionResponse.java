@@ -24,7 +24,8 @@ public record QualityInspectionResponse(
         String orderNo,
         LocalDate receiptDate,
         Instant createdAt,
-        Instant completedAt
+        Instant completedAt,
+        boolean lotTracked
 ) {
     public static QualityInspectionResponse from(QualityInspectionView view) {
         return new QualityInspectionResponse(
@@ -44,7 +45,8 @@ public record QualityInspectionResponse(
                 view.orderNo(),
                 view.receiptDate(),
                 view.createdAt(),
-                view.completedAt()
+                view.completedAt(),
+                view.lotTracked()
         );
     }
 }

@@ -9,6 +9,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -72,7 +73,8 @@ public class ItemController {
                 request.leadTime(),
                 request.safetyStockQuantity(),
                 request.orderIntervalQuantity(),
-                request.minOrderQuantity()
+                request.minOrderQuantity(),
+                request.lotTrackedOrDefault()
         );
         return ItemResponse.from(itemApplicationService.register(command, actor));
     }
@@ -96,9 +98,25 @@ public class ItemController {
                 request.leadTime(),
                 request.safetyStockQuantity(),
                 request.orderIntervalQuantity(),
-                request.minOrderQuantity()
+                request.minOrderQuantity(),
+                request.lotTrackedOrDefault()
         );
         return ItemResponse.from(itemApplicationService.update(id, command, actor));
+    }
+
+    @PatchMapping("/{id}/lot-tracked")
+    @BasisAuthorize.ItemWrite
+    public ItemResponse updateLotTracked(
+            @PathVariable long id,
+            @Valid @RequestBody UpdateLotTrackedRequest request,
+            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+    ) {
+        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        return ItemResponse.from(itemApplicationService.updateLotTracked(
+                id,
+                Boolean.TRUE.equals(request.lotTracked()),
+                actor
+        ));
     }
 
     @DeleteMapping("/{id}")

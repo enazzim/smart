@@ -4,12 +4,16 @@ import com.shindong.smartmanager.application.closing.FiscalCalendarService;
 import com.shindong.smartmanager.application.closing.FiscalPeriod;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.event.DomainEventStore;
-import com.shindong.smartmanager.application.outsource.OutsourceHistoryRecord;
+import com.shindong.smartmanager.application.inventory.LotService;
+import com.shindong.smartmanager.application.inventory.LotView;
+import com.shindong.smartmanager.application.item.ItemRepository;
+import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.ledger.PartnerLedgerService;
 import com.shindong.smartmanager.application.quality.QualityInspectionRepository;
 import com.shindong.smartmanager.domain.event.AggregateTypes;
 import com.shindong.smartmanager.domain.event.DomainEvent;
 import com.shindong.smartmanager.domain.event.EventTypes;
+import com.shindong.smartmanager.domain.inventory.LotOriginType;
 import com.shindong.smartmanager.domain.item.CheckDistinction;
 import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
 import com.shindong.smartmanager.domain.outsource.OutsourceHistorySourceType;
@@ -22,6 +26,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,6 +40,8 @@ public class OutsourcingReceiptService {
     private final OutsourceHistoryRepository outsourceHistoryRepository;
     private final QualityInspectionRepository qualityInspectionRepository;
     private final OutsourcingReceiptInventoryService inventoryService;
+    private final ItemRepository itemRepository;
+    private final LotService lotService;
     private final PartnerLedgerService partnerLedgerService;
     private final MonthClosingService monthClosingService;
     private final FiscalCalendarService fiscalCalendarService;
@@ -46,6 +53,8 @@ public class OutsourcingReceiptService {
             OutsourceHistoryRepository outsourceHistoryRepository,
             QualityInspectionRepository qualityInspectionRepository,
             OutsourcingReceiptInventoryService inventoryService,
+            ItemRepository itemRepository,
+            LotService lotService,
             PartnerLedgerService partnerLedgerService,
             MonthClosingService monthClosingService,
             FiscalCalendarService fiscalCalendarService,
@@ -56,6 +65,8 @@ public class OutsourcingReceiptService {
         this.outsourceHistoryRepository = outsourceHistoryRepository;
         this.qualityInspectionRepository = qualityInspectionRepository;
         this.inventoryService = inventoryService;
+        this.itemRepository = itemRepository;
+        this.lotService = lotService;
         this.partnerLedgerService = partnerLedgerService;
         this.monthClosingService = monthClosingService;
         this.fiscalCalendarService = fiscalCalendarService;
@@ -260,7 +271,58 @@ public class OutsourcingReceiptService {
             FiscalPeriod fiscalPeriodOverride,
             String actorUserId
     ) {
+        applyStockAndLedger(
+                receiptLine,
+                ctx,
+                order,
+                orderLine,
+                partnerId,
+                movementDate,
+                outsourceDecreaseQty,
+                inboundQty,
+                historySourceType,
+                historySourceId,
+                fiscalPeriodOverride,
+                null,
+                false,
+                Map.of(),
+                actorUserId
+        );
+    }
+
+    public void applyStockAndLedger(
+            OutsourcingReceiptLineView receiptLine,
+            OutsourcingOrderLineReceiptContext ctx,
+            OutsourcingOrderView order,
+            OutsourcingOrderLineView orderLine,
+            long partnerId,
+            LocalDate movementDate,
+            BigDecimal outsourceDecreaseQty,
+            BigDecimal inboundQty,
+            OutsourceHistorySourceType historySourceType,
+            long historySourceId,
+            FiscalPeriod fiscalPeriodOverride,
+            String lotNo,
+            boolean autoGenerateLot,
+            Map<Long, Long> outsourceLotIdByItemId,
+            String actorUserId
+    ) {
         BigDecimal amount = lineAmount(inboundQty, ctx.unitPrice());
+        Long inboundLotId = receiptLine.lotId();
+        if (inboundLotId == null && inboundQty.compareTo(BigDecimal.ZERO) > 0) {
+            inboundLotId = resolveInboundLotId(
+                    ctx.itemId(),
+                    lotNo,
+                    autoGenerateLot,
+                    historySourceType,
+                    historySourceId,
+                    actorUserId
+            );
+            if (inboundLotId != null) {
+                receiptRepository.updateReceiptLineLotId(receiptLine.id(), inboundLotId, actorUserId);
+            }
+        }
+        Map<Long, Long> inputLots = outsourceLotIdByItemId != null ? outsourceLotIdByItemId : Map.of();
 
         inventoryService.applyRegistration(
                 movementDate,
@@ -271,6 +333,8 @@ public class OutsourcingReceiptService {
                 outsourceDecreaseQty,
                 inboundQty,
                 amount,
+                inboundLotId,
+                inputLots,
                 actorUserId
         );
 
@@ -294,6 +358,50 @@ public class OutsourcingReceiptService {
         ));
 
         // 지급 확정은 승인처리 화면에서 반영 (partner_ledger 미갱신)
+    }
+
+    private Long resolveInboundLotId(
+            long itemId,
+            String lotNo,
+            boolean autoGenerateLot,
+            OutsourceHistorySourceType historySourceType,
+            long originDocId,
+            String actorUserId
+    ) {
+        ItemView item = itemRepository.findActiveById(itemId)
+                .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + itemId));
+        if (!item.lotTracked()) {
+            if (autoGenerateLot || (lotNo != null && !lotNo.isBlank())) {
+                throw new IllegalArgumentException("Lot 비추적 품목은 Lot를 지정할 수 없습니다: " + item.itemNo());
+            }
+            return null;
+        }
+        String originDocType = historySourceType == OutsourceHistorySourceType.OUTSOURCING_RECEIPT
+                ? "outsourcing_receipt"
+                : "quality_inspection";
+        if (autoGenerateLot) {
+            LotView created = lotService.resolveOrCreate(itemId, null, true, actorUserId);
+            return lotService.createOnReceipt(
+                    itemId,
+                    created.lotNo(),
+                    LotOriginType.PRODUCTION,
+                    originDocType,
+                    originDocId,
+                    actorUserId
+            ).id();
+        }
+        if (lotNo == null || lotNo.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Lot 추적 품목은 Lot 번호 또는 자동생성이 필요합니다: " + item.itemNo());
+        }
+        return lotService.createOnReceipt(
+                itemId,
+                lotNo.trim(),
+                LotOriginType.PRODUCTION,
+                originDocType,
+                originDocId,
+                actorUserId
+        ).id();
     }
 
     public void reverseStockAndLedger(
@@ -347,6 +455,8 @@ public class OutsourcingReceiptService {
                 outsourceDecreaseQty,
                 inboundQty,
                 amount,
+                receiptLine.lotId(),
+                Map.of(),
                 actorUserId
         );
 
@@ -389,7 +499,8 @@ public class OutsourcingReceiptService {
                     line.receiptQty(),
                     BigDecimal.ZERO,
                     ctx.unitPrice(),
-                    amount
+                    amount,
+                    line.lotId()
             ));
         }
 
@@ -440,9 +551,12 @@ public class OutsourcingReceiptService {
                         receiptLine.unitPrice(),
                         receiptLine.amount(),
                         inspectionId,
-                        false
+                        false,
+                        receiptLine.lotId()
                 ));
             } else {
+                CreateOutsourcingReceiptLineCommand createLine = lines.get(i);
+                Map<Long, Long> inputLots = toInputLotMap(createLine.inputLots());
                 inventoryService.assertSufficientOutsourceStock(
                         receiptDate, partnerId, order, orderLine, receiptLine.receiptQty());
                 applyStockAndLedger(
@@ -453,9 +567,13 @@ public class OutsourcingReceiptService {
                         partnerId,
                         receiptDate,
                         receiptLine.receiptQty(),
+                        receiptLine.receiptQty(),
                         OutsourceHistorySourceType.OUTSOURCING_RECEIPT,
                         receiptLine.id(),
                         fiscalPeriod,
+                        createLine.lotNo(),
+                        createLine.autoGenerateLot(),
+                        inputLots,
                         actorUserId
                 );
                 receiptRepository.addReceivedQty(ctx.outsourcingOrderLineId(), receiptLine.receiptQty(), actorUserId);
@@ -472,7 +590,8 @@ public class OutsourcingReceiptService {
                         receiptLine.unitPrice(),
                         receiptLine.amount(),
                         null,
-                        true
+                        true,
+                        receiptLine.lotId()
                 ));
             }
         }
@@ -511,6 +630,19 @@ public class OutsourcingReceiptService {
                             + ", 잔량=" + ctx.remainQty().stripTrailingZeros().toPlainString()
             );
         }
+    }
+
+    private static Map<Long, Long> toInputLotMap(List<OutsourcingReceiptInputLotCommand> inputLots) {
+        Map<Long, Long> map = new HashMap<>();
+        if (inputLots == null) {
+            return map;
+        }
+        for (OutsourcingReceiptInputLotCommand lot : inputLots) {
+            if (lot != null && lot.lotId() != null) {
+                map.put(lot.itemId(), lot.lotId());
+            }
+        }
+        return map;
     }
 
     static CheckDistinction resolveCheckDistinction(String value) {

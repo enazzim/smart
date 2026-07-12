@@ -19,6 +19,7 @@ public record ItemView(
         BigDecimal safetyStockQuantity,
         BigDecimal orderIntervalQuantity,
         BigDecimal minOrderQuantity,
+        boolean lotTracked,
         Instant createdAt
 ) {
 }

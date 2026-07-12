@@ -73,7 +73,7 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
                        ool.item_id, i.item_no, i.item_name, ps.id, pc.small_name,
                        i.check_distinction,
                        ool.order_qty, ool.shipped_qty, ool.received_qty, ool.waiting_inspection_qty,
-                       ool.unit_price, ool.requested_delivery_date
+                       ool.unit_price, ool.requested_delivery_date, i.lot_tracked
                 FROM outsourcing_order_line ool
                 JOIN outsourcing_order oo ON oo.id = ool.outsourcing_order_id
                 JOIN company c ON c.id = oo.partner_id
@@ -144,7 +144,8 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
                     waitingQty,
                     remainQty,
                     toBigDecimal(row[16]),
-                    row[17] != null ? ((Date) row[17]).toLocalDate() : null
+                    row[17] != null ? ((Date) row[17]).toLocalDate() : null,
+                    toBooleanFlag(row[18])
             ));
         }
         return result;
@@ -184,6 +185,7 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
             entity.setPostedQty(line.postedQty());
             entity.setUnitPrice(line.unitPrice());
             entity.setAmount(line.amount());
+            entity.setLotId(line.lotId());
             entity.setRecordingState(ACTIVE);
             entity.setCreatedBy(actorUserId);
             entity.setCreatedById(actorUserId);
@@ -346,6 +348,18 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
 
     @Override
     @Transactional
+    public void updateReceiptLineLotId(long receiptLineId, Long lotId, String actorUserId) {
+        OutsourcingReceiptLineJpaEntity line = receiptLineRepository.findByIdAndRecordingState(receiptLineId, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("입고 라인을 찾을 수 없습니다: " + receiptLineId));
+        line.setLotId(lotId);
+        line.setUpdatedBy(actorUserId);
+        line.setUpdatedById(actorUserId);
+        line.setUpdatedAt(Instant.now());
+        receiptLineRepository.save(line);
+    }
+
+    @Override
+    @Transactional
     public void updateReceiptStatus(long receiptId, String actorUserId) {
         OutsourcingReceiptJpaEntity receipt = receiptRepository.findById(receiptId)
                 .orElseThrow(() -> new IllegalArgumentException("외주입고를 찾을 수 없습니다: " + receiptId));
@@ -400,7 +414,8 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
                     lineEntity.getUnitPrice(),
                     lineEntity.getAmount(),
                     null,
-                    lineEntity.getPostedQty().compareTo(BigDecimal.ZERO) > 0
+                    lineEntity.getPostedQty().compareTo(BigDecimal.ZERO) > 0,
+                    lineEntity.getLotId()
             ));
         }
         return new OutsourcingReceiptView(
@@ -423,6 +438,20 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
                 && criteria.receiptDateTo() == null
                 && (criteria.itemNo() == null || criteria.itemNo().isBlank())
                 && (criteria.itemName() == null || criteria.itemName().isBlank());
+    }
+
+    private static boolean toBooleanFlag(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        String text = value.toString().trim();
+        return "1".equals(text) || "true".equalsIgnoreCase(text) || "Y".equalsIgnoreCase(text);
     }
 
     private static BigDecimal toBigDecimal(Object value) {

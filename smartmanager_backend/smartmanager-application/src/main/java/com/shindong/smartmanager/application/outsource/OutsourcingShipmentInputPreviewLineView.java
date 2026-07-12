@@ -15,6 +15,7 @@ public record OutsourcingShipmentInputPreviewLineView(
         long inputProcessId,
         Short processSequenceNum,
         String inputProcessName,
-        BigDecimal onHandQty
+        BigDecimal onHandQty,
+        boolean lotTracked
 ) {
 }

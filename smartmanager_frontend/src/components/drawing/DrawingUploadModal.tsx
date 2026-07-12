@@ -26,7 +26,7 @@ export default function DrawingUploadModal({
   const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
   const [partNo, setPartNo] = useState('');
   const [partName, setPartName] = useState('');
-  const [modelGroup, setModelGroup] = useState('');
+  const [modelType, setModelType] = useState('');
   const [drawingType, setDrawingType] = useState<'DEV' | 'PROD'>('DEV');
   const [isUploading, setIsUploading] = useState(false);
   const [partNoError, setPartNoError] = useState<string | null>(null);
@@ -52,13 +52,13 @@ export default function DrawingUploadModal({
     if (match) {
       setPartNo(match[1]);
       setPartName(match[2]);
-      setModelGroup(match[3]);
+      setModelType(match[3]);
       setDrawingType(match[4].toUpperCase() as 'DEV' | 'PROD');
       setPartNoError(null);
     } else {
       setPartNo('');
       setPartName('');
-      setModelGroup('');
+      setModelType('');
     }
   };
 
@@ -111,6 +111,9 @@ export default function DrawingUploadModal({
     if (item) {
       setPartNo(item.itemNo);
       setPartName(item.itemName);
+      if (item.modelType) {
+        setModelType(item.modelType);
+      }
       setPartNoError(null);
     }
   };
@@ -133,7 +136,7 @@ export default function DrawingUploadModal({
         {
           partNo,
           partName,
-          modelGroup,
+          modelType,
           itemId: selectedItem?.id ?? null,
           drawingType,
         },
@@ -158,7 +161,7 @@ export default function DrawingUploadModal({
     setSelectedItem(null);
     setPartNo('');
     setPartName('');
-    setModelGroup('');
+    setModelType('');
     setPartNoError(null);
     setFileError(null);
     onClose();
@@ -243,7 +246,7 @@ export default function DrawingUploadModal({
           </label>
           <label>
             기종 *
-            <input value={modelGroup} onChange={(e) => setModelGroup(e.target.value)} />
+            <input value={modelType} onChange={(e) => setModelType(e.target.value)} />
           </label>
           <label>
             구분 *

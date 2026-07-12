@@ -19,7 +19,7 @@ public record ItemImportBulkRequest(@Valid @NotEmpty List<ItemImportRowRequest> 
             @NotBlank String itemNo,
             @NotBlank String itemName,
             @NotNull PropertyClassification propertyClassification,
-            String modelType,
+            @NotBlank(message = "기종은 필수입니다.") String modelType,
             @NotBlank String unit,
             String standard,
             BigDecimal standardUnitCost,
@@ -27,7 +27,8 @@ public record ItemImportBulkRequest(@Valid @NotEmpty List<ItemImportRowRequest> 
             Integer leadTime,
             BigDecimal safetyStockQuantity,
             BigDecimal orderIntervalQuantity,
-            BigDecimal minOrderQuantity
+            BigDecimal minOrderQuantity,
+            Boolean lotTracked
     ) {
         ItemImportRow toRow() {
             return new ItemImportRow(
@@ -42,7 +43,8 @@ public record ItemImportBulkRequest(@Valid @NotEmpty List<ItemImportRowRequest> 
                     leadTime,
                     safetyStockQuantity,
                     orderIntervalQuantity,
-                    minOrderQuantity
+                    minOrderQuantity,
+                    lotTracked != null && lotTracked
             );
         }
     }

@@ -58,7 +58,8 @@ record SalesShipmentLineResponse(
         String itemName,
         BigDecimal shipmentQty,
         BigDecimal unitPrice,
-        BigDecimal amount
+        BigDecimal amount,
+        Long lotId
 ) {
     static SalesShipmentLineResponse from(SalesShipmentLineView view) {
         return new SalesShipmentLineResponse(
@@ -72,7 +73,8 @@ record SalesShipmentLineResponse(
                 view.itemName(),
                 view.shipmentQty(),
                 view.unitPrice(),
-                view.amount()
+                view.amount(),
+                view.lotId()
         );
     }
 }

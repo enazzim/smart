@@ -89,6 +89,18 @@ public class ItemCompositionApplicationService {
         return itemCompositionService.reverse(childItemNum);
     }
 
+    @Transactional(readOnly = true)
+    public List<com.shindong.smartmanager.application.bom.LotTrackedEnablePreviewItem> previewEnableLotTracked(
+            String itemNum
+    ) {
+        return itemCompositionService.previewEnableLotTracked(itemNum);
+    }
+
+    @Transactional
+    public int enableLotTracked(String itemNum, List<Long> itemIds, String actorUserId) {
+        return itemCompositionService.enableLotTracked(itemNum, itemIds, actorUserId);
+    }
+
     @Transactional
     public int copyBom(String sourceItemNum, String targetItemNum, String actorUserId) {
         return itemCompositionService.copyBom(sourceItemNum, targetItemNum, actorUserId);

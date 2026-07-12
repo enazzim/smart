@@ -8,7 +8,7 @@ public record DrawingHistoryDetailView(
         String masterId,
         String partNo,
         String partName,
-        String modelGroup,
+        String modelType,
         DrawingType drawingType,
         int majorVersion,
         int minorVersion,

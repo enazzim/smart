@@ -98,7 +98,8 @@ public class WorkReportController {
                                         .map(line -> new WorkReportIssueLineCommand(
                                                 line.itemCompositionId(),
                                                 line.itemId(),
-                                                line.issueQty()
+                                                line.issueQty(),
+                                                line.lotId()
                                         ))
                                         .toList()
                                 : List.of()
@@ -118,7 +119,8 @@ public class WorkReportController {
     public record WorkReportIssueLineRequest(
             Long itemCompositionId,
             @NotNull Long itemId,
-            @NotNull @PositiveOrZero BigDecimal issueQty
+            @NotNull @PositiveOrZero BigDecimal issueQty,
+            Long lotId
     ) {
     }
 

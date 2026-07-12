@@ -44,13 +44,13 @@ public class JpaDrawingRepository implements DrawingRepository {
 
     @Override
     @Transactional
-    public String saveMaster(String partNo, String partName, String modelGroup, Long itemId, String actorUserId) {
+    public String saveMaster(String partNo, String partName, String modelType, Long itemId, String actorUserId) {
         Instant now = Instant.now();
         DrawingMasterJpaEntity entity = new DrawingMasterJpaEntity();
         entity.setId(UUID.randomUUID().toString());
         entity.setPartNo(partNo);
         entity.setPartName(partName);
-        entity.setModelGroup(modelGroup);
+        entity.setModelType(modelType);
         entity.setItem(resolveItemReference(itemId));
         entity.setRecordingState(ACTIVE);
         entity.setCreatedBy(actorUserId);
@@ -110,7 +110,7 @@ public class JpaDrawingRepository implements DrawingRepository {
             String id,
             String partNo,
             String partName,
-            String modelGroup,
+            String modelType,
             Long itemId,
             String actorUserId
     ) {
@@ -119,7 +119,7 @@ public class JpaDrawingRepository implements DrawingRepository {
         Instant now = Instant.now();
         entity.setPartNo(partNo);
         entity.setPartName(partName);
-        entity.setModelGroup(modelGroup);
+        entity.setModelType(modelType);
         entity.setItem(resolveItemReference(itemId));
         entity.setUpdatedBy(actorUserId);
         entity.setUpdatedById(actorUserId);
@@ -232,7 +232,7 @@ public class JpaDrawingRepository implements DrawingRepository {
                 entity.getId(),
                 entity.getPartNo(),
                 entity.getPartName(),
-                entity.getModelGroup(),
+                entity.getModelType(),
                 item != null ? item.getId() : null,
                 entity.getRecordingState()
         );
@@ -245,7 +245,7 @@ public class JpaDrawingRepository implements DrawingRepository {
                 master.getId(),
                 master.getPartNo(),
                 master.getPartName(),
-                master.getModelGroup(),
+                master.getModelType(),
                 item != null ? item.getId() : null,
                 item != null ? item.getItemNo() : null,
                 history.getMajorVersion(),
@@ -281,7 +281,7 @@ public class JpaDrawingRepository implements DrawingRepository {
                 master.getId(),
                 master.getPartNo(),
                 master.getPartName(),
-                master.getModelGroup(),
+                master.getModelType(),
                 history.getDrawingType(),
                 history.getMajorVersion(),
                 history.getMinorVersion(),

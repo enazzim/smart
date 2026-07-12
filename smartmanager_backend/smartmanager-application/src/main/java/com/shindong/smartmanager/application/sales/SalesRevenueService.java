@@ -4,6 +4,8 @@ import com.shindong.smartmanager.application.closing.FiscalCalendarService;
 import com.shindong.smartmanager.application.closing.FiscalPeriod;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.event.DomainEventStore;
+import com.shindong.smartmanager.application.item.ItemRepository;
+import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.ledger.PartnerLedgerService;
 import com.shindong.smartmanager.domain.event.AggregateTypes;
 import com.shindong.smartmanager.domain.event.DomainEvent;
@@ -14,7 +16,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,6 +27,7 @@ public class SalesRevenueService {
     private final SalesRevenueRepository salesRevenueRepository;
     private final SalesHistoryRepository salesHistoryRepository;
     private final SalesRevenueInventoryService inventoryService;
+    private final ItemRepository itemRepository;
     private final PartnerLedgerService partnerLedgerService;
     private final FiscalCalendarService fiscalCalendarService;
     private final MonthClosingService monthClosingService;
@@ -35,6 +37,7 @@ public class SalesRevenueService {
             SalesRevenueRepository salesRevenueRepository,
             SalesHistoryRepository salesHistoryRepository,
             SalesRevenueInventoryService inventoryService,
+            ItemRepository itemRepository,
             PartnerLedgerService partnerLedgerService,
             FiscalCalendarService fiscalCalendarService,
             MonthClosingService monthClosingService,
@@ -43,6 +46,7 @@ public class SalesRevenueService {
         this.salesRevenueRepository = salesRevenueRepository;
         this.salesHistoryRepository = salesHistoryRepository;
         this.inventoryService = inventoryService;
+        this.itemRepository = itemRepository;
         this.partnerLedgerService = partnerLedgerService;
         this.fiscalCalendarService = fiscalCalendarService;
         this.monthClosingService = monthClosingService;
@@ -107,12 +111,14 @@ public class SalesRevenueService {
             SalesShipmentLineRevenueContext context = contextByLineId.get(lineCommand.salesShipmentLineId());
             shipmentIds.add(context.shipmentId());
             BigDecimal amount = lineAmount(lineCommand.revenueQty(), context.unitPrice());
+            Long lotId = resolveLotId(context.itemId(), lineCommand.lotId());
             lineSaves.add(new SalesRevenueLineSaveCommand(
                     lineCommand.salesShipmentLineId(),
                     lineCommand.revenueQty(),
                     context.itemId(),
                     context.unitPrice(),
-                    amount
+                    amount,
+                    lotId
             ));
             inventoryService.assertSufficientDeliveryStock(
                     revenueDate,
@@ -139,6 +145,7 @@ public class SalesRevenueService {
                     context.itemNo(),
                     line.revenueQty(),
                     line.amount(),
+                    line.lotId(),
                     actorUserId
             );
             salesRevenueRepository.addInvoicedQty(line.salesShipmentLineId(), line.revenueQty(), actorUserId);
@@ -180,6 +187,7 @@ public class SalesRevenueService {
                     context.itemId(),
                     line.revenueQty(),
                     line.amount(),
+                    line.lotId(),
                     actorUserId
             );
             salesRevenueRepository.subtractInvoicedQty(line.salesShipmentLineId(), line.revenueQty(), actorUserId);
@@ -198,6 +206,22 @@ public class SalesRevenueService {
                             + ", 잔량=" + context.remainingQty().stripTrailingZeros().toPlainString()
             );
         }
+        resolveLotId(context.itemId(), line.lotId());
+    }
+
+    private Long resolveLotId(long itemId, Long lotId) {
+        ItemView item = itemRepository.findActiveById(itemId)
+                .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + itemId));
+        if (item.lotTracked()) {
+            if (lotId == null) {
+                throw new IllegalArgumentException("Lot 추적 품목은 Lot를 선택해야 합니다: " + item.itemNo());
+            }
+            return lotId;
+        }
+        if (lotId != null) {
+            throw new IllegalArgumentException("Lot 비추적 품목은 Lot를 지정할 수 없습니다: " + item.itemNo());
+        }
+        return null;
     }
 
     static BigDecimal lineAmount(BigDecimal qty, BigDecimal unitPrice) {

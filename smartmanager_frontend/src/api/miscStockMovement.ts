@@ -16,6 +16,7 @@ export interface MiscStockMovementPreview {
   outputProcessName?: string | null;
   processRequired: boolean;
   onHandQty: number;
+  lotTracked: boolean;
 }
 
 export interface MiscStockMovementRow {
@@ -40,6 +41,7 @@ export interface MiscStockMovementRow {
   status: MiscStockMovementStatus;
   statusLabel: string;
   createdAt: string;
+  lotId?: number | null;
 }
 
 export interface MiscStockMovementListParams {
@@ -88,6 +90,9 @@ export async function createMiscStockMovement(payload: {
   qty: number;
   reasonCodeId?: number | null;
   note?: string;
+  lotId?: number | null;
+  lotNo?: string;
+  autoGenerateLot?: boolean;
 }): Promise<MiscStockMovementRow> {
   return handleResponse(
     await apiFetch('/api/v1/inventory/misc-movements', {
@@ -108,6 +113,9 @@ export async function updateMiscStockMovement(
     qty: number;
     reasonCodeId?: number | null;
     note?: string;
+    lotId?: number | null;
+    lotNo?: string;
+    autoGenerateLot?: boolean;
   },
 ): Promise<MiscStockMovementRow> {
   return handleResponse(

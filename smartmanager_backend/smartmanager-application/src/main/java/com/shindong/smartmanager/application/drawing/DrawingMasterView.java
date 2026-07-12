@@ -4,7 +4,7 @@ public record DrawingMasterView(
         String id,
         String partNo,
         String partName,
-        String modelGroup,
+        String modelType,
         Long itemId,
         int recordingState
 ) {

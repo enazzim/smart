@@ -125,7 +125,13 @@ public class OutsourcingShipmentController {
                         request.lines().stream()
                                 .map(line -> new CreateOutsourcingShipmentLineCommand(
                                         line.orderLineId(),
-                                        line.shipmentQty()
+                                        line.shipmentQty(),
+                                        line.inputLots() == null ? java.util.List.of() : line.inputLots().stream()
+                                                .map(lot -> new com.shindong.smartmanager.application.outsource.OutsourcingShipmentInputLotCommand(
+                                                        lot.itemId(),
+                                                        lot.lotId()
+                                                ))
+                                                .toList()
                                 ))
                                 .toList()
                 ),
@@ -155,7 +161,8 @@ public class OutsourcingShipmentController {
                                                         input.issueQty(),
                                                         input.sourceLocationCode(),
                                                         input.sourceProcessId(),
-                                                        input.inputProcessId()
+                                                        input.inputProcessId(),
+                                                        input.lotId()
                                                 ))
                                                 .toList()
                                 ))
@@ -195,7 +202,8 @@ public class OutsourcingShipmentController {
             @NotNull @Positive BigDecimal issueQty,
             @NotNull String sourceLocationCode,
             Long sourceProcessId,
-            @NotNull Long inputProcessId
+            @NotNull Long inputProcessId,
+            Long lotId
     ) {
     }
 
@@ -207,7 +215,14 @@ public class OutsourcingShipmentController {
 
     public record CreateOutsourcingShipmentLineRequest(
             @NotNull Long orderLineId,
-            @NotNull BigDecimal shipmentQty
+            @NotNull BigDecimal shipmentQty,
+            List<CreateOutsourcingShipmentInputLotRequest> inputLots
+    ) {
+    }
+
+    public record CreateOutsourcingShipmentInputLotRequest(
+            @NotNull Long itemId,
+            Long lotId
     ) {
     }
 }

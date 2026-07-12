@@ -19,6 +19,9 @@ public record SalesShipmentCandidateView(
         BigDecimal salesOnHandQty,
         BigDecimal wipOnHandQty,
         boolean shippable,
-        String shippableMessage
+        String shippableMessage,
+        boolean lotTracked,
+        String lotLocationCode,
+        Long finalProcessId
 ) {
 }

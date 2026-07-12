@@ -18,6 +18,7 @@ public record PurchaseOrderLineReceiptContext(
         String itemName,
         String propertyClassification,
         String checkDistinction,
+        boolean lotTracked,
         BigDecimal orderQty,
         BigDecimal receivedQty,
         BigDecimal waitingInspectionQty,

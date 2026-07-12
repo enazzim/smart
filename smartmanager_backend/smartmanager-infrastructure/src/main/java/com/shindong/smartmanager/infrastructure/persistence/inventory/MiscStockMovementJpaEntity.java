@@ -41,6 +41,9 @@ public class MiscStockMovementJpaEntity {
     @Column(name = "output_process_id")
     private Long outputProcessId;
 
+    @Column(name = "lot_id")
+    private Long lotId;
+
     @Column(name = "qty", nullable = false, precision = 18, scale = 4)
     private BigDecimal qty;
 
@@ -128,6 +131,14 @@ public class MiscStockMovementJpaEntity {
 
     public void setOutputProcessId(Long outputProcessId) {
         this.outputProcessId = outputProcessId;
+    }
+
+    public Long getLotId() {
+        return lotId;
+    }
+
+    public void setLotId(Long lotId) {
+        this.lotId = lotId;
     }
 
     public BigDecimal getQty() {

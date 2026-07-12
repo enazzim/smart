@@ -22,7 +22,9 @@ public record SalesRevenueCandidateResponse(
         BigDecimal deliveryOnHandQty,
         BigDecimal unitPrice,
         boolean billable,
-        String billableMessage
+        String billableMessage,
+        boolean lotTracked,
+        Long shipmentLotId
 ) {
     public static SalesRevenueCandidateResponse from(SalesRevenueCandidateView view) {
         return new SalesRevenueCandidateResponse(
@@ -43,7 +45,9 @@ public record SalesRevenueCandidateResponse(
                 view.deliveryOnHandQty(),
                 view.unitPrice(),
                 view.billable(),
-                view.billableMessage()
+                view.billableMessage(),
+                view.lotTracked(),
+                view.shipmentLotId()
         );
     }
 }

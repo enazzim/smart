@@ -6,6 +6,7 @@ import com.shindong.smartmanager.application.calendar.WorkCenterCapaService;
 import com.shindong.smartmanager.application.closing.FiscalCalendarService;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.inventory.InventoryBalanceService;
+import com.shindong.smartmanager.application.inventory.LotService;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.process.ProcessRepository;
 import com.shindong.smartmanager.application.process.WipBalanceProjector;
@@ -26,6 +27,7 @@ import com.shindong.smartmanager.application.production.WorkReportConsumptionInv
 import com.shindong.smartmanager.application.production.WorkReportInventoryService;
 import com.shindong.smartmanager.application.production.WorkReportRepository;
 import com.shindong.smartmanager.application.production.WorkReportService;
+import com.shindong.smartmanager.application.inventory.LotService;
 import com.shindong.smartmanager.application.purchase.PurchaseOrderRepository;
 import com.shindong.smartmanager.application.sales.SalesOrderRepository;
 import com.shindong.smartmanager.application.system.SystemSettingRepository;
@@ -110,13 +112,15 @@ public class ProductionApplicationConfig {
             InventoryBalanceService inventoryBalanceService,
             ProcessRepository processRepository,
             ItemRepository itemRepository,
-            WipBalanceProjector wipBalanceProjector
+            WipBalanceProjector wipBalanceProjector,
+            LotService lotService
     ) {
         return new WorkReportInventoryService(
                 inventoryBalanceService,
                 processRepository,
                 itemRepository,
-                wipBalanceProjector
+                wipBalanceProjector,
+                lotService
         );
     }
 
@@ -197,7 +201,8 @@ public class ProductionApplicationConfig {
             BomConsumptionCalculator bomConsumptionCalculator,
             MaterialIssueRepository materialIssueRepository,
             ItemCompositionRepository itemCompositionRepository,
-            SystemSettingService systemSettingService
+            SystemSettingService systemSettingService,
+            LotService lotService
     ) {
         return new WorkReportService(
                 workReportRepository,
@@ -211,7 +216,8 @@ public class ProductionApplicationConfig {
                 bomConsumptionCalculator,
                 materialIssueRepository,
                 itemCompositionRepository,
-                systemSettingService
+                systemSettingService,
+                lotService
         );
     }
 }

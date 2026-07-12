@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 
 public class QualityInspectionService {
 
@@ -218,6 +219,12 @@ public class QualityInspectionService {
                 orderLine.purchaseOrderLineId(), inspection.requestQty(), actorUserId);
 
         if (command.passedQty().compareTo(BigDecimal.ZERO) > 0) {
+            if (orderLine.lotTracked()
+                    && !command.autoGenerateLot()
+                    && (command.lotNo() == null || command.lotNo().isBlank())) {
+                throw new IllegalArgumentException(
+                        "Lot 추적 품목은 Lot 번호 또는 자동생성이 필요합니다: " + orderLine.itemNum());
+            }
             purchaseReceiptService.applyStockAndLedger(
                     receiptLine,
                     orderLine,
@@ -228,6 +235,8 @@ public class QualityInspectionService {
                     inspection.id(),
                     "QUALITY_INSPECTION",
                     fiscalPeriod,
+                    command.lotNo(),
+                    command.autoGenerateLot(),
                     actorUserId
             );
             purchaseReceiptRepository.addReceivedQty(orderLine.purchaseOrderLineId(), command.passedQty(), actorUserId);
@@ -275,6 +284,9 @@ public class QualityInspectionService {
                     OutsourceHistorySourceType.QUALITY_INSPECTION,
                     inspection.id(),
                     fiscalPeriod,
+                    command.lotNo(),
+                    command.autoGenerateLot(),
+                    Map.of(),
                     actorUserId
             );
             if (command.passedQty().compareTo(BigDecimal.ZERO) > 0) {
