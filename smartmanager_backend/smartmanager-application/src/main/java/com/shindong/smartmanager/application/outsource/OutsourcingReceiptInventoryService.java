@@ -242,7 +242,7 @@ public class OutsourcingReceiptInventoryService {
         StockMovementType inboundType = reverse ? StockMovementType.OUT : StockMovementType.IN;
         String referenceType = reverse ? REFERENCE_TYPE_CANCEL : REFERENCE_TYPE;
 
-        if (finalProcess && item.propertyClassification() == PropertyClassification.제품) {
+        if (finalProcess && item.propertyClassification().salesWarehouseAtProductionComplete()) {
             inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
                     orderLine.itemId(),
                     LOCATION_SALES,

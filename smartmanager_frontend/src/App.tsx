@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchCurrentUser, isAuthenticated, logout, type AuthenticatedUser } from './api/auth';
 import type { BoardType } from './api/board';
-import { fetchSystemSettings, SETTING_KEY_INVENTORY_ALLOW_NEGATIVE_STOCK, SETTING_KEY_MATERIAL_ISSUE_ENABLED } from './api/systemSettings';
+import { fetchSystemSettings, SETTING_KEY_INVENTORY_ALLOW_NEGATIVE_STOCK, SETTING_KEY_MATERIAL_ISSUE_ENABLED, SETTING_KEY_CLOSING_FISCAL_CUTOVER_DAY } from './api/systemSettings';
+import { normalizeFiscalCutoverSetting, DEFAULT_FISCAL_CUTOVER_SETTING } from './utils/fiscalCalendar';
 import { setSessionExpiredHandler } from './api/http';
 import LoginPage from './pages/LoginPage';
 import AppShell, { type AppSelection } from './layout/AppShell';
@@ -101,6 +102,7 @@ export default function App() {
   );
   const [materialIssueEnabled, setMaterialIssueEnabled] = useState(false);
   const [negativeStockAllowed, setNegativeStockAllowed] = useState(true);
+  const [fiscalCutoverSetting, setFiscalCutoverSetting] = useState(DEFAULT_FISCAL_CUTOVER_SETTING);
   const selectionRef = useRef(selection);
   const expandedCategoryRef = useRef(expandedCategory);
 
@@ -136,6 +138,7 @@ export default function App() {
       setCurrentUser(null);
       setMaterialIssueEnabled(false);
       setNegativeStockAllowed(true);
+      setFiscalCutoverSetting(DEFAULT_FISCAL_CUTOVER_SETTING);
       return;
     }
     void fetchCurrentUser()
@@ -152,12 +155,15 @@ export default function App() {
       .then((rows) => {
         const materialIssueRow = rows.find((item) => item.settingKey === SETTING_KEY_MATERIAL_ISSUE_ENABLED);
         const negativeStockRow = rows.find((item) => item.settingKey === SETTING_KEY_INVENTORY_ALLOW_NEGATIVE_STOCK);
+        const fiscalCutoverRow = rows.find((item) => item.settingKey === SETTING_KEY_CLOSING_FISCAL_CUTOVER_DAY);
         setMaterialIssueEnabled(materialIssueRow?.value === 'YES');
         setNegativeStockAllowed(negativeStockRow?.value !== 'NO');
+        setFiscalCutoverSetting(normalizeFiscalCutoverSetting(fiscalCutoverRow?.value));
       })
       .catch(() => {
         setMaterialIssueEnabled(false);
         setNegativeStockAllowed(true);
+        setFiscalCutoverSetting(DEFAULT_FISCAL_CUTOVER_SETTING);
       });
   }, [authed]);
 
@@ -312,6 +318,8 @@ export default function App() {
       setMaterialIssueEnabled={setMaterialIssueEnabled}
       negativeStockAllowed={negativeStockAllowed}
       setNegativeStockAllowed={setNegativeStockAllowed}
+      fiscalCutoverSetting={fiscalCutoverSetting}
+      setFiscalCutoverSetting={setFiscalCutoverSetting}
     >
       <AuthProvider currentUser={currentUser}>
         <AppShell

@@ -3,7 +3,8 @@ import CompanySearchField, { type CompanySearchSelection } from '../components/C
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
-import { formatFiscalPeriodLabel, currentCalendarYearMonth } from '../utils/fiscalCalendar';
+import { formatFiscalPeriodLabel, currentFiscalYearMonth } from '../utils/fiscalCalendar';
+import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import {
   cancelEtcPurchaseReceipt,
   createEtcPurchaseReceipts,
@@ -21,8 +22,8 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function createDefaultHistoryFilters(): EtcPurchaseReceiptListParams {
-  const { fiscalYear, fiscalMonth } = currentCalendarYearMonth();
+function createDefaultHistoryFilters(cutoverSetting: string): EtcPurchaseReceiptListParams {
+  const { fiscalYear, fiscalMonth } = currentFiscalYearMonth(cutoverSetting);
   return {
     receiptFrom: addDaysIso(todayIso(), -30),
     receiptTo: todayIso(),
@@ -31,8 +32,11 @@ function createDefaultHistoryFilters(): EtcPurchaseReceiptListParams {
   };
 }
 
-function normalizeHistoryFilters(filters: EtcPurchaseReceiptListParams): EtcPurchaseReceiptListParams {
-  const { fiscalYear, fiscalMonth } = currentCalendarYearMonth();
+function normalizeHistoryFilters(
+  filters: EtcPurchaseReceiptListParams,
+  cutoverSetting: string,
+): EtcPurchaseReceiptListParams {
+  const { fiscalYear, fiscalMonth } = currentFiscalYearMonth(cutoverSetting);
   return {
     ...filters,
     fiscalYear: filters.fiscalYear ?? fiscalYear,
@@ -40,12 +44,13 @@ function normalizeHistoryFilters(filters: EtcPurchaseReceiptListParams): EtcPurc
   };
 }
 
-function fiscalYearOptions(): number[] {
-  const currentYear = currentCalendarYearMonth().fiscalYear;
+function fiscalYearOptions(cutoverSetting: string): number[] {
+  const currentYear = currentFiscalYearMonth(cutoverSetting).fiscalYear;
   return Array.from({ length: 6 }, (_, index) => currentYear - 5 + index);
 }
 
 export default function EtcPurchaseReceiptPage() {
+  const { fiscalCutoverSetting } = useMaterialIssueSetting();
   const [tab, setTab] = useState<'candidates' | 'history'>('candidates');
   const [candidates, setCandidates] = useState<EtcPurchaseReceiptCandidate[]>([]);
   const [receipts, setReceipts] = useState<EtcPurchaseReceipt[]>([]);
@@ -53,13 +58,16 @@ export default function EtcPurchaseReceiptPage() {
   const [receiptQty, setReceiptQty] = useState('');
   const [receiptDate, setReceiptDate] = useState(todayIso());
   const [editReceiptDate, setEditReceiptDate] = useState(todayIso());
-  const receiptFiscal = useFiscalPeriod(receiptDate);
-  const editFiscal = useFiscalPeriod(editReceiptDate);
+  const receiptFiscal = useFiscalPeriod(receiptDate, fiscalCutoverSetting);
+  const editFiscal = useFiscalPeriod(editReceiptDate, fiscalCutoverSetting);
   const [candidateFilters, setCandidateFilters] = useState<EtcPurchaseReceiptCandidateParams>({});
   const [candidateFilterPartner, setCandidateFilterPartner] = useState<CompanySearchSelection | null>(null);
-  const [historyFilters, setHistoryFilters] = useState<EtcPurchaseReceiptListParams>(createDefaultHistoryFilters);
-  const [appliedHistoryFilters, setAppliedHistoryFilters] =
-    useState<EtcPurchaseReceiptListParams>(createDefaultHistoryFilters);
+  const [historyFilters, setHistoryFilters] = useState<EtcPurchaseReceiptListParams>(() =>
+    createDefaultHistoryFilters(fiscalCutoverSetting),
+  );
+  const [appliedHistoryFilters, setAppliedHistoryFilters] = useState<EtcPurchaseReceiptListParams>(() =>
+    createDefaultHistoryFilters(fiscalCutoverSetting),
+  );
   const [historyFilterPartner, setHistoryFilterPartner] = useState<CompanySearchSelection | null>(null);
   const [appliedHistoryPartner, setAppliedHistoryPartner] = useState<CompanySearchSelection | null>(null);
   const [loadingCandidates, setLoadingCandidates] = useState(true);
@@ -191,14 +199,14 @@ export default function EtcPurchaseReceiptPage() {
 
   const onHistorySearch = (e?: React.FormEvent) => {
     e?.preventDefault();
-    const nextFilters = normalizeHistoryFilters(historyFilters);
+    const nextFilters = normalizeHistoryFilters(historyFilters, fiscalCutoverSetting);
     setHistoryFilters(nextFilters);
     setAppliedHistoryFilters(nextFilters);
     setAppliedHistoryPartner(historyFilterPartner);
   };
 
   const onResetHistoryFilters = () => {
-    const defaults = createDefaultHistoryFilters();
+    const defaults = createDefaultHistoryFilters(fiscalCutoverSetting);
     setHistoryFilters(defaults);
     setAppliedHistoryFilters(defaults);
     setHistoryFilterPartner(null);
@@ -463,12 +471,12 @@ export default function EtcPurchaseReceiptPage() {
               <label>
                 매입년도
                 <select
-                  value={historyFilters.fiscalYear ?? currentCalendarYearMonth().fiscalYear}
+                  value={historyFilters.fiscalYear ?? currentFiscalYearMonth(fiscalCutoverSetting).fiscalYear}
                   onChange={(e) =>
                     setHistoryFilters((f) => ({ ...f, fiscalYear: Number(e.target.value) }))
                   }
                 >
-                  {fiscalYearOptions().map((year) => (
+                  {fiscalYearOptions(fiscalCutoverSetting).map((year) => (
                     <option key={year} value={year}>
                       {year}년
                     </option>
@@ -478,7 +486,7 @@ export default function EtcPurchaseReceiptPage() {
               <label>
                 매입월
                 <select
-                  value={historyFilters.fiscalMonth ?? currentCalendarYearMonth().fiscalMonth}
+                  value={historyFilters.fiscalMonth ?? currentFiscalYearMonth(fiscalCutoverSetting).fiscalMonth}
                   onChange={(e) =>
                     setHistoryFilters((f) => ({ ...f, fiscalMonth: Number(e.target.value) }))
                   }

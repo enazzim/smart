@@ -9,15 +9,45 @@ import {
 } from '../api/systemBackup';
 import {
   fetchSystemSettings,
+  FISCAL_CUTOVER_LAST,
   MATERIAL_ISSUE_ENABLED_LABELS,
   MRP_GROUPING_MODE_LABELS,
   SETTING_KEY_MATERIAL_ISSUE_ENABLED,
+  SETTING_KEY_CLOSING_FISCAL_CUTOVER_DAY,
   SETTING_KEY_INVENTORY_ALLOW_NEGATIVE_STOCK,
   YES_NO_LABELS,
   updateSystemSetting,
   type SystemSetting,
 } from '../api/systemSettings';
+import {
+  DEFAULT_FISCAL_CUTOVER_SETTING,
+  formatFiscalCutoverSettingLabel,
+  normalizeFiscalCutoverSetting,
+} from '../utils/fiscalCalendar';
 import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
+
+const CLOSING_SETTING_ALLOWED_DAYS = [
+  FISCAL_CUTOVER_LAST,
+  ...Array.from({ length: 31 }, (_, index) => String(index + 1)),
+];
+
+const FALLBACK_CLOSING_SETTING: SystemSetting = {
+  settingKey: SETTING_KEY_CLOSING_FISCAL_CUTOVER_DAY,
+  label: '매입마감일',
+  description:
+    '거래일 기준 회계월 판정일. N일 이하 거래는 해당 월, 초과 거래는 익월. 매월 말일은 28~31일을 달마다 자동 적용합니다.',
+  value: DEFAULT_FISCAL_CUTOVER_SETTING,
+  allowedValues: CLOSING_SETTING_ALLOWED_DAYS,
+  updatedAt: null,
+  updatedBy: null,
+};
+
+function ensureClosingSetting(rows: SystemSetting[]): SystemSetting[] {
+  if (rows.some((row) => row.settingKey === SETTING_KEY_CLOSING_FISCAL_CUTOVER_DAY)) {
+    return rows;
+  }
+  return [FALLBACK_CLOSING_SETTING, ...rows];
+}
 
 function formatDateTime(value?: string | null): string {
   if (!value) {
@@ -39,6 +69,9 @@ function formatAllowedValue(settingKey: string, value: string): string {
   }
   if (settingKey === SETTING_KEY_INVENTORY_ALLOW_NEGATIVE_STOCK) {
     return YES_NO_LABELS[value] ?? value;
+  }
+  if (settingKey === SETTING_KEY_CLOSING_FISCAL_CUTOVER_DAY) {
+    return formatFiscalCutoverSettingLabel(value);
   }
   return value;
 }
@@ -340,7 +373,7 @@ function BackupPanel() {
 }
 
 export default function SystemSettingsPage() {
-  const { setMaterialIssueEnabled, setNegativeStockAllowed } = useMaterialIssueSetting();
+  const { setMaterialIssueEnabled, setNegativeStockAllowed, setFiscalCutoverSetting } = useMaterialIssueSetting();
   const [settings, setSettings] = useState<SystemSetting[]>([]);
   const [draftValues, setDraftValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -352,9 +385,13 @@ export default function SystemSettingsPage() {
     setLoading(true);
     setError(null);
     try {
-      const rows = await fetchSystemSettings();
+      const rows = ensureClosingSetting(await fetchSystemSettings());
       setSettings(rows);
       setDraftValues(Object.fromEntries(rows.map((row) => [row.settingKey, row.value])));
+      const closingRow = rows.find((row) => row.settingKey === SETTING_KEY_CLOSING_FISCAL_CUTOVER_DAY);
+      if (closingRow) {
+        setFiscalCutoverSetting(normalizeFiscalCutoverSetting(closingRow.value));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '시스템 설정 조회 실패');
       setSettings([]);
@@ -386,6 +423,9 @@ export default function SystemSettingsPage() {
       if (updated.settingKey === SETTING_KEY_INVENTORY_ALLOW_NEGATIVE_STOCK) {
         setNegativeStockAllowed(updated.value !== 'NO');
       }
+      if (updated.settingKey === SETTING_KEY_CLOSING_FISCAL_CUTOVER_DAY) {
+        setFiscalCutoverSetting(normalizeFiscalCutoverSetting(updated.value));
+      }
       setMessage(`${updated.label} 설정을 저장했습니다.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : '설정 저장 실패');
@@ -394,6 +434,7 @@ export default function SystemSettingsPage() {
     }
   };
 
+  const closingSettings = settings.filter((row) => row.settingKey.startsWith('closing.'));
   const inventorySettings = settings.filter((row) => row.settingKey.startsWith('inventory.'));
   const mrpSettings = settings.filter((row) => row.settingKey.startsWith('mrp.'));
   const productionSettings = settings.filter((row) => row.settingKey.startsWith('production.'));
@@ -404,13 +445,32 @@ export default function SystemSettingsPage() {
         <div>
           <h1>시스템 설정</h1>
           <p>
-            전역 비즈니스 정책(Feature Flags)을 관리합니다. 자재투입 여부는 생산 워크플로에, 마이너스 재고 허용은
-            모든 창고 입·출고 처리에 반영됩니다.
+            전역 비즈니스 정책(Feature Flags)을 관리합니다. 매입마감일은 입고·매입승인·월마감 회계월 판정에, 자재투입
+            여부는 생산 워크플로에, 마이너스 재고 허용은 모든 창고 입·출고 처리에 반영됩니다.
           </p>
         </div>
       </header>
       {message && <p>{message}</p>}
       {error && <div className="error">{error}</div>}
+
+      <section className="panel">
+        <h2>회계마감</h2>
+        <p className="hint-text">
+          입고·외주입고·기타매입·품질검사·매입승인 화면의 매입년도·매입월 자동 계산과 월마감 회계월 판정에
+          적용됩니다.
+        </p>
+        {loading ? (
+          <p>불러오는 중…</p>
+        ) : (
+          <SettingsTable
+            settings={closingSettings}
+            draftValues={draftValues}
+            submittingKey={submittingKey}
+            onDraftChange={(key, value) => setDraftValues((prev) => ({ ...prev, [key]: value }))}
+            onSave={(setting) => void onSave(setting)}
+          />
+        )}
+      </section>
 
       <section className="panel">
         <h2>재고</h2>

@@ -38,3 +38,5 @@ export const YES_NO_LABELS = MATERIAL_ISSUE_ENABLED_LABELS;
 
 export const SETTING_KEY_MATERIAL_ISSUE_ENABLED = 'production.material_issue.enabled';
 export const SETTING_KEY_INVENTORY_ALLOW_NEGATIVE_STOCK = 'inventory.allow_negative_stock';
+export const SETTING_KEY_CLOSING_FISCAL_CUTOVER_DAY = 'closing.fiscal_cutover_day';
+export const FISCAL_CUTOVER_LAST = 'LAST';

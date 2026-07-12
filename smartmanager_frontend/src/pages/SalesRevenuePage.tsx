@@ -28,6 +28,10 @@ function parseQty(value: string): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function billableLabel(row: SalesRevenueCandidate): string {
+  return translateInventoryLocationInText(row.billableMessage) || (row.billable ? '매출가능' : '불가');
+}
+
 export default function SalesRevenuePage() {
   const [candidates, setCandidates] = useState<SalesRevenueCandidate[]>([]);
   const [revenues, setRevenues] = useState<SalesRevenue[]>([]);
@@ -177,11 +181,24 @@ export default function SalesRevenuePage() {
 
   const selectedCount = selectedLineIds.size;
 
+  const renderCandidateQtyInput = (row: SalesRevenueCandidate) => (
+    <input
+      type="number"
+      min={0}
+      step="any"
+      disabled={!row.billable || submitting}
+      value={revenueQtyByLineId[row.shipmentLineId] ?? String(row.remainingQty)}
+      onChange={(e) => setRevenueQtyByLineId((prev) => ({ ...prev, [row.shipmentLineId]: e.target.value }))}
+    />
+  );
+
   return (
-    <div className="page">
+    <div className="page sales-revenue-page">
       <header className="page-header">
-        <h1>매출</h1>
-        <p>출고·납품 잔량을 기준으로 {INVENTORY_LOCATION_LABEL.DELIVERY}에서 매출을 인식합니다.</p>
+        <div>
+          <h1>매출</h1>
+          <p>출고·납품 잔량을 기준으로 {INVENTORY_LOCATION_LABEL.DELIVERY}에서 매출을 인식합니다.</p>
+        </div>
       </header>
 
       {message && <p className="success-banner">{message}</p>}
@@ -189,60 +206,65 @@ export default function SalesRevenuePage() {
 
       <section className="panel">
         <h2>출고 매출 후보</h2>
-        <div className="filter-row">
-          <label>
-            거래처
-            <input
-              type="text"
-              value={filters.partnerName ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, partnerName: e.target.value }))}
-            />
-          </label>
-          <label>
-            출고번호
-            <input
-              type="text"
-              value={filters.shipmentNo ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, shipmentNo: e.target.value }))}
-            />
-          </label>
-          <label>
-            출고일 From
-            <input
-              type="date"
-              value={filters.shipmentDateFrom ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, shipmentDateFrom: e.target.value }))}
-            />
-          </label>
-          <label>
-            To
-            <input
-              type="date"
-              value={filters.shipmentDateTo ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, shipmentDateTo: e.target.value }))}
-            />
-          </label>
-          <label>
-            수주번호
-            <input
-              type="text"
-              value={filters.orderNo ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, orderNo: e.target.value }))}
-            />
-          </label>
-          <label>
-            품번
-            <input
-              type="text"
-              value={filters.itemNum ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, itemNum: e.target.value }))}
-            />
-          </label>
-          <button type="button" className="secondary" onClick={() => void loadCandidates()} disabled={loadingCandidates}>
-            조회
-          </button>
+        <div className="ui-filter-panel sales-revenue-filter-panel">
+          <div className="sales-revenue-search-grid">
+            <label>
+              거래처
+              <input
+                type="text"
+                value={filters.partnerName ?? ''}
+                onChange={(e) => setFilters((f) => ({ ...f, partnerName: e.target.value }))}
+              />
+            </label>
+            <label>
+              출고번호
+              <input
+                type="text"
+                value={filters.shipmentNo ?? ''}
+                onChange={(e) => setFilters((f) => ({ ...f, shipmentNo: e.target.value }))}
+              />
+            </label>
+            <label>
+              수주번호
+              <input
+                type="text"
+                value={filters.orderNo ?? ''}
+                onChange={(e) => setFilters((f) => ({ ...f, orderNo: e.target.value }))}
+              />
+            </label>
+            <label>
+              품번
+              <input
+                type="text"
+                value={filters.itemNum ?? ''}
+                onChange={(e) => setFilters((f) => ({ ...f, itemNum: e.target.value }))}
+              />
+            </label>
+            <label>
+              출고일(부터)
+              <input
+                type="date"
+                value={filters.shipmentDateFrom ?? ''}
+                onChange={(e) => setFilters((f) => ({ ...f, shipmentDateFrom: e.target.value }))}
+              />
+            </label>
+            <label>
+              출고일(까지)
+              <input
+                type="date"
+                value={filters.shipmentDateTo ?? ''}
+                onChange={(e) => setFilters((f) => ({ ...f, shipmentDateTo: e.target.value }))}
+              />
+            </label>
+          </div>
+          <div className="form-actions sales-revenue-search-actions">
+            <button type="button" onClick={() => void loadCandidates()} disabled={loadingCandidates}>
+              {loadingCandidates ? '조회 중…' : '조회'}
+            </button>
+          </div>
         </div>
-        <div className="action-bar">
+
+        <div className="sales-revenue-action-bar">
           <label>
             매출일
             <input type="date" value={revenueDate} onChange={(e) => setRevenueDate(e.target.value)} disabled={submitting} />
@@ -251,80 +273,147 @@ export default function SalesRevenuePage() {
             {submitting ? '등록 중…' : `선택 매출 (${selectedCount})`}
           </button>
         </div>
+
         {loadingCandidates ? (
           <p>불러오는 중…</p>
         ) : candidateError ? (
           <p className="error-banner">{candidateError}</p>
         ) : candidates.length === 0 ? (
-          <p className="hint">매출 가능한 출고 라인이 없습니다.</p>
+          <p className="hint sales-revenue-empty">매출 가능한 출고 라인이 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>
-                    <input
-                      type="checkbox"
-                      aria-label="전체 선택"
-                      checked={allSelected}
-                      disabled={selectableLineIds.size === 0 || submitting}
-                      onChange={(e) => toggleSelectAll(e.target.checked)}
-                    />
-                  </th>
-                  <th>출고번호</th>
-                  <th>거래처</th>
-                  <th>수주번호</th>
-                  <th>품목</th>
-                  <th className="num">출고수량</th>
-                  <th className="num">매출누적</th>
-                  <th className="num">잔량</th>
-                  <th className="num">단가</th>
-                  <th className="num">{INVENTORY_LOCATION_LABEL.DELIVERY} 재고</th>
-                  <th>매출수량 입력</th>
-                  <th>비고</th>
-                </tr>
-              </thead>
-              <tbody>
-                {candidates.map((row) => (
-                  <tr key={row.shipmentLineId} className={!row.billable ? 'row-muted' : undefined}>
-                    <td>
+          <>
+            <div className="table-wrap sales-revenue-candidate-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>
                       <input
                         type="checkbox"
-                        aria-label={`${row.itemNo} 선택`}
-                        checked={selectedLineIds.has(row.shipmentLineId)}
-                        disabled={!row.billable || submitting}
-                        onChange={(e) => toggleLine(row.shipmentLineId, e.target.checked)}
+                        aria-label="전체 선택"
+                        checked={allSelected}
+                        disabled={selectableLineIds.size === 0 || submitting}
+                        onChange={(e) => toggleSelectAll(e.target.checked)}
                       />
-                    </td>
-                    <td>{row.shipmentNo}</td>
-                    <td>{row.partnerName}</td>
-                    <td>{row.orderNo}</td>
-                    <td>
-                      {row.itemNo} {row.itemName}
-                    </td>
-                    <td className="num">{formatQty(row.shippedQty)}</td>
-                    <td className="num">{formatQty(row.invoicedQty)}</td>
-                    <td className="num">{formatQty(row.remainingQty)}</td>
-                    <td className="num">{formatAmount(row.unitPrice)}</td>
-                    <td className="num">{formatQty(row.deliveryOnHandQty)}</td>
-                    <td>
-                      <input
-                        type="number"
-                        min={0}
-                        step="any"
-                        disabled={!row.billable || submitting}
-                        value={revenueQtyByLineId[row.shipmentLineId] ?? String(row.remainingQty)}
-                        onChange={(e) =>
-                          setRevenueQtyByLineId((prev) => ({ ...prev, [row.shipmentLineId]: e.target.value }))
-                        }
-                      />
-                    </td>
-                    <td>{translateInventoryLocationInText(row.billableMessage) || (row.billable ? '매출가능' : '불가')}</td>
+                    </th>
+                    <th>출고번호</th>
+                    <th>거래처</th>
+                    <th>수주번호</th>
+                    <th>품목</th>
+                    <th className="num">출고수량</th>
+                    <th className="num">매출누적</th>
+                    <th className="num">잔량</th>
+                    <th className="num">단가</th>
+                    <th className="num">{INVENTORY_LOCATION_LABEL.DELIVERY} 재고</th>
+                    <th>매출수량 입력</th>
+                    <th>비고</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {candidates.map((row) => (
+                    <tr key={row.shipmentLineId} className={!row.billable ? 'row-muted' : undefined}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={`${row.itemNo} 선택`}
+                          checked={selectedLineIds.has(row.shipmentLineId)}
+                          disabled={!row.billable || submitting}
+                          onChange={(e) => toggleLine(row.shipmentLineId, e.target.checked)}
+                        />
+                      </td>
+                      <td>{row.shipmentNo}</td>
+                      <td>{row.partnerName}</td>
+                      <td>{row.orderNo}</td>
+                      <td>
+                        {row.itemNo} {row.itemName}
+                      </td>
+                      <td className="num">{formatQty(row.shippedQty)}</td>
+                      <td className="num">{formatQty(row.invoicedQty)}</td>
+                      <td className="num">{formatQty(row.remainingQty)}</td>
+                      <td className="num">{formatAmount(row.unitPrice)}</td>
+                      <td className="num">{formatQty(row.deliveryOnHandQty)}</td>
+                      <td>{renderCandidateQtyInput(row)}</td>
+                      <td>{billableLabel(row)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="sales-revenue-candidate-cards" aria-label="출고 매출 후보 목록">
+              <div className="sales-revenue-candidate-cards__toolbar">
+                <label className="sales-revenue-select-all">
+                  <input
+                    type="checkbox"
+                    aria-label="전체 선택"
+                    checked={allSelected}
+                    disabled={selectableLineIds.size === 0 || submitting}
+                    onChange={(e) => toggleSelectAll(e.target.checked)}
+                  />
+                  전체 선택
+                </label>
+                <span className="sales-revenue-selected-count">{selectedCount}건 선택</span>
+              </div>
+              {candidates.map((row) => (
+                <article
+                  key={row.shipmentLineId}
+                  className={`sales-revenue-candidate-card${!row.billable ? ' is-muted' : ''}${
+                    selectedLineIds.has(row.shipmentLineId) ? ' is-selected' : ''
+                  }`}
+                >
+                  <div className="sales-revenue-candidate-card__head">
+                    <input
+                      type="checkbox"
+                      aria-label={`${row.itemNo} 선택`}
+                      checked={selectedLineIds.has(row.shipmentLineId)}
+                      disabled={!row.billable || submitting}
+                      onChange={(e) => toggleLine(row.shipmentLineId, e.target.checked)}
+                    />
+                    <div className="sales-revenue-candidate-card__title">
+                      <strong>{row.shipmentNo}</strong>
+                      <span>{row.partnerName}</span>
+                    </div>
+                    <span className={`sales-revenue-status${row.billable ? ' is-ok' : ''}`}>{billableLabel(row)}</span>
+                  </div>
+                  <dl className="sales-revenue-candidate-card__meta">
+                    <div>
+                      <dt>수주번호</dt>
+                      <dd>{row.orderNo}</dd>
+                    </div>
+                    <div className="sales-revenue-meta-span-2">
+                      <dt>품목</dt>
+                      <dd>
+                        {row.itemNo} {row.itemName}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>출고수량</dt>
+                      <dd>{formatQty(row.shippedQty)}</dd>
+                    </div>
+                    <div>
+                      <dt>매출누적</dt>
+                      <dd>{formatQty(row.invoicedQty)}</dd>
+                    </div>
+                    <div>
+                      <dt>잔량</dt>
+                      <dd>{formatQty(row.remainingQty)}</dd>
+                    </div>
+                    <div>
+                      <dt>단가</dt>
+                      <dd>{formatAmount(row.unitPrice)}</dd>
+                    </div>
+                    <div>
+                      <dt>{INVENTORY_LOCATION_LABEL.DELIVERY} 재고</dt>
+                      <dd>{formatQty(row.deliveryOnHandQty)}</dd>
+                    </div>
+                  </dl>
+                  <label className="sales-revenue-candidate-card__qty">
+                    매출수량
+                    {renderCandidateQtyInput(row)}
+                  </label>
+                </article>
+              ))}
+            </div>
+          </>
         )}
       </section>
 
@@ -333,98 +422,148 @@ export default function SalesRevenuePage() {
           <h2>매출 목록</h2>
           <GridExcelExportButton fileBaseName="매출목록" disabled={loadingRevenues} rows={revenueExportRows} />
         </div>
-        <div className="filter-row">
-          <label>
-            매출일 From
-            <input
-              type="date"
-              value={listFilters.revenueDateFrom ?? ''}
-              onChange={(e) => setListFilters((f) => ({ ...f, revenueDateFrom: e.target.value }))}
-            />
-          </label>
-          <label>
-            To
-            <input
-              type="date"
-              value={listFilters.revenueDateTo ?? ''}
-              onChange={(e) => setListFilters((f) => ({ ...f, revenueDateTo: e.target.value }))}
-            />
-          </label>
-          <label>
-            거래처
-            <input
-              type="text"
-              value={listFilters.partnerName ?? ''}
-              onChange={(e) => setListFilters((f) => ({ ...f, partnerName: e.target.value }))}
-            />
-          </label>
-          <label>
-            매출번호
-            <input
-              type="text"
-              value={listFilters.revenueNo ?? ''}
-              onChange={(e) => setListFilters((f) => ({ ...f, revenueNo: e.target.value }))}
-            />
-          </label>
-          <button type="button" className="secondary" onClick={() => void loadRevenues()}>
-            조회
-          </button>
+        <div className="ui-filter-panel sales-revenue-filter-panel">
+          <div className="sales-revenue-search-grid">
+            <label>
+              매출일(부터)
+              <input
+                type="date"
+                value={listFilters.revenueDateFrom ?? ''}
+                onChange={(e) => setListFilters((f) => ({ ...f, revenueDateFrom: e.target.value }))}
+              />
+            </label>
+            <label>
+              매출일(까지)
+              <input
+                type="date"
+                value={listFilters.revenueDateTo ?? ''}
+                onChange={(e) => setListFilters((f) => ({ ...f, revenueDateTo: e.target.value }))}
+              />
+            </label>
+            <label>
+              거래처
+              <input
+                type="text"
+                value={listFilters.partnerName ?? ''}
+                onChange={(e) => setListFilters((f) => ({ ...f, partnerName: e.target.value }))}
+              />
+            </label>
+            <label>
+              매출번호
+              <input
+                type="text"
+                value={listFilters.revenueNo ?? ''}
+                onChange={(e) => setListFilters((f) => ({ ...f, revenueNo: e.target.value }))}
+              />
+            </label>
+          </div>
+          <div className="form-actions sales-revenue-search-actions">
+            <button type="button" onClick={() => void loadRevenues()} disabled={loadingRevenues}>
+              {loadingRevenues ? '조회 중…' : '조회'}
+            </button>
+          </div>
         </div>
         {loadingRevenues ? (
           <p>불러오는 중…</p>
         ) : revenues.length === 0 ? (
-          <p className="hint">매출 내역이 없습니다.</p>
+          <p className="hint sales-revenue-empty">매출 내역이 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>매출번호</th>
-                  <th>매출일</th>
-                  <th>거래처</th>
-                  <th>품목</th>
-                  <th className="num">매출수량</th>
-                  <th className="num">금액</th>
-                  <th>상태</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {revenues.map((revenue) => (
-                  <tr key={revenue.id}>
-                    <td>{revenue.revenueNo}</td>
-                    <td>{revenue.revenueDate}</td>
-                    <td>{revenue.partnerName}</td>
-                    <td>
-                      {revenue.lines.map((line) => (
-                        <div key={line.id}>
-                          {line.shipmentNo} — {line.itemNo} {line.itemName}
-                        </div>
-                      ))}
-                    </td>
-                    <td className="num">
-                      {revenue.lines.map((line) => (
-                        <div key={line.id}>{formatQty(line.revenueQty)}</div>
-                      ))}
-                    </td>
-                    <td className="num">
-                      {revenue.lines.map((line) => (
-                        <div key={line.id}>{formatAmount(line.amount)}</div>
-                      ))}
-                    </td>
-                    <td>{revenue.statusLabel}</td>
-                    <td>
-                      {revenue.cancelable && (
-                        <button type="button" className="secondary" disabled={submitting} onClick={() => void onCancel(revenue)}>
-                          취소
-                        </button>
-                      )}
-                    </td>
+          <>
+            <div className="table-wrap sales-revenue-list-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>매출번호</th>
+                    <th>매출일</th>
+                    <th>거래처</th>
+                    <th>품목</th>
+                    <th className="num">매출수량</th>
+                    <th className="num">금액</th>
+                    <th>상태</th>
+                    <th />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {revenues.map((revenue) => (
+                    <tr key={revenue.id}>
+                      <td>{revenue.revenueNo}</td>
+                      <td>{revenue.revenueDate}</td>
+                      <td>{revenue.partnerName}</td>
+                      <td>
+                        {revenue.lines.map((line) => (
+                          <div key={line.id}>
+                            {line.shipmentNo} — {line.itemNo} {line.itemName}
+                          </div>
+                        ))}
+                      </td>
+                      <td className="num">
+                        {revenue.lines.map((line) => (
+                          <div key={line.id}>{formatQty(line.revenueQty)}</div>
+                        ))}
+                      </td>
+                      <td className="num">
+                        {revenue.lines.map((line) => (
+                          <div key={line.id}>{formatAmount(line.amount)}</div>
+                        ))}
+                      </td>
+                      <td>{revenue.statusLabel}</td>
+                      <td>
+                        {revenue.cancelable && (
+                          <button
+                            type="button"
+                            className="secondary"
+                            disabled={submitting}
+                            onClick={() => void onCancel(revenue)}
+                          >
+                            취소
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="sales-revenue-list-cards" aria-label="매출 목록">
+              {revenues.map((revenue) => (
+                <article key={revenue.id} className="sales-revenue-list-card">
+                  <div className="sales-revenue-list-card__head">
+                    <div>
+                      <strong>{revenue.revenueNo}</strong>
+                      <span>{revenue.revenueDate}</span>
+                    </div>
+                    <span className="sales-revenue-list-card__status">{revenue.statusLabel}</span>
+                  </div>
+                  <p className="sales-revenue-list-card__partner">{revenue.partnerName}</p>
+                  <ul className="sales-revenue-list-card__lines">
+                    {revenue.lines.map((line) => (
+                      <li key={line.id}>
+                        <span className="sales-revenue-list-card__item">
+                          {line.shipmentNo} — {line.itemNo} {line.itemName}
+                        </span>
+                        <span className="sales-revenue-list-card__amounts">
+                          {formatQty(line.revenueQty)} / {formatAmount(line.amount)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {revenue.cancelable && (
+                    <div className="sales-revenue-list-card__actions">
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={submitting}
+                        onClick={() => void onCancel(revenue)}
+                      >
+                        취소
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          </>
         )}
       </section>
     </div>

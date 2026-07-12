@@ -4,6 +4,7 @@ import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
 import { formatFiscalPeriodFromIso } from '../utils/fiscalCalendar';
+import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import {
 
   cancelPurchaseReceipt,
@@ -97,7 +98,8 @@ export default function PurchaseReceiptPage() {
 
   const [receiptDate, setReceiptDate] = useState(todayIso());
 
-  const fiscalPeriod = useFiscalPeriod(receiptDate);
+  const { fiscalCutoverSetting } = useMaterialIssueSetting();
+  const fiscalPeriod = useFiscalPeriod(receiptDate, fiscalCutoverSetting);
 
   const [filters, setFilters] = useState<PurchaseReceiptCandidateParams>(() => ({
 
@@ -144,12 +146,12 @@ export default function PurchaseReceiptPage() {
       receipts.map((receipt) => ({
         입고번호: receipt.receiptNo,
         입고일: receipt.receiptDate,
-        매입월: formatFiscalPeriodFromIso(receipt.receiptDate),
+        매입월: formatFiscalPeriodFromIso(receipt.receiptDate, fiscalCutoverSetting),
         거래처: receipt.partnerName,
         상태: receiptStatusLabel(receipt.status),
         품목수량: receipt.lines.map((line) => `${line.itemNum} × ${line.receiptQty}`).join(' / '),
       })),
-    [receipts],
+    [receipts, fiscalCutoverSetting],
   );
 
 
@@ -948,7 +950,7 @@ export default function PurchaseReceiptPage() {
 
                     <td>{receipt.receiptDate}</td>
 
-                    <td>{formatFiscalPeriodFromIso(receipt.receiptDate)}</td>
+                    <td>{formatFiscalPeriodFromIso(receipt.receiptDate, fiscalCutoverSetting)}</td>
 
                     <td>{receipt.partnerName}</td>
 

@@ -111,6 +111,7 @@ public class SalesShipmentService {
                     shipmentDate,
                     context.itemId(),
                     context.itemNo(),
+                    context.propertyClassification(),
                     lineCommand.shipmentQty()
             );
         }
@@ -129,6 +130,7 @@ public class SalesShipmentService {
                     line.id(),
                     context.itemId(),
                     context.itemNo(),
+                    context.propertyClassification(),
                     line.shipmentQty(),
                     line.amount(),
                     actorUserId
@@ -155,6 +157,8 @@ public class SalesShipmentService {
                     shipment.shipmentDate(),
                     line.id(),
                     context.itemId(),
+                    context.itemNo(),
+                    context.propertyClassification(),
                     line.shipmentQty(),
                     line.amount(),
                     actorUserId

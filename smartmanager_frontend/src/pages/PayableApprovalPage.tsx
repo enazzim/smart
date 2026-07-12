@@ -14,7 +14,8 @@ import CompanySearchField, {
 } from '../components/CompanySearchField';
 import FiscalPeriodTableCells from '../components/FiscalPeriodTableCells';
 import GridExcelExportButton from '../components/GridExcelExportButton';
-import { currentCalendarYearMonth, type FiscalPeriod } from '../utils/fiscalCalendar';
+import { currentFiscalYearMonth, type FiscalPeriod } from '../utils/fiscalCalendar';
+import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import { formatAmount } from '../utils/numberFormat';
 
 type TabId = 'pending' | 'approved';
@@ -37,8 +38,8 @@ function rowKey(row: PayableApprovalRow): string {
   return `${row.ledgerKind}-${row.historyId}`;
 }
 
-function createDefaultFilters(): PayableApprovalSearchParams {
-  const { fiscalYear, fiscalMonth } = currentCalendarYearMonth();
+function createDefaultFilters(cutoverSetting: string): PayableApprovalSearchParams {
+  const { fiscalYear, fiscalMonth } = currentFiscalYearMonth(cutoverSetting);
   return {
     receiptDateFrom: addDaysIso(todayIso(), -30),
     receiptDateTo: todayIso(),
@@ -48,9 +49,12 @@ function createDefaultFilters(): PayableApprovalSearchParams {
 }
 
 export default function PayableApprovalPage() {
+  const { fiscalCutoverSetting } = useMaterialIssueSetting();
   const [activeTab, setActiveTab] = useState<TabId>('pending');
-  const [filters, setFilters] = useState<PayableApprovalSearchParams>(createDefaultFilters);
-  const [appliedFilters, setAppliedFilters] = useState<PayableApprovalSearchParams>(createDefaultFilters);
+  const [filters, setFilters] = useState<PayableApprovalSearchParams>(() => createDefaultFilters(fiscalCutoverSetting));
+  const [appliedFilters, setAppliedFilters] = useState<PayableApprovalSearchParams>(() =>
+    createDefaultFilters(fiscalCutoverSetting),
+  );
   const [filterPartner, setFilterPartner] = useState<CompanySearchSelection | null>(null);
   const [appliedPartner, setAppliedPartner] = useState<CompanySearchSelection | null>(null);
   const [rows, setRows] = useState<PayableApprovalRow[]>([]);
@@ -143,7 +147,7 @@ export default function PayableApprovalPage() {
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const { fiscalYear, fiscalMonth } = currentCalendarYearMonth();
+    const { fiscalYear, fiscalMonth } = currentFiscalYearMonth(fiscalCutoverSetting);
     const nextFilters: PayableApprovalSearchParams = {
       ...filters,
       fiscalYear: filters.fiscalYear ?? fiscalYear,
@@ -155,7 +159,7 @@ export default function PayableApprovalPage() {
   };
 
   const onResetFilters = () => {
-    const defaults = createDefaultFilters();
+    const defaults = createDefaultFilters(fiscalCutoverSetting);
     setFilters(defaults);
     setAppliedFilters(defaults);
     setFilterPartner(null);
@@ -296,7 +300,7 @@ export default function PayableApprovalPage() {
           <label>
             매입월
             <select
-              value={filters.fiscalMonth ?? currentCalendarYearMonth().fiscalMonth}
+              value={filters.fiscalMonth ?? currentFiscalYearMonth(fiscalCutoverSetting).fiscalMonth}
               onChange={(e) => setFilters((f) => ({ ...f, fiscalMonth: Number(e.target.value) }))}
             >
               {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (

@@ -16,6 +16,7 @@ export interface SalesShipmentCandidate {
   shippedQty: number;
   remainingQty: number;
   salesOnHandQty: number;
+  wipOnHandQty: number;
   shippable: boolean;
   shippableMessage?: string | null;
 }

@@ -3,6 +3,7 @@ import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
 import { formatFiscalPeriodFromInstant } from '../utils/fiscalCalendar';
+import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import {
   cancelQualityInspection,
   completeQualityInspection,
@@ -54,7 +55,8 @@ export default function QualityInspectionPage() {
   const [passedQty, setPassedQty] = useState('');
   const [failedQty, setFailedQty] = useState('');
   const [completedDate, setCompletedDate] = useState(todayIso());
-  const fiscalPeriod = useFiscalPeriod(completedDate);
+  const { fiscalCutoverSetting } = useMaterialIssueSetting();
+  const fiscalPeriod = useFiscalPeriod(completedDate, fiscalCutoverSetting);
   const [submitting, setSubmitting] = useState(false);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
 
@@ -107,7 +109,7 @@ export default function QualityInspectionPage() {
     () =>
       history.map((row) => ({
         검사완료일: formatInstantDate(row.completedAt),
-        매입월: formatFiscalPeriodFromInstant(row.completedAt),
+        매입월: formatFiscalPeriodFromInstant(row.completedAt, fiscalCutoverSetting),
         입고일: row.receiptDate ?? '',
         구분: sourceLabel(row.sourceType),
         거래처: row.companyName,
@@ -117,7 +119,7 @@ export default function QualityInspectionPage() {
         합격: formatQty(row.passedQty),
         불량: formatQty(row.failedQty),
       })),
-    [history],
+    [history, fiscalCutoverSetting],
   );
 
   const openComplete = (inspection: QualityInspection) => {
@@ -408,7 +410,7 @@ export default function QualityInspectionPage() {
                     history.map((row) => (
                       <tr key={row.id}>
                         <td>{formatInstantDate(row.completedAt)}</td>
-                        <td>{formatFiscalPeriodFromInstant(row.completedAt)}</td>
+                        <td>{formatFiscalPeriodFromInstant(row.completedAt, fiscalCutoverSetting)}</td>
                         <td>{row.receiptDate ?? '—'}</td>
                         <td>{sourceLabel(row.sourceType)}</td>
                         <td>{row.companyName}</td>

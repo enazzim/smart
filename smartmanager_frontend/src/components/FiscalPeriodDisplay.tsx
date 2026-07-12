@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent } from 'react';
-import { FISCAL_CUTOVER_DAY, formatFiscalPeriodLabel, type FiscalPeriod } from '../utils/fiscalCalendar';
+import { formatFiscalCutoverHint, formatFiscalPeriodLabel, type FiscalPeriod } from '../utils/fiscalCalendar';
+import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 
 interface FiscalPeriodDisplayProps {
   /** YYYY-MM-DD — 입고일·납품일·검사완료일 등 */
@@ -10,7 +11,7 @@ interface FiscalPeriodDisplayProps {
 }
 
 /**
- * 매입년도·매입월 (25일 규칙 자동 계산, 더블클릭으로 수동 수정)
+ * 매입년도·매입월 (매입마감일 규칙 자동 계산, 더블클릭으로 수동 수정)
  */
 export default function FiscalPeriodDisplay({
   baseDate,
@@ -18,6 +19,7 @@ export default function FiscalPeriodDisplay({
   onPeriodChange,
   className,
 }: FiscalPeriodDisplayProps) {
+  const { fiscalCutoverSetting } = useMaterialIssueSetting();
   const label = formatFiscalPeriodLabel(period);
   const [editing, setEditing] = useState<'year' | 'month' | null>(null);
   const [draft, setDraft] = useState('');
@@ -119,7 +121,7 @@ export default function FiscalPeriodDisplay({
         )}
       </label>
       <p className="fiscal-period-hint" title={label}>
-        {baseDate.slice(8, 10)}일 기준 — {FISCAL_CUTOVER_DAY}일 초과 시 익월 매입 (더블클릭 수정)
+        {formatFiscalCutoverHint(baseDate, fiscalCutoverSetting)}
       </p>
     </div>
   );

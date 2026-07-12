@@ -6,6 +6,8 @@ import {
   fetchMonthClosings,
   reopenMonthClosing,
 } from '../api/monthClosing';
+import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
+import { currentFiscalYearMonth, formatFiscalCutoverSettingLabel, isFiscalCutoverLast } from '../utils/fiscalCalendar';
 
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
 
@@ -26,12 +28,13 @@ function isLatestClosing(row: MonthClosing, rows: MonthClosing[]): boolean {
 }
 
 export default function MonthClosingPage() {
-  const currentYear = new Date().getFullYear();
+  const { fiscalCutoverSetting } = useMaterialIssueSetting();
+  const currentPeriod = currentFiscalYearMonth(fiscalCutoverSetting);
   const [rows, setRows] = useState<MonthClosing[]>([]);
   const [status, setStatus] = useState<FiscalPeriodStatus | null>(null);
   const [form, setForm] = useState<CloseMonthClosingRequest>({
-    fiscalYear: currentYear,
-    fiscalMonth: new Date().getMonth() + 1,
+    fiscalYear: currentPeriod.fiscalYear,
+    fiscalMonth: currentPeriod.fiscalMonth,
   });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -99,8 +102,12 @@ export default function MonthClosingPage() {
       <header className="page-header">
         <h1>월마감</h1>
         <p>
-          회계월 25일 규칙(1~25일 → 해당 월, 26일~ → 다음 월)으로 거래일을 판정하고, 마감된 회계월에는
-          트랜잭션 등록·수정을 차단합니다. 마감해제는 가장 최근 마감 회계월만 가능합니다.
+          회계월 매입마감일 규칙(
+          {isFiscalCutoverLast(fiscalCutoverSetting)
+            ? '매월 말일(28~31일) 이하 → 해당 월'
+            : `${formatFiscalCutoverSettingLabel(fiscalCutoverSetting)} 이하 → 해당 월, 익일~ → 다음 월`}
+          )으로 거래일을 판정하고, 마감된 회계월에는 트랜잭션 등록·수정을 차단합니다. 마감해제는 가장 최근 마감
+          회계월만 가능합니다. 마감일은 시스템 설정에서 변경할 수 있습니다.
         </p>
       </header>
 

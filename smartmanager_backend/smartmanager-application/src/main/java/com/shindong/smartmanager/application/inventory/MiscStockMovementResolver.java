@@ -27,9 +27,24 @@ public class MiscStockMovementResolver {
         return switch (classification) {
             case 원자재 -> MiscStockMovementTarget.of(LOCATION_RAW, null, null, null, classification);
             case 상품 -> MiscStockMovementTarget.of(LOCATION_SALES, null, null, null, classification);
-            case 공정품 -> resolveWithRequiredProcess(item, processSequenceId, classification, true);
+            case 공정품 -> resolveWipProcess(item, processSequenceId, classification);
             case 제품 -> resolveProduct(item, processSequenceId, classification);
         };
+    }
+
+    private MiscStockMovementTarget resolveWipProcess(
+            ItemView item,
+            Long processSequenceId,
+            PropertyClassification classification
+    ) {
+        ProcessView process = requireProcessBelongingToItem(item, processSequenceId);
+        return MiscStockMovementTarget.of(
+                LOCATION_WIP,
+                process.id(),
+                process.processSequenceNum(),
+                process.processName(),
+                classification
+        );
     }
 
     private MiscStockMovementTarget resolveProduct(
@@ -52,25 +67,6 @@ public class MiscStockMovementResolver {
                 process.processName(),
                 classification
         );
-    }
-
-    private MiscStockMovementTarget resolveWithRequiredProcess(
-            ItemView item,
-            Long processSequenceId,
-            PropertyClassification classification,
-            boolean wipSlotUsesSelectedProcess
-    ) {
-        ProcessView process = requireProcessBelongingToItem(item, processSequenceId);
-        if (wipSlotUsesSelectedProcess) {
-            return MiscStockMovementTarget.of(
-                    LOCATION_WIP,
-                    process.id(),
-                    process.processSequenceNum(),
-                    process.processName(),
-                    classification
-            );
-        }
-        throw new IllegalStateException("공정품 창고 결정에 실패했습니다.");
     }
 
     private ProcessView requireProcessBelongingToItem(ItemView item, Long processSequenceId) {

@@ -15,6 +15,8 @@ import com.shindong.smartmanager.application.sales.SalesOrderService;
 import com.shindong.smartmanager.application.sales.SalesRevenueInventoryService;
 import com.shindong.smartmanager.application.sales.SalesRevenueRepository;
 import com.shindong.smartmanager.application.sales.SalesRevenueService;
+import com.shindong.smartmanager.application.process.ProcessRepository;
+import com.shindong.smartmanager.application.process.WipBalanceProjector;
 import com.shindong.smartmanager.application.sales.SalesShipmentInventoryService;
 import com.shindong.smartmanager.application.sales.SalesShipmentRepository;
 import com.shindong.smartmanager.application.sales.SalesShipmentService;
@@ -41,9 +43,15 @@ public class SalesApplicationConfig {
 
     @Bean
     public SalesShipmentInventoryService salesShipmentInventoryService(
-            InventoryBalanceService inventoryBalanceService
+            InventoryBalanceService inventoryBalanceService,
+            ProcessRepository processRepository,
+            WipBalanceProjector wipBalanceProjector
     ) {
-        return new SalesShipmentInventoryService(inventoryBalanceService);
+        return new SalesShipmentInventoryService(
+                inventoryBalanceService,
+                processRepository,
+                wipBalanceProjector
+        );
     }
 
     @Bean

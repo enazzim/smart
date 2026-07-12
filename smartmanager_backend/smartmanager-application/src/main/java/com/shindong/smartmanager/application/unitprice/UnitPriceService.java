@@ -26,7 +26,7 @@ public class UnitPriceService {
     private static final Set<PropertyClassification> PURCHASE_ITEM_CLASSES =
             EnumSet.of(PropertyClassification.원자재, PropertyClassification.상품);
     private static final Set<PropertyClassification> SALE_ITEM_CLASSES =
-            EnumSet.of(PropertyClassification.제품, PropertyClassification.상품);
+            EnumSet.of(PropertyClassification.제품, PropertyClassification.상품, PropertyClassification.공정품);
     private static final Set<PropertyClassification> OUTSOURCE_ITEM_CLASSES =
             EnumSet.of(PropertyClassification.제품, PropertyClassification.공정품);
 

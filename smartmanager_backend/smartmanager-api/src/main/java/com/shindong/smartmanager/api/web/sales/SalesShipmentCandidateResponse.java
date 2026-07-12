@@ -18,6 +18,7 @@ public record SalesShipmentCandidateResponse(
         BigDecimal shippedQty,
         BigDecimal remainingQty,
         BigDecimal salesOnHandQty,
+        BigDecimal wipOnHandQty,
         boolean shippable,
         String shippableMessage
 ) {
@@ -36,6 +37,7 @@ public record SalesShipmentCandidateResponse(
                 view.shippedQty(),
                 view.remainingQty(),
                 view.salesOnHandQty(),
+                view.wipOnHandQty(),
                 view.shippable(),
                 view.shippableMessage()
         );

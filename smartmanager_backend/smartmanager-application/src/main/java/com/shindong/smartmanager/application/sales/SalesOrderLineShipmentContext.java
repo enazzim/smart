@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.application.sales;
 
+import com.shindong.smartmanager.domain.item.PropertyClassification;
 import com.shindong.smartmanager.domain.sales.SalesOrderStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,6 +15,7 @@ public record SalesOrderLineShipmentContext(
         long itemId,
         String itemNo,
         String itemName,
+        PropertyClassification propertyClassification,
         BigDecimal orderQty,
         BigDecimal shippedQty,
         BigDecimal unitPrice,

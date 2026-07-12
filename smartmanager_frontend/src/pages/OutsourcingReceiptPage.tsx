@@ -3,6 +3,7 @@ import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
 import { formatFiscalPeriodFromIso } from '../utils/fiscalCalendar';
+import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import {
   cancelOutsourcingReceipt,
   createOutsourcingReceipt,
@@ -50,7 +51,8 @@ export default function OutsourcingReceiptPage() {
   const [receiptQtyByLineId, setReceiptQtyByLineId] = useState<Record<number, string>>({});
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
   const [receiptDate, setReceiptDate] = useState(todayIso());
-  const fiscalPeriod = useFiscalPeriod(receiptDate);
+  const { fiscalCutoverSetting } = useMaterialIssueSetting();
+  const fiscalPeriod = useFiscalPeriod(receiptDate, fiscalCutoverSetting);
   const [filters, setFilters] = useState<OutsourcingReceiptCandidateParams>(() => ({
     orderDateFrom: addDaysIso(todayIso(), -30),
     orderDateTo: todayIso(),
@@ -122,14 +124,14 @@ export default function OutsourcingReceiptPage() {
           입고번호: receipt.receiptNo,
           거래처: receipt.partnerName,
           입고일: receipt.receiptDate,
-          매입월: formatFiscalPeriodFromIso(receipt.receiptDate),
+          매입월: formatFiscalPeriodFromIso(receipt.receiptDate, fiscalCutoverSetting),
           상태: receiptStatusLabel(receipt.status),
           품목: `${line.itemNo} ${line.itemName}`,
           수량: formatQty(line.receiptQty),
           반영: line.stockPosted ? '완료' : line.qualityInspectionId ? '검사대기' : '미반영',
         })),
       ),
-    [receipts],
+    [receipts, fiscalCutoverSetting],
   );
 
   const toggleLine = (row: OutsourcingReceiptCandidate, checked: boolean) => {
@@ -483,7 +485,7 @@ export default function OutsourcingReceiptPage() {
                               <td rowSpan={receipt.lines.length}>{receipt.partnerName}</td>
                               <td rowSpan={receipt.lines.length}>{receipt.receiptDate}</td>
                               <td rowSpan={receipt.lines.length}>
-                                {formatFiscalPeriodFromIso(receipt.receiptDate)}
+                                {formatFiscalPeriodFromIso(receipt.receiptDate, fiscalCutoverSetting)}
                               </td>
                               <td rowSpan={receipt.lines.length}>{receiptStatusLabel(receipt.status)}</td>
                             </>

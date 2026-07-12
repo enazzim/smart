@@ -17,6 +17,7 @@ public record SalesShipmentCandidateView(
         BigDecimal shippedQty,
         BigDecimal remainingQty,
         BigDecimal salesOnHandQty,
+        BigDecimal wipOnHandQty,
         boolean shippable,
         String shippableMessage
 ) {

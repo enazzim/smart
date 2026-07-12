@@ -1,12 +1,16 @@
 package com.shindong.smartmanager.application.system;
 
+import com.shindong.smartmanager.application.closing.FiscalCutoverPolicy;
 import com.shindong.smartmanager.domain.production.MrpGroupingMode;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 public class SystemSettingService {
 
+    public static final String KEY_CLOSING_FISCAL_CUTOVER_DAY = "closing.fiscal_cutover_day";
     public static final String KEY_MRP_GROUPING_MODE = "mrp.grouping_mode";
     public static final String KEY_PRODUCTION_MATERIAL_ISSUE_ENABLED = "production.material_issue.enabled";
     public static final String KEY_INVENTORY_ALLOW_NEGATIVE_STOCK = "inventory.allow_negative_stock";
@@ -18,6 +22,15 @@ public class SystemSettingService {
 
     static {
         DEFINITIONS = new LinkedHashMap<>();
+        DEFINITIONS.put(
+                KEY_CLOSING_FISCAL_CUTOVER_DAY,
+                new SettingDefinition(
+                        "매입마감일",
+                        "거래일 기준 회계월 판정일. N일 이하 거래는 해당 월, 초과 거래는 익월. 매월 말일은 28~31일을 달마다 자동 적용",
+                        fiscalCutoverAllowedValues(),
+                        FiscalCutoverPolicy.DEFAULT_SETTING_VALUE
+                )
+        );
         DEFINITIONS.put(
                 KEY_MRP_GROUPING_MODE,
                 new SettingDefinition(
@@ -114,6 +127,12 @@ public class SystemSettingService {
                 .orElse(true);
     }
 
+    public String resolveFiscalCutoverSettingValue() {
+        return systemSettingRepository.findActiveByKey(KEY_CLOSING_FISCAL_CUTOVER_DAY)
+                .map(view -> FiscalCutoverPolicy.normalizeSettingValue(parseJsonString(view.valueJson())))
+                .orElse(FiscalCutoverPolicy.DEFAULT_SETTING_VALUE);
+    }
+
     private String normalizeValue(String settingKey, String value) {
         if (KEY_MRP_GROUPING_MODE.equals(settingKey)) {
             return MrpGroupingMode.fromValue(value).name();
@@ -123,6 +142,9 @@ public class SystemSettingService {
         }
         if (KEY_INVENTORY_ALLOW_NEGATIVE_STOCK.equals(settingKey)) {
             return normalizeYesNo(value, "마이너스 재고 허용");
+        }
+        if (KEY_CLOSING_FISCAL_CUTOVER_DAY.equals(settingKey)) {
+            return FiscalCutoverPolicy.normalizeSettingValue(value);
         }
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("설정 값을 입력하세요.");
@@ -143,6 +165,13 @@ public class SystemSettingService {
 
     static String toJsonString(String value) {
         return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    }
+
+    private static List<String> fiscalCutoverAllowedValues() {
+        List<String> values = new ArrayList<>();
+        values.add(FiscalCutoverPolicy.VALUE_LAST);
+        values.addAll(IntStream.rangeClosed(1, 31).mapToObj(String::valueOf).toList());
+        return values;
     }
 
     private static String normalizeYesNo(String value, String fieldLabel) {

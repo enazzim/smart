@@ -9,7 +9,6 @@ import com.shindong.smartmanager.application.process.ProcessSequenceNavigator;
 import com.shindong.smartmanager.application.process.ProcessView;
 import com.shindong.smartmanager.application.process.WipBalanceProjector;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
-import com.shindong.smartmanager.domain.item.PropertyClassification;
 import com.shindong.smartmanager.domain.process.ProcessVariant;
 import com.shindong.smartmanager.domain.process.WorkDistinction;
 import java.math.BigDecimal;
@@ -97,7 +96,7 @@ public class WorkReportInventoryService {
                         StockMovementType.IN,
                         goodQty, nextId, null,
                         reverse ? REFERENCE_TYPE_CANCEL : REFERENCE_TYPE, reportId, actorUserId);
-            } else if (item.propertyClassification() == PropertyClassification.제품) {
+            } else if (item.propertyClassification().salesWarehouseAtProductionComplete()) {
                 record(reverse, context.itemId(), LOCATION_SALES, context.reportDate(),
                         StockMovementType.IN,
                         goodQty, null, null,

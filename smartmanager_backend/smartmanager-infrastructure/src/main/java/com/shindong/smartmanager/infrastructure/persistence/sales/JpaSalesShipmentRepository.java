@@ -4,12 +4,14 @@ import com.shindong.smartmanager.application.inventory.InventoryBalanceService;
 import com.shindong.smartmanager.application.sales.SalesOrderLineShipmentContext;
 import com.shindong.smartmanager.application.sales.SalesShipmentCandidateCriteria;
 import com.shindong.smartmanager.application.sales.SalesShipmentCandidateView;
+import com.shindong.smartmanager.application.sales.SalesShipmentInventoryService;
 import com.shindong.smartmanager.application.sales.SalesShipmentLineSaveCommand;
 import com.shindong.smartmanager.application.sales.SalesShipmentLineView;
 import com.shindong.smartmanager.application.sales.SalesShipmentListCriteria;
 import com.shindong.smartmanager.application.sales.SalesShipmentRepository;
 import com.shindong.smartmanager.application.sales.SalesShipmentSaveCommand;
 import com.shindong.smartmanager.application.sales.SalesShipmentView;
+import com.shindong.smartmanager.domain.item.PropertyClassification;
 import com.shindong.smartmanager.domain.sales.SalesLineDeliveryStatus;
 import com.shindong.smartmanager.domain.sales.SalesOrderStatus;
 import com.shindong.smartmanager.domain.sales.SalesShipmentStatus;
@@ -45,6 +47,7 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
     private final SpringDataCompanyRepository companyRepository;
     private final SpringDataItemRepository itemRepository;
     private final InventoryBalanceService inventoryBalanceService;
+    private final SalesShipmentInventoryService salesShipmentInventoryService;
 
     public JpaSalesShipmentRepository(
             EntityManager entityManager,
@@ -54,7 +57,8 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
             SpringDataSalesOrderLineRepository orderLineRepository,
             SpringDataCompanyRepository companyRepository,
             SpringDataItemRepository itemRepository,
-            InventoryBalanceService inventoryBalanceService
+            InventoryBalanceService inventoryBalanceService,
+            SalesShipmentInventoryService salesShipmentInventoryService
     ) {
         this.entityManager = entityManager;
         this.shipmentRepository = shipmentRepository;
@@ -64,6 +68,7 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
         this.companyRepository = companyRepository;
         this.itemRepository = itemRepository;
         this.inventoryBalanceService = inventoryBalanceService;
+        this.salesShipmentInventoryService = salesShipmentInventoryService;
     }
 
     @Override
@@ -76,7 +81,7 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
     public List<SalesShipmentCandidateView> findCandidates(SalesShipmentCandidateCriteria criteria) {
         StringBuilder sql = new StringBuilder("""
                 SELECT so.id, sol.id, so.order_no, so.order_date, so.partner_id, c.company_name,
-                       sol.item_id, i.item_no, i.item_name,
+                       sol.item_id, i.item_no, i.item_name, i.property_classification,
                        sol.order_qty, sol.shipped_qty, sol.delivery_date
                 FROM sales_order_line sol
                 JOIN sales_order so ON so.id = sol.sales_order_id
@@ -123,17 +128,29 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
         List<SalesShipmentCandidateView> result = new ArrayList<>();
         LocalDate today = LocalDate.now();
         for (Object[] row : rows) {
-            BigDecimal orderQty = toBigDecimal(row[9]);
-            BigDecimal shippedQty = toBigDecimal(row[10]);
+            BigDecimal orderQty = toBigDecimal(row[10]);
+            BigDecimal shippedQty = toBigDecimal(row[11]);
             BigDecimal remainingQty = orderQty.subtract(shippedQty);
             long itemId = ((Number) row[6]).longValue();
             String itemNo = row[7].toString();
+            PropertyClassification propertyClassification = PropertyClassification.valueOf(row[9].toString());
             BigDecimal salesOnHand = inventoryBalanceService.currentStockQty(itemId, "SALES", today, null, null, null);
+            BigDecimal wipOnHand = propertyClassification.shipmentFromWipFinalProcess()
+                    ? salesShipmentInventoryService.resolveWipFinalOnHandQty(today, itemId)
+                    : BigDecimal.ZERO;
+            BigDecimal availableQty = salesShipmentInventoryService.resolveShipmentAvailableQty(
+                    today, itemId, propertyClassification);
             boolean shippable = remainingQty.compareTo(BigDecimal.ZERO) > 0;
             String message = null;
-            if (shippable && salesOnHand.compareTo(remainingQty) < 0) {
-                message = InventoryLocationLabels.label("SALES") + " 재고(" + salesOnHand.stripTrailingZeros().toPlainString()
-                        + ")가 출고 잔량보다 적을 수 있습니다.";
+            if (shippable && availableQty.compareTo(remainingQty) < 0) {
+                if (propertyClassification.shipmentFromWipFinalProcess()) {
+                    message = InventoryLocationLabels.label("WIP") + "(최종공정) 재고("
+                            + wipOnHand.stripTrailingZeros().toPlainString()
+                            + ")가 출고 잔량보다 적을 수 있습니다.";
+                } else {
+                    message = InventoryLocationLabels.label("SALES") + " 재고(" + salesOnHand.stripTrailingZeros().toPlainString()
+                            + ")가 출고 잔량보다 적을 수 있습니다.";
+                }
             }
             result.add(new SalesShipmentCandidateView(
                     ((Number) row[1]).longValue(),
@@ -149,6 +166,7 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
                     shippedQty,
                     remainingQty,
                     salesOnHand,
+                    wipOnHand,
                     shippable,
                     message
             ));
@@ -173,6 +191,7 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
                 line.getItemId(),
                 item != null ? item.getItemNo() : "",
                 item != null ? item.getItemName() : "",
+                item != null ? item.getPropertyClassification() : null,
                 line.getOrderQty(),
                 line.getShippedQty(),
                 line.getUnitPrice(),
