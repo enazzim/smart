@@ -11,6 +11,7 @@ import {
   type PartnerPaymentListParams,
 } from '../api/partnerPayment';
 import { formatAmount } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -36,6 +37,7 @@ function defaultCostCategory(row: PartnerPaymentCandidate): PartnerPaymentCostCa
 }
 
 export default function PartnerPaymentPage() {
+  const confirm = useConfirm();
   const [candidates, setCandidates] = useState<PartnerPaymentCandidate[]>([]);
   const [payments, setPayments] = useState<PartnerPayment[]>([]);
   const [filters, setFilters] = useState<PartnerPaymentCandidateParams>({});
@@ -155,7 +157,7 @@ export default function PartnerPaymentPage() {
   };
 
   const onCancel = async (payment: PartnerPayment) => {
-    if (!window.confirm(`지급 ${payment.paymentNo}을(를) 취소하시겠습니까?`)) return;
+    if (!(await confirm(`지급 ${payment.paymentNo}을(를) 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setPaymentError(null);
     try {

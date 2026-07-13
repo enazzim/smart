@@ -15,6 +15,7 @@ import {
   type OutsourcingReceiptListParams,
 } from '../api/outsourcingReceipt';
 import { formatAmount, formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -46,6 +47,7 @@ function receiptStatusLabel(status: string): string {
 }
 
 export default function OutsourcingReceiptPage() {
+  const confirm = useConfirm();
   const [candidates, setCandidates] = useState<OutsourcingReceiptCandidate[]>([]);
   const [receipts, setReceipts] = useState<OutsourcingReceipt[]>([]);
   const [receiptQtyByLineId, setReceiptQtyByLineId] = useState<Record<number, string>>({});
@@ -221,7 +223,7 @@ export default function OutsourcingReceiptPage() {
   };
 
   const onCancelReceipt = async (receipt: OutsourcingReceipt) => {
-    if (!window.confirm(`${receipt.receiptNo} 입고를 취소하시겠습니까?`)) {
+    if (!(await confirm(`${receipt.receiptNo} 입고를 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setCancellingId(receipt.id);

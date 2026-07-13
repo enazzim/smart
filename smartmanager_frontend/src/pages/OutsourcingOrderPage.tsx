@@ -10,6 +10,7 @@ import {
   type WorkPlanOutsourceCandidate,
 } from '../api/outsourcingOrder';
 import { formatAmount, formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -44,6 +45,7 @@ function collectAllSelectableVendorKeys(candidates: WorkPlanOutsourceCandidate[]
 }
 
 export default function OutsourcingOrderPage() {
+  const confirm = useConfirm();
   const [candidates, setCandidates] = useState<WorkPlanOutsourceCandidate[]>([]);
   const [orders, setOrders] = useState<OutsourcingOrder[]>([]);
   const [orderDate, setOrderDate] = useState(todayIso());
@@ -232,7 +234,7 @@ export default function OutsourcingOrderPage() {
   };
 
   const onCancel = async (order: OutsourcingOrder) => {
-    if (!window.confirm(`외주발주 ${order.orderNo}을(를) 취소하시겠습니까?`)) return;
+    if (!(await confirm(`외주발주 ${order.orderNo}을(를) 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setOrderError(null);
     try {

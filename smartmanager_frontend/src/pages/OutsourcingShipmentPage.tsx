@@ -26,6 +26,7 @@ import {
   translateInventoryLocationInText,
 } from '../utils/inventoryLocation';
 import { formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const ADVANCE_PARENT_CLASSES: PropertyClassification[] = ['제품', '공정품'];
 
@@ -90,6 +91,7 @@ function parseQty(value: string): number | null {
 }
 
 export default function OutsourcingShipmentPage() {
+  const confirm = useConfirm();
   const [candidates, setCandidates] = useState<OutsourcingShipmentCandidate[]>([]);
   const [shipments, setShipments] = useState<OutsourcingShipment[]>([]);
   const [shipmentDate, setShipmentDate] = useState(todayIso());
@@ -523,7 +525,7 @@ export default function OutsourcingShipmentPage() {
   };
 
   const onCancel = async (shipment: OutsourcingShipment) => {
-    if (!window.confirm(`외주출고 ${shipment.shipmentNo}을(를) 취소하시겠습니까?`)) return;
+    if (!(await confirm(`외주출고 ${shipment.shipmentNo}을(를) 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setShipmentError(null);
     try {

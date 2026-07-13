@@ -31,6 +31,7 @@ import { fetchCompanies } from '../api/company';
 import { fetchItems } from '../api/item';
 import { fetchUnitPrices } from '../api/unitPrice';
 import { formatAmount, formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const SALES_ITEM_CLASSES: PropertyClassification[] = ['상품', '제품', '공정품'];
 
@@ -124,6 +125,7 @@ function toRequest(
 }
 
 export default function SalesOrderPage() {
+  const confirm = useConfirm();
   const [registerMode, setRegisterMode] = useState<RegisterMode>('single');
   const [lineRows, setLineRows] = useState<SalesOrderLineListRow[]>([]);
   const [searchPartner, setSearchPartner] = useState<CompanySearchSelection | null>(null);
@@ -395,7 +397,7 @@ export default function SalesOrderPage() {
   };
 
   const onCancel = async (id: number) => {
-    if (!window.confirm('작성중 수주를 취소하시겠습니까?')) {
+    if (!(await confirm('작성중 수주를 취소하시겠습니까?', { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setSubmitting(true);

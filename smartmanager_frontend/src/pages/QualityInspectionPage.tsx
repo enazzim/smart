@@ -13,6 +13,7 @@ import {
   type QualityInspectionSourceType,
 } from '../api/qualityInspection';
 import { formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -34,6 +35,7 @@ function formatInstantDate(value?: string | null): string {
 }
 
 export default function QualityInspectionPage() {
+  const confirm = useConfirm();
   const [pending, setPending] = useState<QualityInspection[]>([]);
   const [history, setHistory] = useState<QualityInspection[]>([]);
   const [pendingFilters, setPendingFilters] = useState<QualityInspectionListParams>(() => ({
@@ -189,7 +191,7 @@ export default function QualityInspectionPage() {
   };
 
   const onCancelInspection = async (inspection: QualityInspection) => {
-    if (!window.confirm(`검사 완료 건을 취소하시겠습니까? 합격 수량(${formatQty(inspection.passedQty)})이 창고에서 차감됩니다.`)) {
+    if (!(await confirm(`검사 완료 건을 취소하시겠습니까? 합격 수량(${formatQty(inspection.passedQty)})이 창고에서 차감됩니다.`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setCancellingId(inspection.id);

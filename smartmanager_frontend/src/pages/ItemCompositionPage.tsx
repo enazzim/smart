@@ -23,6 +23,7 @@ import GridExcelExportButton from '../components/GridExcelExportButton';
 import { useAuth } from '../context/AuthContext';
 import { downloadExplosionExcel, downloadReverseExcel } from '../utils/bomExcelExport';
 import { formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const PARENT_CLASSES: PropertyClassification[] = ['제품', '상품', '공정품'];
 const CHILD_CLASSES: PropertyClassification[] = ['원자재', '공정품'];
@@ -109,6 +110,7 @@ function BomTreeRows({
 }
 
 export default function ItemCompositionPage() {
+  const confirm = useConfirm();
   const { currentUser } = useAuth();
   /** 백엔드 @BasisAuthorize.ItemWrite 와 동일 기준 (VIEWER 역할과 무관) */
   const canEditLot = Boolean(currentUser?.authorities.includes('basis:item:write'));
@@ -256,7 +258,7 @@ export default function ItemCompositionPage() {
   };
 
   const onDelete = async (row: ItemComposition) => {
-    if (!window.confirm(`「${row.parentItemNo} → ${row.childItemNo}」 BOM을 삭제하시겠습니까?`)) {
+    if (!(await confirm(`「${row.parentItemNo} → ${row.childItemNo}」 BOM을 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setError(null);
@@ -305,9 +307,10 @@ export default function ItemCompositionPage() {
     }
     const next = !node.lotTracked;
     if (!next) {
-      const ok = window.confirm(
+      const ok = await confirm(
         `품목 「${node.itemNum} ${node.itemName}」의 Lot 추적을 해제하시겠습니까?\n\n` +
           '품목 마스터 값이 변경되며, 다른 BOM에서 쓰는 동일 품목에도 적용됩니다.',
+        { confirmLabel: '해제', cancelLabel: '닫기', danger: true },
       );
       if (!ok) {
         return;
@@ -376,11 +379,12 @@ export default function ItemCompositionPage() {
       lotEnablePreview?.filter(
         (row) => lotEnableSelectedIds.has(row.itemId) && row.otherParentItemNos.length > 0,
       ).length ?? 0;
-    const ok = window.confirm(
+    const ok = await confirm(
       `선택한 ${ids.length}개 품목의 Lot 추적을 설정하시겠습니까?` +
         (sharedCount > 0
           ? `\n\n이 중 ${sharedCount}개 품목은 현재 정전개 밖의 다른 모품목 BOM에도 쓰입니다.`
           : ''),
+      { cancelLabel: '닫기' },
     );
     if (!ok) {
       return;

@@ -17,6 +17,7 @@ import GridExcelExportButton from '../components/GridExcelExportButton';
 import { currentFiscalYearMonth, type FiscalPeriod } from '../utils/fiscalCalendar';
 import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import { formatAmount } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 type TabId = 'pending' | 'approved';
 
@@ -49,6 +50,7 @@ function createDefaultFilters(cutoverSetting: string): PayableApprovalSearchPara
 }
 
 export default function PayableApprovalPage() {
+  const confirm = useConfirm();
   const { fiscalCutoverSetting } = useMaterialIssueSetting();
   const [activeTab, setActiveTab] = useState<TabId>('pending');
   const [filters, setFilters] = useState<PayableApprovalSearchParams>(() => createDefaultFilters(fiscalCutoverSetting));
@@ -214,7 +216,7 @@ export default function PayableApprovalPage() {
       setError('승인취소할 항목을 선택해 주세요.');
       return;
     }
-    if (!window.confirm(`선택한 ${selectedItems.length}건의 승인을 취소하시겠습니까?`)) {
+    if (!(await confirm(`선택한 ${selectedItems.length}건의 승인을 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setSubmitting(true);

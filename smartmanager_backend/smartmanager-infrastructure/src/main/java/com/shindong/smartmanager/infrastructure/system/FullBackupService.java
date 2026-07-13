@@ -93,6 +93,11 @@ public class FullBackupService {
         }
     }
 
+    /** 전체 백업 세트 디렉터리 (ZIP 다운로드용). */
+    public Path getFullBackupSetDirectory(String setName) {
+        return resolveFullBackupSet(setName);
+    }
+
     private void copyDrawingPdfsToBackup(Path targetDir) throws IOException {
         Files.createDirectories(targetDir);
         if (!Files.exists(drawingStorageDir)) {

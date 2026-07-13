@@ -13,6 +13,7 @@ import GridExcelExportButton from '../components/GridExcelExportButton';
 import { useAuth } from '../context/AuthContext';
 import { INVENTORY_LOCATION_FILTER_OPTIONS } from '../utils/inventoryLocation';
 import { formatInteger, formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const ALL_ITEM_CLASSES: PropertyClassification[] = ['원자재', '제품', '상품', '공정품'];
 
@@ -21,6 +22,7 @@ function sumLotQty(lot: LotRow): number {
 }
 
 export default function LotMasterPage() {
+  const confirm = useConfirm();
   const { canWrite } = useAuth();
   const canEdit = canWrite('inventory:lot:write');
 
@@ -168,7 +170,7 @@ export default function LotMasterPage() {
       setError('잔량이 있는 Lot는 삭제할 수 없습니다.');
       return;
     }
-    if (!window.confirm(`Lot ${selectedLot.lotNo} 를 삭제하시겠습니까?`)) {
+    if (!(await confirm(`Lot ${selectedLot.lotNo} 를 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setSubmitting(true);

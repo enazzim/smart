@@ -5,6 +5,7 @@ import {
   deleteBackup,
   deleteFullBackup,
   downloadBackup,
+  downloadFullBackup,
   fetchBackupList,
   restoreBackup,
   restoreFullBackup,
@@ -28,6 +29,7 @@ import {
   normalizeFiscalCutoverSetting,
 } from '../utils/fiscalCalendar';
 import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 const CLOSING_SETTING_ALLOWED_DAYS = [
   FISCAL_CUTOVER_LAST,
@@ -174,6 +176,7 @@ function formatFileSize(bytes: number): string {
 }
 
 function BackupPanel() {
+  const confirm = useConfirm();
   const [backups, setBackups] = useState<BackupListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -251,13 +254,18 @@ function BackupPanel() {
     }
   };
 
-  const onDownload = async (fileName: string) => {
+  const onDownload = async (item: BackupListItem) => {
     setSubmitting(true);
     setError(null);
     setMessage(null);
     try {
-      await downloadBackup(fileName);
-      setMessage(`PC에 저장했습니다: ${fileName}`);
+      if (item.kind === 'db-only') {
+        await downloadBackup(item.fileName);
+        setMessage(`PC에 저장했습니다: ${item.fileName}`);
+      } else {
+        await downloadFullBackup(item.setName);
+        setMessage(`PC에 저장했습니다: ${item.setName}.zip`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '백업 파일 저장 실패');
     } finally {
@@ -267,7 +275,7 @@ function BackupPanel() {
 
   const onDelete = async (item: BackupListItem) => {
     const label = item.kind === 'db-only' ? item.fileName : item.setName;
-    if (!window.confirm(`백업을 삭제하시겠습니까?\n${label}`)) return;
+    if (!(await confirm(`백업을 삭제하시겠습니까?\n${label}`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setError(null);
     setMessage(null);
@@ -292,7 +300,7 @@ function BackupPanel() {
       item.kind === 'full'
         ? `현재 데이터베이스와 도면 PDF가 백업 시점으로 덮어씌워집니다.\n복구 중 도면 업로드·삭제를 하지 마세요.\n복구 후 재로그인이 필요할 수 있습니다.\n\n적용하시겠습니까?\n${label}`
         : `현재 데이터베이스가 백업 시점으로 덮어씌워집니다.\n복구 후 재로그인이 필요할 수 있습니다.\n\n적용하시겠습니까?\n${label}`;
-    if (!window.confirm(confirmMessage)) {
+    if (!(await confirm(confirmMessage, { cancelLabel: '닫기' }))) {
       return;
     }
     setSubmitting(true);
@@ -317,11 +325,11 @@ function BackupPanel() {
       <div className="panel-header-row">
         <h2>데이터 백업 및 복구</h2>
         <div className="inline-actions">
-          <button type="button" className="secondary" disabled={submitting} onClick={openCreateModal}>
+          <button type="button" disabled={submitting} onClick={openCreateModal}>
             {submitting ? '처리 중…' : 'DB 백업'}
           </button>
           <button type="button" disabled={submitting} onClick={() => void onCreateFull()}>
-            {submitting ? '처리 중…' : '전체 백업'}
+            {submitting ? '처리 중…' : '전체 백업 (DB+도면 PDF)'}
           </button>
         </div>
       </div>
@@ -364,11 +372,9 @@ function BackupPanel() {
                     <td>{formatFileSize(size)}</td>
                     <td>{formatDateTime(item.createdAt)}</td>
                     <td className="actions">
-                      {item.kind === 'db-only' && (
-                        <button type="button" disabled={submitting} onClick={() => void onDownload(item.fileName)}>
-                          저장
-                        </button>
-                      )}
+                      <button type="button" disabled={submitting} onClick={() => void onDownload(item)}>
+                        저장
+                      </button>
                       <button type="button" disabled={submitting} onClick={() => void onRestore(item)}>
                         적용
                       </button>
@@ -488,10 +494,10 @@ export default function SystemSettingsPage() {
   const productionSettings = settings.filter((row) => row.settingKey.startsWith('production.'));
 
   const settingSections = [
-    { key: 'closing', title: '회계마감', settings: closingSettings },
     { key: 'inventory', title: '재고', settings: inventorySettings },
     { key: 'production', title: '생산', settings: productionSettings },
     { key: 'mrp', title: 'MRP', settings: mrpSettings },
+    { key: 'closing', title: '회계마감', settings: closingSettings },
   ] as const;
 
   return (

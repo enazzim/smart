@@ -14,6 +14,7 @@ import CompanySearchField, { type CompanySearchSelection } from '../components/C
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatAmount, formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const TAB_CONFIG: {
   type: CostType;
@@ -79,6 +80,7 @@ function toForm(price: UnitPrice): CreateUnitPriceRequest & { updateReason?: str
 }
 
 export default function UnitPricePage() {
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<CostType>('SALE');
   const tabConfig = TAB_CONFIG.find((tab) => tab.type === activeTab)!;
 
@@ -223,7 +225,7 @@ export default function UnitPricePage() {
   };
 
   const onDelete = async (id: number) => {
-    if (!window.confirm('이 단가를 삭제하시겠습니까?')) return;
+    if (!(await confirm('이 단가를 삭제하시겠습니까?', { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) return;
     setError(null);
     try {
       await deleteUnitPrice(id);

@@ -4,6 +4,7 @@ import { createCompany, deleteCompany, fetchCompanies, updateCompany } from '../
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatInteger } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const ROLE_OPTIONS: { value: CompanyRoleType; label: string }[] = [
   { value: 'SALES', label: '판매' },
@@ -41,6 +42,7 @@ function toUpdatePayload(company: Company): UpdateCompanyRequest {
 }
 
 export default function CompanyPage() {
+  const confirm = useConfirm();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [filterCompany, setFilterCompany] = useState<CompanySearchSelection | null>(null);
   const [form, setForm] = useState<CreateCompanyRequest>(emptyForm);
@@ -133,7 +135,7 @@ export default function CompanyPage() {
   };
 
   const onDelete = async (company: Company) => {
-    if (!window.confirm(`「${company.companyName}」 거래처를 삭제하시겠습니까?`)) {
+    if (!(await confirm(`「${company.companyName}」 거래처를 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setError(null);

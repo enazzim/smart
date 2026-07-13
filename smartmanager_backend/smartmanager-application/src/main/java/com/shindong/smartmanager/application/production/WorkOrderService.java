@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.application.production;
 
+import com.shindong.smartmanager.application.common.AppBusinessException;
+import com.shindong.smartmanager.application.common.AppErrorCode;
 import com.shindong.smartmanager.domain.process.WorkDistinction;
 import com.shindong.smartmanager.domain.production.WorkOrderStatus;
 import com.shindong.smartmanager.domain.production.WorkPlanStatus;
@@ -55,10 +57,24 @@ public class WorkOrderService {
 
     public WorkOrderView cancel(long id, String actorUserId) {
         WorkOrderView order = workOrderRepository.findActiveIssuedById(id)
-                .orElseThrow(() -> new IllegalArgumentException("작업지시를 찾을 수 없습니다: " + id));
+                .orElseThrow(() -> new AppBusinessException(
+                        AppErrorCode.WORK_ORDER_NOT_FOUND,
+                        "작업지시를 찾을 수 없습니다: " + id
+                ));
         if (!order.cancellable()) {
-            throw new IllegalStateException("실적이 등록된 작업지시는 취소할 수 없습니다: " + order.orderNum());
+            throw new AppBusinessException(
+                    AppErrorCode.WORK_ORDER_CANCEL_BLOCKED,
+                    "실적·작업일보·자재투입이 있는 작업지시는 취소할 수 없습니다: " + order.orderNum()
+            );
         }
+        if (workOrderRepository.hasActiveDownstream(id)) {
+            throw new AppBusinessException(
+                    AppErrorCode.WORK_ORDER_CANCEL_BLOCKED,
+                    "등록된 작업일보 또는 자재투입이 있어 작업지시를 취소할 수 없습니다. 하위 전표를 먼저 취소해 주세요: "
+                            + order.orderNum()
+            );
+        }
+        // 취소된 작업일보·자재투입은 FK로 남아 물리 DELETE를 막으므로 정리 후 삭제한다.
         workOrderRepository.cancelById(id, actorUserId);
         return new WorkOrderView(
                 order.id(),

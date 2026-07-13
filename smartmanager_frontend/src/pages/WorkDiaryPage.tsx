@@ -26,6 +26,7 @@ import { WorkDiaryTemplatesCatalog } from '../components/workdiary/WorkDiaryTemp
 import NewPostBadge from '../components/board/NewPostBadge';
 import WorkDiaryChecklistField from '../components/workdiary/WorkDiaryChecklistField';
 import { mergeFieldValues, checklistValueOrEmpty, textareaValue } from '../components/workdiary/workDiaryFieldUtils';
+import { useConfirm } from '../context/ConfirmContext';
 
 export type WorkDiaryScreen =
   | { mode: 'list' }
@@ -308,6 +309,7 @@ function WorkDiaryDetailView({
   onNavigateList: () => void;
   onNavigateCompose: (compose: { workDate?: string; editId?: number }) => void;
 }) {
+  const confirm = useConfirm();
   const [detail, setDetail] = useState<WorkDiaryDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -368,7 +370,7 @@ function WorkDiaryDetailView({
   };
 
   const onCancelApproval = async () => {
-    if (!detail || !window.confirm('결재를 취소하시겠습니까?')) return;
+    if (!detail || !(await confirm('결재를 취소하시겠습니까?', { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setError(null);
     setSuccess(null);
@@ -384,7 +386,7 @@ function WorkDiaryDetailView({
   };
 
   const onDelete = async () => {
-    if (!detail || !window.confirm('업무일지를 삭제하시겠습니까?')) return;
+    if (!detail || !(await confirm('업무일지를 삭제하시겠습니까?', { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setError(null);
     try {

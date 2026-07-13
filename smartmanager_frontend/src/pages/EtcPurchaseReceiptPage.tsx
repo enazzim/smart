@@ -17,6 +17,7 @@ import {
   type EtcPurchaseReceiptListParams,
 } from '../api/etcPurchase';
 import { formatAmount, formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -50,6 +51,7 @@ function fiscalYearOptions(cutoverSetting: string): number[] {
 }
 
 export default function EtcPurchaseReceiptPage() {
+  const confirm = useConfirm();
   const { fiscalCutoverSetting } = useMaterialIssueSetting();
   const [tab, setTab] = useState<'candidates' | 'history'>('candidates');
   const [candidates, setCandidates] = useState<EtcPurchaseReceiptCandidate[]>([]);
@@ -121,9 +123,10 @@ export default function EtcPurchaseReceiptPage() {
       return;
     }
     if (
-      !window.confirm(
+      !(await confirm(
         `선택한 입고 내역 ${targets.length}건을 삭제하시겠습니까?\n삭제 시 매입·미지급 원장 반영이 취소됩니다.`,
-      )
+        { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true },
+      ))
     ) {
       return;
     }
@@ -292,7 +295,7 @@ export default function EtcPurchaseReceiptPage() {
   };
 
   const onCancelReceipt = async (receipt: EtcPurchaseReceipt) => {
-    if (!window.confirm(`${receipt.receiptNo} 입고를 취소하시겠습니까?`)) {
+    if (!(await confirm(`${receipt.receiptNo} 입고를 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setError(null);

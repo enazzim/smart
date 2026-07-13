@@ -10,6 +10,7 @@ import {
   type SalesCollectionListParams,
 } from '../api/salesCollection';
 import { formatAmount } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -29,6 +30,7 @@ function parseAmount(value: string): number | null {
 const PAYMENT_METHODS = ['현금', '계좌이체', '어음', '카드', '기타'];
 
 export default function SalesCollectionPage() {
+  const confirm = useConfirm();
   const [candidates, setCandidates] = useState<SalesCollectionCandidate[]>([]);
   const [collections, setCollections] = useState<SalesCollection[]>([]);
   const [filters, setFilters] = useState<SalesCollectionCandidateParams>({});
@@ -145,7 +147,7 @@ export default function SalesCollectionPage() {
   };
 
   const onCancel = async (collection: SalesCollection) => {
-    if (!window.confirm(`수금 ${collection.collectionNo}을(를) 취소하시겠습니까?`)) return;
+    if (!(await confirm(`수금 ${collection.collectionNo}을(를) 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setCollectionError(null);
     try {

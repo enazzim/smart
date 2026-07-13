@@ -1509,6 +1509,35 @@ td.num .fiscal-period-field-editing {
   z-index: 100;
 }
 
+.confirm-dialog-backdrop {
+  z-index: 200;
+}
+
+.confirm-dialog {
+  max-width: 28rem;
+}
+
+.confirm-dialog-message {
+  margin: 0;
+  white-space: pre-line;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.modal-actions > button.danger {
+  background: #b91c1c;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.52rem 1.1rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.modal-actions > button.danger:hover:not(:disabled) {
+  background: #991b1b;
+}
+
 .modal-panel {
   background: #fff;
   border-radius: 8px;
@@ -1798,6 +1827,21 @@ td.num .fiscal-period-field-editing {
 }
 
 .panel-header-row > button:not(.secondary):hover:not(:disabled) {
+  background: var(--sm-blue-700);
+}
+
+.panel-header-row .inline-actions > button:not(.secondary):not(.danger) {
+  padding: 0.52rem 1.1rem;
+  background: var(--sm-blue-600);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.panel-header-row .inline-actions > button:not(.secondary):not(.danger):hover:not(:disabled) {
   background: var(--sm-blue-700);
 }
 

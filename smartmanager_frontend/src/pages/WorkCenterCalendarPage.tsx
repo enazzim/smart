@@ -4,6 +4,7 @@ import GridExcelExportButton from '../components/GridExcelExportButton';
 import type { WorkCenter } from '../api/workCenter';
 import { fetchWorkCenters } from '../api/workCenter';
 import type { EffectiveCalendarDay } from '../api/workCenterCalendar';
+import { useConfirm } from '../context/ConfirmContext';
 import {
   deleteWorkCenterCalendarOverride,
   fetchEffectiveCalendar,
@@ -12,6 +13,7 @@ import {
 } from '../api/workCenterCalendar';
 
 export default function WorkCenterCalendarPage() {
+  const confirm = useConfirm();
   const now = new Date();
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
   const [workCenterId, setWorkCenterId] = useState<number>(0);
@@ -113,7 +115,7 @@ export default function WorkCenterCalendarPage() {
     if (!selectedDay?.isOverride || workCenterId <= 0) {
       return;
     }
-    if (!window.confirm(`${selectedDay.calendarDate} Override를 해제하시겠습니까?`)) {
+    if (!(await confirm(`${selectedDay.calendarDate} Override를 해제하시겠습니까?`, { confirmLabel: '해제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setSubmitting(true);

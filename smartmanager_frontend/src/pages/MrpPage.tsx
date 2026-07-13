@@ -14,6 +14,7 @@ import {
 } from '../api/mrp';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatInteger, formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 function formatDateTime(value: string): string {
   const date = new Date(value);
@@ -70,6 +71,7 @@ function renderLineRow(
 }
 
 export default function MrpPage() {
+  const confirm = useConfirm();
   const [targets, setTargets] = useState<ProductionPlan[]>([]);
   const [runs, setRuns] = useState<MrpRun[]>([]);
   const [grouped, setGrouped] = useState<MaterialRequirementGrouped | null>(null);
@@ -218,7 +220,7 @@ export default function MrpPage() {
   };
 
   const onCancelRun = async (runId: number, runNo: string) => {
-    if (!window.confirm(`산출 이력 ${runNo} 전체를 취소하시겠습니까?`)) {
+    if (!(await confirm(`산출 이력 ${runNo} 전체를 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setSubmitting(true);
@@ -239,7 +241,7 @@ export default function MrpPage() {
   };
 
   const onCancelPlanLines = async (productionPlanId: number, planNo: string) => {
-    if (!window.confirm(`생산계획 ${planNo}의 자재소요를 전체 취소하시겠습니까?`)) {
+    if (!(await confirm(`생산계획 ${planNo}의 자재소요를 전체 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setSubmitting(true);
@@ -257,7 +259,7 @@ export default function MrpPage() {
   };
 
   const onCancelLine = async (lineId: number, componentLabel: string) => {
-    if (!window.confirm(`자재 ${componentLabel} 소요 1건을 취소하시겠습니까?`)) {
+    if (!(await confirm(`자재 ${componentLabel} 소요 1건을 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setSubmitting(true);

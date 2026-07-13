@@ -9,6 +9,7 @@ import type {
 import { createItem, deleteItem, fetchItems, updateItem } from '../api/item';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatAmount, formatInteger } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const PROPERTY_OPTIONS: PropertyClassification[] = ['원자재', '제품', '상품', '공정품'];
 
@@ -51,6 +52,7 @@ function parseOptionalNumber(value: string): number | undefined {
 }
 
 export default function ItemPage() {
+  const confirm = useConfirm();
   const [items, setItems] = useState<Item[]>([]);
   const [form, setForm] = useState<CreateItemRequest>(emptyForm);
   const [searchItemNo, setSearchItemNo] = useState('');
@@ -133,7 +135,7 @@ export default function ItemPage() {
   };
 
   const onDelete = async (item: Item) => {
-    if (!window.confirm(`「${item.itemName}」 품목을 삭제하시겠습니까?`)) {
+    if (!(await confirm(`「${item.itemName}」 품목을 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setError(null);

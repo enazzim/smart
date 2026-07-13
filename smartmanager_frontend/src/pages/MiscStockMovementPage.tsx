@@ -15,6 +15,7 @@ import { fetchAvailableLots, type LotRow } from '../api/lot';
 import { fetchSmallPublicCodes, type PublicCodeSmall } from '../api/publicCode';
 import { fetchProcessPlans, type ProcessPlan } from '../api/process';
 import { formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const ALL_ITEM_CLASSES: PropertyClassification[] = ['원자재', '제품', '상품', '공정품'];
 
@@ -33,6 +34,7 @@ function formatProcessLabel(process: ProcessPlan): string {
 }
 
 export default function MiscStockMovementPage() {
+  const confirm = useConfirm();
   const [reasonOptions, setReasonOptions] = useState<PublicCodeSmall[]>([]);
   const [processOptions, setProcessOptions] = useState<ProcessPlan[]>([]);
   const [preview, setPreview] = useState<MiscStockMovementPreview | null>(null);
@@ -288,7 +290,7 @@ export default function MiscStockMovementPage() {
     if (row.status !== 'REGISTERED') {
       return;
     }
-    if (!window.confirm(`${row.movementNo} 건을 삭제하시겠습니까?\n재고 반영이 취소됩니다.`)) {
+    if (!(await confirm(`${row.movementNo} 건을 삭제하시겠습니까?\n재고 반영이 취소됩니다.`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setSubmitting(true);

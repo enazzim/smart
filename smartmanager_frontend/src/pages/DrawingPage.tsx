@@ -19,6 +19,7 @@ import DrawingInfoEditModal from '../components/drawing/DrawingInfoEditModal';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import { listCachedDrawingPartNos, syncDailyDrawings } from '../services/drawingOfflineCacheService';
 import { useBannerMessages } from '../hooks/useBannerMessages';
+import { useConfirm } from '../context/ConfirmContext';
 
 const drawingQueryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +36,7 @@ interface DrawingPageProps {
 }
 
 function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId }: DrawingPageProps) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const { message, error, showSuccess, showError } = useBannerMessages();
 
@@ -118,7 +120,7 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   };
 
   const handleDelete = async (partNo: string) => {
-    if (!window.confirm(`[${partNo}] 도면을 정말 삭제하시겠습니까?\n(논리 삭제 처리되며 삭제 내역에서 확인 가능합니다)`)) {
+    if (!(await confirm(`[${partNo}] 도면을 정말 삭제하시겠습니까?\n(논리 삭제 처리되며 삭제 내역에서 확인 가능합니다)`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     try {
@@ -135,7 +137,7 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   };
 
   const handleRestore = async (id: string, partNo: string) => {
-    if (!window.confirm(`[${partNo}] 도면을 다시 복구하시겠습니까?`)) {
+    if (!(await confirm(`[${partNo}] 도면을 다시 복구하시겠습니까?`, { cancelLabel: '닫기' }))) {
       return;
     }
     try {
@@ -153,9 +155,10 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
 
   const handleHardDelete = async (id: string, partNo: string) => {
     if (
-      !window.confirm(
+      !(await confirm(
         `[${partNo}] 도면을 정말 영구 삭제하시겠습니까?\n관련된 모든 이력과 PDF 파일이 물리적으로 삭제되며 절대 복구할 수 없습니다.`,
-      )
+        { title: '영구 삭제 확인', confirmLabel: '영구 삭제', cancelLabel: '닫기', danger: true },
+      ))
     ) {
       return;
     }

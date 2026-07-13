@@ -16,6 +16,7 @@ import {
 } from '../utils/inventoryLocation';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -57,6 +58,7 @@ function lotQtyOnHand(lot: LotRow, locationCode: string, processId?: number | nu
 }
 
 export default function SalesShipmentPage() {
+  const confirm = useConfirm();
   const [candidates, setCandidates] = useState<SalesShipmentCandidate[]>([]);
   const [shipments, setShipments] = useState<SalesShipment[]>([]);
   const [shipmentDate, setShipmentDate] = useState(todayIso());
@@ -255,7 +257,7 @@ export default function SalesShipmentPage() {
   };
 
   const onCancel = async (shipment: SalesShipment) => {
-    if (!window.confirm(`출고·납품 ${shipment.shipmentNo}을(를) 취소하시겠습니까?`)) return;
+    if (!(await confirm(`출고·납품 ${shipment.shipmentNo}을(를) 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setShipmentError(null);
     try {

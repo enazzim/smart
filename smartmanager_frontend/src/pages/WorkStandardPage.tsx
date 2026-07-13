@@ -16,6 +16,7 @@ import {
   updateWorkStandard,
 } from '../api/workStandard';
 import { formatInteger } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const INHOUSE_PROCESS = new Set(['INHOUSE', 'SPLIT']);
 
@@ -51,6 +52,7 @@ function toUpdatePayload(standard: WorkStandard): Omit<CreateWorkStandardRequest
 }
 
 export default function WorkStandardPage() {
+  const confirm = useConfirm();
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [userList, setUserList] = useState<User[]>([]);
@@ -215,7 +217,7 @@ export default function WorkStandardPage() {
   };
 
   const onDelete = async (standard: WorkStandard) => {
-    if (!window.confirm(`「${standard.itemNum} · ${standard.processName}」 작업표준을 삭제하시겠습니까?`)) {
+    if (!(await confirm(`「${standard.itemNum} · ${standard.processName}」 작업표준을 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setError(null);

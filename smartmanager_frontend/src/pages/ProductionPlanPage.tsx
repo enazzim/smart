@@ -16,6 +16,7 @@ import {
   type ProductionPlanWorkPlanStatus,
 } from '../api/productionPlan';
 import { formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const PLAN_ITEM_CLASSES: PropertyClassification[] = ['제품', '공정품'];
 
@@ -32,6 +33,7 @@ const PLAN_WORK_PLAN_STATUS_OPTIONS: { value: ProductionPlanWorkPlanStatus | '';
 ];
 
 export default function ProductionPlanPage() {
+  const confirm = useConfirm();
   const [candidates, setCandidates] = useState<SalesOrderLineListRow[]>([]);
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
@@ -258,7 +260,7 @@ export default function ProductionPlanPage() {
       plan.sourceType === 'MANUAL'
         ? '생산계획을 취소하시겠습니까? (수주와 연결되지 않은 계획입니다.)'
         : '생산계획을 취소하시겠습니까? 수주 라인 이행상태가 대기로 되돌아가며, 해당 수주에 남은 생산계획이 없으면 수주는 작성중으로 복원됩니다.';
-    if (!window.confirm(confirmMessage)) {
+    if (!(await confirm(confirmMessage, { cancelLabel: '닫기' }))) {
       return;
     }
     setSubmitting(true);

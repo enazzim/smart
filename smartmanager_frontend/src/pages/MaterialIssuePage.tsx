@@ -11,6 +11,7 @@ import {
 } from '../api/materialIssue';
 import type { WorkOrder } from '../api/workOrder';
 import { formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -57,6 +58,7 @@ interface IssueLineEdit {
 }
 
 export default function MaterialIssuePage() {
+  const confirm = useConfirm();
   const [targets, setTargets] = useState<WorkOrder[]>([]);
   const [issues, setIssues] = useState<MaterialIssue[]>([]);
   const [filters, setFilters] = useState<MaterialIssueListParams>({});
@@ -281,7 +283,7 @@ export default function MaterialIssuePage() {
   };
 
   const onCancel = async (id: number, issueNum: string) => {
-    if (!window.confirm(`자재투입 ${issueNum}을(를) 취소하시겠습니까? 재고가 역전기됩니다.`)) return;
+    if (!(await confirm(`자재투입 ${issueNum}을(를) 취소하시겠습니까? 재고가 역전기됩니다.`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setError(null);
     setMessage(null);

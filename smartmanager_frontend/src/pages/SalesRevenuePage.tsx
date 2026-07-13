@@ -13,6 +13,7 @@ import { fetchAvailableLots, type LotRow } from '../api/lot';
 import { INVENTORY_LOCATION_LABEL, translateInventoryLocationInText } from '../utils/inventoryLocation';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatAmount, formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -34,6 +35,7 @@ function billableLabel(row: SalesRevenueCandidate): string {
 }
 
 export default function SalesRevenuePage() {
+  const confirm = useConfirm();
   const [candidates, setCandidates] = useState<SalesRevenueCandidate[]>([]);
   const [revenues, setRevenues] = useState<SalesRevenue[]>([]);
   const [revenueDate, setRevenueDate] = useState(todayIso());
@@ -203,7 +205,7 @@ export default function SalesRevenuePage() {
   };
 
   const onCancel = async (revenue: SalesRevenue) => {
-    if (!window.confirm(`매출 ${revenue.revenueNo}을(를) 취소하시겠습니까?`)) return;
+    if (!(await confirm(`매출 ${revenue.revenueNo}을(를) 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setRevenueError(null);
     try {

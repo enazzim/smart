@@ -12,6 +12,7 @@ import type { WorkCenter } from '../api/process';
 import { fetchWorkCenters } from '../api/process';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatInteger } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const emptyForm: CreateEquipmentRequest = {
   equipmentNum: '',
@@ -26,6 +27,7 @@ function formatCategoryLabel(code: string, name: string): string {
 }
 
 export default function EquipmentPage() {
+  const confirm = useConfirm();
   const [categories, setCategories] = useState<CodeOption[]>([]);
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
@@ -137,7 +139,7 @@ export default function EquipmentPage() {
   };
 
   const onDelete = async (eq: Equipment) => {
-    if (!window.confirm(`「${eq.equipmentName}」 설비를 삭제하시겠습니까?`)) {
+    if (!(await confirm(`「${eq.equipmentName}」 설비를 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setError(null);

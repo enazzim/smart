@@ -17,6 +17,7 @@ import WorkerSearchField from '../components/WorkerSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { fetchAvailableLots, type LotRow } from '../api/lot';
 import { formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -78,6 +79,7 @@ interface IssueLineEdit {
 }
 
 export default function WorkReportPage() {
+  const confirm = useConfirm();
   const { materialIssueEnabled, setMaterialIssueEnabled, negativeStockAllowed } = useMaterialIssueSetting();
   const [targets, setTargets] = useState<WorkOrder[]>([]);
   const [reports, setReports] = useState<WorkReport[]>([]);
@@ -456,8 +458,6 @@ export default function WorkReportPage() {
       setMessage(`작업일보 ${report.reportNum}을(를) 등록했습니다. 재고가 즉시 반영됩니다.`);
       closeModal();
       await loadTargets();
-      await loadReports();
-      setTab('reports');
     } catch (e) {
       setModalError(e instanceof Error ? e.message : '작업일보 등록에 실패했습니다.');
     } finally {
@@ -466,7 +466,7 @@ export default function WorkReportPage() {
   };
 
   const onCancel = async (id: number, reportNum: string) => {
-    if (!window.confirm(`작업일보 ${reportNum}을(를) 취소하시겠습니까? 재고가 역전기됩니다.`)) return;
+    if (!(await confirm(`작업일보 ${reportNum}을(를) 취소하시겠습니까? 재고가 역전기됩니다.`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setError(null);
     setMessage(null);

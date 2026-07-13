@@ -17,6 +17,7 @@ import {
   updateProcessPlan,
 } from '../api/process';
 import { formatInteger } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const WORK_DISTINCTION_OPTIONS: { value: WorkDistinction; label: string }[] = [
   { value: 'INHOUSE', label: '자가' },
@@ -55,6 +56,7 @@ function toItemFromProcess(process: ProcessPlan): ItemSearchSelection {
 }
 
 export default function ProcessPage() {
+  const confirm = useConfirm();
   const [processCodes, setProcessCodes] = useState<CodeOption[]>([]);
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
   const [processes, setProcesses] = useState<ProcessPlan[]>([]);
@@ -203,7 +205,7 @@ export default function ProcessPage() {
   };
 
   const onDelete = async (process: ProcessPlan) => {
-    if (!window.confirm(`순번 ${process.processSequenceNum} 공정을 삭제하시겠습니까?`)) {
+    if (!(await confirm(`순번 ${process.processSequenceNum} 공정을 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setError(null);

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MonthCalendarGrid, { MonthNavigator } from '../components/MonthCalendarGrid';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import { useConfirm } from '../context/ConfirmContext';
 import {
   DEFAULT_WORK_TIME,
   deleteProductionCalendarByDate,
@@ -11,6 +12,7 @@ import {
 } from '../api/productionCalendar';
 
 export default function ProductionCalendarPage() {
+  const confirm = useConfirm();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -93,7 +95,7 @@ export default function ProductionCalendarPage() {
     if (!existing?.registered) {
       return;
     }
-    if (!window.confirm(`${selectedDate} 기본생산달력 설정을 삭제하시겠습니까?`)) {
+    if (!(await confirm(`${selectedDate} 기본생산달력 설정을 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setSubmitting(true);

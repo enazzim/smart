@@ -9,8 +9,10 @@ import {
 } from '../api/workOrder';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 export default function WorkOrderPage() {
+  const confirm = useConfirm();
   const [targets, setTargets] = useState<WorkOrder[]>([]);
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [selectedPlanIds, setSelectedPlanIds] = useState<Set<number>>(new Set());
@@ -109,7 +111,7 @@ export default function WorkOrderPage() {
   };
 
   const onCancel = async (id: number, orderNum: string) => {
-    if (!window.confirm(`작업지시 ${orderNum}을(를) 취소하시겠습니까?`)) return;
+    if (!(await confirm(`작업지시 ${orderNum}을(를) 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setError(null);
     setMessage(null);

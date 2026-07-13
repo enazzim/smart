@@ -10,6 +10,7 @@ import {
 } from '../api/workCenter';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatInteger } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 const emptyForm: CreateWorkCenterRequest = {
   wcName: '',
@@ -22,6 +23,7 @@ function formatProcessLabel(code: string, name: string): string {
 }
 
 export default function WorkCenterPage() {
+  const confirm = useConfirm();
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
   const [processCodes, setProcessCodes] = useState<CodeOption[]>([]);
   const [form, setForm] = useState<CreateWorkCenterRequest>(emptyForm);
@@ -116,7 +118,7 @@ export default function WorkCenterPage() {
   };
 
   const onDelete = async (wc: WorkCenter) => {
-    if (!window.confirm(`「${wc.wcName}」 작업장을 삭제하시겠습니까?`)) {
+    if (!(await confirm(`「${wc.wcName}」 작업장을 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setError(null);

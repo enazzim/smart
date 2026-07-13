@@ -11,6 +11,7 @@ import {
   type EtcPurchaseOrderListParams,
 } from '../api/etcPurchase';
 import { formatAmount, formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -44,6 +45,7 @@ const emptyForm = {
 };
 
 export default function EtcPurchaseOrderPage() {
+  const confirm = useConfirm();
   const [rows, setRows] = useState<EtcPurchaseOrder[]>([]);
   const [listFilters, setListFilters] = useState<EtcPurchaseOrderListParams>(() => defaultListFilters());
   const [appliedListFilters, setAppliedListFilters] = useState<EtcPurchaseOrderListParams>(() => defaultListFilters());
@@ -230,7 +232,7 @@ export default function EtcPurchaseOrderPage() {
       setFormError('대기 상태의 발주만 삭제할 수 있습니다.');
       return;
     }
-    if (!window.confirm(`「${row.itemName}」 발주를 삭제하시겠습니까?`)) {
+    if (!(await confirm(`「${row.itemName}」 발주를 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setFormError(null);

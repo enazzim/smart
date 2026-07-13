@@ -4,13 +4,6 @@ import type { BoardType } from '../api/board';
 import {
   MENU_GROUPS,
   type MenuCategory,
-  type InventoryPageId,
-  type OutsourcePageId,
-  type ProductionPageId,
-  type PurchasePageId,
-  type QualityPageId,
-  type SalesPageId,
-  type SystemPage,
   renderInventoryPage,
   renderProductionPage,
   renderOutsourcePage,
@@ -22,22 +15,12 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { canAccessSelfAccount, getVisibleMenuCategories, isDashboardSelection } from './menuAccess';
 import BasisInfoPage from '../pages/BasisInfoPage';
-import BoardPage, { type BoardScreen } from '../pages/BoardPage';
+import BoardPage from '../pages/BoardPage';
 import DashboardPage from '../pages/DashboardPage';
-import WorkDiaryPage, { type WorkDiaryScreen } from '../pages/WorkDiaryPage';
+import WorkDiaryPage from '../pages/WorkDiaryPage';
+import type { AppSelection } from './selection';
 
-export type AppSelection =
-  | { category: 'home' }
-  | { category: 'board'; boardType: BoardType; screen: BoardScreen }
-  | { category: 'workdiary'; screen: WorkDiaryScreen }
-  | { category: 'basis' }
-  | { category: 'system'; page: SystemPage }
-  | { category: 'sales'; page: SalesPageId }
-  | { category: 'production'; page: ProductionPageId }
-  | { category: 'purchase'; page: PurchasePageId }
-  | { category: 'inventory'; page: InventoryPageId }
-  | { category: 'quality'; page: QualityPageId }
-  | { category: 'outsource'; page: OutsourcePageId };
+export type { AppSelection } from './selection';
 
 interface AppShellProps {
   currentUser: AuthenticatedUser | null;

@@ -38,6 +38,8 @@ public class ApiExceptionHandler {
             message = "동일 생산계획·공정의 작업계획이 이미 존재합니다. 목록에서 취소 후 다시 시도해 주세요.";
         } else if (detail != null && detail.contains("uk_work_order")) {
             message = "동일 작업계획의 작업지시가 이미 존재합니다. 목록에서 취소 후 다시 시도해 주세요.";
+        } else if (detail != null && (detail.contains("fk_work_report_order") || detail.contains("fk_material_issue_wo"))) {
+            message = "작업일보 또는 자재투입 이력이 있어 작업지시를 삭제할 수 없습니다. 하위 전표를 먼저 취소해 주세요.";
         } else if (detail != null && detail.contains("uk_month_closing_period")) {
             message = "동일 회계월 마감 데이터가 중복되어 처리할 수 없습니다. 마감해제 후 다시 시도해 주세요.";
         } else {

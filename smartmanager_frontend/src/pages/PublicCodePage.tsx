@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useConfirm } from '../context/ConfirmContext';
 import type {
   CreateLargePublicCodeRequest,
   CreateSmallPublicCodeRequest,
@@ -63,6 +64,7 @@ function formatLargeLabel(row: PublicCodeLarge): string {
 }
 
 export default function PublicCodePage() {
+  const confirm = useConfirm();
   const [largeRows, setLargeRows] = useState<PublicCodeLarge[]>([]);
   const [smallRows, setSmallRows] = useState<PublicCodeSmall[]>([]);
   const [selectedLargeCode, setSelectedLargeCode] = useState<string | null>(null);
@@ -214,7 +216,7 @@ export default function PublicCodePage() {
   };
 
   const onDeleteLarge = async (row: PublicCodeLarge) => {
-    if (!window.confirm(`「${formatLargeLabel(row)}」 대분류와 하위 소분류를 삭제하시겠습니까?`)) {
+    if (!(await confirm(`「${formatLargeLabel(row)}」 대분류와 하위 소분류를 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setError(null);
@@ -231,7 +233,7 @@ export default function PublicCodePage() {
   };
 
   const onDeleteSmall = async (row: PublicCodeSmall) => {
-    if (!window.confirm(`「${row.smallName}(${row.smallCode})」 소분류를 삭제하시겠습니까?`)) {
+    if (!(await confirm(`「${row.smallName}(${row.smallCode})」 소분류를 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setError(null);

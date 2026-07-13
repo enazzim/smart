@@ -6,9 +6,17 @@ import com.shindong.smartmanager.infrastructure.application.DatabaseBackupApplic
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -24,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 @RequestMapping("/api/v1/system/backups")
@@ -102,6 +111,33 @@ public class SystemBackupController {
     @PreAuthorize("hasAuthority('system:backup:execute')")
     public void restoreFull(@PathVariable String setName) {
         databaseBackupApplicationService.restoreFullBackup(setName);
+    }
+
+    @GetMapping("/full/{setName}/download")
+    @PreAuthorize("hasAuthority('system:backup:read')")
+    public ResponseEntity<StreamingResponseBody> downloadFull(@PathVariable String setName) {
+        Path setDirectory = databaseBackupApplicationService.getFullBackupSetDirectory(setName);
+        String zipFileName = setName + ".zip";
+        StreamingResponseBody body = outputStream -> writeDirectoryAsZip(setDirectory, outputStream);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + zipFileName + "\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(body);
+    }
+
+    private static void writeDirectoryAsZip(Path root, OutputStream outputStream) throws IOException {
+        try (ZipOutputStream zip = new ZipOutputStream(outputStream)) {
+            Files.walkFileTree(root, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    String entryName = root.relativize(file).toString().replace('\\', '/');
+                    zip.putNextEntry(new ZipEntry(entryName));
+                    Files.copy(file, zip);
+                    zip.closeEntry();
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        }
     }
 
     public record CreateBackupRequest(

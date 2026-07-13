@@ -15,6 +15,7 @@ import {
   type PurchaseReceiptListParams,
 } from '../api/purchaseReceipt';
 import { formatAmount, formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -41,6 +42,7 @@ function receiptStatusLabel(status: string): string {
   }
 }
 export default function PurchaseReceiptPage() {
+  const confirm = useConfirm();
   const [candidates, setCandidates] = useState<PurchaseReceiptCandidate[]>([]);
   const [receipts, setReceipts] = useState<PurchaseReceipt[]>([]);
   const [receiptQtyByLineId, setReceiptQtyByLineId] = useState<Record<number, string>>({});
@@ -230,7 +232,7 @@ export default function PurchaseReceiptPage() {
     }
   };
   const onCancelReceipt = async (receipt: PurchaseReceipt) => {
-    if (!window.confirm(`${receipt.receiptNo} 입고를 취소하시겠습니까?`)) {
+    if (!(await confirm(`${receipt.receiptNo} 입고를 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setCancellingId(receipt.id);

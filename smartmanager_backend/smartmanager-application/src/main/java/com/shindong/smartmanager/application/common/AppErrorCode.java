@@ -3,6 +3,7 @@ package com.shindong.smartmanager.application.common;
 public enum AppErrorCode {
     WORK_REPORT_NOT_FOUND,
     WORK_ORDER_NOT_FOUND,
+    WORK_ORDER_CANCEL_BLOCKED,
     WORK_PLAN_NOT_FOUND,
     OUTSOURCE_WORK_REPORT_NOT_ALLOWED,
     WORK_REPORT_QUANTITY_INVALID,

@@ -168,6 +168,33 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public boolean hasActiveDownstream(long workOrderId) {
+        Number workReports = (Number) entityManager.createNativeQuery("""
+                SELECT COUNT(*)
+                FROM work_report
+                WHERE work_order_id = :workOrderId
+                  AND status = 'REGISTERED'
+                  AND recording_state = 1
+                """)
+                .setParameter("workOrderId", workOrderId)
+                .getSingleResult();
+        if (workReports != null && workReports.longValue() > 0) {
+            return true;
+        }
+        Number materialIssues = (Number) entityManager.createNativeQuery("""
+                SELECT COUNT(*)
+                FROM material_issue
+                WHERE work_order_id = :workOrderId
+                  AND status = 'ISSUED'
+                  AND recording_state = 1
+                """)
+                .setParameter("workOrderId", workOrderId)
+                .getSingleResult();
+        return materialIssues != null && materialIssues.longValue() > 0;
+    }
+
+    @Override
     @Transactional
     public void cancelById(long id, String actorUserId) {
         WorkOrderJpaEntity entity = workOrderRepository.findByIdAndRecordingStateAndStatus(id, ACTIVE, WorkOrderStatus.ISSUED)
@@ -175,8 +202,65 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
         if (entity.getReportedQty().compareTo(BigDecimal.ZERO) > 0) {
             throw new IllegalStateException("실적이 등록된 작업지시는 취소할 수 없습니다.");
         }
+        if (hasActiveDownstream(id)) {
+            throw new IllegalStateException(
+                    "등록된 작업일보 또는 자재투입이 있어 작업지시를 취소할 수 없습니다."
+            );
+        }
+        purgeCancelledDownstream(id);
+        Number remainingReports = (Number) entityManager.createNativeQuery("""
+                SELECT COUNT(*) FROM work_report WHERE work_order_id = :workOrderId
+                """)
+                .setParameter("workOrderId", id)
+                .getSingleResult();
+        Number remainingIssues = (Number) entityManager.createNativeQuery("""
+                SELECT COUNT(*) FROM material_issue WHERE work_order_id = :workOrderId
+                """)
+                .setParameter("workOrderId", id)
+                .getSingleResult();
+        if ((remainingReports != null && remainingReports.longValue() > 0)
+                || (remainingIssues != null && remainingIssues.longValue() > 0)) {
+            throw new IllegalStateException(
+                    "작업일보 또는 자재투입 이력이 남아 작업지시를 삭제할 수 없습니다."
+            );
+        }
         workOrderRepository.delete(entity);
         workOrderRepository.flush();
+    }
+
+    /** 취소 상태 하위 전표만 물리 삭제해 work_order FK를 해제한다. */
+    private void purgeCancelledDownstream(long workOrderId) {
+        entityManager.createNativeQuery("""
+                DELETE wcl FROM work_report_consumption_line wcl
+                INNER JOIN work_report wr ON wr.id = wcl.work_report_id
+                WHERE wr.work_order_id = :workOrderId
+                  AND wr.status = 'CANCELLED'
+                """)
+                .setParameter("workOrderId", workOrderId)
+                .executeUpdate();
+        entityManager.createNativeQuery("""
+                DELETE FROM work_report
+                WHERE work_order_id = :workOrderId
+                  AND status = 'CANCELLED'
+                """)
+                .setParameter("workOrderId", workOrderId)
+                .executeUpdate();
+        entityManager.createNativeQuery("""
+                DELETE mil FROM material_issue_line mil
+                INNER JOIN material_issue mi ON mi.id = mil.material_issue_id
+                WHERE mi.work_order_id = :workOrderId
+                  AND mi.status = 'CANCELLED'
+                """)
+                .setParameter("workOrderId", workOrderId)
+                .executeUpdate();
+        entityManager.createNativeQuery("""
+                DELETE FROM material_issue
+                WHERE work_order_id = :workOrderId
+                  AND status = 'CANCELLED'
+                """)
+                .setParameter("workOrderId", workOrderId)
+                .executeUpdate();
+        entityManager.flush();
     }
 
     @Override
@@ -300,7 +384,8 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
                 plan.getPlanStartDate(),
                 entity.getStatus(),
                 entity.getStatus() == WorkOrderStatus.ISSUED
-                        && entity.getReportedQty().compareTo(BigDecimal.ZERO) == 0,
+                        && entity.getReportedQty().compareTo(BigDecimal.ZERO) == 0
+                        && !hasActiveDownstream(entity.getId()),
                 entity.getCreatedAt(),
                 entity.getCreatedBy()
         );

@@ -17,6 +17,7 @@ import {
 } from '../../api/drawing';
 import { useDrawingWebSocket } from '../../hooks/useDrawingWebSocket';
 import PdfViewer from './PdfViewer';
+import { useConfirm } from '../../context/ConfirmContext';
 
 type ViewerPanel = 'pdf' | 'contains' | 'where-used';
 
@@ -77,6 +78,7 @@ export default function DrawingViewerModal({
   onSuccess,
   onError,
 }: DrawingViewerModalProps) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [histories, setHistories] = useState<DrawingHistoryItem[]>([]);
   const [selectedHistory, setSelectedHistory] = useState<DrawingHistoryItem | null>(null);
@@ -210,7 +212,7 @@ export default function DrawingViewerModal({
   }
 
   const handlePromote = async () => {
-    if (!window.confirm('이 도면을 양산품(PROD) V1.0으로 이관하시겠습니까?\n구성 참조 자식은 모두 PROD여야 합니다.')) {
+    if (!(await confirm('이 도면을 양산품(PROD) V1.0으로 이관하시겠습니까?\n구성 참조 자식은 모두 PROD여야 합니다.', { cancelLabel: '닫기', danger: true }))) {
       return;
     }
     try {

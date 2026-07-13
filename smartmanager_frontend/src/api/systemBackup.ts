@@ -94,6 +94,28 @@ export async function downloadBackup(fileName: string): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
+export async function downloadFullBackup(setName: string): Promise<void> {
+  const response = await apiFetch(`${API}/full/${encodeURIComponent(setName)}/download`);
+  if (response.status === 401) {
+    throw new Error('인증이 필요합니다. 다시 로그인해 주세요.');
+  }
+  if (response.status === 403) {
+    throw new Error('백업 파일 다운로드 권한이 없습니다.');
+  }
+  if (!response.ok) {
+    throw new Error(await parseError(response, '전체 백업 다운로드에 실패했습니다.'));
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `${setName}.zip`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export async function deleteBackup(fileName: string): Promise<void> {
   await handleResponse<void>(
     await apiFetch(`${API}/${encodeURIComponent(fileName)}`, { method: 'DELETE' }),

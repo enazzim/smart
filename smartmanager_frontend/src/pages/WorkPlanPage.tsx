@@ -10,8 +10,10 @@ import {
 } from '../api/workPlan';
 import type { ProductionPlan } from '../api/productionPlan';
 import { formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 export default function WorkPlanPage() {
+  const confirm = useConfirm();
   const [targets, setTargets] = useState<ProductionPlan[]>([]);
   const [plans, setPlans] = useState<WorkPlan[]>([]);
   const [selectedPlanIds, setSelectedPlanIds] = useState<Set<number>>(new Set());
@@ -122,7 +124,7 @@ export default function WorkPlanPage() {
   };
 
   const onCancelLine = async (id: number, label: string) => {
-    if (!window.confirm(`${label} 작업계획 1건을 취소하시겠습니까?`)) {
+    if (!(await confirm(`${label} 작업계획 1건을 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setSubmitting(true);
@@ -141,7 +143,7 @@ export default function WorkPlanPage() {
   };
 
   const onCancelPlan = async (productionPlanId: number, planNo: string) => {
-    if (!window.confirm(`생산계획 ${planNo}의 작업계획을 전체 취소하시겠습니까?`)) {
+    if (!(await confirm(`생산계획 ${planNo}의 작업계획을 전체 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setSubmitting(true);

@@ -22,6 +22,7 @@ import {
   type PartnerPriceItem,
 } from '../utils/unitPriceHelpers';
 import { formatAmount, formatQty } from '../utils/numberFormat';
+import { useConfirm } from '../context/ConfirmContext';
 
 type ManualPurchaseLine = {
   key: string;
@@ -98,6 +99,7 @@ function collectAllSelectableVendorKeys(candidates: MrpPurchaseCandidate[]): Set
 }
 
 export default function PurchaseOrderPage() {
+  const confirm = useConfirm();
   const [candidates, setCandidates] = useState<MrpPurchaseCandidate[]>([]);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [expandedRequirementIds, setExpandedRequirementIds] = useState<Set<number>>(new Set());
@@ -448,7 +450,7 @@ export default function PurchaseOrderPage() {
   };
 
   const onCancel = async (order: PurchaseOrder) => {
-    if (!window.confirm(`발주 ${order.orderNo}을(를) 취소하시겠습니까?`)) {
+    if (!(await confirm(`발주 ${order.orderNo}을(를) 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setSubmitting(true);

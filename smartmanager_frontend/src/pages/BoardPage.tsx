@@ -22,6 +22,7 @@ import {
   updateBoardPost,
 } from '../api/board';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 export type BoardScreen =
   | { mode: 'list' }
@@ -282,6 +283,7 @@ function BoardDetailView({
   onNavigateDetail: (postId: number) => void;
   onNavigateCompose: BoardPageProps['onNavigateCompose'];
 }) {
+  const confirm = useConfirm();
   const [post, setPost] = useState<BoardPostDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -305,7 +307,7 @@ function BoardDetailView({
   }, [load]);
 
   const onDelete = async () => {
-    if (!window.confirm('게시글을 삭제하시겠습니까? 첨부파일도 함께 삭제됩니다.')) return;
+    if (!(await confirm('게시글을 삭제하시겠습니까? 첨부파일도 함께 삭제됩니다.', { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -319,7 +321,7 @@ function BoardDetailView({
   };
 
   const onDeleteAttachment = async (attachment: BoardAttachment) => {
-    if (!window.confirm(`첨부파일 "${attachment.originalFileName}"을(를) 삭제하시겠습니까?`)) return;
+    if (!(await confirm(`첨부파일 "${attachment.originalFileName}"을(를) 삭제하시겠습니까?`, { title: '삭제 확인', confirmLabel: '삭제', cancelLabel: '닫기', danger: true }))) return;
     setSubmitting(true);
     setError(null);
     try {

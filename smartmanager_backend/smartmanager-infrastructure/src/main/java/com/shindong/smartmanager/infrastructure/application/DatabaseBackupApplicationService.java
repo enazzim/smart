@@ -56,4 +56,8 @@ public class DatabaseBackupApplicationService {
     public void deleteFullBackup(String setName) {
         fullBackupService.deleteFullBackup(setName);
     }
+
+    public java.nio.file.Path getFullBackupSetDirectory(String setName) {
+        return fullBackupService.getFullBackupSetDirectory(setName);
+    }
 }

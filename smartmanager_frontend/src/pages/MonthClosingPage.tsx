@@ -8,6 +8,7 @@ import {
 } from '../api/monthClosing';
 import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import { currentFiscalYearMonth, formatFiscalCutoverSettingLabel, isFiscalCutoverLast } from '../utils/fiscalCalendar';
+import { useConfirm } from '../context/ConfirmContext';
 
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
 
@@ -28,6 +29,7 @@ function isLatestClosing(row: MonthClosing, rows: MonthClosing[]): boolean {
 }
 
 export default function MonthClosingPage() {
+  const confirm = useConfirm();
   const { fiscalCutoverSetting } = useMaterialIssueSetting();
   const currentPeriod = currentFiscalYearMonth(fiscalCutoverSetting);
   const [rows, setRows] = useState<MonthClosing[]>([]);
@@ -80,7 +82,7 @@ export default function MonthClosingPage() {
 
   const onReopen = async (row: MonthClosing) => {
     const key = `${row.fiscalYear}-${row.fiscalMonth}`;
-    if (!window.confirm(`${formatPeriod(row.fiscalYear, row.fiscalMonth)} 회계월 마감을 해제하시겠습니까?`)) {
+    if (!(await confirm(`${formatPeriod(row.fiscalYear, row.fiscalMonth)} 회계월 마감을 해제하시겠습니까?`, { confirmLabel: '해제', cancelLabel: '닫기', danger: true }))) {
       return;
     }
     setReopeningKey(key);
