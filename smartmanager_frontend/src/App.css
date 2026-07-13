@@ -4232,6 +4232,75 @@ td.num.sales-order-amount {
   cursor: not-allowed;
 }
 
+.drawing-ref-add > button.secondary {
+  background: #fff;
+  color: var(--sm-slate-700, #334155);
+  border: 1px solid #cbd5e1;
+}
+
+.drawing-ref-add > button.secondary:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.drawing-ref-bulk-preview {
+  margin: 0.75rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.drawing-ref-bulk-preview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.drawing-ref-bulk-preview__header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.drawing-ref-bulk-preview__actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.drawing-ref-bulk-preview__actions > button:not(.secondary) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0;
+  padding: 0.52rem 1.1rem;
+  background: var(--sm-blue-600);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.drawing-ref-bulk-preview__actions > button:not(.secondary):hover:not(:disabled) {
+  background: var(--sm-blue-700);
+}
+
+.drawing-ref-bulk-preview__actions > button:not(.secondary):disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.drawing-ref-bulk-preview .table-wrap {
+  max-height: 240px;
+  overflow: auto;
+  margin-top: 0.5rem;
+}
+
 .drawing-ref-table {
   width: 100%;
   border-collapse: collapse;

@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { ArrowRightCircle, Eye, Plus, Trash2, X } from 'lucide-react';
+import { ArrowRightCircle, Eye, ListPlus, Plus, Trash2, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   drawingPdfUrl,
@@ -90,6 +90,8 @@ export default function DrawingViewerModal({
   const [addHistoryId, setAddHistoryId] = useState('');
   const [addQuery, setAddQuery] = useState('');
   const [addListOpen, setAddListOpen] = useState(false);
+  const [bulkPreviewOpen, setBulkPreviewOpen] = useState(false);
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [savingRefs, setSavingRefs] = useState(false);
   const [peerPdf, setPeerPdf] = useState<PeerPdfView | null>(null);
   const candidateListId = useId();
@@ -131,6 +133,8 @@ export default function DrawingViewerModal({
     setAddHistoryId('');
     setAddQuery('');
     setAddListOpen(false);
+    setBulkPreviewOpen(false);
+    setBulkSelectedIds(new Set());
     reloadHistories();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open/masterId 전환 시에만 초기 로드
   }, [open, masterId]);
@@ -144,6 +148,8 @@ export default function DrawingViewerModal({
     setAddHistoryId('');
     setAddQuery('');
     setAddListOpen(false);
+    setBulkPreviewOpen(false);
+    setBulkSelectedIds(new Set());
     if (panel === 'pdf') {
       return;
     }
@@ -252,6 +258,30 @@ export default function DrawingViewerModal({
     }
   };
 
+  const candidateToReference = (
+    candidate: DrawingReferenceCandidate,
+    parentHistoryId: string,
+    sortOrder: number,
+  ): DrawingReferenceItem => ({
+    id: `tmp-${candidate.historyId}`,
+    parentHistoryId,
+    childHistoryId: candidate.historyId,
+    refRole: 'COMPONENT',
+    sortOrder,
+    remark: null,
+    child: {
+      historyId: candidate.historyId,
+      masterId: candidate.masterId,
+      partNo: candidate.partNo,
+      partName: candidate.partName,
+      drawingType: candidate.drawingType,
+      majorVersion: candidate.majorVersion,
+      minorVersion: candidate.minorVersion,
+      itemId: candidate.itemId,
+      itemNo: candidate.itemNo,
+    },
+  });
+
   const handleAddReference = async () => {
     if (!addHistoryId || !selectedHistory) {
       return;
@@ -263,28 +293,74 @@ export default function DrawingViewerModal({
     }
     const next: DrawingReferenceItem[] = [
       ...references,
-      {
-        id: `tmp-${candidate.historyId}`,
-        parentHistoryId: selectedHistory.id,
-        childHistoryId: candidate.historyId,
-        refRole: 'COMPONENT',
-        sortOrder: references.length + 1,
-        remark: null,
-        child: {
-          historyId: candidate.historyId,
-          masterId: candidate.masterId,
-          partNo: candidate.partNo,
-          partName: candidate.partName,
-          drawingType: candidate.drawingType,
-          majorVersion: candidate.majorVersion,
-          minorVersion: candidate.minorVersion,
-          itemId: candidate.itemId,
-          itemNo: candidate.itemNo,
-        },
-      },
+      candidateToReference(candidate, selectedHistory.id, references.length + 1),
     ];
     clearCandidateSelection();
     await persistReferences(next);
+  };
+
+  const openBulkPreview = () => {
+    if (candidateOptions.length === 0) {
+      onError('추가할 BOM 하위 도면 후보가 없습니다.');
+      return;
+    }
+    setBulkSelectedIds(new Set(candidateOptions.map((row) => row.historyId)));
+    setBulkPreviewOpen(true);
+  };
+
+  const closeBulkPreview = () => {
+    setBulkPreviewOpen(false);
+    setBulkSelectedIds(new Set());
+  };
+
+  const toggleBulkSelected = (historyId: string) => {
+    setBulkSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(historyId)) {
+        next.delete(historyId);
+      } else {
+        next.add(historyId);
+      }
+      return next;
+    });
+  };
+
+  const toggleBulkSelectAll = () => {
+    setBulkSelectedIds((prev) => {
+      if (prev.size === candidateOptions.length) {
+        return new Set();
+      }
+      return new Set(candidateOptions.map((row) => row.historyId));
+    });
+  };
+
+  const handleConfirmBulkAdd = async () => {
+    if (!selectedHistory) {
+      return;
+    }
+    const selected = candidateOptions.filter((row) => bulkSelectedIds.has(row.historyId));
+    if (selected.length === 0) {
+      onError('저장할 하위 도면을 선택해 주세요.');
+      return;
+    }
+    const confirmed = await confirm(
+      `선택한 BOM 하위 도면 ${selected.length}건을 구성 참조에 추가하시겠습니까?`,
+      { title: 'BOM 하위 일괄 추가', confirmLabel: '저장', cancelLabel: '닫기' },
+    );
+    if (!confirmed) {
+      return;
+    }
+    let sortOrder = references.length;
+    const next: DrawingReferenceItem[] = [
+      ...references,
+      ...selected.map((row) => {
+        sortOrder += 1;
+        return candidateToReference(row, selectedHistory.id, sortOrder);
+      }),
+    ];
+    await persistReferences(next);
+    closeBulkPreview();
+    clearCandidateSelection();
   };
 
   const handleRemoveReference = async (childHistoryId: string) => {
@@ -476,7 +552,97 @@ export default function DrawingViewerModal({
                         <Plus size={16} />
                         추가
                       </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={savingRefs || candidateOptions.length === 0}
+                        onClick={openBulkPreview}
+                        title={
+                          candidateOptions.length === 0
+                            ? '추가 가능한 BOM 하위 도면이 없습니다'
+                            : `미연결 BOM 하위 ${candidateOptions.length}건 미리보기`
+                        }
+                      >
+                        <ListPlus size={16} />
+                        BOM 하위 일괄 추가
+                      </button>
                     </div>
+                  )}
+                  {editable && bulkPreviewOpen && (
+                    <section className="drawing-ref-bulk-preview">
+                      <div className="drawing-ref-bulk-preview__header">
+                        <h4>BOM 하위 일괄 추가 미리보기</h4>
+                        <div className="drawing-ref-bulk-preview__actions">
+                          <button
+                            type="button"
+                            className="secondary"
+                            disabled={savingRefs}
+                            onClick={closeBulkPreview}
+                          >
+                            닫기
+                          </button>
+                          <button
+                            type="button"
+                            disabled={savingRefs || bulkSelectedIds.size === 0}
+                            onClick={() => void handleConfirmBulkAdd()}
+                          >
+                            {savingRefs ? '저장 중…' : `선택 ${bulkSelectedIds.size}건 저장`}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="hint-text">
+                        이미 구성된 도면은 제외됩니다. 저장 전 체크 해제로 제외할 수 있습니다.
+                      </p>
+                      <div className="table-wrap">
+                        <table className="drawing-ref-table">
+                          <thead>
+                            <tr>
+                              <th>
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    candidateOptions.length > 0 &&
+                                    bulkSelectedIds.size === candidateOptions.length
+                                  }
+                                  disabled={savingRefs || candidateOptions.length === 0}
+                                  onChange={toggleBulkSelectAll}
+                                  aria-label="전체 선택"
+                                />
+                              </th>
+                              <th>레벨</th>
+                              <th>품번</th>
+                              <th>품명</th>
+                              <th>품목</th>
+                              <th>구분</th>
+                              <th>버전</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {candidateOptions.map((row) => (
+                              <tr key={row.historyId}>
+                                <td>
+                                  <input
+                                    type="checkbox"
+                                    checked={bulkSelectedIds.has(row.historyId)}
+                                    disabled={savingRefs}
+                                    onChange={() => toggleBulkSelected(row.historyId)}
+                                    aria-label={`${row.partNo} 선택`}
+                                  />
+                                </td>
+                                <td>L{row.bomLevel}</td>
+                                <td>{row.partNo}</td>
+                                <td>{row.partName}</td>
+                                <td>{row.itemNo ?? '-'}</td>
+                                <td>{row.drawingType}</td>
+                                <td>
+                                  V{row.majorVersion}.{row.minorVersion}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
                   )}
                   {editable && candidatesHint && <p className="hint-text">{candidatesHint}</p>}
                   <p className="hint-text">후보 목록은 이 도면에 연결된 품목의 BOM 하위(도면 있는 품목)만 표시합니다.</p>
