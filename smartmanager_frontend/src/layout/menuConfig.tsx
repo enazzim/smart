@@ -39,6 +39,9 @@ import QualityInspectionPage from '../pages/QualityInspectionPage';
 import SalesShipmentPage from '../pages/SalesShipmentPage';
 import SalesRevenuePage from '../pages/SalesRevenuePage';
 import SalesCollectionPage from '../pages/SalesCollectionPage';
+import VendorPurchaseTotalPage from '../pages/VendorPurchaseTotalPage';
+import WarehouseIoPage from '../pages/WarehouseIoPage';
+import ItemIoPage from '../pages/ItemIoPage';
 import PlaceholderPage from '../pages/PlaceholderPage';
 
 const DrawingPage = lazy(() => import('../pages/DrawingPage'));
@@ -52,6 +55,7 @@ export type MenuCategory =
   | 'inventory'
   | 'outsource'
   | 'quality'
+  | 'stats'
   | 'basis'
   | 'system';
 
@@ -95,6 +99,11 @@ export type InventoryPageId = 'inventory-misc-movement' | 'inventory-ledger' | '
 export type OutsourcePageId = 'outsource-order' | 'outsource-shipment' | 'outsource-receipt';
 
 export type QualityPageId = 'quality-inspection';
+
+export type StatsPageId =
+  | 'stats-vendor-purchase'
+  | 'stats-warehouse-io'
+  | 'stats-item-io';
 
 export type PlaceholderPageId =
   | 'sales-revenue';
@@ -174,6 +183,15 @@ export const MENU_GROUPS: MenuGroup[] = [
     id: 'quality',
     label: '품질',
     children: [{ id: 'quality-inspection', label: '품질검사' }],
+  },
+  {
+    id: 'stats',
+    label: '통계및 지표',
+    children: [
+      { id: 'stats-vendor-purchase', label: '매입처별 집계' },
+      { id: 'stats-warehouse-io', label: '창고별 수불현황' },
+      { id: 'stats-item-io', label: '품목별 수불현황' },
+    ],
   },
   {
     id: 'basis',
@@ -362,6 +380,16 @@ export function renderQualityPage(_page: QualityPageId) {
   return <QualityInspectionPage />;
 }
 
+export function renderStatsPage(page: StatsPageId) {
+  if (page === 'stats-vendor-purchase') {
+    return <VendorPurchaseTotalPage />;
+  }
+  if (page === 'stats-warehouse-io') {
+    return <WarehouseIoPage />;
+  }
+  return <ItemIoPage />;
+}
+
 export function renderPlaceholderPage(id: PlaceholderPageId) {
   return <PlaceholderPage title={PLACEHOLDER_LABELS[id]} />;
 }
@@ -383,6 +411,8 @@ export function defaultChildId(category: MenuCategory): string {
       return 'outsource-order';
     case 'quality':
       return 'quality-inspection';
+    case 'stats':
+      return 'stats-vendor-purchase';
     case 'system':
       return 'publicCode';
     default:

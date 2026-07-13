@@ -10,6 +10,7 @@ import {
   type PurchasePageId,
   type QualityPageId,
   type SalesPageId,
+  type StatsPageId,
   type SystemPage,
 } from '../layout/menuConfig';
 import type { BoardType } from '../api/board';
@@ -52,6 +53,11 @@ const PURCHASE_PAGES = new Set<string>([
 const INVENTORY_PAGES = new Set<string>(['inventory-misc-movement', 'inventory-ledger', 'inventory-lot']);
 const OUTSOURCE_PAGES = new Set<string>(['outsource-order', 'outsource-shipment', 'outsource-receipt']);
 const QUALITY_PAGES = new Set<string>(['quality-inspection']);
+const STATS_PAGES = new Set<string>([
+  'stats-vendor-purchase',
+  'stats-warehouse-io',
+  'stats-item-io',
+]);
 
 export const NAV_PATH_STORAGE_KEY = 'smartmanager.navPath';
 
@@ -75,6 +81,8 @@ export function pathFromSelection(selection: AppSelection): string {
       return `/quality/${selection.page}`;
     case 'outsource':
       return `/outsource/${selection.page}`;
+    case 'stats':
+      return `/stats/${selection.page}`;
     case 'board':
       return boardPath(selection.boardType, selection.screen);
     case 'workdiary':
@@ -195,7 +203,7 @@ export function selectionFromLocation(pathname: string, search: string): AppSele
     };
   }
 
-  const modulePage = /^\/(system|sales|production|purchase|inventory|quality|outsource)\/([^/]+)$/.exec(path);
+  const modulePage = /^\/(system|sales|production|purchase|inventory|quality|outsource|stats)\/([^/]+)$/.exec(path);
   if (modulePage) {
     const [, category, page] = modulePage;
     if (category === 'system' && SYSTEM_PAGES.has(page)) {
@@ -219,6 +227,9 @@ export function selectionFromLocation(pathname: string, search: string): AppSele
     if (category === 'outsource' && OUTSOURCE_PAGES.has(page)) {
       return { category: 'outsource', page: page as OutsourcePageId };
     }
+    if (category === 'stats' && STATS_PAGES.has(page)) {
+      return { category: 'stats', page: page as StatsPageId };
+    }
   }
 
   return null;
@@ -235,6 +246,7 @@ export function pathForCategory(category: MenuCategory, childId?: string): strin
   if (category === 'inventory') return `/inventory/${page}`;
   if (category === 'quality') return `/quality/${page}`;
   if (category === 'outsource') return `/outsource/${page}`;
+  if (category === 'stats') return `/stats/${page}`;
   return '/';
 }
 

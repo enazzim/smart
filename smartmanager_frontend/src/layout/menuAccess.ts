@@ -30,12 +30,14 @@ export function getVisibleMenuCategories(roleCodes: string[]): MenuCategory[] {
       'outsource',
       'inventory',
       'quality',
+      'stats',
       'basis',
       'system',
     ];
   }
 
-  const visible = new Set<MenuCategory>(['home']);
+  // 통계및 지표: 로그인 사용자 전원
+  const visible = new Set<MenuCategory>(['home', 'stats']);
 
   if (roleCodes.includes('BASIS_MANAGER')) {
     visible.add('basis');
