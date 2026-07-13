@@ -95,6 +95,7 @@ function toSelection(category: MenuCategory, childId?: string): AppSelection {
 
 export default function App() {
   const [authed, setAuthed] = useState(isAuthenticated());
+  const [sessionChecking, setSessionChecking] = useState(isAuthenticated());
   const [currentUser, setCurrentUser] = useState<AuthenticatedUser | null>(null);
   const [selection, setSelection] = useState<AppSelection>(() => readSavedNavigation()?.selection ?? DEFAULT_SELECTION);
   const [expandedCategory, setExpandedCategory] = useState<MenuCategory | null>(
@@ -135,21 +136,26 @@ export default function App() {
 
   useEffect(() => {
     if (!authed) {
+      setSessionChecking(false);
       setCurrentUser(null);
       setMaterialIssueEnabled(false);
       setNegativeStockAllowed(true);
       setFiscalCutoverSetting(DEFAULT_FISCAL_CUTOVER_SETTING);
       return;
     }
+    setSessionChecking(true);
     void fetchCurrentUser()
-      .then(setCurrentUser)
+      .then((user) => {
+        setCurrentUser(user);
+        setSessionChecking(false);
+      })
       .catch((error: unknown) => {
-        // /me 실패가 곧바로 로그인 화면으로 보내지 않도록, 세션 만료(토큰 제거)만 로그아웃 처리한다.
-        if (!isAuthenticated()) {
-          setAuthed(false);
-          return;
-        }
+        // /me 실패 = 세션 없음 → 로그인 화면
         console.error('현재 사용자 조회 실패', error);
+        logout();
+        setCurrentUser(null);
+        setAuthed(false);
+        setSessionChecking(false);
       });
     void fetchSystemSettings()
       .then((rows) => {
@@ -207,9 +213,23 @@ export default function App() {
             setExpandedCategory(saved.expandedCategory);
             sessionStorage.removeItem(NAV_STORAGE_KEY);
           }
+          setSessionChecking(true);
           setAuthed(true);
         }}
       />
+    );
+  }
+
+  if (sessionChecking || !currentUser) {
+    return (
+      <div className="login-page">
+        <section className="panel login-panel">
+          <header>
+            <h1>SmartManager</h1>
+            <p>세션을 확인하는 중입니다…</p>
+          </header>
+        </section>
+      </div>
     );
   }
 

@@ -67,6 +67,10 @@ export interface ItemSearchFieldProps {
   label: string;
   selectedItem: ItemSearchSelection | null;
   onSelect: (item: ItemSearchSelection | null) => void;
+  /** 입력 중 텍스트(선택 전 포함 검색용). 선택/입력 변경 시 호출 */
+  onQueryTextChange?: (query: string) => void;
+  /** 값이 바뀌면 입력란·내부 상태를 비움 (검색 초기화용) */
+  clearToken?: number;
   placeholder?: string;
   allowedClassifications?: PropertyClassification[];
   /** 지정 시 API 대신 목록에서만 검색 (판매단가 품목 등) */
@@ -79,6 +83,8 @@ export default function ItemSearchField({
   label,
   selectedItem,
   onSelect,
+  onQueryTextChange,
+  clearToken,
   placeholder = '품목번호 또는 품목명 입력',
   allowedClassifications,
   items,
@@ -93,6 +99,7 @@ export default function ItemSearchField({
   );
   const listId = useId();
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevSelectedRef = useRef<ItemSearchSelection | null>(null);
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<ItemSearchSelection[]>([]);
   const [open, setOpen] = useState(false);
@@ -118,11 +125,34 @@ export default function ItemSearchField({
   }, [allowedClassesKey]);
 
   useEffect(() => {
-    if (selectedItem) {
-      setQuery(formatItemLabel(selectedItem));
-    } else {
-      setQuery('');
+    if (clearToken === undefined || clearToken === 0) {
+      return;
     }
+    setQuery('');
+    setOptions([]);
+    setOpen(false);
+    setSearchError(null);
+    prevSelectedRef.current = null;
+    onQueryTextChange?.('');
+  }, [clearToken]);
+
+  useEffect(() => {
+    if (selectedItem) {
+      const labelText = formatItemLabel(selectedItem);
+      setQuery(labelText);
+      onQueryTextChange?.(labelText);
+    } else if (prevSelectedRef.current) {
+      // 입력으로 선택만 해제한 경우는 유지. 선택 라벨이 그대로면 외부 초기화로 비움.
+      const prevLabel = formatItemLabel(prevSelectedRef.current);
+      setQuery((current) => {
+        if (current === prevLabel) {
+          onQueryTextChange?.('');
+          return '';
+        }
+        return current;
+      });
+    }
+    prevSelectedRef.current = selectedItem;
   }, [selectedItem?.id, selectedItem?.itemNo, selectedItem?.itemName]);
 
   useEffect(() => {
@@ -155,6 +185,7 @@ export default function ItemSearchField({
 
   const onQueryChange = (value: string) => {
     setQuery(value);
+    onQueryTextChange?.(value);
     setOpen(true);
     if (selectedItem && value !== formatItemLabel(selectedItem)) {
       onSelect(null);

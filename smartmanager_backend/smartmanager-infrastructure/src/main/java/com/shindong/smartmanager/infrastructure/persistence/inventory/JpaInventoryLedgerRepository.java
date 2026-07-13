@@ -50,8 +50,11 @@ public class JpaInventoryLedgerRepository implements InventoryLedgerRepository {
                 """);
         Map<String, Object> params = new HashMap<>();
         if (criteria != null) {
-            if (criteria.itemNo() != null && !criteria.itemNo().isBlank()) {
-                sql.append(" AND i.item_no LIKE :itemNo");
+            if (criteria.itemId() != null) {
+                sql.append(" AND sm.item_id = :itemId");
+                params.put("itemId", criteria.itemId());
+            } else if (criteria.itemNo() != null && !criteria.itemNo().isBlank()) {
+                sql.append(" AND (i.item_no LIKE :itemNo OR i.item_name LIKE :itemNo)");
                 params.put("itemNo", "%" + criteria.itemNo().trim() + "%");
             }
             if (criteria.locationCode() != null && !criteria.locationCode().isBlank()) {
@@ -119,8 +122,11 @@ public class JpaInventoryLedgerRepository implements InventoryLedgerRepository {
                 """);
         Map<String, Object> params = new HashMap<>();
         if (criteria != null) {
-            if (criteria.itemNo() != null && !criteria.itemNo().isBlank()) {
-                sql.append(" AND i.item_no LIKE :itemNo");
+            if (criteria.itemId() != null) {
+                sql.append(" AND ib.item_id = :itemId");
+                params.put("itemId", criteria.itemId());
+            } else if (criteria.itemNo() != null && !criteria.itemNo().isBlank()) {
+                sql.append(" AND (i.item_no LIKE :itemNo OR i.item_name LIKE :itemNo)");
                 params.put("itemNo", "%" + criteria.itemNo().trim() + "%");
             }
             if (criteria.locationCode() != null && !criteria.locationCode().isBlank()) {

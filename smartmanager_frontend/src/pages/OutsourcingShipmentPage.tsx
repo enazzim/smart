@@ -557,13 +557,7 @@ export default function OutsourcingShipmentPage() {
           출고수량(shipped_qty)에는 반영되지 않습니다.
         </p>
         {advanceError && <p className="error-banner">{advanceError}</p>}
-        <div className="action-bar">
-          <label>
-            출고일
-            <input type="date" value={shipmentDate} onChange={(e) => setShipmentDate(e.target.value)} disabled={submitting} />
-          </label>
-        </div>
-        <div className="form-grid-wide">
+        <div className="form-grid-wide advance-shipment-fields">
           <CompanySearchField
             label="외주 거래처"
             partnerType="OUTSOURCE"
@@ -614,6 +608,10 @@ export default function OutsourcingShipmentPage() {
                 setEditingAdvanceLineKey(null);
               }}
             />
+          </label>
+          <label>
+            출고일
+            <input type="date" value={shipmentDate} onChange={(e) => setShipmentDate(e.target.value)} disabled={submitting} />
           </label>
         </div>
         <div className="action-bar">

@@ -57,6 +57,8 @@ export interface CompanySearchFieldProps {
   partnerTypes?: readonly CompanyRoleType[];
   selectedCompany: CompanySearchSelection | null;
   onSelect: (company: CompanySearchSelection | null) => void;
+  /** 값이 바뀌면 입력란·내부 상태를 비움 (검색 초기화용) */
+  clearToken?: number;
   placeholder?: string;
 }
 
@@ -66,6 +68,7 @@ export default function CompanySearchField({
   partnerTypes,
   selectedCompany,
   onSelect,
+  clearToken,
   placeholder = '상호 또는 사업자번호 입력',
 }: CompanySearchFieldProps) {
   const rolesFilterKey = useMemo(
@@ -100,6 +103,16 @@ export default function CompanySearchField({
     },
     [rolesFilter],
   );
+
+  useEffect(() => {
+    if (clearToken === undefined || clearToken === 0) {
+      return;
+    }
+    setQuery('');
+    setOptions([]);
+    setOpen(false);
+    setSearchError(null);
+  }, [clearToken]);
 
   useEffect(() => {
     if (selectedCompany) {

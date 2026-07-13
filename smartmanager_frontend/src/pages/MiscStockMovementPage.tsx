@@ -315,6 +315,11 @@ export default function MiscStockMovementPage() {
         <p>
           품목 재고분류에 따라 창고가 자동 결정됩니다. 이력이 없는 품목은 해당 슬롯을 생성한 뒤 입출고를 반영합니다.
         </p>
+        <p className="hint-text">
+          <strong>실사·Lot 보정:</strong> Lot 잔량은 직접 수정하지 말고 이 화면으로 차이를 입고(IN)/출고(OUT)하세요.
+          공정품·제품은 <strong>공정 선택 후</strong> Lot 입력란이 나타납니다. OUT은 Lot 선택 필수, IN은 Lot 선택·번호·자동생성 중 하나.
+          사유에「실사보정」등을 남기고, 등록 후 재고·원장의 슬롯 현재고와 Lot 잔량 합이 일치하는지 확인하세요.
+        </p>
       </header>
 
       {error && <div className="error">{error}</div>}

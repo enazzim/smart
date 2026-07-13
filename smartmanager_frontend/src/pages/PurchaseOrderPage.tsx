@@ -201,6 +201,11 @@ export default function PurchaseOrderPage() {
   const allOrdersSelected =
     printableOrders.length > 0 && printableOrders.every((order) => selectedOrderIds.has(order.id));
 
+  const selectedOrdersForDetail = useMemo(
+    () => orders.filter((order) => selectedOrderIds.has(order.id) && order.lines.length > 0),
+    [orders, selectedOrderIds],
+  );
+
   const toggleOrderSelection = (orderId: number, checked: boolean) => {
     setSelectedOrderIds((prev) => {
       const next = new Set(prev);
@@ -806,17 +811,6 @@ export default function PurchaseOrderPage() {
       <section className="panel">
         <div className="panel-header-row">
           <h2>발주 목록</h2>
-          <div className="inline-actions">
-            <button
-              type="button"
-              className="btn-action"
-              disabled={submitting || selectedOrderIds.size === 0}
-              onClick={() => void handlePrint([...selectedOrderIds])}
-            >
-              발주서 발행
-            </button>
-            <GridExcelExportButton fileBaseName="구매발주목록" disabled={loadingOrders} rows={orderExportRows} />
-          </div>
         </div>
         {message && <p>{message}</p>}
         {orderError && <div className="error">{orderError}</div>}
@@ -867,6 +861,20 @@ export default function PurchaseOrderPage() {
           >
             초기화
           </button>
+        </div>
+        <div className="panel-header-row">
+          <span aria-hidden="true" />
+          <div className="inline-actions">
+            <button
+              type="button"
+              className="btn-action"
+              disabled={submitting || selectedOrderIds.size === 0}
+              onClick={() => void handlePrint([...selectedOrderIds])}
+            >
+              발주서 발행
+            </button>
+            <GridExcelExportButton fileBaseName="구매발주목록" disabled={loadingOrders} rows={orderExportRows} />
+          </div>
         </div>
         {loadingOrders ? (
           <p>불러오는 중…</p>
@@ -958,10 +966,10 @@ export default function PurchaseOrderPage() {
           </table>
           </div>
         )}
-        {orders.some((order) => order.lines.length > 0) && (
+        {selectedOrdersForDetail.length > 0 ? (
           <div className="detail-panel">
             <h3>발주 상세</h3>
-            {orders.map((order) => (
+            {selectedOrdersForDetail.map((order) => (
               <div key={`detail-${order.id}`} className="sub-panel">
                 <h4>
                   {order.orderNo} — {order.partnerName} ({order.statusLabel})
@@ -1003,6 +1011,14 @@ export default function PurchaseOrderPage() {
               </div>
             ))}
           </div>
+        ) : (
+          !loadingOrders &&
+          orders.length > 0 && (
+            <div className="detail-panel">
+              <h3>발주 상세</h3>
+              <p className="hint-text">발주 목록에서 선택한 건만 상세에 표시됩니다.</p>
+            </div>
+          )
         )}
       </section>
     </div>

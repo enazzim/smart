@@ -27,6 +27,7 @@ public class InventoryLedgerController {
     @GetMapping("/stock-movements")
     @PreAuthorize("hasAuthority('inventory:ledger:read')")
     public List<StockMovementResponse> listStockMovements(
+            @RequestParam(required = false) Long itemId,
             @RequestParam(required = false) String itemNo,
             @RequestParam(required = false) String locationCode,
             @RequestParam(required = false) String referenceType,
@@ -34,19 +35,20 @@ public class InventoryLedgerController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate movementDateTo
     ) {
         return ledgerApplicationService.listStockMovements(new StockMovementListCriteria(
-                itemNo, locationCode, referenceType, movementDateFrom, movementDateTo
+                itemId, itemNo, locationCode, referenceType, movementDateFrom, movementDateTo
         )).stream().map(StockMovementResponse::from).toList();
     }
 
     @GetMapping("/balances")
     @PreAuthorize("hasAuthority('inventory:ledger:read')")
     public List<InventoryBalanceResponse> listBalances(
+            @RequestParam(required = false) Long itemId,
             @RequestParam(required = false) String itemNo,
             @RequestParam(required = false) String locationCode,
             @RequestParam(required = false) Integer fiscalYear
     ) {
         return ledgerApplicationService.listBalances(new InventoryBalanceListCriteria(
-                itemNo, locationCode, fiscalYear
+                itemId, itemNo, locationCode, fiscalYear
         )).stream().map(InventoryBalanceResponse::from).toList();
     }
 }

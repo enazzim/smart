@@ -153,21 +153,21 @@ export const MENU_GROUPS: MenuGroup[] = [
     ],
   },
   {
-    id: 'inventory',
-    label: '재고',
-    children: [
-      { id: 'inventory-misc-movement', label: '기타 입출고' },
-      { id: 'inventory-ledger', label: '재고·원장' },
-      { id: 'inventory-lot', label: 'Lot 마스터' },
-    ],
-  },
-  {
     id: 'outsource',
     label: '외주',
     children: [
       { id: 'outsource-order', label: '외주발주' },
       { id: 'outsource-shipment', label: '출고' },
       { id: 'outsource-receipt', label: '입고' },
+    ],
+  },
+  {
+    id: 'inventory',
+    label: '재고',
+    children: [
+      { id: 'inventory-misc-movement', label: '기타 입출고' },
+      { id: 'inventory-ledger', label: '재고·원장' },
+      { id: 'inventory-lot', label: 'Lot 마스터' },
     ],
   },
   {

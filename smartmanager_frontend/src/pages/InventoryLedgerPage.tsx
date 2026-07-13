@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { PropertyClassification } from '../api/item';
 import {
   fetchInventoryBalances,
   fetchStockMovements,
@@ -16,11 +17,14 @@ import {
   type LotStatus,
 } from '../api/lot';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import {
   formatInventoryLocation,
   INVENTORY_LOCATION_FILTER_OPTIONS,
 } from '../utils/inventoryLocation';
 import { formatInteger, formatQty } from '../utils/numberFormat';
+
+const ALL_ITEM_CLASSES: PropertyClassification[] = ['원자재', '제품', '상품', '공정품'];
 
 type LedgerTab = 'movements' | 'balances' | 'lots';
 type LotDetailPane = 'balances' | 'movements' | 'genealogy';
@@ -44,7 +48,9 @@ function sumLotQty(lot: LotRow): number {
 
 export default function InventoryLedgerPage() {
   const [tab, setTab] = useState<LedgerTab>('movements');
-  const [itemNo, setItemNo] = useState('');
+  const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
+  const [itemQueryText, setItemQueryText] = useState('');
+  const [itemClearToken, setItemClearToken] = useState(0);
   const [locationCode, setLocationCode] = useState('');
   const [fiscalYear, setFiscalYear] = useState(String(new Date().getFullYear()));
   const [lotNo, setLotNo] = useState('');
@@ -60,11 +66,23 @@ export default function InventoryLedgerPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [movementsSearched, setMovementsSearched] = useState(false);
+  const [lotsSearched, setLotsSearched] = useState(false);
+  const [balancesSearched, setBalancesSearched] = useState(false);
 
   const selectedLot = useMemo(
     () => lots.find((lot) => lot.id === selectedLotId) ?? null,
     [lots, selectedLotId],
   );
+
+  /** 선택 시 해당 품목만(itemId), 입력만 하면 포함 검색(itemNo/name) */
+  const itemSearchParams = useMemo(() => {
+    if (selectedItem) {
+      return { itemId: selectedItem.id };
+    }
+    const text = itemQueryText.trim();
+    return text ? { itemNo: text } : {};
+  }, [selectedItem, itemQueryText]);
 
   const loadMovements = useCallback(async () => {
     setLoading(true);
@@ -72,17 +90,19 @@ export default function InventoryLedgerPage() {
     try {
       setMovements(
         await fetchStockMovements({
-          itemNo: itemNo || undefined,
+          ...itemSearchParams,
           locationCode: locationCode || undefined,
         }),
       );
+      setMovementsSearched(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : '입출고 이력을 불러오지 못했습니다.');
       setMovements([]);
+      setMovementsSearched(true);
     } finally {
       setLoading(false);
     }
-  }, [itemNo, locationCode]);
+  }, [itemSearchParams, locationCode]);
 
   const loadBalances = useCallback(async () => {
     setLoading(true);
@@ -91,39 +111,43 @@ export default function InventoryLedgerPage() {
       const year = Number(fiscalYear);
       setBalances(
         await fetchInventoryBalances({
-          itemNo: itemNo || undefined,
+          ...itemSearchParams,
           locationCode: locationCode || undefined,
           fiscalYear: Number.isFinite(year) ? year : undefined,
         }),
       );
+      setBalancesSearched(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : '재고 잔고를 불러오지 못했습니다.');
       setBalances([]);
+      setBalancesSearched(true);
     } finally {
       setLoading(false);
     }
-  }, [itemNo, locationCode, fiscalYear]);
+  }, [itemSearchParams, locationCode, fiscalYear]);
 
   const loadLots = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const rows = await fetchLots({
-        itemNo: itemNo || undefined,
+        ...itemSearchParams,
         lotNo: lotNo || undefined,
         status: lotStatus || undefined,
         locationCode: locationCode || undefined,
       });
       setLots(rows);
       setSelectedLotId((prev) => (prev != null && rows.some((row) => row.id === prev) ? prev : null));
+      setLotsSearched(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lot 목록을 불러오지 못했습니다.');
       setLots([]);
       setSelectedLotId(null);
+      setLotsSearched(true);
     } finally {
       setLoading(false);
     }
-  }, [itemNo, lotNo, lotStatus, locationCode]);
+  }, [itemSearchParams, lotNo, lotStatus, locationCode]);
 
   const loadLotDetail = useCallback(async (lotId: number, pane: LotDetailPane, direction: LotGenealogyDirection) => {
     setDetailLoading(true);
@@ -143,16 +167,7 @@ export default function InventoryLedgerPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (tab === 'movements') {
-      void loadMovements();
-    } else if (tab === 'balances') {
-      void loadBalances();
-    } else {
-      void loadLots();
-    }
-  }, [tab, loadMovements, loadBalances, loadLots]);
-
+  // 입출고 이력·재고 잔고·Lot는 검색 버튼으로만 조회 (초기·필터 변경 시 자동 조회 금지)
   useEffect(() => {
     if (tab !== 'lots' || selectedLotId == null || lotDetailPane === 'balances') {
       return;
@@ -244,11 +259,14 @@ export default function InventoryLedgerPage() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>재고·원장</h1>
-        <p>
-          입출고 이력(`stock_movement`), 월별 재고 잔고(`inventory_balance_monthly`), Lot 잔량·이력·계보를
-          조회합니다.
-        </p>
+        <div>
+          <h1>재고·원장</h1>
+          <p>
+            입출고 이력(`stock_movement`), 월별 재고 잔고(`inventory_balance_monthly`), Lot 잔량·이력·계보를
+            조회합니다. 실사·수량 보정은 기타 입출고 TX로 등록한 뒤, 이 화면에서 슬롯 현재고와 Lot 잔량 합을
+            대조하세요.
+          </p>
+        </div>
       </header>
 
       <div className="tab-row">
@@ -264,10 +282,15 @@ export default function InventoryLedgerPage() {
       </div>
 
       <section className="filter-panel">
-        <label>
-          품목번호
-          <input value={itemNo} onChange={(e) => setItemNo(e.target.value)} />
-        </label>
+        <ItemSearchField
+          label="품목번호"
+          selectedItem={selectedItem}
+          onSelect={setSelectedItem}
+          onQueryTextChange={setItemQueryText}
+          clearToken={itemClearToken}
+          allowedClassifications={ALL_ITEM_CLASSES}
+          placeholder="품목번호 또는 품목명 입력"
+        />
         <label>
           창고
           <select value={locationCode} onChange={(e) => setLocationCode(e.target.value)}>
@@ -304,6 +327,21 @@ export default function InventoryLedgerPage() {
         <button type="button" onClick={handleSearch}>
           검색
         </button>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            setSelectedItem(null);
+            setItemQueryText('');
+            setItemClearToken((token) => token + 1);
+            setLocationCode('');
+            setFiscalYear(String(new Date().getFullYear()));
+            setLotNo('');
+            setLotStatus('');
+          }}
+        >
+          초기화
+        </button>
       </section>
 
       {error && <p className="error-banner">{error}</p>}
@@ -336,7 +374,11 @@ export default function InventoryLedgerPage() {
             <tbody>
               {movements.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>입출고 이력이 없습니다.</td>
+                  <td colSpan={7}>
+                    {movementsSearched
+                      ? '입출고 이력이 없습니다.'
+                      : '검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요.'}
+                  </td>
                 </tr>
               ) : (
                 movements.map((row) => (
@@ -378,7 +420,11 @@ export default function InventoryLedgerPage() {
             <tbody>
               {balances.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>재고 잔고가 없습니다.</td>
+                  <td colSpan={7}>
+                    {balancesSearched
+                      ? '재고 잔고가 없습니다.'
+                      : '검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요.'}
+                  </td>
                 </tr>
               ) : (
                 balances.map((row) => {
@@ -443,7 +489,11 @@ export default function InventoryLedgerPage() {
               <tbody>
                 {lots.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>Lot가 없습니다.</td>
+                    <td colSpan={7}>
+                      {lotsSearched
+                        ? 'Lot가 없습니다.'
+                        : '검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요.'}
+                    </td>
                   </tr>
                 ) : (
                   lots.map((row) => (

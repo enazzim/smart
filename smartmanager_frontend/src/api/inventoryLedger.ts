@@ -42,6 +42,7 @@ export interface InventoryBalance {
 }
 
 export interface StockMovementListParams {
+  itemId?: number;
   itemNo?: string;
   locationCode?: string;
   referenceType?: string;
@@ -50,6 +51,7 @@ export interface StockMovementListParams {
 }
 
 export interface InventoryBalanceListParams {
+  itemId?: number;
   itemNo?: string;
   locationCode?: string;
   fiscalYear?: number;
@@ -58,6 +60,7 @@ export interface InventoryBalanceListParams {
 function buildMovementQuery(params?: StockMovementListParams): string {
   if (!params) return '';
   const search = new URLSearchParams();
+  if (params.itemId != null) search.set('itemId', String(params.itemId));
   if (params.itemNo?.trim()) search.set('itemNo', params.itemNo.trim());
   if (params.locationCode?.trim()) search.set('locationCode', params.locationCode.trim());
   if (params.referenceType?.trim()) search.set('referenceType', params.referenceType.trim());
@@ -70,6 +73,7 @@ function buildMovementQuery(params?: StockMovementListParams): string {
 function buildBalanceQuery(params?: InventoryBalanceListParams): string {
   if (!params) return '';
   const search = new URLSearchParams();
+  if (params.itemId != null) search.set('itemId', String(params.itemId));
   if (params.itemNo?.trim()) search.set('itemNo', params.itemNo.trim());
   if (params.locationCode?.trim()) search.set('locationCode', params.locationCode.trim());
   if (params.fiscalYear != null) search.set('fiscalYear', String(params.fiscalYear));

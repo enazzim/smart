@@ -4,8 +4,8 @@ const TRANSACTION_CATEGORIES: MenuCategory[] = [
   'sales',
   'production',
   'purchase',
-  'inventory',
   'outsource',
+  'inventory',
   'quality',
 ];
 
@@ -27,8 +27,8 @@ export function getVisibleMenuCategories(roleCodes: string[]): MenuCategory[] {
       'sales',
       'production',
       'purchase',
-      'inventory',
       'outsource',
+      'inventory',
       'quality',
       'basis',
       'system',

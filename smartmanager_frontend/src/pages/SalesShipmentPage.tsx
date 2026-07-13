@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   cancelSalesShipment,
   createSalesShipment,
@@ -73,11 +73,13 @@ export default function SalesShipmentPage() {
   const [shipmentQtyByLineId, setShipmentQtyByLineId] = useState<Record<number, string>>({});
   const [lotIdByLineId, setLotIdByLineId] = useState<Record<number, number | null>>({});
   const [lotsByLineId, setLotsByLineId] = useState<Record<number, LotRow[]>>({});
-  const [loadingCandidates, setLoadingCandidates] = useState(true);
-  const [loadingShipments, setLoadingShipments] = useState(true);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [loadingShipments, setLoadingShipments] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [shipmentError, setShipmentError] = useState<string | null>(null);
+  const [candidatesSearched, setCandidatesSearched] = useState(false);
+  const [shipmentsSearched, setShipmentsSearched] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const shipmentExportRows = useMemo(
@@ -93,12 +95,24 @@ export default function SalesShipmentPage() {
     [shipments],
   );
 
-  const loadCandidates = useCallback(async () => {
+  const defaultCandidateFilters = (): SalesShipmentCandidateParams => ({
+    orderDateFrom: addDaysIso(todayIso(), -30),
+    orderDateTo: todayIso(),
+  });
+
+  const defaultListFilters = (): SalesShipmentListParams => ({
+    shipmentDateFrom: addDaysIso(todayIso(), -30),
+    shipmentDateTo: todayIso(),
+    excludeCancelled: true,
+  });
+
+  const loadCandidates = useCallback(async (params: SalesShipmentCandidateParams = filters) => {
     setLoadingCandidates(true);
     setCandidateError(null);
     try {
-      const rows = await fetchSalesShipmentCandidates(filters);
+      const rows = await fetchSalesShipmentCandidates(params);
       setCandidates(rows);
+      setCandidatesSearched(true);
       setShipmentQtyByLineId((prev) => {
         const next = { ...prev };
         for (const row of rows) {
@@ -111,31 +125,34 @@ export default function SalesShipmentPage() {
     } catch (e) {
       setCandidateError(e instanceof Error ? e.message : '출고 후보 조회 실패');
       setCandidates([]);
+      setCandidatesSearched(true);
     } finally {
       setLoadingCandidates(false);
     }
   }, [filters]);
 
-  const loadShipments = useCallback(async () => {
+  const loadShipments = useCallback(async (params: SalesShipmentListParams = listFilters) => {
     setLoadingShipments(true);
     setShipmentError(null);
     try {
-      setShipments(await fetchSalesShipments(listFilters));
+      setShipments(await fetchSalesShipments(params));
+      setShipmentsSearched(true);
     } catch (e) {
       setShipmentError(e instanceof Error ? e.message : '출고·납품 목록 조회 실패');
       setShipments([]);
+      setShipmentsSearched(true);
     } finally {
       setLoadingShipments(false);
     }
   }, [listFilters]);
 
-  useEffect(() => {
-    void loadCandidates();
-  }, [loadCandidates]);
+  const handleResetCandidateFilters = () => {
+    setFilters(defaultCandidateFilters());
+  };
 
-  useEffect(() => {
-    void loadShipments();
-  }, [loadShipments]);
+  const handleResetListFilters = () => {
+    setListFilters(defaultListFilters());
+  };
 
   const selectableLineIds = useMemo(
     () => new Set(candidates.filter((row) => row.shippable).map((row) => row.orderLineId)),
@@ -283,52 +300,53 @@ export default function SalesShipmentPage() {
 
       <section className="panel">
         <h2>수주 출고 후보</h2>
-        <div className="ui-filter-panel sales-revenue-filter-panel">
-          <div className="sales-revenue-search-grid">
-            <label>
-              거래처
-              <input
-                type="text"
-                value={filters.partnerName ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, partnerName: e.target.value }))}
-              />
-            </label>
-            <label>
-              품번
-              <input
-                type="text"
-                value={filters.itemNum ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, itemNum: e.target.value }))}
-              />
-            </label>
-            <label className="sales-revenue-field-span-2">
-              수주번호
-              <input
-                type="text"
-                value={filters.orderNo ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, orderNo: e.target.value }))}
-              />
-            </label>
-            <label>
-              수주일(부터)
-              <input
-                type="date"
-                value={filters.orderDateFrom ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, orderDateFrom: e.target.value }))}
-              />
-            </label>
-            <label>
-              수주일(까지)
-              <input
-                type="date"
-                value={filters.orderDateTo ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, orderDateTo: e.target.value }))}
-              />
-            </label>
-          </div>
-          <div className="form-actions sales-revenue-search-actions">
+        <div className="sales-shipment-filters">
+          <label>
+            거래처
+            <input
+              type="text"
+              value={filters.partnerName ?? ''}
+              onChange={(e) => setFilters((f) => ({ ...f, partnerName: e.target.value }))}
+            />
+          </label>
+          <label>
+            품번
+            <input
+              type="text"
+              value={filters.itemNum ?? ''}
+              onChange={(e) => setFilters((f) => ({ ...f, itemNum: e.target.value }))}
+            />
+          </label>
+          <label>
+            수주번호
+            <input
+              type="text"
+              value={filters.orderNo ?? ''}
+              onChange={(e) => setFilters((f) => ({ ...f, orderNo: e.target.value }))}
+            />
+          </label>
+          <label>
+            수주일(부터)
+            <input
+              type="date"
+              value={filters.orderDateFrom ?? ''}
+              onChange={(e) => setFilters((f) => ({ ...f, orderDateFrom: e.target.value }))}
+            />
+          </label>
+          <label>
+            수주일(까지)
+            <input
+              type="date"
+              value={filters.orderDateTo ?? ''}
+              onChange={(e) => setFilters((f) => ({ ...f, orderDateTo: e.target.value }))}
+            />
+          </label>
+          <div className="sales-shipment-filter-actions">
             <button type="button" onClick={() => void loadCandidates()} disabled={loadingCandidates}>
               {loadingCandidates ? '조회 중…' : '조회'}
+            </button>
+            <button type="button" className="secondary" onClick={handleResetCandidateFilters}>
+              초기화
             </button>
           </div>
         </div>
@@ -353,7 +371,11 @@ export default function SalesShipmentPage() {
         ) : candidateError ? (
           <p className="error-banner">{candidateError}</p>
         ) : candidates.length === 0 ? (
-          <p className="hint sales-revenue-empty">출고 가능한 수주 라인이 없습니다.</p>
+          <p className="hint sales-revenue-empty">
+            {candidatesSearched
+              ? '출고 가능한 수주 라인이 없습니다.'
+              : '검색 조건을 입력한 뒤 조회 버튼을 눌러 주세요.'}
+          </p>
         ) : (
           <>
             <div className="table-wrap sales-shipment-candidate-table">
@@ -516,51 +538,56 @@ export default function SalesShipmentPage() {
           <h2>출고·납품 목록</h2>
           <GridExcelExportButton fileBaseName="출고납품목록" disabled={loadingShipments} rows={shipmentExportRows} />
         </div>
-        <div className="ui-filter-panel sales-revenue-filter-panel">
-          <div className="sales-revenue-search-grid">
-            <label>
-              출고일(부터)
-              <input
-                type="date"
-                value={listFilters.shipmentDateFrom ?? ''}
-                onChange={(e) => setListFilters((f) => ({ ...f, shipmentDateFrom: e.target.value }))}
-              />
-            </label>
-            <label>
-              출고일(까지)
-              <input
-                type="date"
-                value={listFilters.shipmentDateTo ?? ''}
-                onChange={(e) => setListFilters((f) => ({ ...f, shipmentDateTo: e.target.value }))}
-              />
-            </label>
-            <label>
-              거래처
-              <input
-                type="text"
-                value={listFilters.partnerName ?? ''}
-                onChange={(e) => setListFilters((f) => ({ ...f, partnerName: e.target.value }))}
-              />
-            </label>
-            <label>
-              출고번호
-              <input
-                type="text"
-                value={listFilters.shipmentNo ?? ''}
-                onChange={(e) => setListFilters((f) => ({ ...f, shipmentNo: e.target.value }))}
-              />
-            </label>
-          </div>
-          <div className="form-actions sales-revenue-search-actions">
+        <div className="sales-shipment-filters">
+          <label>
+            출고일(부터)
+            <input
+              type="date"
+              value={listFilters.shipmentDateFrom ?? ''}
+              onChange={(e) => setListFilters((f) => ({ ...f, shipmentDateFrom: e.target.value }))}
+            />
+          </label>
+          <label>
+            출고일(까지)
+            <input
+              type="date"
+              value={listFilters.shipmentDateTo ?? ''}
+              onChange={(e) => setListFilters((f) => ({ ...f, shipmentDateTo: e.target.value }))}
+            />
+          </label>
+          <label>
+            거래처
+            <input
+              type="text"
+              value={listFilters.partnerName ?? ''}
+              onChange={(e) => setListFilters((f) => ({ ...f, partnerName: e.target.value }))}
+            />
+          </label>
+          <label>
+            출고번호
+            <input
+              type="text"
+              value={listFilters.shipmentNo ?? ''}
+              onChange={(e) => setListFilters((f) => ({ ...f, shipmentNo: e.target.value }))}
+            />
+          </label>
+          <div className="sales-shipment-filter-actions">
             <button type="button" onClick={() => void loadShipments()} disabled={loadingShipments}>
               {loadingShipments ? '조회 중…' : '조회'}
+            </button>
+            <button type="button" className="secondary" onClick={handleResetListFilters}>
+              초기화
             </button>
           </div>
         </div>
         {loadingShipments ? (
           <p>불러오는 중…</p>
         ) : shipments.length === 0 ? (
-          <p className="hint sales-revenue-empty">출고·납품 내역이 없습니다.</p>
+          <p className="hint sales-revenue-empty">
+            {shipmentsSearched
+              ? '출고·납품 내역이 없습니다.'
+              : '검색 조건을 입력한 뒤 조회 버튼을 눌러 주세요.'}
+          </p>
         ) : (
           <>
             <div className="table-wrap sales-shipment-list-table">

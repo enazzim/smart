@@ -37,11 +37,12 @@ export default function ProductionPlanPage() {
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
   const [plannedQtyByLineId, setPlannedQtyByLineId] = useState<Record<number, number>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(true);
-  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [loadingPlans, setLoadingPlans] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [plansSearched, setPlansSearched] = useState(false);
   const [standaloneItem, setStandaloneItem] = useState<ItemSearchSelection | null>(null);
   const [standaloneQty, setStandaloneQty] = useState('1');
   const [standaloneDeliveryDate, setStandaloneDeliveryDate] = useState('');
@@ -53,6 +54,8 @@ export default function ProductionPlanPage() {
   const [searchDeliveryTo, setSearchDeliveryTo] = useState('');
   const [searchMrpStatus, setSearchMrpStatus] = useState<ProductionPlanMrpStatus | ''>('');
   const [searchWorkPlanStatus, setSearchWorkPlanStatus] = useState<ProductionPlanWorkPlanStatus | ''>('');
+  const [partnerClearToken, setPartnerClearToken] = useState(0);
+  const [itemClearToken, setItemClearToken] = useState(0);
 
   const loadCandidates = useCallback(async () => {
     setLoadingCandidates(true);
@@ -82,9 +85,11 @@ export default function ProductionPlanPage() {
     setPlanError(null);
     try {
       setPlans(await fetchProductionPlans(params));
+      setPlansSearched(true);
     } catch (e) {
       setPlanError(e instanceof Error ? e.message : '생산계획 목록 조회 실패');
       setPlans([]);
+      setPlansSearched(true);
     } finally {
       setLoadingPlans(false);
     }
@@ -92,8 +97,7 @@ export default function ProductionPlanPage() {
 
   useEffect(() => {
     void loadCandidates();
-    void loadPlans();
-  }, [loadCandidates, loadPlans]);
+  }, [loadCandidates]);
 
   const toggleLine = (lineId: number, checked: boolean) => {
     setSelectedLineIds((prev) => {
@@ -243,7 +247,8 @@ export default function ProductionPlanPage() {
     setSearchDeliveryTo('');
     setSearchMrpStatus('');
     setSearchWorkPlanStatus('');
-    void loadPlans({});
+    setPartnerClearToken((token) => token + 1);
+    setItemClearToken((token) => token + 1);
   };
 
   const canCancelPlan = (plan: ProductionPlan) => plan.cancellable;
@@ -424,18 +429,20 @@ export default function ProductionPlanPage() {
         <p className="hint-text">
           취소는 <strong>자재소요 미산출</strong>이고 <strong>작업계획 미수립</strong>인 경우에만 가능합니다.
         </p>
-        <div className="form-grid-wide">
+        <div className="production-plan-list-filters">
           <CompanySearchField
             label="거래처"
             partnerType="SALES"
             selectedCompany={searchPartner}
             onSelect={setSearchPartner}
+            clearToken={partnerClearToken}
           />
           <ItemSearchField
             label="품목"
             allowedClassifications={PLAN_ITEM_CLASSES}
             selectedItem={searchItem}
             onSelect={setSearchItem}
+            clearToken={itemClearToken}
           />
           <label>
             납기요구일(부터)
@@ -479,21 +486,25 @@ export default function ProductionPlanPage() {
               ))}
             </select>
           </label>
-        </div>
-        <div className="form-actions">
-          <button type="button" onClick={handleSearchPlans}>
-            검색
-          </button>
-          <button type="button" className="secondary" onClick={handleResetPlanSearch}>
-            초기화
-          </button>
+          <div className="production-plan-list-filter-actions">
+            <button type="button" onClick={handleSearchPlans}>
+              검색
+            </button>
+            <button type="button" className="secondary" onClick={handleResetPlanSearch}>
+              초기화
+            </button>
+          </div>
         </div>
         {message && <p>{message}</p>}
         {planError && <div className="error">{planError}</div>}
         {loadingPlans ? (
           <p>불러오는 중…</p>
         ) : filteredPlans.length === 0 ? (
-          <p>등록된 생산계획이 없습니다.</p>
+          <p>
+            {plansSearched
+              ? '등록된 생산계획이 없습니다.'
+              : '검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요.'}
+          </p>
         ) : (
           <div className="table-wrap">
           <table>

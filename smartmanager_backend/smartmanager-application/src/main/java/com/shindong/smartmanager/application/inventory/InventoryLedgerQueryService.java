@@ -18,9 +18,10 @@ public class InventoryLedgerQueryService {
     public List<InventoryBalanceLedgerView> listBalances(InventoryBalanceListCriteria criteria) {
         InventoryBalanceListCriteria effective = criteria != null
                 ? criteria
-                : new InventoryBalanceListCriteria(null, null, null);
+                : new InventoryBalanceListCriteria(null, null, null, null);
         if (effective.fiscalYear() == null) {
             effective = new InventoryBalanceListCriteria(
+                    effective.itemId(),
                     effective.itemNo(),
                     effective.locationCode(),
                     Year.now().getValue()

@@ -131,7 +131,7 @@ public class JpaLotRepository implements LotRepository {
                 sql.append(" AND l.item_id = :itemId");
             }
             if (criteria.itemNo() != null && !criteria.itemNo().isBlank()) {
-                sql.append(" AND i.item_no LIKE :itemNo");
+                sql.append(" AND (i.item_no LIKE :itemNo OR i.item_name LIKE :itemNo)");
             }
             if (criteria.lotNo() != null && !criteria.lotNo().isBlank()) {
                 sql.append(" AND l.lot_no LIKE :lotNo");

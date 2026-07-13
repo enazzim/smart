@@ -34,6 +34,7 @@ export default function LotMasterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
 
   const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
   const [createLotNo, setCreateLotNo] = useState('');
@@ -59,18 +60,16 @@ export default function LotMasterPage() {
       });
       setLots(rows);
       setSelectedId((prev) => (prev != null && rows.some((row) => row.id === prev) ? prev : null));
+      setSearched(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lot 목록을 불러오지 못했습니다.');
       setLots([]);
       setSelectedId(null);
+      setSearched(true);
     } finally {
       setLoading(false);
     }
   }, [itemNo, lotNoFilter, statusFilter, locationCode]);
-
-  useEffect(() => {
-    void loadLots();
-  }, [loadLots]);
 
   useEffect(() => {
     if (selectedLot) {
@@ -205,42 +204,14 @@ export default function LotMasterPage() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>Lot 마스터</h1>
-        <p>Lot 목록 조회, 수동 등록, 상태·비고 변경을 수행합니다. 잔량 조정은 기타입출고·TX 경로를 사용합니다.</p>
+        <div>
+          <h1>Lot 마스터</h1>
+          <p>
+            Lot 목록 조회, 수동 등록, 상태·비고 변경을 수행합니다. 잔량(수량)은 여기서 수정하지 않습니다.
+            실사·보정은 <strong>재고 → 기타 입출고</strong>로 입고/출고 TX를 등록하세요. (상세: 설계서 §8.2.1)
+          </p>
+        </div>
       </header>
-
-      <section className="filter-panel">
-        <label>
-          품목번호
-          <input value={itemNo} onChange={(e) => setItemNo(e.target.value)} />
-        </label>
-        <label>
-          Lot번호
-          <input value={lotNoFilter} onChange={(e) => setLotNoFilter(e.target.value)} />
-        </label>
-        <label>
-          창고
-          <select value={locationCode} onChange={(e) => setLocationCode(e.target.value)}>
-            {INVENTORY_LOCATION_FILTER_OPTIONS.map((option) => (
-              <option key={option.value || 'all'} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          상태
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as LotStatus | '')}>
-            <option value="">전체</option>
-            <option value="ACTIVE">활성</option>
-            <option value="BLOCKED">차단</option>
-            <option value="DEPLETED">소진</option>
-          </select>
-        </label>
-        <button type="button" onClick={() => void loadLots()}>
-          검색
-        </button>
-      </section>
 
       {error && <p className="error-banner">{error}</p>}
       {message && <p className="success-banner">{message}</p>}
@@ -300,6 +271,51 @@ export default function LotMasterPage() {
           </form>
         </section>
       )}
+
+      <section className="filter-panel">
+        <label>
+          품목번호
+          <input value={itemNo} onChange={(e) => setItemNo(e.target.value)} />
+        </label>
+        <label>
+          Lot번호
+          <input value={lotNoFilter} onChange={(e) => setLotNoFilter(e.target.value)} />
+        </label>
+        <label>
+          창고
+          <select value={locationCode} onChange={(e) => setLocationCode(e.target.value)}>
+            {INVENTORY_LOCATION_FILTER_OPTIONS.map((option) => (
+              <option key={option.value || 'all'} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          상태
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as LotStatus | '')}>
+            <option value="">전체</option>
+            <option value="ACTIVE">활성</option>
+            <option value="BLOCKED">차단</option>
+            <option value="DEPLETED">소진</option>
+          </select>
+        </label>
+        <button type="button" onClick={() => void loadLots()}>
+          검색
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => {
+            setItemNo('');
+            setLotNoFilter('');
+            setLocationCode('');
+            setStatusFilter('');
+          }}
+        >
+          초기화
+        </button>
+      </section>
 
       {selectedLot && (
         <section className="panel detail-panel">
@@ -401,7 +417,11 @@ export default function LotMasterPage() {
             <tbody>
               {lots.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>Lot가 없습니다.</td>
+                  <td colSpan={7}>
+                    {searched
+                      ? 'Lot가 없습니다.'
+                      : '검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요.'}
+                  </td>
                 </tr>
               ) : (
                 lots.map((row) => (
