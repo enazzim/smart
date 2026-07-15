@@ -36,6 +36,7 @@ public class MariaDbBackupService {
 
     public MariaDbBackupService(
             BackupProperties backupProperties,
+            ObjectMapper objectMapper,
             @Value("${spring.datasource.url}") String jdbcUrl,
             @Value("${spring.datasource.username}") String username,
             @Value("${spring.datasource.password}") String password
@@ -45,7 +46,7 @@ public class MariaDbBackupService {
         this.username = username;
         this.password = password;
         this.mariadbBinDir = backupProperties.mariadbBinDir();
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = objectMapper;
         createDirectoryIfNeeded();
     }
 
@@ -71,7 +72,17 @@ public class MariaDbBackupService {
         String fileName = "smartmanager_" + LocalDateTime.now().format(FILE_NAME_FORMAT) + ".sql";
         Path target = backupDirectory.resolve(fileName);
         createBackupAt(target);
-        writeMetadata(target, normalizedReason);
+        try {
+            writeMetadata(target, normalizedReason);
+        } catch (RuntimeException ex) {
+            try {
+                Files.deleteIfExists(target);
+                Files.deleteIfExists(metadataPath(target));
+            } catch (IOException ignored) {
+                // ignore cleanup failure
+            }
+            throw ex;
+        }
         return toView(target);
     }
 

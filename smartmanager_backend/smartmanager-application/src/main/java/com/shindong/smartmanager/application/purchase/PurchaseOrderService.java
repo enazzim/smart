@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 public class PurchaseOrderService {
 
     private static final Set<PropertyClassification> ALLOWED_ITEM_CLASSES =
-            EnumSet.of(PropertyClassification.원자재, PropertyClassification.상품);
+            EnumSet.of(PropertyClassification.원자재, PropertyClassification.상품, PropertyClassification.부자재);
 
     private static final BigDecimal HUNDRED = new BigDecimal("100");
 

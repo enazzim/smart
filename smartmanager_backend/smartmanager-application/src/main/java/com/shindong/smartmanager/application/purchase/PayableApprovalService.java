@@ -5,6 +5,7 @@ import com.shindong.smartmanager.application.closing.FiscalPeriod;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.ledger.PartnerLedgerService;
 import com.shindong.smartmanager.application.outsource.OutsourceHistoryRecord;
+import com.shindong.smartmanager.domain.purchase.EtcClaimRecognition;
 import com.shindong.smartmanager.domain.purchase.PayableApprovalLedgerKind;
 import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
 import java.math.BigDecimal;
@@ -67,6 +68,14 @@ public class PayableApprovalService {
             updateOutsourceFiscalPeriod(command, actorUserId);
             return;
         }
+        if (command.ledgerKind() == PayableApprovalLedgerKind.ETC_CLAIM) {
+            updateEtcClaimFiscalPeriod(command, actorUserId);
+            return;
+        }
+        if (command.ledgerKind() == PayableApprovalLedgerKind.DEFECT_CLAIM) {
+            updateDefectClaimFiscalPeriod(command, actorUserId);
+            return;
+        }
         throw new IllegalArgumentException("지원하지 않는 원장 구분입니다.");
     }
 
@@ -95,6 +104,33 @@ public class PayableApprovalService {
             payableApprovalRepository.approveOutsourceHistory(history.id(), userId);
             partnerLedgerService.addPurchaseAmount(
                     history.companyId(), period, history.amount(), actorUserId);
+            return;
+        }
+        if (item.ledgerKind() == PayableApprovalLedgerKind.ETC_CLAIM) {
+            EtcClaimHistoryRecord claim = payableApprovalRepository.findActiveEtcClaim(item.historyId());
+            if (claim.recognition() == EtcClaimRecognition.APPROVED) {
+                return;
+            }
+            monthClosingService.assertTransactionOpen(claim.receiptDate());
+            FiscalPeriod period = toFiscalPeriod(claim);
+            monthClosingService.assertPeriodOpen(period.fiscalYear(), period.fiscalMonth());
+            payableApprovalRepository.approveEtcClaim(claim.id(), userId);
+            // 공제액은 매입·미지급을 차감한다.
+            partnerLedgerService.subtractPurchaseAmount(
+                    claim.companyId(), period, claim.amount(), actorUserId);
+            return;
+        }
+        if (item.ledgerKind() == PayableApprovalLedgerKind.DEFECT_CLAIM) {
+            DefectClaimHistoryRecord claim = payableApprovalRepository.findActiveDefectClaim(item.historyId());
+            if (claim.recognition() == EtcClaimRecognition.APPROVED) {
+                return;
+            }
+            monthClosingService.assertTransactionOpen(claim.receiptDate());
+            FiscalPeriod period = toFiscalPeriod(claim);
+            monthClosingService.assertPeriodOpen(period.fiscalYear(), period.fiscalMonth());
+            payableApprovalRepository.approveDefectClaim(claim.id(), userId);
+            partnerLedgerService.subtractPurchaseAmount(
+                    claim.companyId(), period, claim.amount(), actorUserId);
             return;
         }
         throw new IllegalArgumentException("지원하지 않는 원장 구분입니다.");
@@ -127,6 +163,33 @@ public class PayableApprovalService {
             payableApprovalRepository.cancelApprovalOutsourceHistory(history.id(), userId);
             partnerLedgerService.subtractPurchaseAmount(
                     history.companyId(), period, history.amount(), actorUserId);
+            return;
+        }
+        if (item.ledgerKind() == PayableApprovalLedgerKind.ETC_CLAIM) {
+            EtcClaimHistoryRecord claim = payableApprovalRepository.findActiveEtcClaim(item.historyId());
+            if (claim.recognition() == EtcClaimRecognition.PENDING) {
+                return;
+            }
+            monthClosingService.assertTransactionOpen(claim.receiptDate());
+            FiscalPeriod period = toFiscalPeriod(claim);
+            monthClosingService.assertPeriodOpen(period.fiscalYear(), period.fiscalMonth());
+            payableApprovalRepository.cancelApprovalEtcClaim(claim.id(), userId);
+            // 승인취소 시 차감했던 공제액을 복구한다.
+            partnerLedgerService.addPurchaseAmount(
+                    claim.companyId(), period, claim.amount(), actorUserId);
+            return;
+        }
+        if (item.ledgerKind() == PayableApprovalLedgerKind.DEFECT_CLAIM) {
+            DefectClaimHistoryRecord claim = payableApprovalRepository.findActiveDefectClaim(item.historyId());
+            if (claim.recognition() == EtcClaimRecognition.PENDING) {
+                return;
+            }
+            monthClosingService.assertTransactionOpen(claim.receiptDate());
+            FiscalPeriod period = toFiscalPeriod(claim);
+            monthClosingService.assertPeriodOpen(period.fiscalYear(), period.fiscalMonth());
+            payableApprovalRepository.cancelApprovalDefectClaim(claim.id(), userId);
+            partnerLedgerService.addPurchaseAmount(
+                    claim.companyId(), period, claim.amount(), actorUserId);
             return;
         }
         throw new IllegalArgumentException("지원하지 않는 원장 구분입니다.");
@@ -163,6 +226,45 @@ public class PayableApprovalService {
                 actorUserId,
                 (year, month) -> payableApprovalRepository.updateOutsourceHistoryFiscalPeriod(
                         history.id(), year, month)
+        );
+    }
+
+    private void updateEtcClaimFiscalPeriod(UpdatePayableApprovalFiscalPeriodCommand command, String actorUserId) {
+        EtcClaimHistoryRecord claim = payableApprovalRepository.findActiveEtcClaim(command.historyId());
+        PayableApprovalStatus status = claim.recognition() == EtcClaimRecognition.APPROVED
+                ? PayableApprovalStatus.APPROVED
+                : PayableApprovalStatus.PENDING;
+        // 공제 승인분은 원장에 음수로 반영되어 있으므로, 기간 이동 시 부호를 반대로 적용한다.
+        applyFiscalPeriodChange(
+                status,
+                claim.companyId(),
+                claim.amount().negate(),
+                claim.receiptDate(),
+                claim.fiscalYear(),
+                claim.fiscalMonth(),
+                command.fiscalYear(),
+                command.fiscalMonth(),
+                actorUserId,
+                (year, month) -> payableApprovalRepository.updateEtcClaimFiscalPeriod(claim.id(), year, month)
+        );
+    }
+
+    private void updateDefectClaimFiscalPeriod(UpdatePayableApprovalFiscalPeriodCommand command, String actorUserId) {
+        DefectClaimHistoryRecord claim = payableApprovalRepository.findActiveDefectClaim(command.historyId());
+        PayableApprovalStatus status = claim.recognition() == EtcClaimRecognition.APPROVED
+                ? PayableApprovalStatus.APPROVED
+                : PayableApprovalStatus.PENDING;
+        applyFiscalPeriodChange(
+                status,
+                claim.companyId(),
+                claim.amount().negate(),
+                claim.receiptDate(),
+                claim.fiscalYear(),
+                claim.fiscalMonth(),
+                command.fiscalYear(),
+                command.fiscalMonth(),
+                actorUserId,
+                (year, month) -> payableApprovalRepository.updateDefectClaimFiscalPeriod(claim.id(), year, month)
         );
     }
 
@@ -209,6 +311,14 @@ public class PayableApprovalService {
 
     private static FiscalPeriod toFiscalPeriod(OutsourceHistoryRecord history) {
         return new FiscalPeriod(history.fiscalYear(), history.fiscalMonth());
+    }
+
+    private static FiscalPeriod toFiscalPeriod(EtcClaimHistoryRecord claim) {
+        return new FiscalPeriod(claim.fiscalYear(), claim.fiscalMonth());
+    }
+
+    private static FiscalPeriod toFiscalPeriod(DefectClaimHistoryRecord claim) {
+        return new FiscalPeriod(claim.fiscalYear(), claim.fiscalMonth());
     }
 
     private void assertCancelable(long partnerId, BigDecimal amount) {

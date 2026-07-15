@@ -159,10 +159,14 @@ export async function downloadImportTemplate(domain: ImportDomain) {
   await downloadExcelWorkbook(workbook, config.fileName);
 }
 
-export async function parseImportExcel(domain: ImportDomain, buffer: ArrayBuffer): Promise<Record<string, unknown>[]> {
+export async function parseImportExcel(
+  domain: ImportDomain,
+  buffer: ArrayBuffer,
+  fileName?: string,
+): Promise<Record<string, unknown>[]> {
   const config = IMPORT_DOMAINS.find((d) => d.id === domain);
   if (!config) throw new Error('알 수 없는 도메인입니다.');
-  const rawRows = await parseFirstSheetRows(buffer);
+  const rawRows = await parseFirstSheetRows(buffer, { fileName });
   return rawRows
     .map((row) => mapRow(domain, row))
     .filter((row) => Object.values(row).some((v) => v !== '' && v != null));

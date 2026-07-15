@@ -34,6 +34,10 @@ function formatInstantDate(value?: string | null): string {
   return value.slice(0, 10);
 }
 
+function roundQty(value: number): number {
+  return Math.round(value * 10_000) / 10_000;
+}
+
 export default function QualityInspectionPage() {
   const confirm = useConfirm();
   const [pending, setPending] = useState<QualityInspection[]>([]);
@@ -53,15 +57,21 @@ export default function QualityInspectionPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchCompletedDate, setBatchCompletedDate] = useState(todayIso());
+  const { fiscalCutoverSetting } = useMaterialIssueSetting();
+  const batchFiscalPeriod = useFiscalPeriod(batchCompletedDate, fiscalCutoverSetting);
+
   const [selected, setSelected] = useState<QualityInspection | null>(null);
   const [passedQty, setPassedQty] = useState('');
   const [failedQty, setFailedQty] = useState('');
+  const [failureReason, setFailureReason] = useState('');
   const [lotNo, setLotNo] = useState('');
   const [autoGenerateLot, setAutoGenerateLot] = useState(false);
   const [completedDate, setCompletedDate] = useState(todayIso());
-  const { fiscalCutoverSetting } = useMaterialIssueSetting();
   const fiscalPeriod = useFiscalPeriod(completedDate, fiscalCutoverSetting);
   const [submitting, setSubmitting] = useState(false);
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
 
   const loadPending = useCallback(async () => {
@@ -74,6 +84,7 @@ export default function QualityInspectionPage() {
         sourceType: pendingFilters.sourceType || undefined,
       });
       setPending(data);
+      setSelectedIds(new Set());
     } catch (e) {
       setError(e instanceof Error ? e.message : '검사 대기 목록을 불러오지 못했습니다.');
     } finally {
@@ -122,15 +133,42 @@ export default function QualityInspectionPage() {
         의뢰: formatQty(row.requestQty),
         합격: formatQty(row.passedQty),
         불량: formatQty(row.failedQty),
+        불량사유: row.failureReason ?? '',
       })),
     [history, fiscalCutoverSetting],
   );
 
-  const openComplete = (inspection: QualityInspection) => {
+  const selectedRows = useMemo(
+    () => pending.filter((row) => selectedIds.has(row.id)),
+    [pending, selectedIds],
+  );
+  const allSelected = pending.length > 0 && selectedIds.size === pending.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(pending.map((row) => row.id)) : new Set());
+  };
+
+  const toggleRow = (id: number, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const openRegister = (inspection: QualityInspection) => {
     setSelected(inspection);
     setPassedQty(String(inspection.requestQty));
     setFailedQty('0');
+    setFailureReason('');
     setCompletedDate(todayIso());
+    setLotNo('');
+    setAutoGenerateLot(Boolean(inspection.sourceType === 'PURCHASE' && inspection.lotTracked));
     setError(null);
   };
 
@@ -138,11 +176,40 @@ export default function QualityInspectionPage() {
     setSelected(null);
     setPassedQty('');
     setFailedQty('');
+    setFailureReason('');
     setLotNo('');
     setAutoGenerateLot(false);
   };
 
-  const onComplete = async () => {
+  const onPassedQtyChange = (value: string) => {
+    setPassedQty(value);
+    if (!selected) return;
+    const passed = Number(value);
+    if (!Number.isFinite(passed)) return;
+    const failed = roundQty(selected.requestQty - passed);
+    if (failed >= 0) {
+      setFailedQty(String(failed));
+      if (failed <= 0) {
+        setFailureReason('');
+      }
+    }
+  };
+
+  const onFailedQtyChange = (value: string) => {
+    setFailedQty(value);
+    if (!selected) return;
+    const failed = Number(value);
+    if (!Number.isFinite(failed)) return;
+    if (failed <= 0) {
+      setFailureReason('');
+    }
+    const passed = roundQty(selected.requestQty - failed);
+    if (passed >= 0) {
+      setPassedQty(String(passed));
+    }
+  };
+
+  const onRegister = async () => {
     if (!selected) return;
     const passed = Number(passedQty);
     const failed = Number(failedQty);
@@ -150,8 +217,25 @@ export default function QualityInspectionPage() {
       setError('합격·불량 수량을 입력해 주세요.');
       return;
     }
-    if (passed + failed !== selected.requestQty) {
-      setError(`합격+불량은 의뢰수량(${formatQty(selected.requestQty)})과 같아야 합니다.`);
+    const total = roundQty(passed + failed);
+    const request = roundQty(selected.requestQty);
+    if (total < request) {
+      setError(`합격+불량은 의뢰수량(${formatQty(selected.requestQty)}) 이상이어야 합니다.`);
+      return;
+    }
+    let allowOverQty = false;
+    if (total > request) {
+      const ok = await confirm(
+        `합격·불량 합계(${formatQty(total)})가 의뢰수량(${formatQty(selected.requestQty)})보다 많습니다.\n그래도 등록하시겠습니까?\n(초과 합격분은 승인 시 지급금액에 반영됩니다.)`,
+        { title: '의뢰수량 초과 확인', confirmLabel: '그래도 등록', cancelLabel: '닫기' },
+      );
+      if (!ok) {
+        return;
+      }
+      allowOverQty = true;
+    }
+    if (failed > 0 && !failureReason.trim()) {
+      setError('불량수량이 있으면 불량사유를 입력해 주세요.');
       return;
     }
     if (
@@ -171,27 +255,82 @@ export default function QualityInspectionPage() {
       await completeQualityInspection(selected.id, {
         passedQty: passed,
         failedQty: failed,
+        failureReason: failureReason.trim() || undefined,
         completedDate,
         fiscalYear: fiscalPeriod.period.fiscalYear,
         fiscalMonth: fiscalPeriod.period.fiscalMonth,
         lotNo: lotNo.trim() || undefined,
         autoGenerateLot,
+        allowOverQty,
       });
-      setSuccess('검사 완료 처리되었습니다. 합격 수량이 창고에 반영되었습니다.');
+      setSuccess('검사 등록이 완료되었습니다. 합격 수량이 창고에 반영되었습니다.');
       closeModal();
       await loadPending();
       if (tab === 'history') {
         await loadHistory();
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : '검사 완료 처리에 실패했습니다.');
+      setError(e instanceof Error ? e.message : '검사 등록에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const onBatchPass = async () => {
+    if (selectedRows.length === 0) {
+      setError('일괄 등록할 항목을 선택해 주세요.');
+      return;
+    }
+    if (
+      !(await confirm(
+        `선택한 ${selectedRows.length}건을 의뢰수량 전량 합격으로 등록하시겠습니까?`,
+        { title: '일괄 합격 등록', confirmLabel: '등록', cancelLabel: '닫기' },
+      ))
+    ) {
+      return;
+    }
+    setBatchSubmitting(true);
+    setError(null);
+    setSuccess(null);
+    let successCount = 0;
+    const failures: string[] = [];
+    for (const row of selectedRows) {
+      try {
+        await completeQualityInspection(row.id, {
+          passedQty: row.requestQty,
+          failedQty: 0,
+          completedDate: batchCompletedDate,
+          fiscalYear: batchFiscalPeriod.period.fiscalYear,
+          fiscalMonth: batchFiscalPeriod.period.fiscalMonth,
+          autoGenerateLot: row.sourceType === 'PURCHASE' && row.lotTracked,
+        });
+        successCount += 1;
+      } catch (e) {
+        failures.push(
+          `${row.itemNum}: ${e instanceof Error ? e.message : '등록 실패'}`,
+        );
+      }
+    }
+    setBatchSubmitting(false);
+    await loadPending();
+    if (failures.length === 0) {
+      setSuccess(`일괄 합격 등록 완료: ${successCount}건`);
+    } else {
+      setError(
+        `성공 ${successCount}건 / 실패 ${failures.length}건\n${failures.slice(0, 5).join('\n')}${
+          failures.length > 5 ? `\n…외 ${failures.length - 5}건` : ''
+        }`,
+      );
+    }
+  };
+
   const onCancelInspection = async (inspection: QualityInspection) => {
-    if (!(await confirm(`검사 완료 건을 취소하시겠습니까? 합격 수량(${formatQty(inspection.passedQty)})이 창고에서 차감됩니다.`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
+    if (
+      !(await confirm(
+        `완료된 검사를 취소하시겠습니까? 합격 수량(${formatQty(inspection.passedQty)})이 창고에서 차감되며, 해당 건은 검사 대기로 복귀합니다.`,
+        { title: '검사대기로 복귀', confirmLabel: '예, 복귀', cancelLabel: '닫기', danger: true },
+      ))
+    ) {
       return;
     }
     setCancellingId(inspection.id);
@@ -199,7 +338,7 @@ export default function QualityInspectionPage() {
     setSuccess(null);
     try {
       await cancelQualityInspection(inspection.id);
-      setSuccess('검사 취소되었습니다. 창고 수량이 차감되었습니다.');
+      setSuccess('검사가 검사 대기로 복귀했습니다. 합격 수량은 창고에서 차감되었습니다.');
       await loadHistory();
       await loadPending();
     } catch (e) {
@@ -213,7 +352,10 @@ export default function QualityInspectionPage() {
     <div className="page">
       <header className="page-header">
         <h1>품질검사</h1>
-        <p>구매·외주 입고 검사품 대기 목록입니다. 검사 완료 시 합격분만 창고에 반영되며, 취소 시 차감됩니다.</p>
+        <p>
+          구매·외주 입고 검사품 대기 목록입니다. 의뢰수량을 합격·불량으로 나누어 검사 등록하면 합격분만
+          창고에 반영됩니다. 이력에서 취소를 누르면 검사 대기로 복귀하며 합격분은 창고에서 차감됩니다.
+        </p>
       </header>
 
       <div className="tab-row">
@@ -225,7 +367,7 @@ export default function QualityInspectionPage() {
         </button>
       </div>
 
-      {error && <p className="error-banner">{error}</p>}
+      {error && <p className="error-banner" style={{ whiteSpace: 'pre-wrap' }}>{error}</p>}
       {success && <p className="success-banner">{success}</p>}
 
       {tab === 'pending' && (
@@ -289,6 +431,31 @@ export default function QualityInspectionPage() {
             </button>
           </section>
 
+          <section className="action-bar">
+            <label>
+              검사일
+              <input
+                type="date"
+                value={batchCompletedDate}
+                onChange={(e) => setBatchCompletedDate(e.target.value)}
+              />
+            </label>
+            <FiscalPeriodDisplay
+              baseDate={batchCompletedDate}
+              period={batchFiscalPeriod.period}
+              onPeriodChange={batchFiscalPeriod.onPeriodChange}
+            />
+            <button
+              type="button"
+              disabled={batchSubmitting || selectedRows.length === 0}
+              onClick={() => void onBatchPass()}
+            >
+              {batchSubmitting
+                ? '등록 중…'
+                : `일괄 합격 등록 (${selectedRows.length}건)`}
+            </button>
+          </section>
+
           {loading ? (
             <p>불러오는 중…</p>
           ) : (
@@ -296,6 +463,20 @@ export default function QualityInspectionPage() {
               <table>
                 <thead>
                   <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        aria-label="전체 선택"
+                        checked={allSelected}
+                        disabled={pending.length === 0 || batchSubmitting}
+                        ref={(el) => {
+                          if (el) {
+                            el.indeterminate = someSelected;
+                          }
+                        }}
+                        onChange={(e) => toggleSelectAll(e.target.checked)}
+                      />
+                    </th>
                     <th>입고일</th>
                     <th>구분</th>
                     <th>거래처</th>
@@ -308,22 +489,32 @@ export default function QualityInspectionPage() {
                 <tbody>
                   {pending.length === 0 ? (
                     <tr>
-                      <td colSpan={7}>대기 중인 검사가 없습니다.</td>
+                      <td colSpan={8}>대기 중인 검사가 없습니다.</td>
                     </tr>
                   ) : (
                     pending.map((row) => (
                       <tr key={row.id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            aria-label={`${row.itemNum} 선택`}
+                            checked={selectedIds.has(row.id)}
+                            disabled={batchSubmitting}
+                            onChange={(e) => toggleRow(row.id, e.target.checked)}
+                          />
+                        </td>
                         <td>{row.receiptDate ?? '—'}</td>
                         <td>{sourceLabel(row.sourceType)}</td>
                         <td>{row.companyName}</td>
                         <td>{row.orderNo ?? '—'}</td>
                         <td>
                           {row.itemNum} {row.itemName}
+                          {row.lotTracked ? ' · Lot' : ''}
                         </td>
                         <td className="num">{formatQty(row.requestQty)}</td>
-                        <td>
-                          <button type="button" onClick={() => openComplete(row)}>
-                            검사완료
+                        <td className="row-actions">
+                          <button type="button" onClick={() => openRegister(row)}>
+                            검사등록
                           </button>
                         </td>
                       </tr>
@@ -416,13 +607,14 @@ export default function QualityInspectionPage() {
                     <th className="num">의뢰</th>
                     <th className="num">합격</th>
                     <th className="num">불량</th>
+                    <th>불량사유</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
                   {history.length === 0 ? (
                     <tr>
-                      <td colSpan={11}>검사 이력이 없습니다.</td>
+                      <td colSpan={12}>검사 이력이 없습니다.</td>
                     </tr>
                   ) : (
                     history.map((row) => (
@@ -439,16 +631,15 @@ export default function QualityInspectionPage() {
                         <td className="num">{formatQty(row.requestQty)}</td>
                         <td className="num">{formatQty(row.passedQty)}</td>
                         <td className="num">{formatQty(row.failedQty)}</td>
-                        <td>
-                          {row.passedQty > 0 && (
-                            <button
-                              type="button"
-                              disabled={cancellingId === row.id}
-                              onClick={() => void onCancelInspection(row)}
-                            >
-                              {cancellingId === row.id ? '취소 중…' : '취소'}
-                            </button>
-                          )}
+                        <td>{row.failureReason?.trim() ? row.failureReason : '—'}</td>
+                        <td className="row-actions">
+                          <button
+                            type="button"
+                            disabled={cancellingId === row.id}
+                            onClick={() => void onCancelInspection(row)}
+                          >
+                            {cancellingId === row.id ? '복귀 중…' : '대기로 복귀'}
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -463,18 +654,43 @@ export default function QualityInspectionPage() {
       {selected && (
         <div className="modal-backdrop" role="presentation" onClick={closeModal}>
           <div className="modal" role="dialog" onClick={(e) => e.stopPropagation()}>
-            <h2>검사 완료</h2>
+            <h2>검사 등록</h2>
             <p>
-              [{sourceLabel(selected.sourceType)}] {selected.itemNum} {selected.itemName} — 의뢰{' '}
-              {formatQty(selected.requestQty)}
+              [{sourceLabel(selected.sourceType)}] {selected.itemNum} {selected.itemName}
             </p>
             <label>
+              검사의뢰수량
+              <input type="text" className="readonly" readOnly value={formatQty(selected.requestQty)} />
+            </label>
+            <label>
               합격 수량
-              <input type="number" min={0} step="any" value={passedQty} onChange={(e) => setPassedQty(e.target.value)} />
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={passedQty}
+                onChange={(e) => onPassedQtyChange(e.target.value)}
+              />
             </label>
             <label>
               불량 수량
-              <input type="number" min={0} step="any" value={failedQty} onChange={(e) => setFailedQty(e.target.value)} />
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={failedQty}
+                onChange={(e) => onFailedQtyChange(e.target.value)}
+              />
+            </label>
+            <label>
+              불량사유 {Number(failedQty) > 0 ? '*' : ''}
+              <textarea
+                rows={3}
+                value={failureReason}
+                onChange={(e) => setFailureReason(e.target.value)}
+                placeholder={Number(failedQty) > 0 ? '불량사유를 입력해 주세요' : '불량이 있을 때 입력'}
+                disabled={!(Number(failedQty) > 0)}
+              />
             </label>
             {selected.sourceType === 'PURCHASE' && selected.lotTracked && (
               <>
@@ -498,7 +714,7 @@ export default function QualityInspectionPage() {
               </>
             )}
             <label>
-              검사완료일
+              검사일
               <input type="date" value={completedDate} onChange={(e) => setCompletedDate(e.target.value)} />
             </label>
             <FiscalPeriodDisplay
@@ -510,8 +726,8 @@ export default function QualityInspectionPage() {
               <button type="button" className="secondary" onClick={closeModal} disabled={submitting}>
                 닫기
               </button>
-              <button type="button" disabled={submitting} onClick={() => void onComplete()}>
-                {submitting ? '처리 중…' : '완료'}
+              <button type="button" disabled={submitting} onClick={() => void onRegister()}>
+                {submitting ? '등록 중…' : '등록'}
               </button>
             </div>
           </div>

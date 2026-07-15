@@ -11,6 +11,11 @@ import {
   type PartnerPaymentListParams,
 } from '../api/partnerPayment';
 import { formatAmount } from '../utils/numberFormat';
+import {
+  breakdownFromSupply,
+  breakdownFromTotal,
+  formatMoneyInput,
+} from '../utils/vatAmount';
 import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
@@ -51,6 +56,7 @@ export default function PartnerPaymentPage() {
   const [paymentDate, setPaymentDate] = useState(todayIso());
   const [supplyAmount, setSupplyAmount] = useState('');
   const [vatAmount, setVatAmount] = useState('0');
+  const [totalAmountInput, setTotalAmountInput] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('계좌이체');
   const [remark, setRemark] = useState('');
   const [loadingCandidates, setLoadingCandidates] = useState(true);
@@ -99,17 +105,78 @@ export default function PartnerPaymentPage() {
     [candidates, selectedPartnerId],
   );
 
-  const totalAmount = useMemo(() => {
-    const supply = parseAmount(supplyAmount) ?? 0;
-    const vat = parseAmount(vatAmount) ?? 0;
-    return supply + vat;
-  }, [supplyAmount, vatAmount]);
+  const applyBreakdown = (supply: number, vat: number, total: number) => {
+    setSupplyAmount(formatMoneyInput(supply));
+    setVatAmount(formatMoneyInput(vat));
+    setTotalAmountInput(formatMoneyInput(total));
+  };
+
+  /** 공급가 입력 → 부가세·총액 계산 (입력 중인 공급가는 그대로 유지) */
+  const onSupplyAmountChange = (raw: string) => {
+    setSupplyAmount(raw);
+    if (raw.trim() === '') {
+      setVatAmount('0');
+      setTotalAmountInput('');
+      return;
+    }
+    const supply = parseAmount(raw);
+    if (supply == null) {
+      return;
+    }
+    const next = breakdownFromSupply(supply);
+    setVatAmount(formatMoneyInput(next.vat));
+    setTotalAmountInput(formatMoneyInput(next.total));
+  };
+
+  /** 공급가 포커스 아웃 시 소수점 절사 후 부가세·총액 확정 */
+  const onSupplyAmountBlur = () => {
+    if (supplyAmount.trim() === '') {
+      return;
+    }
+    const supply = parseAmount(supplyAmount);
+    if (supply == null) {
+      return;
+    }
+    const next = breakdownFromSupply(supply);
+    applyBreakdown(next.supply, next.vat, next.total);
+  };
+
+  /** 총액 입력 → 공급가·부가세 계산 (입력 중인 총액은 그대로 유지) */
+  const onTotalAmountChange = (raw: string) => {
+    setTotalAmountInput(raw);
+    if (raw.trim() === '') {
+      setSupplyAmount('');
+      setVatAmount('0');
+      return;
+    }
+    const total = parseAmount(raw);
+    if (total == null) {
+      return;
+    }
+    const next = breakdownFromTotal(total);
+    setSupplyAmount(formatMoneyInput(next.supply));
+    setVatAmount(formatMoneyInput(next.vat));
+  };
+
+  /** 총액 포커스 아웃 시 공급가·부가세 재계산 후, 총액은 공급가+부가세로 확정 */
+  const onTotalAmountBlur = () => {
+    if (totalAmountInput.trim() === '') {
+      return;
+    }
+    const total = parseAmount(totalAmountInput);
+    if (total == null) {
+      return;
+    }
+    const next = breakdownFromTotal(total);
+    applyBreakdown(next.supply, next.vat, next.total);
+  };
 
   const onSelectPartner = (row: PartnerPaymentCandidate) => {
     setSelectedPartnerId(row.partnerId);
     setCostCategory(defaultCostCategory(row));
-    setSupplyAmount(String(row.unpaidAmount));
-    setVatAmount('0');
+    // 미지급 잔액 = 공급가액
+    const next = breakdownFromSupply(row.unpaidAmount);
+    applyBreakdown(next.supply, next.vat, next.total);
     setPaymentError(null);
   };
 
@@ -124,8 +191,8 @@ export default function PartnerPaymentPage() {
       return;
     }
     const vat = parseAmount(vatAmount) ?? 0;
-    if (selectedCandidate && totalAmount > selectedCandidate.unpaidAmount) {
-      setPaymentError(`지급 금액이 미지급 잔액(${formatAmount(selectedCandidate.unpaidAmount)})을 초과합니다.`);
+    if (selectedCandidate && supply > selectedCandidate.unpaidAmount) {
+      setPaymentError(`공급가가 미지급 잔액(${formatAmount(selectedCandidate.unpaidAmount)})을 초과합니다.`);
       return;
     }
 
@@ -146,6 +213,7 @@ export default function PartnerPaymentPage() {
       setSelectedPartnerId(null);
       setSupplyAmount('');
       setVatAmount('0');
+      setTotalAmountInput('');
       setRemark('');
       await loadCandidates();
       await loadPayments();
@@ -214,7 +282,7 @@ export default function PartnerPaymentPage() {
                   <th className="num">구매발생</th>
                   <th className="num">외주발생</th>
                   <th className="num">지급합계</th>
-                  <th className="num">미지급잔액</th>
+                  <th className="num">미지급잔액(공급가)</th>
                 </tr>
               </thead>
               <tbody>
@@ -274,8 +342,10 @@ export default function PartnerPaymentPage() {
               min={0}
               step="any"
               value={supplyAmount}
-              onChange={(e) => setSupplyAmount(e.target.value)}
+              onChange={(e) => onSupplyAmountChange(e.target.value)}
+              onBlur={onSupplyAmountBlur}
               disabled={submitting || selectedPartnerId == null}
+              title="공급가 입력 시 부가세·총액 자동계산"
             />
           </label>
           <label>
@@ -285,13 +355,23 @@ export default function PartnerPaymentPage() {
               min={0}
               step="any"
               value={vatAmount}
-              onChange={(e) => setVatAmount(e.target.value)}
+              readOnly
               disabled={submitting || selectedPartnerId == null}
+              title="공급가 × 10% (소수점 있으면 절상)"
             />
           </label>
           <label>
             총액
-            <input type="text" readOnly value={formatAmount(totalAmount)} />
+            <input
+              type="number"
+              min={0}
+              step="any"
+              value={totalAmountInput}
+              onChange={(e) => onTotalAmountChange(e.target.value)}
+              onBlur={onTotalAmountBlur}
+              disabled={submitting || selectedPartnerId == null}
+              title="총액 입력 시 공급가·부가세 자동계산"
+            />
           </label>
           <label>
             결제수단
@@ -326,7 +406,7 @@ export default function PartnerPaymentPage() {
         </div>
         {selectedCandidate && (
           <p className="hint">
-            선택: {selectedCandidate.partnerName} — 미지급 잔액 {formatAmount(selectedCandidate.unpaidAmount)}
+            선택: {selectedCandidate.partnerName} — 미지급 잔액(공급가) {formatAmount(selectedCandidate.unpaidAmount)}
           </p>
         )}
       </section>

@@ -11,7 +11,7 @@ import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatAmount, formatInteger } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
 
-const PROPERTY_OPTIONS: PropertyClassification[] = ['원자재', '제품', '상품', '공정품'];
+const PROPERTY_OPTIONS: PropertyClassification[] = ['원자재', '제품', '상품', '공정품', '부자재'];
 
 const CHECK_OPTIONS: { value: CheckDistinction; label: string }[] = [
   { value: 'NONE', label: '무검사' },

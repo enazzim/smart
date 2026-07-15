@@ -93,7 +93,8 @@ public class OutsourcingReceiptController {
                                                 ))
                                                 .toList()
                                 ))
-                                .toList()
+                                .toList(),
+                        Boolean.TRUE.equals(request.allowOverQty())
                 ),
                 principal.loginId()
         ));
@@ -111,7 +112,8 @@ public class OutsourcingReceiptController {
             @NotNull LocalDate receiptDate,
             Integer fiscalYear,
             Integer fiscalMonth,
-            @NotEmpty List<CreateOutsourcingReceiptLineRequest> lines
+            @NotEmpty List<CreateOutsourcingReceiptLineRequest> lines,
+            Boolean allowOverQty
     ) {
     }
 

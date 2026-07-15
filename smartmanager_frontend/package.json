@@ -19,7 +19,8 @@
   "dependencies": {
     "@stomp/stompjs": "^7.2.0",
     "@tanstack/react-query": "^5.101.2",
-    "exceljs": "^3.4.0",
+    "exceljs": "^4.4.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.24.0",
     "pdfjs-dist": "^6.1.200",
     "react": "^19.2.7",
@@ -30,7 +31,10 @@
   },
   "overrides": {
     "exceljs": {
-      "uuid": "^11.1.1"
+      "uuid": "^11.1.1",
+      "archiver": "^8.0.0",
+      "fast-csv": "^5.0.5",
+      "unzipper": "^0.12.5"
     }
   }
 }

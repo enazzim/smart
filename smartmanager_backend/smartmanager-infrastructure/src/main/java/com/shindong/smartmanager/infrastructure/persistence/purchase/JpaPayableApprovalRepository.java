@@ -1,12 +1,17 @@
 package com.shindong.smartmanager.infrastructure.persistence.purchase;
 
 import com.shindong.smartmanager.application.outsource.OutsourceHistoryRecord;
+import com.shindong.smartmanager.application.purchase.DefectClaimHistoryRecord;
+import com.shindong.smartmanager.application.purchase.EtcClaimHistoryRecord;
 import com.shindong.smartmanager.application.purchase.PayableApprovalCriteria;
 import com.shindong.smartmanager.application.purchase.PayableApprovalRepository;
 import com.shindong.smartmanager.application.purchase.PayableApprovalView;
 import com.shindong.smartmanager.application.purchase.PurchaseHistoryRecord;
+import com.shindong.smartmanager.domain.purchase.EtcClaimRecognition;
+import com.shindong.smartmanager.domain.purchase.PayableApprovalCategory;
 import com.shindong.smartmanager.domain.purchase.PayableApprovalLedgerKind;
 import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
+import com.shindong.smartmanager.domain.purchase.PurchaseHistorySourceType;
 import com.shindong.smartmanager.infrastructure.persistence.outsource.OutsourceHistoryJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.outsource.SpringDataOutsourceHistoryRepository;
 import jakarta.persistence.EntityManager;
@@ -95,18 +100,83 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
             WHERE oh.recording_state = 1
             """;
 
+    private static final String ETC_CLAIM_SELECT = """
+            SELECT 'ETC_CLAIM' AS ledger_kind,
+                   ec.id AS history_id,
+                   ec.partner_id AS partner_id,
+                   c.company_name AS partner_name,
+                   ec.receipt_date AS receipt_date,
+                   '' AS item_no,
+                   ec.reason AS item_name,
+                   '' AS drawing_no,
+                   '' AS process_name,
+                   0 AS qty,
+                   0 AS standard_unit_price,
+                   0 AS unit_price,
+                   -ec.amount AS amount,
+                   ec.fiscal_year,
+                   ec.fiscal_month,
+                   '공제' AS category_label,
+                   CASE WHEN ec.recognition = 'APPROVED' THEN 'APPROVED' ELSE 'PENDING' END AS approval_status,
+                   ec.approved_at,
+                   u1.name AS approved_by_name,
+                   ec.approval_cancelled_at,
+                   u2.name AS approval_cancelled_by_name
+            FROM etc_claim ec
+            JOIN company c ON c.id = ec.partner_id AND c.recording_state = 1
+            LEFT JOIN user u1 ON u1.id = ec.approved_by_user_id
+            LEFT JOIN user u2 ON u2.id = ec.approval_cancelled_by_user_id
+            WHERE ec.recording_state = 1
+            """;
+
+    private static final String DEFECT_CLAIM_SELECT = """
+            SELECT 'DEFECT_CLAIM' AS ledger_kind,
+                   dc.id AS history_id,
+                   dc.partner_id AS partner_id,
+                   c.company_name AS partner_name,
+                   dc.receipt_date AS receipt_date,
+                   COALESCE(i.item_no, '') AS item_no,
+                   COALESCE(i.item_name, '') AS item_name,
+                   COALESCE(i.standard, '') AS drawing_no,
+                   '' AS process_name,
+                   dc.claim_qty AS qty,
+                   0 AS standard_unit_price,
+                   0 AS unit_price,
+                   -dc.amount AS amount,
+                   dc.fiscal_year,
+                   dc.fiscal_month,
+                   '변상' AS category_label,
+                   CASE WHEN dc.recognition = 'APPROVED' THEN 'APPROVED' ELSE 'PENDING' END AS approval_status,
+                   dc.approved_at,
+                   u1.name AS approved_by_name,
+                   dc.approval_cancelled_at,
+                   u2.name AS approval_cancelled_by_name
+            FROM defect_claim dc
+            JOIN company c ON c.id = dc.partner_id AND c.recording_state = 1
+            LEFT JOIN item i ON i.id = dc.item_id AND i.recording_state = 1
+            LEFT JOIN user u1 ON u1.id = dc.approved_by_user_id
+            LEFT JOIN user u2 ON u2.id = dc.approval_cancelled_by_user_id
+            WHERE dc.recording_state = 1
+            """;
+
     private final EntityManager entityManager;
     private final SpringDataPurchaseHistoryRepository purchaseHistoryRepository;
     private final SpringDataOutsourceHistoryRepository outsourceHistoryRepository;
+    private final SpringDataEtcClaimRepository etcClaimRepository;
+    private final SpringDataDefectClaimRepository defectClaimRepository;
 
     public JpaPayableApprovalRepository(
             EntityManager entityManager,
             SpringDataPurchaseHistoryRepository purchaseHistoryRepository,
-            SpringDataOutsourceHistoryRepository outsourceHistoryRepository
+            SpringDataOutsourceHistoryRepository outsourceHistoryRepository,
+            SpringDataEtcClaimRepository etcClaimRepository,
+            SpringDataDefectClaimRepository defectClaimRepository
     ) {
         this.entityManager = entityManager;
         this.purchaseHistoryRepository = purchaseHistoryRepository;
         this.outsourceHistoryRepository = outsourceHistoryRepository;
+        this.etcClaimRepository = etcClaimRepository;
+        this.defectClaimRepository = defectClaimRepository;
     }
 
     @Override
@@ -135,6 +205,22 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
         OutsourceHistoryJpaEntity entity = outsourceHistoryRepository.findByIdAndRecordingState(id, ACTIVE)
                 .orElseThrow(() -> new IllegalArgumentException("외주 이력을 찾을 수 없습니다: " + id));
         return toOutsourceRecord(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public EtcClaimHistoryRecord findActiveEtcClaim(long id) {
+        EtcClaimJpaEntity entity = etcClaimRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("기타공제를 찾을 수 없습니다: " + id));
+        return toEtcClaimRecord(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DefectClaimHistoryRecord findActiveDefectClaim(long id) {
+        DefectClaimJpaEntity entity = defectClaimRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("불량변상을 찾을 수 없습니다: " + id));
+        return toDefectClaimRecord(entity);
     }
 
     @Override
@@ -217,10 +303,103 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
         outsourceHistoryRepository.save(entity);
     }
 
+    @Override
+    @Transactional
+    public void approveEtcClaim(long id, long userId) {
+        EtcClaimJpaEntity entity = etcClaimRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("기타공제를 찾을 수 없습니다: " + id));
+        if (entity.getRecognition() == EtcClaimRecognition.APPROVED) {
+            return;
+        }
+        entity.setRecognition(EtcClaimRecognition.APPROVED);
+        entity.setApprovedAt(Instant.now());
+        entity.setApprovedByUserId(userId);
+        entity.setApprovalCancelledAt(null);
+        entity.setApprovalCancelledByUserId(null);
+        etcClaimRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void cancelApprovalEtcClaim(long id, long userId) {
+        EtcClaimJpaEntity entity = etcClaimRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("기타공제를 찾을 수 없습니다: " + id));
+        if (entity.getRecognition() == EtcClaimRecognition.PENDING) {
+            return;
+        }
+        entity.setRecognition(EtcClaimRecognition.PENDING);
+        entity.setApprovalCancelledAt(Instant.now());
+        entity.setApprovalCancelledByUserId(userId);
+        etcClaimRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void updateEtcClaimFiscalPeriod(long id, int fiscalYear, int fiscalMonth) {
+        EtcClaimJpaEntity entity = etcClaimRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("기타공제를 찾을 수 없습니다: " + id));
+        entity.setFiscalYear((short) fiscalYear);
+        entity.setFiscalMonth((byte) fiscalMonth);
+        etcClaimRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void approveDefectClaim(long id, long userId) {
+        DefectClaimJpaEntity entity = defectClaimRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("불량변상을 찾을 수 없습니다: " + id));
+        if (entity.getRecognition() == EtcClaimRecognition.APPROVED) {
+            return;
+        }
+        entity.setRecognition(EtcClaimRecognition.APPROVED);
+        entity.setApprovedAt(Instant.now());
+        entity.setApprovedByUserId(userId);
+        entity.setApprovalCancelledAt(null);
+        entity.setApprovalCancelledByUserId(null);
+        defectClaimRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void cancelApprovalDefectClaim(long id, long userId) {
+        DefectClaimJpaEntity entity = defectClaimRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("불량변상을 찾을 수 없습니다: " + id));
+        if (entity.getRecognition() == EtcClaimRecognition.PENDING) {
+            return;
+        }
+        entity.setRecognition(EtcClaimRecognition.PENDING);
+        entity.setApprovalCancelledAt(Instant.now());
+        entity.setApprovalCancelledByUserId(userId);
+        defectClaimRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void updateDefectClaimFiscalPeriod(long id, int fiscalYear, int fiscalMonth) {
+        DefectClaimJpaEntity entity = defectClaimRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("불량변상을 찾을 수 없습니다: " + id));
+        entity.setFiscalYear((short) fiscalYear);
+        entity.setFiscalMonth((byte) fiscalMonth);
+        defectClaimRepository.save(entity);
+    }
+
     private List<PayableApprovalView> findByStatus(PayableApprovalStatus status, PayableApprovalCriteria criteria) {
+        PayableApprovalCategory category = criteria != null && criteria.category() != null
+                ? criteria.category()
+                : PayableApprovalCategory.ALL;
         List<PayableApprovalView> result = new ArrayList<>();
-        result.addAll(queryPurchase(status, criteria));
-        result.addAll(queryOutsource(status, criteria));
+        if (category == PayableApprovalCategory.ALL
+                || category == PayableApprovalCategory.PURCHASE
+                || category == PayableApprovalCategory.ETC) {
+            result.addAll(queryPurchase(status, criteria, category));
+        }
+        if (category == PayableApprovalCategory.ALL || category == PayableApprovalCategory.OUTSOURCE) {
+            result.addAll(queryOutsource(status, criteria));
+        }
+        if (category == PayableApprovalCategory.ALL || category == PayableApprovalCategory.CLAIM) {
+            result.addAll(queryEtcClaim(status, criteria));
+            result.addAll(queryDefectClaim(status, criteria));
+        }
         result.sort((a, b) -> {
             int dateCompare = b.receiptDate().compareTo(a.receiptDate());
             if (dateCompare != 0) {
@@ -231,14 +410,26 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
         return result;
     }
 
-    private List<PayableApprovalView> queryPurchase(PayableApprovalStatus status, PayableApprovalCriteria criteria) {
+    private List<PayableApprovalView> queryPurchase(
+            PayableApprovalStatus status,
+            PayableApprovalCriteria criteria,
+            PayableApprovalCategory category
+    ) {
         StringBuilder sql = new StringBuilder(PURCHASE_SELECT);
         sql.append(" AND ph.approval_status = :status");
-        appendCommonFilters(sql, criteria, true);
+        if (category == PayableApprovalCategory.PURCHASE) {
+            sql.append(" AND ph.source_type <> :etcSourceType");
+        } else if (category == PayableApprovalCategory.ETC) {
+            sql.append(" AND ph.source_type = :etcSourceType");
+        }
+        appendCommonFilters(sql, criteria, "ph");
         sql.append(" ORDER BY ph.history_date DESC, ph.id DESC");
 
         Query query = entityManager.createNativeQuery(sql.toString());
         query.setParameter("status", status.name());
+        if (category == PayableApprovalCategory.PURCHASE || category == PayableApprovalCategory.ETC) {
+            query.setParameter("etcSourceType", PurchaseHistorySourceType.ETC_PURCHASE_RECEIPT.name());
+        }
         bindCommonParams(query, criteria);
         return mapRows(query.getResultList());
     }
@@ -246,7 +437,7 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
     private List<PayableApprovalView> queryOutsource(PayableApprovalStatus status, PayableApprovalCriteria criteria) {
         StringBuilder sql = new StringBuilder(OUTSOURCE_SELECT);
         sql.append(" AND oh.approval_status = :status");
-        appendCommonFilters(sql, criteria, false);
+        appendCommonFilters(sql, criteria, "oh");
         sql.append(" ORDER BY oh.history_date DESC, oh.id DESC");
 
         Query query = entityManager.createNativeQuery(sql.toString());
@@ -255,32 +446,78 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
         return mapRows(query.getResultList());
     }
 
-    private void appendCommonFilters(StringBuilder sql, PayableApprovalCriteria criteria, boolean purchase) {
+    private List<PayableApprovalView> queryEtcClaim(PayableApprovalStatus status, PayableApprovalCriteria criteria) {
+        StringBuilder sql = new StringBuilder(ETC_CLAIM_SELECT);
+        sql.append(" AND ec.recognition = :recognition");
+        appendCommonFilters(sql, criteria, "ec");
+        sql.append(" ORDER BY ec.receipt_date DESC, ec.id DESC");
+
+        Query query = entityManager.createNativeQuery(sql.toString());
+        query.setParameter(
+                "recognition",
+                status == PayableApprovalStatus.APPROVED
+                        ? EtcClaimRecognition.APPROVED.name()
+                        : EtcClaimRecognition.PENDING.name()
+        );
+        bindCommonParams(query, criteria);
+        return mapRows(query.getResultList());
+    }
+
+    private List<PayableApprovalView> queryDefectClaim(PayableApprovalStatus status, PayableApprovalCriteria criteria) {
+        StringBuilder sql = new StringBuilder(DEFECT_CLAIM_SELECT);
+        sql.append(" AND dc.recognition = :recognition");
+        appendCommonFilters(sql, criteria, "dc");
+        sql.append(" ORDER BY dc.receipt_date DESC, dc.id DESC");
+
+        Query query = entityManager.createNativeQuery(sql.toString());
+        query.setParameter(
+                "recognition",
+                status == PayableApprovalStatus.APPROVED
+                        ? EtcClaimRecognition.APPROVED.name()
+                        : EtcClaimRecognition.PENDING.name()
+        );
+        bindCommonParams(query, criteria);
+        return mapRows(query.getResultList());
+    }
+
+    private void appendCommonFilters(StringBuilder sql, PayableApprovalCriteria criteria, String alias) {
         if (criteria == null) {
             return;
         }
+        boolean purchase = "ph".equals(alias);
+        boolean etcClaim = "ec".equals(alias);
+        boolean defectClaim = "dc".equals(alias);
+        boolean claim = etcClaim || defectClaim;
         if (criteria.partnerName() != null && !criteria.partnerName().isBlank()) {
             sql.append(" AND c.company_name LIKE :partnerName");
         }
         if (criteria.itemNo() != null && !criteria.itemNo().isBlank()) {
-            sql.append(" AND i.item_no LIKE :itemNo");
+            if (etcClaim) {
+                sql.append(" AND ec.reason LIKE :itemNo");
+            } else {
+                sql.append(" AND i.item_no LIKE :itemNo");
+            }
         }
         if (criteria.itemName() != null && !criteria.itemName().isBlank()) {
-            if (purchase) {
+            if (etcClaim) {
+                sql.append(" AND ec.reason LIKE :itemName");
+            } else if (purchase) {
                 sql.append(" AND (i.item_name LIKE :itemName OR ph.item_name LIKE :itemName)");
             } else {
                 sql.append(" AND i.item_name LIKE :itemName");
             }
         }
-        String dateColumn = purchase ? "ph.history_date" : "oh.history_date";
+        String dateColumn = claim
+                ? alias + ".receipt_date"
+                : (purchase ? "ph.history_date" : "oh.history_date");
         if (criteria.receiptDateFrom() != null) {
             sql.append(" AND ").append(dateColumn).append(" >= :receiptDateFrom");
         }
         if (criteria.receiptDateTo() != null) {
             sql.append(" AND ").append(dateColumn).append(" <= :receiptDateTo");
         }
-        String fiscalYearColumn = purchase ? "ph.fiscal_year" : "oh.fiscal_year";
-        String fiscalMonthColumn = purchase ? "ph.fiscal_month" : "oh.fiscal_month";
+        String fiscalYearColumn = alias + ".fiscal_year";
+        String fiscalMonthColumn = alias + ".fiscal_month";
         if (criteria.fiscalYear() != null) {
             sql.append(" AND ").append(fiscalYearColumn).append(" = :fiscalYear");
         }
@@ -372,6 +609,30 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
                 entity.getFiscalYear(),
                 entity.getFiscalMonth(),
                 entity.getApprovalStatus()
+        );
+    }
+
+    private static EtcClaimHistoryRecord toEtcClaimRecord(EtcClaimJpaEntity entity) {
+        return new EtcClaimHistoryRecord(
+                entity.getId(),
+                entity.getPartnerId(),
+                entity.getAmount(),
+                entity.getReceiptDate(),
+                entity.getFiscalYear(),
+                entity.getFiscalMonth(),
+                entity.getRecognition()
+        );
+    }
+
+    private static DefectClaimHistoryRecord toDefectClaimRecord(DefectClaimJpaEntity entity) {
+        return new DefectClaimHistoryRecord(
+                entity.getId(),
+                entity.getPartnerId(),
+                entity.getAmount(),
+                entity.getReceiptDate(),
+                entity.getFiscalYear(),
+                entity.getFiscalMonth(),
+                entity.getRecognition()
         );
     }
 

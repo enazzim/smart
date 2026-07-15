@@ -47,6 +47,8 @@ const PURCHASE_PAGES = new Set<string>([
   'purchase-receipt',
   'purchase-etc-order',
   'purchase-etc-receipt',
+  'purchase-etc-claim',
+  'purchase-defect-claim',
   'purchase-payable-approval',
   'purchase-payment',
 ]);
@@ -54,9 +56,11 @@ const INVENTORY_PAGES = new Set<string>(['inventory-misc-movement', 'inventory-l
 const OUTSOURCE_PAGES = new Set<string>(['outsource-order', 'outsource-shipment', 'outsource-receipt']);
 const QUALITY_PAGES = new Set<string>(['quality-inspection']);
 const STATS_PAGES = new Set<string>([
-  'stats-vendor-purchase',
+  'stats-vendor-purchase-status',
+  'stats-purchase-daily',
   'stats-warehouse-io',
   'stats-item-io',
+  'stats-order-vs-receipt',
 ]);
 
 export const NAV_PATH_STORAGE_KEY = 'smartmanager.navPath';

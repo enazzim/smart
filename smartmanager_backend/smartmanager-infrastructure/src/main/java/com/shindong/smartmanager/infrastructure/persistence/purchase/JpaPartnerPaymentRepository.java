@@ -48,7 +48,9 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
     @Override
     @Transactional(readOnly = true)
     public BigDecimal sumIssuedPayableAmountByPartnerId(long partnerId) {
-        return sumPurchaseHistoryAmount(partnerId).add(sumOutsourceHistoryAmount(partnerId));
+        return sumPurchaseHistoryAmount(partnerId)
+                .add(sumOutsourceHistoryAmount(partnerId))
+                .subtract(sumApprovedEtcClaimAmount(partnerId));
     }
 
     @Override
@@ -66,6 +68,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                 SELECT c.id, c.company_name, c.business_reg_no,
                        COALESCE(ph.purchase_amount, 0) AS purchase_amount,
                        COALESCE(oh.outsource_amount, 0) AS outsource_amount,
+                       COALESCE(ec.claim_amount, 0) AS claim_amount,
                        COALESCE(pp.paid_amount, 0) AS paid_amount
                 FROM company c
                 LEFT JOIN (
@@ -81,6 +84,19 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                     GROUP BY company_id
                 ) oh ON oh.company_id = c.id
                 LEFT JOIN (
+                    SELECT partner_id, SUM(amount) AS claim_amount
+                    FROM (
+                        SELECT partner_id, amount
+                        FROM etc_claim
+                        WHERE recording_state = 1 AND recognition = 'APPROVED'
+                        UNION ALL
+                        SELECT partner_id, amount
+                        FROM defect_claim
+                        WHERE recording_state = 1 AND recognition = 'APPROVED'
+                    ) claims
+                    GROUP BY partner_id
+                ) ec ON ec.partner_id = c.id
+                LEFT JOIN (
                     SELECT partner_id, SUM(total_amount) AS paid_amount
                     FROM partner_payment
                     WHERE recording_state = 1 AND status = 'ISSUED'
@@ -92,7 +108,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                     WHERE cr.company_id = c.id AND cr.role_type IN ('PURCHASE', 'OUTSOURCE')
                   )
                   AND (COALESCE(ph.purchase_amount, 0) + COALESCE(oh.outsource_amount, 0)
-                       - COALESCE(pp.paid_amount, 0)) > 0
+                       - COALESCE(ec.claim_amount, 0) - COALESCE(pp.paid_amount, 0)) > 0
                 """);
         Map<String, Object> params = new HashMap<>();
         if (criteria != null && criteria.partnerName() != null && !criteria.partnerName().isBlank()) {
@@ -110,8 +126,9 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
         for (Object[] row : rows) {
             BigDecimal purchaseAmount = toBigDecimal(row[3]);
             BigDecimal outsourceAmount = toBigDecimal(row[4]);
-            BigDecimal paidAmount = toBigDecimal(row[5]);
-            BigDecimal totalPayable = purchaseAmount.add(outsourceAmount);
+            BigDecimal claimAmount = toBigDecimal(row[5]);
+            BigDecimal paidAmount = toBigDecimal(row[6]);
+            BigDecimal totalPayable = purchaseAmount.add(outsourceAmount).subtract(claimAmount);
             BigDecimal unpaidAmount = totalPayable.subtract(paidAmount).max(BigDecimal.ZERO);
             result.add(new PartnerPaymentCandidateView(
                     ((Number) row[0]).longValue(),
@@ -214,6 +231,24 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                 SELECT COALESCE(SUM(amount), 0)
                 FROM outsource_history
                 WHERE recording_state = 1 AND approval_status = 'APPROVED' AND company_id = :partnerId
+                """;
+        Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("partnerId", partnerId);
+        return toBigDecimal(query.getSingleResult());
+    }
+
+    private BigDecimal sumApprovedEtcClaimAmount(long partnerId) {
+        String sql = """
+                SELECT COALESCE(SUM(amount), 0)
+                FROM (
+                    SELECT amount
+                    FROM etc_claim
+                    WHERE recording_state = 1 AND recognition = 'APPROVED' AND partner_id = :partnerId
+                    UNION ALL
+                    SELECT amount
+                    FROM defect_claim
+                    WHERE recording_state = 1 AND recognition = 'APPROVED' AND partner_id = :partnerId
+                ) claims
                 """;
         Query query = entityManager.createNativeQuery(sql);
         query.setParameter("partnerId", partnerId);

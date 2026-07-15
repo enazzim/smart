@@ -1,7 +1,9 @@
 import { apiFetch, handleResponse } from './http';
 
-export type PayableApprovalLedgerKind = 'PURCHASE' | 'OUTSOURCE';
+export type PayableApprovalLedgerKind = 'PURCHASE' | 'OUTSOURCE' | 'ETC_CLAIM' | 'DEFECT_CLAIM';
 export type PayableApprovalStatus = 'PENDING' | 'APPROVED';
+/** 전체 / 구매입고 / 외주입고 / 기타구매입고 / 기타공제 */
+export type PayableApprovalCategory = 'ALL' | 'PURCHASE' | 'OUTSOURCE' | 'ETC' | 'CLAIM';
 
 export interface PayableApprovalRow {
   ledgerKind: PayableApprovalLedgerKind;
@@ -35,6 +37,7 @@ export interface PayableApprovalSearchParams {
   receiptDateTo?: string;
   fiscalYear?: number;
   fiscalMonth?: number;
+  category?: PayableApprovalCategory;
 }
 
 function buildQuery(params: PayableApprovalSearchParams): string {
@@ -46,6 +49,7 @@ function buildQuery(params: PayableApprovalSearchParams): string {
   if (params.receiptDateTo) search.set('receiptDateTo', params.receiptDateTo);
   if (params.fiscalYear != null) search.set('fiscalYear', String(params.fiscalYear));
   if (params.fiscalMonth != null) search.set('fiscalMonth', String(params.fiscalMonth));
+  if (params.category && params.category !== 'ALL') search.set('category', params.category);
   const query = search.toString();
   return query ? `?${query}` : '';
 }

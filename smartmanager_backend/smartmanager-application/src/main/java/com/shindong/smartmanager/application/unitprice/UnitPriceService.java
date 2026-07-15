@@ -24,7 +24,7 @@ public class UnitPriceService {
 
     private static final BigDecimal MAX_ORDER_RATE = new BigDecimal("100");
     private static final Set<PropertyClassification> PURCHASE_ITEM_CLASSES =
-            EnumSet.of(PropertyClassification.원자재, PropertyClassification.상품);
+            EnumSet.of(PropertyClassification.원자재, PropertyClassification.상품, PropertyClassification.부자재);
     private static final Set<PropertyClassification> SALE_ITEM_CLASSES =
             EnumSet.of(PropertyClassification.제품, PropertyClassification.상품, PropertyClassification.공정품);
     private static final Set<PropertyClassification> OUTSOURCE_ITEM_CLASSES =
@@ -60,6 +60,10 @@ public class UnitPriceService {
     }
 
     public UnitPriceView register(UnitPriceCommand command, String actorUserId) {
+        return register(command, actorUserId, UnitPriceHistoryProjector.REASON_NORMAL_REGISTER);
+    }
+
+    public UnitPriceView register(UnitPriceCommand command, String actorUserId, String historyReason) {
         validateCommand(command, null);
         ItemView item = resolveItem(command.itemId(), command.costType());
         validateCompanyRole(command.companyId(), command.costType());
@@ -86,6 +90,10 @@ public class UnitPriceService {
             outsourceInputBalanceProjector.ensure(context, actorUserId);
         }
 
+        String reason = historyReason == null || historyReason.isBlank()
+                ? UnitPriceHistoryProjector.REASON_NORMAL_REGISTER
+                : historyReason.trim();
+        unitPriceHistoryProjector.appendHistory(id, reason, actorUserId);
         appendRegisteredEvent(id, command, item, actorUserId);
 
         return getActive(id);
@@ -108,8 +116,6 @@ public class UnitPriceService {
                 id
         );
 
-        unitPriceHistoryProjector.snapshotBeforeUpdate(id, command.updateReason().trim(), actorUserId);
-
         OutsourceUnitPriceContext oldContext = existing.costType() == CostType.OUTSOURCE
                 ? toOutsourceContext(existing)
                 : null;
@@ -121,6 +127,7 @@ public class UnitPriceService {
             outsourceInputBalanceProjector.rebuild(oldContext, newContext, actorUserId);
         }
 
+        unitPriceHistoryProjector.appendHistory(id, command.updateReason().trim(), actorUserId);
         appendUpdatedEvent(id, existing, command, actorUserId);
 
         return getActive(id);
@@ -133,6 +140,7 @@ public class UnitPriceService {
             outsourceInputBalanceProjector.deactivate(toOutsourceContext(existing), actorUserId);
         }
 
+        unitPriceHistoryProjector.appendHistory(id, UnitPriceHistoryProjector.REASON_DELETE, actorUserId);
         unitPriceRepository.softDelete(id, actorUserId);
         appendDeletedEvent(id, existing, actorUserId);
     }
@@ -154,6 +162,15 @@ public class UnitPriceService {
     public List<UnitPriceChangeLogView> listHistory(long id) {
         getActive(id);
         return unitPriceRepository.findChangeLogs(id);
+    }
+
+    public List<UnitPriceChangeLogView> listAllHistory(UnitPriceHistorySearchQuery query) {
+        if (query.changedFrom() != null
+                && query.changedTo() != null
+                && query.changedTo().isBefore(query.changedFrom())) {
+            throw new IllegalArgumentException("수정일 종료일은 시작일 이후여야 합니다.");
+        }
+        return unitPriceRepository.findChangeLogs(query);
     }
 
     private void validateCommand(UnitPriceCommand command, Long excludeId) {

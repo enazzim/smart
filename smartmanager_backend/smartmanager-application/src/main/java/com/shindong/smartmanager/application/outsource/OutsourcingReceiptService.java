@@ -105,7 +105,7 @@ public class OutsourcingReceiptService {
 
         for (CreateOutsourcingReceiptLineCommand line : command.lines()) {
             OutsourcingOrderLineReceiptContext ctx = receiptRepository.findOrderLineContext(line.outsourcingOrderLineId());
-            validateReceiptLine(line, ctx);
+            validateReceiptLine(line, ctx, command.allowOverQty());
             contextByLineId.put(line.outsourcingOrderLineId(), ctx);
             linesByPartner.computeIfAbsent(ctx.partnerId(), ignored -> new ArrayList<>()).add(line);
             affectedOrderIds.add(ctx.outsourcingOrderId());
@@ -135,6 +135,15 @@ public class OutsourcingReceiptService {
             return;
         }
         monthClosingService.assertTransactionOpen(receipt.receiptDate());
+
+        for (OutsourcingReceiptLineView line : receipt.lines()) {
+            qualityInspectionRepository.findActiveByReceiptLineId(line.id()).ifPresent(inspection -> {
+                if (inspection.status() == QualityInspectionStatus.COMPLETED) {
+                    throw new IllegalArgumentException(
+                            "품질검사가 완료된 입고는 취소할 수 없습니다. 품질검사 이력에서 검사를 검사대기로 되돌린 뒤 입고를 취소하세요.");
+                }
+            });
+        }
 
         Set<Long> affectedOrderIds = new HashSet<>();
 
@@ -171,24 +180,6 @@ public class OutsourcingReceiptService {
                     qualityInspectionRepository.cancelByReceiptLineId(line.id(), actorUserId);
                     receiptRepository.releaseWaitingInspectionQty(
                             ctx.outsourcingOrderLineId(), line.receiptQty(), actorUserId);
-                } else if (inspection.status() == QualityInspectionStatus.COMPLETED
-                        && inspection.passedQty().compareTo(BigDecimal.ZERO) > 0
-                        && postedQty.compareTo(BigDecimal.ZERO) == 0) {
-                    reverseStockAndLedger(
-                            line,
-                            ctx,
-                            order,
-                            orderLine,
-                            receipt.partnerId(),
-                            receipt.receiptDate(),
-                            inspection.requestQty(),
-                            inspection.passedQty(),
-                            OutsourceHistorySourceType.QUALITY_INSPECTION,
-                            inspection.id(),
-                            actorUserId
-                    );
-                    receiptRepository.subtractReceivedQty(ctx.outsourcingOrderLineId(), inspection.passedQty(), actorUserId);
-                    qualityInspectionRepository.cancelByReceiptLineId(line.id(), actorUserId);
                 }
             });
         }
@@ -616,7 +607,8 @@ public class OutsourcingReceiptService {
 
     private void validateReceiptLine(
             CreateOutsourcingReceiptLineCommand line,
-            OutsourcingOrderLineReceiptContext ctx
+            OutsourcingOrderLineReceiptContext ctx,
+            boolean allowOverQty
     ) {
         if (ctx.orderStatus() == OutsourcingOrderStatus.CANCELLED) {
             throw new IllegalArgumentException("취소된 발주 라인은 입고할 수 없습니다: lineId=" + line.outsourcingOrderLineId());
@@ -624,7 +616,7 @@ public class OutsourcingReceiptService {
         if (ctx.shippedQty().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("출고 실적이 없는 발주 라인은 입고할 수 없습니다.");
         }
-        if (line.receiptQty().compareTo(ctx.remainQty()) > 0) {
+        if (line.receiptQty().compareTo(ctx.remainQty()) > 0 && !allowOverQty) {
             throw new IllegalArgumentException(
                     "입고 수량이 잔량을 초과합니다. 품목=" + ctx.itemNo()
                             + ", 잔량=" + ctx.remainQty().stripTrailingZeros().toPlainString()

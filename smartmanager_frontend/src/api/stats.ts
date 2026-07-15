@@ -1,20 +1,6 @@
-import { apiFetch, handleResponse } from './http';
+﻿import { apiFetch, handleResponse } from './http';
 
-export type VendorPurchaseDivision = 'ALL' | 'PURCHASE' | 'OUTSOURCE' | 'ETC';
-
-export interface VendorPurchaseTotal {
-  companyId: number;
-  companyName: string;
-  itemId: number | null;
-  itemNo: string | null;
-  itemName: string;
-  division: 'PURCHASE' | 'OUTSOURCE' | 'ETC';
-  purchaseQty: number;
-  unitPrice: number;
-  amount: number;
-  fiscalYear: number;
-  fiscalMonth: number;
-}
+export type VendorPurchaseDivision = 'ALL' | 'PURCHASE' | 'OUTSOURCE' | 'ETC' | 'CLAIM';
 
 export interface WarehouseMonthlyIo {
   itemId: number;
@@ -52,10 +38,35 @@ export interface ItemStockMovementRow {
   movementDate: string;
 }
 
-export interface VendorPurchaseTotalParams {
+export interface VendorPurchaseStatusRow {
+  historyId: number;
+  ledgerKind: string;
+  companyId: number;
+  companyName: string;
+  itemId: number | null;
+  itemNo: string;
+  itemName: string;
+  modelType: string;
+  processName: string;
+  receiptDate: string;
+  currentStockQty: number;
+  receiptQty: number;
+  unitPrice: number;
+  amount: number;
+  division: 'PURCHASE' | 'OUTSOURCE' | 'ETC' | 'CLAIM';
+  fiscalYear: number;
+  fiscalMonth: number;
+}
+
+export interface VendorPurchaseStatusParams {
   companyId?: number;
+  companyName?: string;
   itemId?: number;
   itemNo?: string;
+  itemName?: string;
+  modelType?: string;
+  receiptDateFrom?: string;
+  receiptDateTo?: string;
   fiscalYear?: number;
   fiscalMonth?: number;
   division?: VendorPurchaseDivision;
@@ -89,17 +100,92 @@ function toQuery(params: Record<string, string | number | undefined>): string {
   return q ? `?${q}` : '';
 }
 
-export async function fetchVendorPurchaseTotals(
-  params: VendorPurchaseTotalParams = {},
-): Promise<VendorPurchaseTotal[]> {
+export async function fetchVendorPurchaseStatus(
+  params: VendorPurchaseStatusParams = {},
+): Promise<VendorPurchaseStatusRow[]> {
   const res = await apiFetch(
-    `/api/v1/stats/vendor-purchase-totals${toQuery({
+    `/api/v1/stats/vendor-purchase-status${toQuery({
       companyId: params.companyId,
+      companyName: params.companyName,
       itemId: params.itemId,
       itemNo: params.itemNo,
+      itemName: params.itemName,
+      modelType: params.modelType,
+      receiptDateFrom: params.receiptDateFrom,
+      receiptDateTo: params.receiptDateTo,
       fiscalYear: params.fiscalYear,
       fiscalMonth: params.fiscalMonth,
       division: params.division === 'ALL' ? undefined : params.division,
+    })}`,
+  );
+  return handleResponse(res);
+}
+
+export type PurchaseDailyApprovalFilter = 'ALL' | 'APPROVED' | 'PENDING';
+
+export interface PurchaseDailyReportRow {
+  historyId: number;
+  ledgerKind: string;
+  companyId: number;
+  companyName: string;
+  itemId: number | null;
+  itemNo: string;
+  itemName: string;
+  unit: string;
+  processName: string;
+  inputDate: string;
+  receiptDate: string;
+  currentStockQty: number;
+  receiptQty: number;
+  passedQty: number;
+  failedQty: number;
+  standardUnitPrice: number;
+  unitPrice: number;
+  amount: number;
+  division: 'PURCHASE' | 'OUTSOURCE' | 'ETC' | 'CLAIM';
+  approvalStatus: string;
+  fiscalYear: number;
+  fiscalMonth: number;
+  /** 거래처별 선택월 합계 (검색 품목·일자와 무관) */
+  monthTotal: number;
+  /** 거래처별 선택연도 합계 (검색 품목·일자와 무관) */
+  yearTotal: number;
+}
+
+export interface PurchaseDailyReportParams {
+  companyId?: number;
+  companyName?: string;
+  itemId?: number;
+  itemNo?: string;
+  itemName?: string;
+  inputDateFrom?: string;
+  inputDateTo?: string;
+  receiptDateFrom?: string;
+  receiptDateTo?: string;
+  fiscalYear?: number;
+  fiscalMonth?: number;
+  division?: VendorPurchaseDivision;
+  approvalStatus?: PurchaseDailyApprovalFilter;
+}
+
+export async function fetchPurchaseDailyReport(
+  params: PurchaseDailyReportParams = {},
+): Promise<PurchaseDailyReportRow[]> {
+  const res = await apiFetch(
+    `/api/v1/stats/purchase-daily-report${toQuery({
+      companyId: params.companyId,
+      companyName: params.companyName,
+      itemId: params.itemId,
+      itemNo: params.itemNo,
+      itemName: params.itemName,
+      inputDateFrom: params.inputDateFrom,
+      inputDateTo: params.inputDateTo,
+      receiptDateFrom: params.receiptDateFrom,
+      receiptDateTo: params.receiptDateTo,
+      fiscalYear: params.fiscalYear,
+      fiscalMonth: params.fiscalMonth,
+      division: params.division === 'ALL' ? undefined : params.division,
+      approvalStatus: params.approvalStatus === 'ALL' ? undefined : params.approvalStatus,
     })}`,
   );
   return handleResponse(res);
@@ -132,6 +218,65 @@ export async function fetchItemStockMovements(
       outputProcessId: params.outputProcessId,
       movementDateFrom: params.movementDateFrom,
       movementDateTo: params.movementDateTo,
+    })}`,
+  );
+  return handleResponse(res);
+}
+
+export type OrderVsReceiptDivision = 'ALL' | 'PURCHASE' | 'OUTSOURCE';
+
+export interface OrderVsReceiptRow {
+  orderLineId: number;
+  division: 'PURCHASE' | 'OUTSOURCE';
+  companyId: number;
+  companyName: string;
+  itemId: number;
+  itemNo: string;
+  itemName: string;
+  modelType: string;
+  processName: string;
+  unit: string;
+  standard: string;
+  orderDate: string;
+  orderQty: number;
+  orderUnitPrice: number;
+  orderAmount: number;
+  requestedDeliveryDate?: string | null;
+  lastReceiptDate?: string | null;
+  receivedQty: number;
+  waitingInspectionQty: number;
+  receiptAmount: number;
+  remainQty: number;
+  remainAmount: number;
+  currentStockQty: number;
+}
+
+export interface OrderVsReceiptParams {
+  companyId?: number;
+  companyName?: string;
+  itemId?: number;
+  itemNo?: string;
+  itemName?: string;
+  orderDateFrom?: string;
+  orderDateTo?: string;
+  receiptDateFrom?: string;
+  receiptDateTo?: string;
+  division?: OrderVsReceiptDivision;
+}
+
+export async function fetchOrderVsReceipt(params: OrderVsReceiptParams = {}): Promise<OrderVsReceiptRow[]> {
+  const res = await apiFetch(
+    `/api/v1/stats/order-vs-receipt${toQuery({
+      companyId: params.companyId,
+      companyName: params.companyName,
+      itemId: params.itemId,
+      itemNo: params.itemNo,
+      itemName: params.itemName,
+      orderDateFrom: params.orderDateFrom,
+      orderDateTo: params.orderDateTo,
+      receiptDateFrom: params.receiptDateFrom,
+      receiptDateTo: params.receiptDateTo,
+      division: params.division === 'ALL' ? undefined : params.division,
     })}`,
   );
   return handleResponse(res);

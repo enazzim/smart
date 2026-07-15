@@ -4,7 +4,7 @@ import {
   cancelPayableApproval,
   fetchApprovedPayableApprovals,
   fetchPendingPayableApprovals,
-  updatePayableApprovalFiscalPeriod,
+  type PayableApprovalCategory,
   type PayableApprovalRow,
   type PayableApprovalSearchParams,
 } from '../api/payableApproval';
@@ -12,9 +12,8 @@ import CompanySearchField, {
   PURCHASE_OUTSOURCE_PARTNER_ROLES,
   type CompanySearchSelection,
 } from '../components/CompanySearchField';
-import FiscalPeriodTableCells from '../components/FiscalPeriodTableCells';
 import GridExcelExportButton from '../components/GridExcelExportButton';
-import { currentFiscalYearMonth, type FiscalPeriod } from '../utils/fiscalCalendar';
+import { currentFiscalYearMonth } from '../utils/fiscalCalendar';
 import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import { formatAmount } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
@@ -46,6 +45,7 @@ function createDefaultFilters(cutoverSetting: string): PayableApprovalSearchPara
     receiptDateTo: todayIso(),
     fiscalYear,
     fiscalMonth,
+    category: 'ALL',
   };
 }
 
@@ -187,30 +187,6 @@ export default function PayableApprovalPage() {
     }
   };
 
-  const onFiscalPeriodSave = async (row: PayableApprovalRow, period: FiscalPeriod) => {
-    setError(null);
-    setMessage(null);
-    try {
-      await updatePayableApprovalFiscalPeriod({
-        ledgerKind: row.ledgerKind,
-        historyId: row.historyId,
-        fiscalYear: period.fiscalYear,
-        fiscalMonth: period.fiscalMonth,
-      });
-      setRows((prev) =>
-        prev.map((item) =>
-          rowKey(item) === rowKey(row)
-            ? { ...item, fiscalYear: period.fiscalYear, fiscalMonth: period.fiscalMonth }
-            : item,
-        ),
-      );
-      setMessage('매입년월이 수정되었습니다.');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '매입년월 수정 실패');
-      throw e;
-    }
-  };
-
   const onCancelApproval = async () => {
     if (selectedItems.length === 0) {
       setError('승인취소할 항목을 선택해 주세요.');
@@ -285,6 +261,21 @@ export default function PayableApprovalPage() {
             />
           </label>
           <label>
+            구분
+            <select
+              value={filters.category ?? 'ALL'}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, category: e.target.value as PayableApprovalCategory }))
+              }
+            >
+              <option value="ALL">전체</option>
+              <option value="PURCHASE">구매</option>
+              <option value="OUTSOURCE">입고</option>
+              <option value="ETC">기타</option>
+              <option value="CLAIM">공제</option>
+            </select>
+          </label>
+          <label>
             매입년도
             <input
               type="number"
@@ -328,9 +319,6 @@ export default function PayableApprovalPage() {
               onChange={(e) => setFilters((f) => ({ ...f, receiptDateTo: e.target.value }))}
             />
           </label>
-          <button type="button" className="secondary" disabled={filterPartner == null} onClick={() => setFilterPartner(null)}>
-            전체
-          </button>
           <button type="button" className="secondary" onClick={onResetFilters}>
             초기화
           </button>
@@ -418,13 +406,8 @@ export default function PayableApprovalPage() {
                     <td className="num">{formatAmount(row.standardUnitPrice)}</td>
                     <td className="num">{formatAmount(row.unitPrice)}</td>
                     <td className="num">{formatAmount(row.amount)}</td>
-                    <FiscalPeriodTableCells
-                      fiscalYear={row.fiscalYear}
-                      fiscalMonth={row.fiscalMonth}
-                      disabled={submitting}
-                      numeric
-                      onSave={(period) => onFiscalPeriodSave(row, period)}
-                    />
+                    <td className="num">{row.fiscalYear}</td>
+                    <td className="num">{row.fiscalMonth}</td>
                     <td>{row.categoryLabel}</td>
                     <td>{row.partnerName}</td>
                     <td>{row.receiptDate}</td>

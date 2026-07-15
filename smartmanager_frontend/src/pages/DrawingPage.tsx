@@ -65,6 +65,12 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   const [searchModelType, setSearchModelType] = useState('');
   const [searchDate, setSearchDate] = useState('');
   const [searchItem, setSearchItem] = useState<ItemSearchSelection | null>(null);
+  const [appliedPartNo, setAppliedPartNo] = useState('');
+  const [appliedModelType, setAppliedModelType] = useState('');
+  const [appliedDate, setAppliedDate] = useState('');
+  const [appliedItem, setAppliedItem] = useState<ItemSearchSelection | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [itemClearToken, setItemClearToken] = useState(0);
   const [isSyncingOffline, setIsSyncingOffline] = useState(false);
   const [cachedPartNos, setCachedPartNos] = useState<string[]>([]);
   const [offlineMessage, setOfflineMessage] = useState<string | null>(null);
@@ -72,19 +78,25 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   const [integrityLoading, setIntegrityLoading] = useState(false);
   const [integrityIssues, setIntegrityIssues] = useState<DrawingReferenceIntegrityIssue[]>([]);
 
-  const { data: drawings = [], isLoading, isError } = useQuery({
+  const { data: drawings = [], isLoading, isError, isFetching } = useQuery({
     queryKey: ['drawings'],
     queryFn: fetchDrawings,
+    enabled: hasSearched,
   });
 
-  const { data: deletedDrawings = [] } = useQuery({
+  const { data: deletedDrawings = [], isFetching: isFetchingDeleted } = useQuery({
     queryKey: ['deletedDrawings'],
     queryFn: fetchDeletedDrawings,
+    enabled: hasSearched,
   });
 
   useEffect(() => {
+    if (!hasSearched) {
+      setCachedPartNos([]);
+      return;
+    }
     void listCachedDrawingPartNos().then(setCachedPartNos).catch(() => setCachedPartNos([]));
-  }, [drawings, deletedDrawings]);
+  }, [hasSearched, drawings, deletedDrawings]);
 
   const refreshLists = async () => {
     await Promise.all([
@@ -173,21 +185,60 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   };
 
   const currentData = tab === 'deleted' ? deletedDrawings : drawings;
-  const filteredDrawings = useMemo(
-    () =>
-      currentData.filter((row: DrawingListItem) => {
-        const matchType =
-          tab === 'dev' ? row.drawingType === 'DEV' : tab === 'prod' ? row.drawingType === 'PROD' : true;
-        const matchPartNo = row.partNo.toLowerCase().includes(searchPartNo.toLowerCase());
-        const matchModelType = row.modelType.toLowerCase().includes(searchModelType.toLowerCase());
-        const matchDate = searchDate ? row.updatedAt.startsWith(searchDate) : true;
-        const matchItem = searchItem
-          ? row.itemNo?.toLowerCase() === searchItem.itemNo.toLowerCase() || row.itemId === searchItem.id
-          : true;
-        return matchType && matchPartNo && matchModelType && matchDate && matchItem;
-      }),
-    [currentData, tab, searchPartNo, searchModelType, searchDate, searchItem],
-  );
+  const filteredDrawings = useMemo(() => {
+    if (!hasSearched) {
+      return [];
+    }
+    return currentData.filter((row: DrawingListItem) => {
+      const matchType =
+        tab === 'dev' ? row.drawingType === 'DEV' : tab === 'prod' ? row.drawingType === 'PROD' : true;
+      const matchPartNo = row.partNo.toLowerCase().includes(appliedPartNo.toLowerCase());
+      const matchModelType = row.modelType.toLowerCase().includes(appliedModelType.toLowerCase());
+      const matchDate = appliedDate ? row.updatedAt.startsWith(appliedDate) : true;
+      const matchItem = appliedItem
+        ? row.itemNo?.toLowerCase() === appliedItem.itemNo.toLowerCase() || row.itemId === appliedItem.id
+        : true;
+      return matchType && matchPartNo && matchModelType && matchDate && matchItem;
+    });
+  }, [hasSearched, currentData, tab, appliedPartNo, appliedModelType, appliedDate, appliedItem]);
+
+  const applySearch = (next: {
+    partNo?: string;
+    modelType?: string;
+    date?: string;
+    item?: ItemSearchSelection | null;
+  }) => {
+    setAppliedPartNo(next.partNo ?? searchPartNo);
+    setAppliedModelType(next.modelType ?? searchModelType);
+    setAppliedDate(next.date ?? searchDate);
+    setAppliedItem(next.item !== undefined ? next.item : searchItem);
+    setHasSearched(true);
+  };
+
+  const handleSearch = () => {
+    applySearch({});
+  };
+
+  const handleReset = () => {
+    setSearchPartNo('');
+    setSearchModelType('');
+    setSearchDate('');
+    setSearchItem(null);
+    setAppliedPartNo('');
+    setAppliedModelType('');
+    setAppliedDate('');
+    setAppliedItem(null);
+    setHasSearched(false);
+    setItemClearToken((token) => token + 1);
+    setOfflineMessage(null);
+  };
+
+  const handleItemSelect = (item: ItemSearchSelection | null) => {
+    setSearchItem(item);
+    if (item) {
+      applySearch({ item });
+    }
+  };
 
   const handleIntegrityScan = async () => {
     setIntegrityLoading(true);
@@ -230,22 +281,6 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="page drawing-page">
-        <p>불러오는 중…</p>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="page drawing-page">
-        <p className="error-banner">데이터를 불러오지 못했습니다.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="page drawing-page">
       <header className="page-header">
@@ -285,6 +320,7 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
 
       {message && <p className="success-banner">{message}</p>}
       {error && <p className="error-banner">{error}</p>}
+      {hasSearched && isError && <p className="error-banner">데이터를 불러오지 못했습니다.</p>}
       {offlineMessage && (
         <p className="hint">
           {offlineMessage}
@@ -296,24 +332,63 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
         <div className="drawing-filter-grid">
           <div>
             <ItemSearchField
-              label="품목 검색"
+              label="품목"
               selectedItem={searchItem}
-              onSelect={setSearchItem}
-              placeholder="연결 품목으로 필터"
+              onSelect={handleItemSelect}
+              clearToken={itemClearToken}
+              placeholder="연결 품목"
             />
           </div>
           <label>
-            <span>품번 검색</span>
-            <input placeholder="예: A-1" value={searchPartNo} onChange={(e) => setSearchPartNo(e.target.value)} />
+            <span>품번</span>
+            <input
+              placeholder="예: A-1"
+              value={searchPartNo}
+              onChange={(e) => setSearchPartNo(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
+            />
           </label>
           <label>
-            <span>기종 검색</span>
-            <input placeholder="예: 로더" value={searchModelType} onChange={(e) => setSearchModelType(e.target.value)} />
+            <span>기종</span>
+            <input
+              placeholder="예: 로더"
+              value={searchModelType}
+              onChange={(e) => setSearchModelType(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
+            />
           </label>
           <label>
-            <span>등록일 검색</span>
-            <input type="date" value={searchDate} onChange={(e) => setSearchDate(e.target.value)} />
+            <span>등록일</span>
+            <input
+              type="date"
+              value={searchDate}
+              onChange={(e) => setSearchDate(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
+            />
           </label>
+          <div className="drawing-filter-actions">
+            <button type="button" onClick={handleSearch}>
+              검색
+            </button>
+            <button type="button" className="secondary" onClick={handleReset}>
+              초기화
+            </button>
+          </div>
         </div>
       </section>
 
@@ -420,7 +495,11 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
       )}
 
       <section className="panel">
-        {filteredDrawings.length === 0 ? (
+        {!hasSearched ? (
+          <p className="hint">검색 조건을 입력한 뒤 검색하거나, 품목을 선택해 주세요.</p>
+        ) : isLoading || isFetching || isFetchingDeleted ? (
+          <p className="hint">불러오는 중…</p>
+        ) : filteredDrawings.length === 0 ? (
           <p className="hint">표시할 도면이 없습니다.</p>
         ) : (
           <>

@@ -1,6 +1,6 @@
 import { apiFetch, handleResponse } from './http';
 
-export type PropertyClassification = '원자재' | '제품' | '상품' | '공정품';
+export type PropertyClassification = '원자재' | '제품' | '상품' | '공정품' | '부자재';
 export type CheckDistinction = 'NONE' | 'INSPECTION';
 
 export interface Item {

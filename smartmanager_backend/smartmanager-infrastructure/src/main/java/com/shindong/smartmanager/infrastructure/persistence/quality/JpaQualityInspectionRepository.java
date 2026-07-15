@@ -202,6 +202,7 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
             Long inspectionDecisionCodeId,
             Long unsuitabilityCauseCodeId,
             Long unsuitabilityStatusCodeId,
+            String failureReason,
             Instant completedAt,
             String actorUserId
     ) {
@@ -212,6 +213,7 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
         entity.setInspectionDecisionCodeId(inspectionDecisionCodeId);
         entity.setUnsuitabilityCauseCodeId(unsuitabilityCauseCodeId);
         entity.setUnsuitabilityStatusCodeId(unsuitabilityStatusCodeId);
+        entity.setFailureReason(failureReason);
         entity.setStatus(QualityInspectionStatus.COMPLETED);
         entity.setCompletedAt(completedAt);
         entity.setUpdatedBy(actorUserId);
@@ -245,6 +247,28 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
             throw new IllegalArgumentException("완료된 검사만 취소할 수 있습니다.");
         }
         entity.setStatus(QualityInspectionStatus.CANCELLED);
+        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedAt(Instant.now());
+        inspectionRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void revertCompletedToPending(long id, String actorUserId) {
+        QualityInspectionJpaEntity entity = inspectionRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("품질검사를 찾을 수 없습니다: " + id));
+        if (entity.getStatus() != QualityInspectionStatus.COMPLETED) {
+            throw new IllegalArgumentException("완료된 검사만 검사대기로 되돌릴 수 있습니다.");
+        }
+        entity.setStatus(QualityInspectionStatus.PENDING);
+        entity.setPassedQty(BigDecimal.ZERO);
+        entity.setFailedQty(BigDecimal.ZERO);
+        entity.setInspectionDecisionCodeId(null);
+        entity.setUnsuitabilityCauseCodeId(null);
+        entity.setUnsuitabilityStatusCodeId(null);
+        entity.setFailureReason(null);
+        entity.setCompletedAt(null);
         entity.setUpdatedBy(actorUserId);
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(Instant.now());
@@ -325,7 +349,8 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
                 receiptDate,
                 entity.getCreatedAt(),
                 entity.getCompletedAt(),
-                item != null && item.isLotTracked()
+                item != null && item.isLotTracked(),
+                entity.getFailureReason()
         );
     }
 }

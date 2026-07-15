@@ -36,7 +36,7 @@ export function toPartnerPriceItems(unitPrices: UnitPrice[]): PartnerPriceItem[]
       itemId: unitPrice.itemId,
       itemNo: unitPrice.itemNum,
       itemName: unitPrice.itemName,
-      propertyClassification: undefined,
+      propertyClassification: unitPrice.propertyClassification,
       unitPrice: resolveUnitPriceAmount(unitPrice),
     }))
     .sort((a, b) => a.itemNo.localeCompare(b.itemNo, 'ko'));

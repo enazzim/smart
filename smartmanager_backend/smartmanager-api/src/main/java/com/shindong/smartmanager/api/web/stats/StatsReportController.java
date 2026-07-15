@@ -2,6 +2,12 @@ package com.shindong.smartmanager.api.web.stats;
 
 import com.shindong.smartmanager.application.stats.ItemStockMovementCriteria;
 import com.shindong.smartmanager.application.stats.ItemStockMovementView;
+import com.shindong.smartmanager.application.stats.OrderVsReceiptCriteria;
+import com.shindong.smartmanager.application.stats.OrderVsReceiptView;
+import com.shindong.smartmanager.application.stats.PurchaseDailyReportCriteria;
+import com.shindong.smartmanager.application.stats.PurchaseDailyReportView;
+import com.shindong.smartmanager.application.stats.VendorPurchaseStatusCriteria;
+import com.shindong.smartmanager.application.stats.VendorPurchaseStatusView;
 import com.shindong.smartmanager.application.stats.VendorPurchaseTotalCriteria;
 import com.shindong.smartmanager.application.stats.VendorPurchaseTotalView;
 import com.shindong.smartmanager.application.stats.WarehouseMonthlyIoCriteria;
@@ -42,6 +48,70 @@ public class StatsReportController {
         )).stream().map(VendorPurchaseTotalResponse::from).toList();
     }
 
+    @GetMapping("/purchase-daily-report")
+    @PreAuthorize("hasAuthority('stats:purchase-daily:read')")
+    public List<PurchaseDailyReportResponse> listPurchaseDailyReport(
+            @RequestParam(required = false) Long companyId,
+            @RequestParam(required = false) String companyName,
+            @RequestParam(required = false) Long itemId,
+            @RequestParam(required = false) String itemNo,
+            @RequestParam(required = false) String itemName,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inputDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inputDateTo,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateTo,
+            @RequestParam(required = false) Integer fiscalYear,
+            @RequestParam(required = false) Integer fiscalMonth,
+            @RequestParam(required = false) String division,
+            @RequestParam(required = false) String approvalStatus
+    ) {
+        return statsReportApplicationService.listPurchaseDailyReport(new PurchaseDailyReportCriteria(
+                companyId,
+                companyName,
+                itemId,
+                itemNo,
+                itemName,
+                inputDateFrom,
+                inputDateTo,
+                receiptDateFrom,
+                receiptDateTo,
+                fiscalYear,
+                fiscalMonth,
+                division,
+                approvalStatus
+        )).stream().map(PurchaseDailyReportResponse::from).toList();
+    }
+
+    @GetMapping("/vendor-purchase-status")
+    @PreAuthorize("hasAuthority('stats:vendor-purchase-status:read')")
+    public List<VendorPurchaseStatusResponse> listVendorPurchaseStatus(
+            @RequestParam(required = false) Long companyId,
+            @RequestParam(required = false) String companyName,
+            @RequestParam(required = false) Long itemId,
+            @RequestParam(required = false) String itemNo,
+            @RequestParam(required = false) String itemName,
+            @RequestParam(required = false) String modelType,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateTo,
+            @RequestParam(required = false) Integer fiscalYear,
+            @RequestParam(required = false) Integer fiscalMonth,
+            @RequestParam(required = false) String division
+    ) {
+        return statsReportApplicationService.listVendorPurchaseStatus(new VendorPurchaseStatusCriteria(
+                companyId,
+                companyName,
+                itemId,
+                itemNo,
+                itemName,
+                modelType,
+                receiptDateFrom,
+                receiptDateTo,
+                fiscalYear,
+                fiscalMonth,
+                division
+        )).stream().map(VendorPurchaseStatusResponse::from).toList();
+    }
+
     @GetMapping("/warehouse-monthly-io")
     @PreAuthorize("hasAuthority('stats:warehouse-io:read')")
     public List<WarehouseMonthlyIoResponse> listWarehouseMonthlyIo(
@@ -73,6 +143,34 @@ public class StatsReportController {
                 itemId, itemNo, companyId, locationCode, outputProcessId, movementDateFrom, movementDateTo
         )).stream().map(ItemStockMovementResponse::from).toList();
     }
+
+    @GetMapping("/order-vs-receipt")
+    @PreAuthorize("hasAuthority('stats:order-vs-receipt:read')")
+    public List<OrderVsReceiptResponse> listOrderVsReceipt(
+            @RequestParam(required = false) Long companyId,
+            @RequestParam(required = false) String companyName,
+            @RequestParam(required = false) Long itemId,
+            @RequestParam(required = false) String itemNo,
+            @RequestParam(required = false) String itemName,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDateTo,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateTo,
+            @RequestParam(required = false) String division
+    ) {
+        return statsReportApplicationService.listOrderVsReceipt(new OrderVsReceiptCriteria(
+                companyId,
+                companyName,
+                itemId,
+                itemNo,
+                itemName,
+                orderDateFrom,
+                orderDateTo,
+                receiptDateFrom,
+                receiptDateTo,
+                division
+        )).stream().map(OrderVsReceiptResponse::from).toList();
+    }
 }
 
 record VendorPurchaseTotalResponse(
@@ -101,6 +199,104 @@ record VendorPurchaseTotalResponse(
                 view.amount(),
                 view.fiscalYear(),
                 view.fiscalMonth()
+        );
+    }
+}
+
+record VendorPurchaseStatusResponse(
+        long historyId,
+        String ledgerKind,
+        long companyId,
+        String companyName,
+        Long itemId,
+        String itemNo,
+        String itemName,
+        String modelType,
+        String processName,
+        LocalDate receiptDate,
+        BigDecimal currentStockQty,
+        BigDecimal receiptQty,
+        BigDecimal unitPrice,
+        BigDecimal amount,
+        String division,
+        int fiscalYear,
+        int fiscalMonth
+) {
+    static VendorPurchaseStatusResponse from(VendorPurchaseStatusView view) {
+        return new VendorPurchaseStatusResponse(
+                view.historyId(),
+                view.ledgerKind(),
+                view.companyId(),
+                view.companyName(),
+                view.itemId(),
+                view.itemNo(),
+                view.itemName(),
+                view.modelType(),
+                view.processName(),
+                view.receiptDate(),
+                view.currentStockQty(),
+                view.receiptQty(),
+                view.unitPrice(),
+                view.amount(),
+                view.division(),
+                view.fiscalYear(),
+                view.fiscalMonth()
+        );
+    }
+}
+
+record PurchaseDailyReportResponse(
+        long historyId,
+        String ledgerKind,
+        long companyId,
+        String companyName,
+        Long itemId,
+        String itemNo,
+        String itemName,
+        String unit,
+        String processName,
+        LocalDate inputDate,
+        LocalDate receiptDate,
+        BigDecimal currentStockQty,
+        BigDecimal receiptQty,
+        BigDecimal passedQty,
+        BigDecimal failedQty,
+        BigDecimal standardUnitPrice,
+        BigDecimal unitPrice,
+        BigDecimal amount,
+        String division,
+        String approvalStatus,
+        int fiscalYear,
+        int fiscalMonth,
+        BigDecimal monthTotal,
+        BigDecimal yearTotal
+) {
+    static PurchaseDailyReportResponse from(PurchaseDailyReportView view) {
+        return new PurchaseDailyReportResponse(
+                view.historyId(),
+                view.ledgerKind(),
+                view.companyId(),
+                view.companyName(),
+                view.itemId(),
+                view.itemNo(),
+                view.itemName(),
+                view.unit(),
+                view.processName(),
+                view.inputDate(),
+                view.receiptDate(),
+                view.currentStockQty(),
+                view.receiptQty(),
+                view.passedQty(),
+                view.failedQty(),
+                view.standardUnitPrice(),
+                view.unitPrice(),
+                view.amount(),
+                view.division(),
+                view.approvalStatus(),
+                view.fiscalYear(),
+                view.fiscalMonth(),
+                view.monthTotal(),
+                view.yearTotal()
         );
     }
 }
@@ -177,6 +373,60 @@ record ItemStockMovementResponse(
                 view.referenceType(),
                 view.referenceId(),
                 view.movementDate()
+        );
+    }
+}
+
+record OrderVsReceiptResponse(
+        long orderLineId,
+        String division,
+        long companyId,
+        String companyName,
+        long itemId,
+        String itemNo,
+        String itemName,
+        String modelType,
+        String processName,
+        String unit,
+        String standard,
+        LocalDate orderDate,
+        BigDecimal orderQty,
+        BigDecimal orderUnitPrice,
+        BigDecimal orderAmount,
+        LocalDate requestedDeliveryDate,
+        LocalDate lastReceiptDate,
+        BigDecimal receivedQty,
+        BigDecimal waitingInspectionQty,
+        BigDecimal receiptAmount,
+        BigDecimal remainQty,
+        BigDecimal remainAmount,
+        BigDecimal currentStockQty
+) {
+    static OrderVsReceiptResponse from(OrderVsReceiptView view) {
+        return new OrderVsReceiptResponse(
+                view.orderLineId(),
+                view.division(),
+                view.companyId(),
+                view.companyName(),
+                view.itemId(),
+                view.itemNo(),
+                view.itemName(),
+                view.modelType(),
+                view.processName(),
+                view.unit(),
+                view.standard(),
+                view.orderDate(),
+                view.orderQty(),
+                view.orderUnitPrice(),
+                view.orderAmount(),
+                view.requestedDeliveryDate(),
+                view.lastReceiptDate(),
+                view.receivedQty(),
+                view.waitingInspectionQty(),
+                view.receiptAmount(),
+                view.remainQty(),
+                view.remainAmount(),
+                view.currentStockQty()
         );
     }
 }

@@ -3,10 +3,19 @@ import type { CompanyRoleType } from '../api/company';
 import type { PropertyClassification } from '../api/item';
 import type { CodeOption } from '../api/process';
 import { fetchProcessCodeOptions } from '../api/process';
-import type { CostType, CreateUnitPriceRequest, UnitPrice, UpdateUnitPriceRequest } from '../api/unitPrice';
+import type {
+  CostType,
+  CreateUnitPriceRequest,
+  UnitPrice,
+  UnitPriceHistory,
+  UnitPriceHistorySearchParams,
+  UpdateUnitPriceRequest,
+} from '../api/unitPrice';
 import {
   createUnitPrice,
   deleteUnitPrice,
+  fetchAllUnitPriceHistory,
+  fetchUnitPriceHistory,
   fetchUnitPrices,
   updateUnitPrice,
 } from '../api/unitPrice';
@@ -15,6 +24,42 @@ import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSea
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatAmount, formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
+
+const ALL_HISTORY_PARTNER_ROLES: readonly CompanyRoleType[] = ['SALES', 'PURCHASE', 'OUTSOURCE'];
+const ALL_HISTORY_ITEM_CLASSES: PropertyClassification[] = ['제품', '상품', '공정품', '원자재', '부자재'];
+
+type HistoryCostTypeFilter = CostType | '';
+
+type AllHistoryFilters = {
+  costType: HistoryCostTypeFilter;
+  company: CompanySearchSelection | null;
+  item: ItemSearchSelection | null;
+  changedFrom: string;
+  changedTo: string;
+  changedBy: string;
+};
+
+function emptyAllHistoryFilters(costType: HistoryCostTypeFilter = ''): AllHistoryFilters {
+  return {
+    costType,
+    company: null,
+    item: null,
+    changedFrom: '',
+    changedTo: '',
+    changedBy: '',
+  };
+}
+
+function toHistorySearchParams(filters: AllHistoryFilters): UnitPriceHistorySearchParams {
+  return {
+    type: filters.costType || undefined,
+    companyId: filters.company?.id,
+    itemId: filters.item?.id,
+    changedFrom: filters.changedFrom || undefined,
+    changedTo: filters.changedTo || undefined,
+    changedBy: filters.changedBy.trim() || undefined,
+  };
+}
 
 const TAB_CONFIG: {
   type: CostType;
@@ -36,7 +81,7 @@ const TAB_CONFIG: {
     type: 'PURCHASE',
     label: '구매단가',
     partnerType: 'PURCHASE',
-    itemClasses: ['원자재', '상품'],
+    itemClasses: ['원자재', '상품', '부자재'],
     showProcess: false,
     orderRateDisabled: false,
   },
@@ -51,6 +96,23 @@ const TAB_CONFIG: {
 ];
 
 const today = new Date().toISOString().slice(0, 10);
+
+function costTypeLabel(type: CostType) {
+  switch (type) {
+    case 'SALE':
+      return '판매단가';
+    case 'PURCHASE':
+      return '구매단가';
+    case 'OUTSOURCE':
+      return '외주단가';
+    default:
+      return type;
+  }
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('ko-KR');
+}
 
 function emptyForm(tab: CostType): CreateUnitPriceRequest {
   return {
@@ -95,8 +157,52 @@ export default function UnitPricePage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyMode, setHistoryMode] = useState<'single' | 'all'>('single');
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyRows, setHistoryRows] = useState<UnitPriceHistory[]>([]);
+  const [historyTitle, setHistoryTitle] = useState('');
+  const [allHistoryFilters, setAllHistoryFilters] = useState<AllHistoryFilters>(() => emptyAllHistoryFilters());
+  const [historyFilterClearToken, setHistoryFilterClearToken] = useState(0);
 
   const isEditing = editingId !== null;
+
+  const historyPartnerRoles = useMemo((): readonly CompanyRoleType[] => {
+    switch (allHistoryFilters.costType) {
+      case 'SALE':
+        return ['SALES'];
+      case 'PURCHASE':
+        return ['PURCHASE'];
+      case 'OUTSOURCE':
+        return ['OUTSOURCE'];
+      default:
+        return ALL_HISTORY_PARTNER_ROLES;
+    }
+  }, [allHistoryFilters.costType]);
+
+  const historyItemClasses = useMemo((): PropertyClassification[] => {
+    const matched = TAB_CONFIG.find((tab) => tab.type === allHistoryFilters.costType);
+    return matched?.itemClasses ?? ALL_HISTORY_ITEM_CLASSES;
+  }, [allHistoryFilters.costType]);
+
+  const historyExportRows = useMemo(
+    () =>
+      historyRows.map((row) => ({
+        품목번호: row.itemNo,
+        품목명: row.itemName,
+        변경사유: row.updateReason,
+        단가구분: costTypeLabel(row.type),
+        거래처명: row.companyName,
+        시작공정: row.beginProcessName ?? '',
+        종료공정: row.endProcessName ?? '',
+        기준단가: Number(row.standardUnitCost),
+        적용시작일: row.beginDate,
+        수정자: row.changedBy,
+        수정일: formatDateTime(row.changedAt),
+      })),
+    [historyRows],
+  );
 
   const unitPriceExportRows = useMemo(
     () =>
@@ -171,6 +277,66 @@ export default function UnitPricePage() {
     });
     setError(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openHistory = async (unitPriceId: number, label: string) => {
+    setHistoryMode('single');
+    setHistoryOpen(true);
+    setHistoryLoading(true);
+    setHistoryError(null);
+    setHistoryRows([]);
+    setHistoryTitle(label);
+    try {
+      setHistoryRows(await fetchUnitPriceHistory(unitPriceId));
+    } catch (e) {
+      setHistoryError(e instanceof Error ? e.message : '이력을 불러오지 못했습니다.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const searchAllHistory = async (filters: AllHistoryFilters) => {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      setHistoryRows(await fetchAllUnitPriceHistory(toHistorySearchParams(filters)));
+    } catch (e) {
+      setHistoryError(e instanceof Error ? e.message : '이력을 불러오지 못했습니다.');
+      setHistoryRows([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const openAllHistory = async () => {
+    const initial = emptyAllHistoryFilters(activeTab);
+    setHistoryMode('all');
+    setAllHistoryFilters(initial);
+    setHistoryFilterClearToken((token) => token + 1);
+    setHistoryOpen(true);
+    setHistoryRows([]);
+    setHistoryTitle('전체');
+    await searchAllHistory(initial);
+  };
+
+  const onAllHistorySearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    void searchAllHistory(allHistoryFilters);
+  };
+
+  const onAllHistoryReset = () => {
+    const cleared = emptyAllHistoryFilters();
+    setAllHistoryFilters(cleared);
+    setHistoryFilterClearToken((token) => token + 1);
+  };
+
+  const closeHistory = () => {
+    setHistoryOpen(false);
+    setHistoryMode('single');
+    setHistoryError(null);
+    setHistoryRows([]);
+    setHistoryTitle('');
+    setAllHistoryFilters(emptyAllHistoryFilters());
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -380,16 +546,31 @@ export default function UnitPricePage() {
             />
           </label>
           {isEditing && (
-            <label className="full-width">
-              변경 사유
-              <input
-                type="text"
-                required
-                value={form.updateReason ?? ''}
-                onChange={(e) => setForm((prev) => ({ ...prev, updateReason: e.target.value }))}
-                placeholder="수정 사유를 입력하세요"
-              />
-            </label>
+            <div className="unit-price-reason-row full-width">
+              <label>
+                변경 사유
+                <input
+                  type="text"
+                  required
+                  value={form.updateReason ?? ''}
+                  onChange={(e) => setForm((prev) => ({ ...prev, updateReason: e.target.value }))}
+                  placeholder="수정 사유를 입력하세요"
+                />
+              </label>
+              <button
+                type="button"
+                className="secondary"
+                disabled={editingId == null}
+                onClick={() =>
+                  void openHistory(
+                    editingId!,
+                    `${formItem?.itemNo ?? ''} ${formItem?.itemName ?? ''}`.trim() || tabConfig.label,
+                  )
+                }
+              >
+                이력보기
+              </button>
+            </div>
           )}
           <div className="form-actions full-width">
             <button type="submit" disabled={submitting}>
@@ -408,12 +589,17 @@ export default function UnitPricePage() {
       <section className="panel">
         <div className="panel-header-row">
           <h2>{tabConfig.label} 목록</h2>
-          <GridExcelExportButton
-            fileBaseName={`${tabConfig.label}목록`}
-            sheetName={tabConfig.label}
-            disabled={loading}
-            rows={unitPriceExportRows}
-          />
+          <div className="form-actions" style={{ margin: 0 }}>
+            <button type="button" className="secondary" disabled={loading} onClick={() => void openAllHistory()}>
+              전체 이력
+            </button>
+            <GridExcelExportButton
+              fileBaseName={`${tabConfig.label}목록`}
+              sheetName={tabConfig.label}
+              disabled={loading}
+              rows={unitPriceExportRows}
+            />
+          </div>
         </div>
         <div className="search-row">
           <ItemSearchField
@@ -491,6 +677,15 @@ export default function UnitPricePage() {
                     <button type="button" className="btn-action" onClick={() => startEdit(price)}>
                       수정
                     </button>
+                    <button
+                      type="button"
+                      className="btn-action"
+                      onClick={() =>
+                        void openHistory(price.id, `${price.itemNum} ${price.itemName}`.trim())
+                      }
+                    >
+                      이력
+                    </button>
                     <button type="button" className="btn-action danger" onClick={() => void onDelete(price.id)}>
                       삭제
                     </button>
@@ -502,6 +697,161 @@ export default function UnitPricePage() {
           </div>
         )}
       </section>
+
+      {historyOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={closeHistory}>
+          <div
+            className="modal modal-wide unit-price-history-modal"
+            role="dialog"
+            aria-labelledby="unit-price-history-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="unit-price-history-title">단가 변경 이력{historyTitle ? ` — ${historyTitle}` : ''}</h2>
+            {historyError && <p className="error-banner">{historyError}</p>}
+            {historyMode === 'all' && (
+              <form onSubmit={onAllHistorySearch} className="unit-price-history-filters">
+                <CompanySearchField
+                  label="거래처"
+                  partnerTypes={historyPartnerRoles}
+                  selectedCompany={allHistoryFilters.company}
+                  onSelect={(company) => setAllHistoryFilters((prev) => ({ ...prev, company }))}
+                  clearToken={historyFilterClearToken}
+                  placeholder="거래처명 또는 사업자번호"
+                />
+                <ItemSearchField
+                  label="품목"
+                  selectedItem={allHistoryFilters.item}
+                  onSelect={(item) => setAllHistoryFilters((prev) => ({ ...prev, item }))}
+                  clearToken={historyFilterClearToken}
+                  allowedClassifications={historyItemClasses}
+                  placeholder="품목번호 또는 품목명"
+                />
+                <label>
+                  구분
+                  <select
+                    value={allHistoryFilters.costType}
+                    onChange={(e) => {
+                      const costType = e.target.value as HistoryCostTypeFilter;
+                      setAllHistoryFilters((prev) => ({
+                        ...prev,
+                        costType,
+                        company: null,
+                        item: null,
+                      }));
+                      setHistoryFilterClearToken((token) => token + 1);
+                    }}
+                  >
+                    <option value="">전체</option>
+                    <option value="SALE">판매</option>
+                    <option value="PURCHASE">구매</option>
+                    <option value="OUTSOURCE">외주</option>
+                  </select>
+                </label>
+                <label>
+                  수정일(시작)
+                  <input
+                    type="date"
+                    value={allHistoryFilters.changedFrom}
+                    onChange={(e) =>
+                      setAllHistoryFilters((prev) => ({ ...prev, changedFrom: e.target.value }))
+                    }
+                    title="등록이면 등록일, 삭제이면 삭제일 기준으로 검색합니다."
+                  />
+                </label>
+                <label>
+                  수정일(종료)
+                  <input
+                    type="date"
+                    value={allHistoryFilters.changedTo}
+                    onChange={(e) =>
+                      setAllHistoryFilters((prev) => ({ ...prev, changedTo: e.target.value }))
+                    }
+                    title="등록이면 등록일, 삭제이면 삭제일 기준으로 검색합니다."
+                  />
+                </label>
+                <label>
+                  수정자
+                  <input
+                    type="text"
+                    value={allHistoryFilters.changedBy}
+                    onChange={(e) =>
+                      setAllHistoryFilters((prev) => ({ ...prev, changedBy: e.target.value }))
+                    }
+                    placeholder="등록자·수정자·삭제자"
+                    title="등록이면 등록자, 삭제이면 삭제자로 검색합니다."
+                  />
+                </label>
+                <div className="form-actions unit-price-history-filter-actions">
+                  <button type="submit" disabled={historyLoading}>
+                    검색
+                  </button>
+                  <button type="button" className="secondary" disabled={historyLoading} onClick={onAllHistoryReset}>
+                    초기화
+                  </button>
+                </div>
+              </form>
+            )}
+            <div className="panel-header-row">
+              <p className="hint" style={{ margin: 0 }}>
+                등록·수정·삭제 시점의 단가 스냅샷입니다. 최신순으로 표시합니다.
+              </p>
+              <GridExcelExportButton
+                fileBaseName="단가변경이력"
+                sheetName="이력"
+                disabled={historyLoading || historyRows.length === 0}
+                rows={historyExportRows}
+              />
+            </div>
+            {historyLoading ? (
+              <p>불러오는 중…</p>
+            ) : historyRows.length === 0 && !historyError ? (
+              <p className="hint">변경 이력이 없습니다.</p>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>품목번호</th>
+                      <th>품목명</th>
+                      <th>변경사유</th>
+                      <th>단가구분</th>
+                      <th>거래처명</th>
+                      <th>시작공정</th>
+                      <th>종료공정</th>
+                      <th className="num">기준단가</th>
+                      <th>적용시작일</th>
+                      <th>수정자</th>
+                      <th>수정일</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.itemNo}</td>
+                        <td>{row.itemName}</td>
+                        <td>{row.updateReason || '—'}</td>
+                        <td>{costTypeLabel(row.type)}</td>
+                        <td>{row.companyName}</td>
+                        <td>{row.beginProcessName || '—'}</td>
+                        <td>{row.endProcessName || '—'}</td>
+                        <td className="num">{formatAmount(row.standardUnitCost)}</td>
+                        <td>{row.beginDate}</td>
+                        <td>{row.changedBy || '—'}</td>
+                        <td>{formatDateTime(row.changedAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="modal-actions">
+              <button type="button" className="secondary" onClick={closeHistory}>
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

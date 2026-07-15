@@ -9,36 +9,14 @@ public record CompleteQualityInspectionCommand(
         Long inspectionDecisionCodeId,
         Long unsuitabilityCauseCodeId,
         Long unsuitabilityStatusCodeId,
+        String failureReason,
         LocalDate completedDate,
         Integer fiscalYear,
         Integer fiscalMonth,
         String lotNo,
-        boolean autoGenerateLot
+        boolean autoGenerateLot,
+        boolean allowOverQty
 ) {
-    public CompleteQualityInspectionCommand(
-            BigDecimal passedQty,
-            BigDecimal failedQty,
-            Long inspectionDecisionCodeId,
-            Long unsuitabilityCauseCodeId,
-            Long unsuitabilityStatusCodeId,
-            LocalDate completedDate,
-            Integer fiscalYear,
-            Integer fiscalMonth
-    ) {
-        this(
-                passedQty,
-                failedQty,
-                inspectionDecisionCodeId,
-                unsuitabilityCauseCodeId,
-                unsuitabilityStatusCodeId,
-                completedDate,
-                fiscalYear,
-                fiscalMonth,
-                null,
-                false
-        );
-    }
-
     public CompleteQualityInspectionCommand {
         if (passedQty == null || failedQty == null) {
             throw new IllegalArgumentException("합격·불량 수량은 필수입니다.");
@@ -48,6 +26,13 @@ public record CompleteQualityInspectionCommand(
         }
         if (completedDate == null) {
             throw new IllegalArgumentException("검사완료일은 필수입니다.");
+        }
+        if (failedQty.compareTo(BigDecimal.ZERO) > 0
+                && (failureReason == null || failureReason.isBlank())) {
+            throw new IllegalArgumentException("불량수량이 있으면 불량사유를 입력해 주세요.");
+        }
+        if (failureReason != null && failureReason.length() > 500) {
+            throw new IllegalArgumentException("불량사유는 500자 이하여야 합니다.");
         }
     }
 }

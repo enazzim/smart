@@ -22,6 +22,8 @@ import PurchaseOrderPage from '../pages/PurchaseOrderPage';
 import PurchaseReceiptPage from '../pages/PurchaseReceiptPage';
 import EtcPurchaseOrderPage from '../pages/EtcPurchaseOrderPage';
 import EtcPurchaseReceiptPage from '../pages/EtcPurchaseReceiptPage';
+import EtcClaimPage from '../pages/EtcClaimPage';
+import DefectClaimPage from '../pages/DefectClaimPage';
 import PartnerPaymentPage from '../pages/PartnerPaymentPage';
 import PayableApprovalPage from '../pages/PayableApprovalPage';
 import InventoryLedgerPage from '../pages/InventoryLedgerPage';
@@ -39,9 +41,11 @@ import QualityInspectionPage from '../pages/QualityInspectionPage';
 import SalesShipmentPage from '../pages/SalesShipmentPage';
 import SalesRevenuePage from '../pages/SalesRevenuePage';
 import SalesCollectionPage from '../pages/SalesCollectionPage';
-import VendorPurchaseTotalPage from '../pages/VendorPurchaseTotalPage';
+import VendorPurchaseStatusPage from '../pages/VendorPurchaseStatusPage';
+import PurchaseDailyReportPage from '../pages/PurchaseDailyReportPage';
 import WarehouseIoPage from '../pages/WarehouseIoPage';
 import ItemIoPage from '../pages/ItemIoPage';
+import OrderVsReceiptPage from '../pages/OrderVsReceiptPage';
 import PlaceholderPage from '../pages/PlaceholderPage';
 
 const DrawingPage = lazy(() => import('../pages/DrawingPage'));
@@ -91,6 +95,8 @@ export type PurchasePageId =
   | 'purchase-receipt'
   | 'purchase-etc-order'
   | 'purchase-etc-receipt'
+  | 'purchase-etc-claim'
+  | 'purchase-defect-claim'
   | 'purchase-payable-approval'
   | 'purchase-payment';
 
@@ -101,9 +107,11 @@ export type OutsourcePageId = 'outsource-order' | 'outsource-shipment' | 'outsou
 export type QualityPageId = 'quality-inspection';
 
 export type StatsPageId =
-  | 'stats-vendor-purchase'
+  | 'stats-vendor-purchase-status'
+  | 'stats-purchase-daily'
   | 'stats-warehouse-io'
-  | 'stats-item-io';
+  | 'stats-item-io'
+  | 'stats-order-vs-receipt';
 
 export type PlaceholderPageId =
   | 'sales-revenue';
@@ -157,6 +165,8 @@ export const MENU_GROUPS: MenuGroup[] = [
       { id: 'purchase-receipt', label: '구매입고' },
       { id: 'purchase-etc-order', label: '기타구매발주' },
       { id: 'purchase-etc-receipt', label: '기타구매입고' },
+      { id: 'purchase-etc-claim', label: '기타공제등록' },
+      { id: 'purchase-defect-claim', label: '불량변상' },
       { id: 'purchase-payable-approval', label: '승인처리' },
       { id: 'purchase-payment', label: '지급' },
     ],
@@ -188,9 +198,11 @@ export const MENU_GROUPS: MenuGroup[] = [
     id: 'stats',
     label: '통계및 지표',
     children: [
-      { id: 'stats-vendor-purchase', label: '매입처별 집계' },
+      { id: 'stats-vendor-purchase-status', label: '매입처별 매입현황' },
+      { id: 'stats-purchase-daily', label: '매입일보' },
       { id: 'stats-warehouse-io', label: '창고별 수불현황' },
       { id: 'stats-item-io', label: '품목별 수불현황' },
+      { id: 'stats-order-vs-receipt', label: '발주대비입고' },
     ],
   },
   {
@@ -202,10 +214,10 @@ export const MENU_GROUPS: MenuGroup[] = [
     id: 'system',
     label: '시스템정보',
     children: [
-      { id: 'publicCode', label: '공용코드' },
-      { id: 'masterImport', label: '초기정보 일괄입력' },
-      { id: 'role', label: '권한' },
       { id: 'systemSettings', label: '시스템 설정' },
+      { id: 'masterImport', label: '초기정보 일괄입력' },
+      { id: 'publicCode', label: '공용코드' },
+      { id: 'role', label: '권한설정' },
       { id: 'monthClosing', label: '월마감' },
     ],
   },
@@ -245,7 +257,7 @@ const PLACEHOLDER_LABELS: Record<PlaceholderPageId | 'sales-order', string> = {
 };
 
 const SYSTEM_PLACEHOLDER_LABELS: Record<Exclude<SystemPage, 'publicCode' | 'masterImport' | 'monthClosing' | 'systemSettings'>, string> = {
-  role: '권한',
+  role: '권한설정',
 };
 
 export interface BasisPageContext {
@@ -347,6 +359,12 @@ export function renderPurchasePage(page: PurchasePageId) {
   if (page === 'purchase-etc-receipt') {
     return <EtcPurchaseReceiptPage />;
   }
+  if (page === 'purchase-etc-claim') {
+    return <EtcClaimPage />;
+  }
+  if (page === 'purchase-defect-claim') {
+    return <DefectClaimPage />;
+  }
   if (page === 'purchase-payable-approval') {
     return <PayableApprovalPage />;
   }
@@ -381,11 +399,17 @@ export function renderQualityPage(_page: QualityPageId) {
 }
 
 export function renderStatsPage(page: StatsPageId) {
-  if (page === 'stats-vendor-purchase') {
-    return <VendorPurchaseTotalPage />;
+  if (page === 'stats-vendor-purchase-status') {
+    return <VendorPurchaseStatusPage />;
+  }
+  if (page === 'stats-purchase-daily') {
+    return <PurchaseDailyReportPage />;
   }
   if (page === 'stats-warehouse-io') {
     return <WarehouseIoPage />;
+  }
+  if (page === 'stats-order-vs-receipt') {
+    return <OrderVsReceiptPage />;
   }
   return <ItemIoPage />;
 }
@@ -412,9 +436,9 @@ export function defaultChildId(category: MenuCategory): string {
     case 'quality':
       return 'quality-inspection';
     case 'stats':
-      return 'stats-vendor-purchase';
+      return 'stats-vendor-purchase-status';
     case 'system':
-      return 'publicCode';
+      return 'systemSettings';
     default:
       return '';
   }

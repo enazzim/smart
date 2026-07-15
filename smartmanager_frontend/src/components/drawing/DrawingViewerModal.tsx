@@ -445,7 +445,9 @@ export default function DrawingViewerModal({
                   <PdfViewer
                     key={selectedHistory.id}
                     pdfUrl={drawingPdfUrl(partNo, selectedHistory.id)}
-                    partNo={`${partNo} V${selectedHistory.majorVersion}.${selectedHistory.minorVersion}`}
+                    partNo={partNo}
+                    title={`${partNo} V${selectedHistory.majorVersion}.${selectedHistory.minorVersion}`}
+                    updateOfflineCache={selectedHistory.isLatest === 'Y'}
                     onError={onError}
                     toolbarActions={
                       !readOnly && drawingType === 'DEV' && selectedHistory.isLatest === 'Y' && !isDeleted ? (

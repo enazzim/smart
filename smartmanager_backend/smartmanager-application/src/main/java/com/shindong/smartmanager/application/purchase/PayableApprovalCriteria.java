@@ -1,6 +1,6 @@
 package com.shindong.smartmanager.application.purchase;
 
-import com.shindong.smartmanager.domain.purchase.PayableApprovalLedgerKind;
+import com.shindong.smartmanager.domain.purchase.PayableApprovalCategory;
 import java.time.LocalDate;
 
 public record PayableApprovalCriteria(
@@ -10,6 +10,7 @@ public record PayableApprovalCriteria(
         LocalDate receiptDateFrom,
         LocalDate receiptDateTo,
         Integer fiscalYear,
-        Integer fiscalMonth
+        Integer fiscalMonth,
+        PayableApprovalCategory category
 ) {
 }

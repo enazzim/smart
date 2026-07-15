@@ -4,6 +4,7 @@ import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.unitprice.UnitPriceChangeLogView;
 import com.shindong.smartmanager.application.unitprice.UnitPriceCommand;
+import com.shindong.smartmanager.application.unitprice.UnitPriceHistorySearchQuery;
 import com.shindong.smartmanager.application.unitprice.UnitPriceService;
 import com.shindong.smartmanager.application.unitprice.UnitPriceUpdateCommand;
 import com.shindong.smartmanager.application.unitprice.UnitPriceView;
@@ -87,5 +88,10 @@ public class UnitPriceApplicationService {
     @Transactional(readOnly = true)
     public List<UnitPriceChangeLogView> listHistory(long id) {
         return unitPriceService.listHistory(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UnitPriceChangeLogView> listAllHistory(UnitPriceHistorySearchQuery query) {
+        return unitPriceService.listAllHistory(query);
     }
 }

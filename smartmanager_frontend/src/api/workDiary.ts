@@ -9,6 +9,9 @@ export const WORK_DIARY_STATUS_LABELS: Record<WorkDiaryStatus, string> = {
   REJECTED: '반려',
 };
 
+/** 검색 필터용 — 반려(REJECTED)는 미구현이라 노출하지 않음 */
+export const WORK_DIARY_FILTERABLE_STATUSES: WorkDiaryStatus[] = ['DRAFT', 'SUBMITTED', 'APPROVED'];
+
 export const DEFAULT_CHECKLIST_OPTIONS = ['이상무', '이상있음'] as const;
 
 export type WorkDiaryFieldType = 'textarea' | 'checklist';

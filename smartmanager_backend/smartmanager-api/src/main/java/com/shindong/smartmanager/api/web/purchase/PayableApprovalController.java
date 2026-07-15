@@ -4,6 +4,7 @@ import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.purchase.PayableApprovalCriteria;
 import com.shindong.smartmanager.application.purchase.PayableApprovalItemCommand;
 import com.shindong.smartmanager.application.purchase.UpdatePayableApprovalFiscalPeriodCommand;
+import com.shindong.smartmanager.domain.purchase.PayableApprovalCategory;
 import com.shindong.smartmanager.domain.purchase.PayableApprovalLedgerKind;
 import com.shindong.smartmanager.infrastructure.application.PayableApprovalApplicationService;
 import jakarta.validation.Valid;
@@ -42,10 +43,11 @@ public class PayableApprovalController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateTo,
             @RequestParam(required = false) Integer fiscalYear,
-            @RequestParam(required = false) Integer fiscalMonth
+            @RequestParam(required = false) Integer fiscalMonth,
+            @RequestParam(required = false) PayableApprovalCategory category
     ) {
         return payableApprovalApplicationService.listPending(new PayableApprovalCriteria(
-                partnerName, itemNo, itemName, receiptDateFrom, receiptDateTo, fiscalYear, fiscalMonth
+                partnerName, itemNo, itemName, receiptDateFrom, receiptDateTo, fiscalYear, fiscalMonth, category
         )).stream().map(PayableApprovalResponse::from).toList();
     }
 
@@ -58,10 +60,11 @@ public class PayableApprovalController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateTo,
             @RequestParam(required = false) Integer fiscalYear,
-            @RequestParam(required = false) Integer fiscalMonth
+            @RequestParam(required = false) Integer fiscalMonth,
+            @RequestParam(required = false) PayableApprovalCategory category
     ) {
         return payableApprovalApplicationService.listApproved(new PayableApprovalCriteria(
-                partnerName, itemNo, itemName, receiptDateFrom, receiptDateTo, fiscalYear, fiscalMonth
+                partnerName, itemNo, itemName, receiptDateFrom, receiptDateTo, fiscalYear, fiscalMonth, category
         )).stream().map(PayableApprovalResponse::from).toList();
     }
 

@@ -115,6 +115,7 @@ export async function createOutsourcingReceipt(payload: {
   receiptDate: string;
   fiscalYear?: number;
   fiscalMonth?: number;
+  allowOverQty?: boolean;
   lines: Array<{
     outsourcingOrderLineId: number;
     receiptQty: number;

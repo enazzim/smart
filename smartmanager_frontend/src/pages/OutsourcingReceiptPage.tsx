@@ -188,11 +188,23 @@ export default function OutsourcingReceiptPage() {
       setError('입고할 라인을 선택하고 수량을 입력해 주세요.');
       return;
     }
-    for (const { row, qty } of linesToSubmit) {
-      if (qty > row.remainQty) {
-        setError(`${row.itemNo} 입고 수량이 잔량(${formatQty(row.remainQty)})을 초과합니다.`);
+    const overLines = linesToSubmit.filter(({ row, qty }) => qty > row.remainQty);
+    let allowOverQty = false;
+    if (overLines.length > 0) {
+      const detail = overLines
+        .map(
+          ({ row, qty }) =>
+            `· ${row.itemNo}: 입고 ${formatQty(qty)} / 잔량 ${formatQty(row.remainQty)}`,
+        )
+        .join('\n');
+      const ok = await confirm(
+        `잔량보다 많은 수량이 있습니다.\n\n${detail}\n\n그래도 등록하시겠습니까?\n(초과분은 승인 시 지급금액에 반영됩니다.)`,
+        { title: '잔량 초과 확인', confirmLabel: '그래도 등록', cancelLabel: '닫기' },
+      );
+      if (!ok) {
         return;
       }
+      allowOverQty = true;
     }
     setSubmitting(true);
     setError(null);
@@ -202,6 +214,7 @@ export default function OutsourcingReceiptPage() {
         receiptDate,
         fiscalYear: fiscalPeriod.period.fiscalYear,
         fiscalMonth: fiscalPeriod.period.fiscalMonth,
+        allowOverQty,
         lines: linesToSubmit.map(({ row, qty }) => ({
           outsourcingOrderLineId: row.outsourcingOrderLineId,
           receiptQty: qty,
@@ -223,7 +236,10 @@ export default function OutsourcingReceiptPage() {
   };
 
   const onCancelReceipt = async (receipt: OutsourcingReceipt) => {
-    if (!(await confirm(`${receipt.receiptNo} 입고를 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
+    if (!(await confirm(
+      `${receipt.receiptNo} 입고를 취소하시겠습니까?\n품질검사가 완료된 입고는 취소할 수 없습니다. (검사 대기로 복귀 후 취소)`,
+      { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true },
+    ))) {
       return;
     }
     setCancellingId(receipt.id);
@@ -503,6 +519,7 @@ export default function OutsourcingReceiptPage() {
                               {receipt.status !== 'CANCELLED' && (
                                 <button
                                   type="button"
+                                  className="btn-action danger"
                                   disabled={cancellingId === receipt.id}
                                   onClick={() => void onCancelReceipt(receipt)}
                                 >
