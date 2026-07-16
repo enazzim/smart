@@ -592,6 +592,7 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
         return new PurchaseHistoryRecord(
                 entity.getId(),
                 entity.getCompanyId(),
+                entity.getItemId(),
                 entity.getAmount(),
                 entity.getHistoryDate(),
                 entity.getFiscalYear(),
@@ -604,6 +605,7 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
         return new OutsourceHistoryRecord(
                 entity.getId(),
                 entity.getCompanyId(),
+                entity.getItemId(),
                 entity.getAmount(),
                 entity.getHistoryDate(),
                 entity.getFiscalYear(),

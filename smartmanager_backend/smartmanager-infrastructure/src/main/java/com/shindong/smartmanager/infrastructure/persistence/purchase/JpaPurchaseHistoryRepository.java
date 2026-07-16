@@ -49,6 +49,7 @@ public class JpaPurchaseHistoryRepository implements PurchaseHistoryRepository {
                 .map(entity -> new PurchaseHistoryRecord(
                         entity.getId(),
                         entity.getCompanyId(),
+                        entity.getItemId(),
                         entity.getAmount(),
                         entity.getHistoryDate(),
                         entity.getFiscalYear(),

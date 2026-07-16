@@ -153,6 +153,10 @@ public class OutsourceHistoryJpaEntity {
         return companyId;
     }
 
+    public Long getItemId() {
+        return itemId;
+    }
+
     public BigDecimal getAmount() {
         return amount;
     }

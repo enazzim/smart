@@ -4,6 +4,7 @@ export type PayableApprovalLedgerKind = 'PURCHASE' | 'OUTSOURCE' | 'ETC_CLAIM' |
 export type PayableApprovalStatus = 'PENDING' | 'APPROVED';
 /** 전체 / 구매입고 / 외주입고 / 기타구매입고 / 기타공제 */
 export type PayableApprovalCategory = 'ALL' | 'PURCHASE' | 'OUTSOURCE' | 'ETC' | 'CLAIM';
+export type PartnerPaymentCostCategory = 'PURCHASE' | 'OUTSOURCE';
 
 export interface PayableApprovalRow {
   ledgerKind: PayableApprovalLedgerKind;
@@ -27,6 +28,31 @@ export interface PayableApprovalRow {
   approvedByName?: string | null;
   approvalCancelledAt?: string | null;
   approvalCancelledByName?: string | null;
+}
+
+export interface ApproveOffsetItem {
+  ledgerKind: PayableApprovalLedgerKind;
+  historyId: number;
+  partnerId: number;
+  partnerName: string;
+  itemId?: number | null;
+  itemNo: string;
+  itemName: string;
+  costCategory?: PartnerPaymentCostCategory | null;
+  costCategoryLabel?: string | null;
+  approveAmount: number;
+  offsetAmount: number;
+  prepaidAfter: number;
+  unpaidIncrease: number;
+  offsetApplicable: boolean;
+}
+
+export interface ApproveOffsetResult {
+  itemCount: number;
+  totalApproveAmount: number;
+  totalOffsetAmount: number;
+  totalUnpaidIncrease: number;
+  offsets: ApproveOffsetItem[];
 }
 
 export interface PayableApprovalSearchParams {
@@ -70,10 +96,22 @@ export async function fetchApprovedPayableApprovals(
   );
 }
 
+export async function previewPayableApproval(
+  items: { ledgerKind: PayableApprovalLedgerKind; historyId: number }[],
+): Promise<ApproveOffsetResult> {
+  return handleResponse(
+    await apiFetch('/api/v1/purchase/payable-approvals/approve/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    }),
+  );
+}
+
 export async function approvePayableItems(
   items: { ledgerKind: PayableApprovalLedgerKind; historyId: number }[],
-): Promise<void> {
-  await handleResponse(
+): Promise<ApproveOffsetResult> {
+  return handleResponse(
     await apiFetch('/api/v1/purchase/payable-approvals/approve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

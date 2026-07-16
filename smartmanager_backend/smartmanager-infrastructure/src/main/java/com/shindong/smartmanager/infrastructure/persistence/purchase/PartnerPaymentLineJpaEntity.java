@@ -1,44 +1,33 @@
 package com.shindong.smartmanager.infrastructure.persistence.purchase;
 
-import com.shindong.smartmanager.domain.purchase.PartnerPaymentCostCategory;
-import com.shindong.smartmanager.domain.purchase.PartnerPaymentKind;
-import com.shindong.smartmanager.domain.purchase.PartnerPaymentStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDate;
 
 @Entity
-@Table(name = "partner_payment")
-public class PartnerPaymentJpaEntity {
+@Table(name = "partner_payment_line")
+public class PartnerPaymentLineJpaEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "payment_no", nullable = false, length = 30)
-    private String paymentNo;
+    @Column(name = "payment_id", nullable = false)
+    private Long paymentId;
 
-    @Column(name = "partner_id", nullable = false)
-    private Long partnerId;
+    @Column(name = "item_id", nullable = false)
+    private Long itemId;
 
-    @Column(name = "payment_date", nullable = false)
-    private LocalDate paymentDate;
+    @Column(name = "purchase_order_line_id")
+    private Long purchaseOrderLineId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "cost_category", nullable = false)
-    private PartnerPaymentCostCategory costCategory;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "payment_kind", nullable = false)
-    private PartnerPaymentKind paymentKind = PartnerPaymentKind.NORMAL;
+    @Column(name = "outsourcing_order_line_id")
+    private Long outsourcingOrderLineId;
 
     @Column(name = "supply_amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal supplyAmount;
@@ -48,16 +37,6 @@ public class PartnerPaymentJpaEntity {
 
     @Column(name = "total_amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal totalAmount;
-
-    @Column(name = "payment_method", length = 50)
-    private String paymentMethod;
-
-    @Column(name = "remark", length = 500)
-    private String remark;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
-    private PartnerPaymentStatus status = PartnerPaymentStatus.ISSUED;
 
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
@@ -80,51 +59,43 @@ public class PartnerPaymentJpaEntity {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    protected PartnerPaymentJpaEntity() {
+    protected PartnerPaymentLineJpaEntity() {
     }
 
     public Long getId() {
         return id;
     }
 
-    public String getPaymentNo() {
-        return paymentNo;
+    public Long getPaymentId() {
+        return paymentId;
     }
 
-    public void setPaymentNo(String paymentNo) {
-        this.paymentNo = paymentNo;
+    public void setPaymentId(Long paymentId) {
+        this.paymentId = paymentId;
     }
 
-    public Long getPartnerId() {
-        return partnerId;
+    public Long getItemId() {
+        return itemId;
     }
 
-    public void setPartnerId(Long partnerId) {
-        this.partnerId = partnerId;
+    public void setItemId(Long itemId) {
+        this.itemId = itemId;
     }
 
-    public LocalDate getPaymentDate() {
-        return paymentDate;
+    public Long getPurchaseOrderLineId() {
+        return purchaseOrderLineId;
     }
 
-    public void setPaymentDate(LocalDate paymentDate) {
-        this.paymentDate = paymentDate;
+    public void setPurchaseOrderLineId(Long purchaseOrderLineId) {
+        this.purchaseOrderLineId = purchaseOrderLineId;
     }
 
-    public PartnerPaymentCostCategory getCostCategory() {
-        return costCategory;
+    public Long getOutsourcingOrderLineId() {
+        return outsourcingOrderLineId;
     }
 
-    public void setCostCategory(PartnerPaymentCostCategory costCategory) {
-        this.costCategory = costCategory;
-    }
-
-    public PartnerPaymentKind getPaymentKind() {
-        return paymentKind;
-    }
-
-    public void setPaymentKind(PartnerPaymentKind paymentKind) {
-        this.paymentKind = paymentKind;
+    public void setOutsourcingOrderLineId(Long outsourcingOrderLineId) {
+        this.outsourcingOrderLineId = outsourcingOrderLineId;
     }
 
     public BigDecimal getSupplyAmount() {
@@ -149,30 +120,6 @@ public class PartnerPaymentJpaEntity {
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
-    }
-
-    public String getPaymentMethod() {
-        return paymentMethod;
-    }
-
-    public void setPaymentMethod(String paymentMethod) {
-        this.paymentMethod = paymentMethod;
-    }
-
-    public String getRemark() {
-        return remark;
-    }
-
-    public void setRemark(String remark) {
-        this.remark = remark;
-    }
-
-    public PartnerPaymentStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(PartnerPaymentStatus status) {
-        this.status = status;
     }
 
     public int getRecordingState() {

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  approvePayableItems,
   cancelPayableApproval,
   fetchApprovedPayableApprovals,
   fetchPendingPayableApprovals,
+  type ApproveOffsetResult,
   type PayableApprovalCategory,
   type PayableApprovalRow,
   type PayableApprovalSearchParams,
@@ -13,6 +13,7 @@ import CompanySearchField, {
   type CompanySearchSelection,
 } from '../components/CompanySearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import ApprovePreviewModal from '../components/payableApproval/ApprovePreviewModal';
 import { currentFiscalYearMonth } from '../utils/fiscalCalendar';
 import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import { formatAmount } from '../utils/numberFormat';
@@ -65,6 +66,8 @@ export default function PayableApprovalPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [approveResult, setApproveResult] = useState<ApproveOffsetResult | null>(null);
 
   const searchParams = useMemo(
     (): PayableApprovalSearchParams => ({
@@ -168,23 +171,24 @@ export default function PayableApprovalPage() {
     setAppliedPartner(null);
   };
 
-  const onApprove = async () => {
+  const onOpenApprovePreview = () => {
     if (selectedItems.length === 0) {
       setError('승인할 항목을 선택해 주세요.');
       return;
     }
-    setSubmitting(true);
     setError(null);
-    setMessage(null);
-    try {
-      await approvePayableItems(selectedItems);
-      setMessage(`${selectedItems.length}건 승인 처리되었습니다.`);
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '승인 처리 실패');
-    } finally {
-      setSubmitting(false);
-    }
+    setPreviewOpen(true);
+  };
+
+  const onApproved = async (result: ApproveOffsetResult) => {
+    setPreviewOpen(false);
+    setApproveResult(result);
+    const offsetSummary =
+      result.totalOffsetAmount > 0
+        ? ` · 선급상계 ${formatAmount(result.totalOffsetAmount)} · 신규미지급 ${formatAmount(result.totalUnpaidIncrease)}`
+        : '';
+    setMessage(`${result.itemCount}건 승인 처리되었습니다.${offsetSummary}`);
+    await load();
   };
 
   const onCancelApproval = async () => {
@@ -192,12 +196,18 @@ export default function PayableApprovalPage() {
       setError('승인취소할 항목을 선택해 주세요.');
       return;
     }
-    if (!(await confirm(`선택한 ${selectedItems.length}건의 승인을 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
+    if (
+      !(await confirm(
+        `선택한 ${selectedItems.length}건의 승인을 취소하시겠습니까?\n승인취소 시 품목 선급 잔액이 복원될 수 있습니다.`,
+        { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true },
+      ))
+    ) {
       return;
     }
     setSubmitting(true);
     setError(null);
     setMessage(null);
+    setApproveResult(null);
     try {
       await cancelPayableApproval(selectedItems);
       setMessage(`${selectedItems.length}건 승인이 취소되었습니다.`);
@@ -220,14 +230,20 @@ export default function PayableApprovalPage() {
         <button
           type="button"
           className={activeTab === 'pending' ? 'tab-active' : undefined}
-          onClick={() => setActiveTab('pending')}
+          onClick={() => {
+            setActiveTab('pending');
+            setApproveResult(null);
+          }}
         >
           미승인 승인
         </button>
         <button
           type="button"
           className={activeTab === 'approved' ? 'tab-active' : undefined}
-          onClick={() => setActiveTab('approved')}
+          onClick={() => {
+            setActiveTab('approved');
+            setApproveResult(null);
+          }}
         >
           승인 이력
         </button>
@@ -235,6 +251,19 @@ export default function PayableApprovalPage() {
 
       {error && <div className="error">{error}</div>}
       {message && <div className="success">{message}</div>}
+      {approveResult && approveResult.totalOffsetAmount > 0 && (
+        <div className="success" style={{ whiteSpace: 'pre-wrap' }}>
+          <strong>선급 상계 결과</strong>
+          {'\n'}
+          {approveResult.offsets
+            .filter((row) => row.offsetApplicable && row.offsetAmount > 0)
+            .map(
+              (row) =>
+                `· ${row.itemNo || '(품목없음)'} 승인 ${formatAmount(row.approveAmount)} → 상계 ${formatAmount(row.offsetAmount)} / 잔여선급 ${formatAmount(row.prepaidAfter)} / 신규미지급 ${formatAmount(row.unpaidIncrease)}`,
+            )
+            .join('\n')}
+        </div>
+      )}
 
       <section className="panel">
         <h2>검색</h2>
@@ -335,7 +364,7 @@ export default function PayableApprovalPage() {
             <button
               type="button"
               disabled={submitting || selectedItems.length === 0}
-              onClick={() => void onApprove()}
+              onClick={onOpenApprovePreview}
             >
               {submitting ? '처리 중…' : '승인'}
             </button>
@@ -424,6 +453,13 @@ export default function PayableApprovalPage() {
           </div>
         )}
       </section>
+
+      <ApprovePreviewModal
+        open={previewOpen}
+        items={selectedItems}
+        onClose={() => setPreviewOpen(false)}
+        onApproved={(result) => void onApproved(result)}
+      />
     </div>
   );
 }

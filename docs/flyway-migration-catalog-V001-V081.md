@@ -91,6 +91,7 @@
 | V090 | `V090__order_vs_receipt_permission.sql` | 발주 vs 입고 권한 분리 |
 | V091 | `V091__notice_board_post_read.sql` | 공지 게시판 읽음 확인 `board_post_read` |
 | V092 | `V092__drawing_lifecycle.sql` | 도면 `lifecycle_stage`·`source_partner_id`·`item_linked_at` — [`drawing-lifecycle-design.md`](step0/drawing-lifecycle-design.md) |
+| V093 | `V093__partner_prepaid.sql` | 품목 단위 선지급·승인 FIFO 상계 (`payment_kind`, `partner_payment_line`, `partner_prepaid_offset`) — [`partner-prepaid-design.md`](step0/partner-prepaid-design.md) |
 
 ## 참고
 

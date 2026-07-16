@@ -1359,6 +1359,39 @@ td.num .fiscal-period-field-editing {
   z-index: 50;
 }
 
+/* 선지급 품목 콤보: table-wrap overflow에 목록이 잘리지 않도록 */
+.app-main .prepaid-payment-lines {
+  position: relative;
+  z-index: 5;
+  overflow: visible;
+  border: 1px solid var(--sm-blue-100);
+  border-radius: 8px;
+}
+
+.app-main .prepaid-payment-lines > table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow: visible;
+}
+
+.app-main .prepaid-payment-lines td,
+.app-main .prepaid-payment-lines .prepaid-item-cell {
+  overflow: visible;
+  position: relative;
+  vertical-align: top;
+  min-width: 240px;
+}
+
+.app-main .prepaid-payment-lines .item-combobox {
+  width: 100%;
+  min-width: 220px;
+}
+
+.app-main .prepaid-payment-lines .item-combobox-list {
+  z-index: 80;
+  min-width: 280px;
+}
+
 .app-main .panel > table + .form-actions,
 .app-main .panel > table + .action-bar {
   position: relative;
@@ -4551,6 +4584,7 @@ td.num.sales-order-amount {
   background: #fff;
   border-radius: 10px;
   width: min(96vw, 1280px);
+  height: min(92vh, 960px);
   max-height: 92vh;
   display: flex;
   flex-direction: column;
@@ -4560,9 +4594,9 @@ td.num.sales-order-amount {
 
 .drawing-viewer-body {
   display: flex;
+  flex: 1 1 0;
+  min-width: 0;
   min-height: 0;
-  flex: 1;
-  height: min(78vh, 900px);
 }
 
 .drawing-history-sidebar {
@@ -4636,16 +4670,20 @@ td.num.sales-order-amount {
 .drawing-viewer-main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   position: relative;
+  overflow: hidden;
 }
 
 .drawing-pdf-viewer {
-  position: relative;
+  position: absolute;
+  inset: 0;
   width: 100%;
+  max-width: 100%;
   height: 100%;
-  min-height: 520px;
   background: #1e293b;
   user-select: none;
+  overflow: hidden;
 }
 
 .drawing-pdf-toolbar {
@@ -4677,18 +4715,64 @@ td.num.sales-order-amount {
 }
 
 .drawing-pdf-toolbar__zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  height: 2rem;
+  flex-shrink: 0;
+}
+
+.app-main .drawing-pdf-viewer .drawing-pdf-toolbar input.drawing-pdf-toolbar__zoom-input {
+  box-sizing: border-box !important;
+  width: 2.75rem !important;
+  min-width: 2.75rem !important;
+  max-width: 2.75rem !important;
+  height: 2rem !important;
+  min-height: 2rem !important;
+  max-height: 2rem !important;
+  margin: 0 !important;
+  padding: 0 0.15rem !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  border-radius: 6px !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  color: #fff !important;
+  font-size: 0.75rem !important;
+  line-height: 2rem !important;
+  text-align: center !important;
+  box-shadow: none !important;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.app-main .drawing-pdf-viewer .drawing-pdf-toolbar input.drawing-pdf-toolbar__zoom-input::-webkit-outer-spin-button,
+.app-main .drawing-pdf-viewer .drawing-pdf-toolbar input.drawing-pdf-toolbar__zoom-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.app-main .drawing-pdf-viewer .drawing-pdf-toolbar input.drawing-pdf-toolbar__zoom-input:focus {
+  outline: none !important;
+  border-color: #93c5fd !important;
+  box-shadow: none !important;
+}
+
+.drawing-pdf-toolbar__zoom-suffix {
   color: #fff;
-  font-size: 0.85rem;
-  min-width: 2.5rem;
-  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1;
+  user-select: none;
 }
 
 .drawing-pdf-toolbar button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   width: 2rem;
   height: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0;
   border: none;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.12);
@@ -4705,7 +4789,9 @@ td.num.sales-order-amount {
   align-items: center;
   gap: 0.35rem;
   width: auto;
+  min-width: 0;
   height: auto;
+  min-height: 0;
   padding: 0.35rem 0.75rem;
   font-size: 0.82rem;
   font-weight: 600;
@@ -4718,19 +4804,46 @@ td.num.sales-order-amount {
 }
 
 .drawing-pdf-scroll {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-width: 100%;
   height: 100%;
-  overflow: auto;
-  padding: 3.25rem 0.75rem 1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  box-sizing: border-box;
+  overflow-x: scroll;
+  overflow-y: scroll;
+  padding: 3.25rem 0 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
-.drawing-pdf-page {
-  margin-bottom: 1rem;
+.drawing-pdf-scroll__inner {
+  display: block;
+  box-sizing: content-box;
+  padding: 0.75rem 0.75rem 1rem;
+  max-width: none;
+}
+
+.drawing-pdf-document.react-pdf__Document,
+.drawing-pdf-scroll .react-pdf__Document {
+  display: block !important;
+  width: max-content !important;
+  max-width: none !important;
+}
+
+.drawing-pdf-page.react-pdf__Page,
+.drawing-pdf-scroll .react-pdf__Page {
+  display: block !important;
+  margin: 0 0 1rem !important;
+  width: max-content !important;
+  max-width: none !important;
+  min-width: auto !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  transition: transform 0.2s ease-out;
-  transform-origin: top center;
+}
+
+.drawing-pdf-scroll .react-pdf__Page canvas {
+  display: block !important;
+  max-width: none !important;
 }
 
 .drawing-pdf-loading,
@@ -4778,13 +4891,18 @@ td.num.sales-order-amount {
 
   .drawing-viewer-body {
     flex-direction: column;
-    height: auto;
-    max-height: 78vh;
+    min-height: 0;
+  }
+
+  .drawing-viewer-main {
+    min-height: 0;
+    flex: 1 1 auto;
   }
 
   .drawing-history-sidebar {
     width: 100%;
     max-height: 180px;
+    flex-shrink: 0;
     border-right: none;
     border-bottom: 1px solid #e5e7eb;
   }

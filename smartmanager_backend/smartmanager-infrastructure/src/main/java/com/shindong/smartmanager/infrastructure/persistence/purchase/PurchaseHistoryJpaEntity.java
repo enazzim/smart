@@ -155,6 +155,10 @@ public class PurchaseHistoryJpaEntity {
         return companyId;
     }
 
+    public Long getItemId() {
+        return itemId;
+    }
+
     public BigDecimal getAmount() {
         return amount;
     }

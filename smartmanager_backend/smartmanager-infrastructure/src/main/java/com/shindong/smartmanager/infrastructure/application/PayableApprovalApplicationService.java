@@ -1,10 +1,11 @@
 package com.shindong.smartmanager.infrastructure.application;
 
+import com.shindong.smartmanager.application.purchase.ApproveOffsetResultView;
 import com.shindong.smartmanager.application.purchase.PayableApprovalCriteria;
 import com.shindong.smartmanager.application.purchase.PayableApprovalItemCommand;
-import com.shindong.smartmanager.application.purchase.UpdatePayableApprovalFiscalPeriodCommand;
 import com.shindong.smartmanager.application.purchase.PayableApprovalService;
 import com.shindong.smartmanager.application.purchase.PayableApprovalView;
+import com.shindong.smartmanager.application.purchase.UpdatePayableApprovalFiscalPeriodCommand;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,9 +29,14 @@ public class PayableApprovalApplicationService {
         return payableApprovalService.listApproved(criteria);
     }
 
+    @Transactional(readOnly = true)
+    public ApproveOffsetResultView preview(List<PayableApprovalItemCommand> items) {
+        return payableApprovalService.preview(items);
+    }
+
     @Transactional
-    public void approve(List<PayableApprovalItemCommand> items, long userId, String actorUserId) {
-        payableApprovalService.approve(items, userId, actorUserId);
+    public ApproveOffsetResultView approve(List<PayableApprovalItemCommand> items, long userId, String actorUserId) {
+        return payableApprovalService.approve(items, userId, actorUserId);
     }
 
     @Transactional
