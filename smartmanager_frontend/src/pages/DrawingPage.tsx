@@ -10,13 +10,23 @@ import {
   restoreDrawing,
   type DrawingListItem,
   type DrawingReferenceIntegrityIssue,
-  type DrawingType,
 } from '../api/drawing';
 import DrawingUploadModal from '../components/drawing/DrawingUploadModal';
 import DrawingReviseModal from '../components/drawing/DrawingReviseModal';
 import DrawingViewerModal from '../components/drawing/DrawingViewerModal';
 import DrawingInfoEditModal from '../components/drawing/DrawingInfoEditModal';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import {
+  canReviseDrawing,
+  isArchivedLifecycle,
+  lifecycleBadgeClass,
+  lifecycleStageLabel,
+  type DrawingLifecycleStage,
+} from '../utils/drawingLifecycle';
+import {
+  getDrawingDefaultTab,
+  isProductionDrawingViewer,
+} from '../layout/menuAccess';
 import { listCachedDrawingPartNos, syncDailyDrawings } from '../services/drawingOfflineCacheService';
 import { useBannerMessages } from '../hooks/useBannerMessages';
 import { useConfirm } from '../context/ConfirmContext';
@@ -33,20 +43,33 @@ interface DrawingPageProps {
   readOnly?: boolean;
   canHardDelete?: boolean;
   actorUserId?: string;
+  roleCodes?: string[];
 }
 
-function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId }: DrawingPageProps) {
+const LIFECYCLE_FILTER_OPTIONS: { value: '' | DrawingLifecycleStage; label: string }[] = [
+  { value: '', label: '전체 단계' },
+  { value: 'RECEIVED', label: '선수신' },
+  { value: 'SAMPLE', label: '샘플' },
+  { value: 'PARTNER_REVIEW', label: '거래처 검토' },
+  { value: 'MASS_PROD_READY', label: '양산 준비' },
+  { value: 'ITEM_LINKED', label: '품목 연결' },
+  { value: 'ARCHIVED', label: '보관 (사용 종료)' },
+];
+
+function DrawingDashboard({
+  readOnly = false,
+  canHardDelete = false,
+  actorUserId,
+  roleCodes = [],
+}: DrawingPageProps) {
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const { message, error, showSuccess, showError } = useBannerMessages();
+  const productionViewer = isProductionDrawingViewer(roleCodes, !readOnly);
 
-  const [tab, setTab] = useState<DrawingTab>('dev');
+  const [tab, setTab] = useState<DrawingTab>(() => getDrawingDefaultTab(roleCodes));
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [viewingDrawing, setViewingDrawing] = useState<{
-    id: string;
-    partNo: string;
-    type: DrawingType;
-  } | null>(null);
+  const [viewingDrawing, setViewingDrawing] = useState<DrawingListItem | null>(null);
   const [revisingDrawing, setRevisingDrawing] = useState<{
     partNo: string;
     majorVersion: number;
@@ -57,18 +80,21 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
     partNo: string;
     partName: string;
     modelType: string;
-    itemId?: number | null;
-    itemNo?: string | null;
   } | null>(null);
 
   const [searchPartNo, setSearchPartNo] = useState('');
   const [searchModelType, setSearchModelType] = useState('');
   const [searchDate, setSearchDate] = useState('');
   const [searchItem, setSearchItem] = useState<ItemSearchSelection | null>(null);
+  const [searchLifecycleStage, setSearchLifecycleStage] = useState<'' | DrawingLifecycleStage>('');
+  const [searchHistoryQuery, setSearchHistoryQuery] = useState('');
+  const [includeHistorySearch, setIncludeHistorySearch] = useState(false);
   const [appliedPartNo, setAppliedPartNo] = useState('');
   const [appliedModelType, setAppliedModelType] = useState('');
   const [appliedDate, setAppliedDate] = useState('');
   const [appliedItem, setAppliedItem] = useState<ItemSearchSelection | null>(null);
+  const [appliedLifecycleStage, setAppliedLifecycleStage] = useState<'' | DrawingLifecycleStage>('');
+  const [appliedHistoryQuery, setAppliedHistoryQuery] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [itemClearToken, setItemClearToken] = useState(0);
   const [isSyncingOffline, setIsSyncingOffline] = useState(false);
@@ -78,9 +104,17 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   const [integrityLoading, setIntegrityLoading] = useState(false);
   const [integrityIssues, setIntegrityIssues] = useState<DrawingReferenceIntegrityIssue[]>([]);
 
+  const listQuery = useMemo(
+    () => ({
+      lifecycleStage: appliedLifecycleStage || null,
+      historyQuery: appliedHistoryQuery || null,
+    }),
+    [appliedLifecycleStage, appliedHistoryQuery],
+  );
+
   const { data: drawings = [], isLoading, isError, isFetching } = useQuery({
-    queryKey: ['drawings'],
-    queryFn: fetchDrawings,
+    queryKey: ['drawings', listQuery],
+    queryFn: () => fetchDrawings(listQuery),
     enabled: hasSearched,
   });
 
@@ -105,29 +139,59 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
     ]);
   };
 
+  const patchDrawingInLists = (rowId: string, patch: Partial<DrawingListItem>) => {
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['drawings'] },
+      (prev) => {
+        if (!Array.isArray(prev)) {
+          return prev;
+        }
+        return prev.map((item) => (item.id === rowId ? { ...item, ...patch } : item));
+      },
+    );
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['deletedDrawings'] },
+      (prev) => {
+        if (!Array.isArray(prev)) {
+          return prev;
+        }
+        return prev.map((item) => (item.id === rowId ? { ...item, ...patch } : item));
+      },
+    );
+  };
+
   const moveDrawingToActive = (row: DrawingListItem) => {
-    queryClient.setQueryData<DrawingListItem[]>(['drawings'], (prev) => {
-      const base = prev ?? [];
-      return base.some((item) => item.id === row.id) ? base : [...base, row];
-    });
-    queryClient.setQueryData<DrawingListItem[]>(['deletedDrawings'], (prev) =>
-      (prev ?? []).filter((item) => item.id !== row.id),
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['drawings'] },
+      (prev) => {
+        const base = Array.isArray(prev) ? prev : [];
+        return base.some((item) => item.id === row.id) ? base : [...base, row];
+      },
+    );
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['deletedDrawings'] },
+      (prev) => (Array.isArray(prev) ? prev.filter((item) => item.id !== row.id) : prev),
     );
   };
 
   const moveDrawingToDeleted = (row: DrawingListItem) => {
-    queryClient.setQueryData<DrawingListItem[]>(['drawings'], (prev) =>
-      (prev ?? []).filter((item) => item.partNo !== row.partNo),
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['drawings'] },
+      (prev) => (Array.isArray(prev) ? prev.filter((item) => item.partNo !== row.partNo) : prev),
     );
-    queryClient.setQueryData<DrawingListItem[]>(['deletedDrawings'], (prev) => {
-      const base = prev ?? [];
-      return base.some((item) => item.id === row.id) ? base : [...base, row];
-    });
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['deletedDrawings'] },
+      (prev) => {
+        const base = Array.isArray(prev) ? prev : [];
+        return base.some((item) => item.id === row.id) ? base : [...base, row];
+      },
+    );
   };
 
   const removeDeletedDrawing = (id: string) => {
-    queryClient.setQueryData<DrawingListItem[]>(['deletedDrawings'], (prev) =>
-      (prev ?? []).filter((item) => item.id !== id),
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['deletedDrawings'] },
+      (prev) => (Array.isArray(prev) ? prev.filter((item) => item.id !== id) : prev),
     );
   };
 
@@ -207,11 +271,19 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
     modelType?: string;
     date?: string;
     item?: ItemSearchSelection | null;
+    lifecycleStage?: '' | DrawingLifecycleStage;
+    historyQuery?: string;
+    includeHistory?: boolean;
   }) => {
     setAppliedPartNo(next.partNo ?? searchPartNo);
     setAppliedModelType(next.modelType ?? searchModelType);
     setAppliedDate(next.date ?? searchDate);
     setAppliedItem(next.item !== undefined ? next.item : searchItem);
+    const stage = next.lifecycleStage !== undefined ? next.lifecycleStage : searchLifecycleStage;
+    const includeHistory = next.includeHistory !== undefined ? next.includeHistory : includeHistorySearch;
+    const historyQ = next.historyQuery !== undefined ? next.historyQuery : searchHistoryQuery;
+    setAppliedLifecycleStage(stage);
+    setAppliedHistoryQuery(includeHistory && historyQ.trim() ? historyQ.trim() : '');
     setHasSearched(true);
   };
 
@@ -224,10 +296,15 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
     setSearchModelType('');
     setSearchDate('');
     setSearchItem(null);
+    setSearchLifecycleStage('');
+    setSearchHistoryQuery('');
+    setIncludeHistorySearch(false);
     setAppliedPartNo('');
     setAppliedModelType('');
     setAppliedDate('');
     setAppliedItem(null);
+    setAppliedLifecycleStage('');
+    setAppliedHistoryQuery('');
     setHasSearched(false);
     setItemClearToken((token) => token + 1);
     setOfflineMessage(null);
@@ -286,7 +363,7 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
       <header className="page-header">
         <div>
           <h1>도면 관리 현황</h1>
-          <p>개발·양산 도면 등록, 개정, PDF 열람 및 품목 연동을 관리합니다.</p>
+          <p>거래처 선수신 → 개발 개정 → 양산 이관 → 품목 연결 업무 흐름을 관리합니다.</p>
         </div>
         <div className="inline-actions">
           <button
@@ -320,6 +397,11 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
 
       {message && <p className="success-banner">{message}</p>}
       {error && <p className="error-banner">{error}</p>}
+      <p className="hint drawing-workflow-hint">
+        {productionViewer
+          ? '생산 열람 모드: 양산품(PROD) 탭에서 최신 도면을 확인합니다. 과거 이력은 상세 화면 사이드바에서 열람할 수 있습니다.'
+          : '개발품(DEV)은 품질·관리 담당, 양산품(PROD)은 생산 열람용입니다. 버전 V1.1은 메이저 1·마이너 1(구 표기 V1-1)을 의미합니다.'}
+      </p>
       {hasSearched && isError && <p className="error-banner">데이터를 불러오지 못했습니다.</p>}
       {offlineMessage && (
         <p className="hint">
@@ -381,6 +463,44 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
               }}
             />
           </label>
+          <label>
+            <span>업무 단계</span>
+            <select
+              value={searchLifecycleStage}
+              onChange={(e) => setSearchLifecycleStage(e.target.value as '' | DrawingLifecycleStage)}
+            >
+              {LIFECYCLE_FILTER_OPTIONS.map((option) => (
+                <option key={option.value || 'all'} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="drawing-filter-history">
+            <span>AS 이력 검색</span>
+            <div className="drawing-filter-history__row">
+              <input
+                value={searchHistoryQuery}
+                placeholder="개정 사유·버전 (예: 1.1)"
+                disabled={!includeHistorySearch}
+                onChange={(e) => setSearchHistoryQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSearch();
+                  }
+                }}
+              />
+              <label className="drawing-filter-checkbox">
+                <input
+                  type="checkbox"
+                  checked={includeHistorySearch}
+                  onChange={(e) => setIncludeHistorySearch(e.target.checked)}
+                />
+                전체 이력 포함
+              </label>
+            </div>
+          </div>
           <div className="drawing-filter-actions">
             <button type="button" onClick={handleSearch}>
               검색
@@ -470,8 +590,6 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
           initialPartNo={editingDrawing.partNo}
           initialPartName={editingDrawing.partName}
           initialModelType={editingDrawing.modelType}
-          initialItemId={editingDrawing.itemId}
-          initialItemNo={editingDrawing.itemNo}
           actorUserId={actorUserId}
           onSuccess={showSuccess}
           onError={showError}
@@ -484,13 +602,24 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
           onClose={() => setViewingDrawing(null)}
           masterId={viewingDrawing.id}
           partNo={viewingDrawing.partNo}
-          drawingType={viewingDrawing.type}
+          drawingType={viewingDrawing.drawingType}
+          lifecycleStage={viewingDrawing.lifecycleStage}
+          sourcePartnerName={viewingDrawing.sourcePartnerName}
+          itemId={viewingDrawing.itemId}
+          itemNo={viewingDrawing.itemNo}
+          itemLinkedAt={viewingDrawing.itemLinkedAt}
+          historyHighlightQuery={appliedHistoryQuery || undefined}
           isDeleted={tab === 'deleted'}
           readOnly={readOnly}
           canManage={!readOnly}
           actorUserId={actorUserId}
           onSuccess={showSuccess}
           onError={showError}
+          onDrawingMetaChange={(patch) => {
+            const rowId = patch.id ?? viewingDrawing.id;
+            patchDrawingInLists(rowId, patch);
+            setViewingDrawing((prev) => (prev && prev.id === rowId ? { ...prev, ...patch } : prev));
+          }}
         />
       )}
 
@@ -508,12 +637,18 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
                 <article key={row.id} className="drawing-card">
                   <div className="drawing-card__header">
                     <h3 className="drawing-card__title">{row.partNo}</h3>
-                    <span className="drawing-version-badge">
-                      V{row.majorVersion}.{row.minorVersion}
-                    </span>
+                    <div className="drawing-card__badges">
+                      <span className={lifecycleBadgeClass(row.lifecycleStage)}>
+                        {lifecycleStageLabel(row.lifecycleStage)}
+                      </span>
+                      <span className="drawing-version-badge">
+                        V{row.majorVersion}.{row.minorVersion}
+                      </span>
+                    </div>
                   </div>
                   <p className="drawing-card__meta">
                     {row.partName} | {row.modelType}
+                    {row.sourcePartnerName ? ` | 선수신 ${row.sourcePartnerName}` : ''}
                     {row.itemNo ? ` | 품목 ${row.itemNo}` : ''}
                   </p>
                   <p className="hint">최근 등록일: {row.updatedAt}</p>
@@ -527,6 +662,8 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
                 <thead>
                   <tr>
                     <th>품번</th>
+                    <th>업무 단계</th>
+                    <th>선수신 거래처</th>
                     <th>연결 품목</th>
                     <th>품명</th>
                     <th>기종</th>
@@ -541,6 +678,12 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
                       <td>
                         <strong>{row.partNo}</strong>
                       </td>
+                      <td>
+                        <span className={lifecycleBadgeClass(row.lifecycleStage)}>
+                          {lifecycleStageLabel(row.lifecycleStage)}
+                        </span>
+                      </td>
+                      <td>{row.sourcePartnerName ?? '—'}</td>
                       <td>{row.itemNo ?? '—'}</td>
                       <td>{row.partName}</td>
                       <td>{row.modelType}</td>
@@ -563,9 +706,10 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   );
 
   function renderRowActions(row: DrawingListItem) {
+    const archived = isArchivedLifecycle(row.lifecycleStage);
     return (
       <div className="drawing-row-actions">
-        {!readOnly && tab !== 'deleted' && (
+        {!readOnly && tab !== 'deleted' && !archived && (
           <button
             type="button"
             className="drawing-icon-btn drawing-icon-btn--warn"
@@ -576,15 +720,13 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
                 partNo: row.partNo,
                 partName: row.partName,
                 modelType: row.modelType,
-                itemId: row.itemId,
-                itemNo: row.itemNo,
               })
             }
           >
             <Edit size={16} />
           </button>
         )}
-        {!readOnly && tab !== 'deleted' && (
+        {!readOnly && tab !== 'deleted' && canReviseDrawing(row.drawingType, row.lifecycleStage) && (
           <button
             type="button"
             className="drawing-icon-btn"
@@ -604,7 +746,7 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
           type="button"
           className="drawing-icon-btn drawing-icon-btn--info"
           title="도면 열람"
-          onClick={() => setViewingDrawing({ id: row.id, partNo: row.partNo, type: row.drawingType })}
+          onClick={() => setViewingDrawing(row)}
         >
           <Eye size={16} />
         </button>
@@ -643,10 +785,20 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   }
 }
 
-export default function DrawingPage({ readOnly = false, canHardDelete = false, actorUserId }: DrawingPageProps) {
+export default function DrawingPage({
+  readOnly = false,
+  canHardDelete = false,
+  actorUserId,
+  roleCodes = [],
+}: DrawingPageProps) {
   return (
     <QueryClientProvider client={drawingQueryClient}>
-      <DrawingDashboard readOnly={readOnly} canHardDelete={canHardDelete} actorUserId={actorUserId} />
+      <DrawingDashboard
+        readOnly={readOnly}
+        canHardDelete={canHardDelete}
+        actorUserId={actorUserId}
+        roleCodes={roleCodes}
+      />
     </QueryClientProvider>
   );
 }

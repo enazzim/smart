@@ -232,6 +232,17 @@
   font-weight: 600;
 }
 
+.tab-row-secondary {
+  margin-top: -0.35rem;
+  margin-bottom: 1rem;
+  padding-left: 0.15rem;
+}
+
+.tab-row-secondary button {
+  padding: 0.42rem 0.85rem;
+  font-size: 0.92rem;
+}
+
 .form-grid-wide {
   display: grid;
   gap: 0.85rem 1rem;
@@ -2297,6 +2308,229 @@ table.nested-table td {
   gap: 0.75rem;
 }
 
+/* 게시판 목록(업무일지 제외) — 번호·부가열 좁게, 제목 넓게 */
+.board-page .board-list-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.board-list-table .board-col-no {
+  width: 3.25rem;
+}
+
+.board-list-table .board-col-author {
+  width: 6rem;
+}
+
+.board-list-table .board-col-date {
+  width: 6.25rem;
+}
+
+.board-list-table .board-col-views {
+  width: 3.25rem;
+}
+
+.board-list-table .board-col-attach {
+  width: 2.75rem;
+}
+
+.board-list-table .board-col-no,
+.board-list-table .board-col-views,
+.board-list-table .board-col-attach {
+  text-align: center;
+  font-size: 0.82rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.board-list-table .board-col-author,
+.board-list-table .board-col-date {
+  font-size: 0.82rem;
+  color: #4b5563;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-list-table thead .board-col-no,
+.board-list-table thead .board-col-author,
+.board-list-table thead .board-col-date,
+.board-list-table thead .board-col-views,
+.board-list-table thead .board-col-attach {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.board-list-table .board-col-title {
+  width: auto;
+}
+
+.board-list-table .board-col-title .board-title-link {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+
+.board-list-table .board-col-title .board-title-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 1.02rem;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .board-page .table-wrap {
+    overflow-x: visible;
+    border: none;
+    background: transparent;
+  }
+
+  .board-page .board-list-table {
+    display: block;
+    table-layout: auto;
+  }
+
+  .board-page .board-list-table thead {
+    display: none;
+  }
+
+  .board-page .board-list-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .board-page .board-list-table tbody tr.board-list-data-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.2rem 0.45rem;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--sm-blue-100);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .board-page .board-list-table tbody tr.board-list-status-row {
+    display: block;
+    padding: 1.25rem 0.5rem;
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.88rem;
+  }
+
+  .board-page .board-list-table tbody tr.board-list-status-row td {
+    display: block;
+    padding: 0;
+    border: none;
+  }
+
+  .board-page .board-list-table tbody tr.board-list-data-row td {
+    display: block;
+    padding: 0;
+    border: none;
+    width: auto !important;
+    text-align: left;
+  }
+
+  .board-page .board-list-table .board-col-no {
+    display: none;
+  }
+
+  .board-page .board-list-table .board-col-title {
+    flex: 1 1 100%;
+    margin-bottom: 0.15rem;
+  }
+
+  .board-page .board-list-table .board-col-title .board-title-link {
+    align-items: flex-start;
+  }
+
+  .board-page .board-list-table .board-col-title .board-title-text {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+
+  .board-page .board-list-table .board-col-author,
+  .board-page .board-list-table .board-col-date,
+  .board-page .board-list-table .board-col-views,
+  .board-page .board-list-table .board-col-attach {
+    flex: 0 0 auto;
+    font-size: 0.78rem;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .board-page .board-list-table .board-col-date::before,
+  .board-page .board-list-table .board-col-views::before,
+  .board-page .board-list-table .board-col-attach:not(:empty)::before {
+    content: '·';
+    margin: 0 0.35rem;
+    color: #d1d5db;
+  }
+
+  .board-page .board-list-table .board-col-views::after {
+    content: ' 조회';
+    font-size: 0.72rem;
+    color: #6b7280;
+  }
+
+  .board-page .board-list-table .board-col-attach:not(:empty) {
+    color: transparent;
+    font-size: 0;
+  }
+
+  .board-page .board-list-table .board-col-attach:not(:empty)::after {
+    content: '첨부';
+    font-size: 0.72rem;
+    color: #6b7280;
+  }
+
+  .board-page .board-list-table .board-col-attach:empty {
+    display: none;
+  }
+
+  .board-page .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .board-page .page-header > button {
+    align-self: flex-end;
+  }
+
+  .board-page .board-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .board-page .board-toolbar input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .board-page .board-toolbar button {
+    width: 100%;
+  }
+}
+
 .board-article {
   background: #fff;
   border: 1px solid var(--sm-blue-100);
@@ -3983,6 +4217,55 @@ td.num.sales-order-amount {
 }
 
 .drawing-filter-grid input,
+.drawing-filter-grid .item-combobox input,
+.drawing-filter-grid select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.drawing-filter-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.drawing-filter-history__row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.drawing-filter-history__row > input {
+  flex: 1;
+  min-width: 0;
+}
+
+.drawing-filter-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: #4b5563;
+  margin: 0;
+}
+
+.drawing-workflow-hint {
+  margin: 0 0 0.75rem;
+}
+
+.drawing-history-item--highlight {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
 .drawing-filter-grid .item-combobox input {
   width: 100%;
   min-width: 0;
@@ -4009,6 +4292,106 @@ td.num.sales-order-amount {
   color: #047857;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.drawing-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.drawing-lifecycle-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.drawing-lifecycle-badge--received {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.drawing-lifecycle-badge--sample {
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+.drawing-lifecycle-badge--review {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.drawing-lifecycle-badge--prod-ready {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.drawing-lifecycle-badge--linked {
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+.drawing-lifecycle-badge--archived {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.drawing-viewer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.drawing-viewer-meta__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.drawing-viewer-meta__text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.drawing-viewer-meta__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.drawing-viewer-meta__action--archive {
+  color: #6b7280;
+  border-color: #d1d5db;
+}
+
+.drawing-viewer-meta__action--unarchive {
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.drawing-viewer-meta__archive-hint {
+  margin: 0.25rem 0 0;
+  color: #6b7280;
+}
+
+.drawing-lifecycle-select select {
+  min-width: 8.5rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #fff;
 }
 
 .drawing-card-list {
@@ -4158,6 +4541,10 @@ td.num.sales-order-amount {
 
 .drawing-viewer-backdrop {
   z-index: 110;
+}
+
+.drawing-link-item-backdrop {
+  z-index: 120;
 }
 
 .drawing-viewer-modal {

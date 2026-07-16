@@ -89,6 +89,18 @@ export function canHardDeleteDrawings(authorities: string[]): boolean {
   return authorities.includes('basis:drawing:hard-delete');
 }
 
+/** 도면 목록 기본 탭 — UI 가이드 (권한 코드 분리 없음) */
+export function getDrawingDefaultTab(roleCodes: string[]): 'dev' | 'prod' {
+  if (roleCodes.includes('PRODUCTION_OPERATOR') && !roleCodes.includes('BASIS_MANAGER')) {
+    return 'prod';
+  }
+  return 'dev';
+}
+
+export function isProductionDrawingViewer(roleCodes: string[], canManageDrawings: boolean): boolean {
+  return !canManageDrawings && roleCodes.includes('PRODUCTION_OPERATOR');
+}
+
 /** 운영자 등 — 사이드바 없이 내 계정(비밀번호 변경)만 필요할 때 */
 export function canAccessSelfAccount(roleCodes: string[], authorities: string[]): boolean {
   if (canManageBasisData(roleCodes)) {

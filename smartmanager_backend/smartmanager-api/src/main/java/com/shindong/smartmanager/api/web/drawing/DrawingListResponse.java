@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.api.web.drawing;
 
 import com.shindong.smartmanager.application.drawing.DrawingListView;
+import com.shindong.smartmanager.domain.drawing.DrawingLifecycleStage;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
@@ -11,6 +12,10 @@ public record DrawingListResponse(
         String modelType,
         Long itemId,
         String itemNo,
+        String lifecycleStage,
+        Long sourcePartnerId,
+        String sourcePartnerName,
+        String itemLinkedAt,
         Integer majorVersion,
         Integer minorVersion,
         String updatedAt,
@@ -27,10 +32,18 @@ public record DrawingListResponse(
                 view.modelType(),
                 view.itemId(),
                 view.itemNo(),
+                formatStage(view.lifecycleStage()),
+                view.sourcePartnerId(),
+                view.sourcePartnerName(),
+                view.itemLinkedAt() != null ? FORMATTER.format(view.itemLinkedAt()) : null,
                 view.majorVersion(),
                 view.minorVersion(),
                 FORMATTER.format(view.updatedAt()),
                 view.drawingType().name()
         );
+    }
+
+    private static String formatStage(DrawingLifecycleStage stage) {
+        return stage != null ? stage.name() : null;
     }
 }

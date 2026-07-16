@@ -262,6 +262,7 @@ const SYSTEM_PLACEHOLDER_LABELS: Record<Exclude<SystemPage, 'publicCode' | 'mast
 
 export interface BasisPageContext {
   currentUser: AuthenticatedUser | null;
+  roleCodes: string[];
   canManageUsers: boolean;
   canManageDrawings: boolean;
   canHardDeleteDrawings: boolean;
@@ -276,6 +277,7 @@ export function renderBasisPage(tab: BasisTab, ctx?: BasisPageContext) {
           readOnly={!(ctx?.canManageDrawings ?? false)}
           canHardDelete={ctx?.canHardDeleteDrawings ?? false}
           actorUserId={ctx?.currentUser?.loginId}
+          roleCodes={ctx?.roleCodes ?? []}
         />
       </Suspense>
     );

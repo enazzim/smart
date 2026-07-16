@@ -88,6 +88,9 @@
 | V079 | `V079__stock_movement_lot_and_genealogy.sql` | LOT-2: `stock_movement.lot_id` 및 계보 `lot_genealogy` 추가 |
 | V080 | `V080__work_report_lot.sql` | LOT-3: 작업일보 투입·산출 Lot FK (`work_report_consumption_line.lot_id`, `work_report.output_lot_id`) |
 | V081 | `V081__lot4_tx_lot_id.sql` | LOT-4: 영업출고·매출·외주출고 투입·외주입고·기타입출고 라인에 `lot_id` 추가 |
+| V090 | `V090__order_vs_receipt_permission.sql` | 발주 vs 입고 권한 분리 |
+| V091 | `V091__notice_board_post_read.sql` | 공지 게시판 읽음 확인 `board_post_read` |
+| V092 | `V092__drawing_lifecycle.sql` | 도면 `lifecycle_stage`·`source_partner_id`·`item_linked_at` — [`drawing-lifecycle-design.md`](step0/drawing-lifecycle-design.md) |
 
 ## 참고
 
