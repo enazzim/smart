@@ -17,6 +17,7 @@ export interface FullBackupSetInfo {
   totalSizeBytes: number;
   drawingPdfFileCount: number;
   createdAt: string;
+  reason?: string | null;
 }
 
 export type BackupListItem = BackupFileInfo | FullBackupSetInfo;
@@ -65,9 +66,13 @@ export async function createBackup(reason: string): Promise<BackupFileInfo> {
   return { ...created, kind: 'db-only' };
 }
 
-export async function createFullBackup(): Promise<FullBackupSetInfo> {
+export async function createFullBackup(reason: string): Promise<FullBackupSetInfo> {
   const created = await handleResponse<Omit<FullBackupSetInfo, 'kind'>>(
-    await apiFetch(`${API}/full`, { method: 'POST' }),
+    await apiFetch(`${API}/full`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    }),
   );
   return { ...created, kind: 'full' };
 }

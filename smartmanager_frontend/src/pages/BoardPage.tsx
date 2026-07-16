@@ -200,31 +200,31 @@ function BoardListView({
       {error && <p className="error-banner">{error}</p>}
 
       <div className="table-wrap">
-        <table>
+        <table className="board-list-table">
           <thead>
             <tr>
-              <th>번호</th>
-              <th>제목</th>
-              <th>작성자</th>
-              <th>등록일</th>
-              <th>조회</th>
-              <th>첨부</th>
+              <th className="board-col-no">번호</th>
+              <th className="board-col-title">제목</th>
+              <th className="board-col-author">작성자</th>
+              <th className="board-col-date">등록일</th>
+              <th className="board-col-views">조회</th>
+              <th className="board-col-attach">첨부</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr>
+              <tr className="board-list-status-row">
                 <td colSpan={6}>불러오는 중…</td>
               </tr>
             ) : items.length === 0 ? (
-              <tr>
+              <tr className="board-list-status-row">
                 <td colSpan={6}>등록된 글이 없습니다.</td>
               </tr>
             ) : (
               items.map((item, index) => (
-                <tr key={item.id}>
-                  <td>{total - page * PAGE_SIZE - index}</td>
-                  <td>
+                <tr key={item.id} className="board-list-data-row">
+                  <td className="board-col-no">{total - page * PAGE_SIZE - index}</td>
+                  <td className="board-col-title">
                     <button type="button" className="link-button board-title-link" onClick={() => onNavigateDetail(item.id)}>
                       <span className="board-title-text">
                         {item.pinned ? '[고정] ' : ''}
@@ -233,10 +233,10 @@ function BoardListView({
                       <NewPostBadge createdAt={item.createdAt} />
                     </button>
                   </td>
-                  <td>{item.authorName}</td>
-                  <td>{formatBoardDate(item.createdAt)}</td>
-                  <td>{item.viewCount}</td>
-                  <td>{item.hasAttachment ? 'Y' : ''}</td>
+                  <td className="board-col-author">{item.authorName}</td>
+                  <td className="board-col-date">{formatBoardDate(item.createdAt)}</td>
+                  <td className="board-col-views">{item.viewCount}</td>
+                  <td className="board-col-attach">{item.hasAttachment ? 'Y' : ''}</td>
                 </tr>
               ))
             )}

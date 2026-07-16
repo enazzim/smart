@@ -26,6 +26,7 @@ import { formatAmount, formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
 
 type OrderPageTab = 'general' | 'subMaterial';
+type GeneralOrderMode = 'mrp' | 'manual';
 
 const GENERAL_ITEM_CLASSES: PropertyClassification[] = ['원자재', '상품'];
 const SUB_MATERIAL_ITEM_CLASSES: PropertyClassification[] = ['부자재'];
@@ -112,6 +113,7 @@ function collectAllSelectableVendorKeys(candidates: MrpPurchaseCandidate[]): Set
 export default function PurchaseOrderPage() {
   const confirm = useConfirm();
   const [pageTab, setPageTab] = useState<OrderPageTab>('general');
+  const [generalOrderMode, setGeneralOrderMode] = useState<GeneralOrderMode>('mrp');
   const itemPropertyScope = pageTab === 'subMaterial' ? 'SUB_MATERIAL' : 'GENERAL';
   const allowedManualClasses = pageTab === 'subMaterial' ? SUB_MATERIAL_ITEM_CLASSES : GENERAL_ITEM_CLASSES;
   const [candidates, setCandidates] = useState<MrpPurchaseCandidate[]>([]);
@@ -540,6 +542,32 @@ export default function PurchaseOrderPage() {
         </button>
       </div>
 
+      {pageTab === 'general' && (
+        <div className="tab-row tab-row-secondary" aria-label="구매발주 등록 방식">
+          <button
+            type="button"
+            className={generalOrderMode === 'mrp' ? 'tab-active' : undefined}
+            onClick={() => {
+              setGeneralOrderMode('mrp');
+              setManualError(null);
+            }}
+          >
+            MRP 발주 대상
+          </button>
+          <button
+            type="button"
+            className={generalOrderMode === 'manual' ? 'tab-active' : undefined}
+            onClick={() => {
+              setGeneralOrderMode('manual');
+              setCandidateError(null);
+            }}
+          >
+            직접 발주
+          </button>
+        </div>
+      )}
+
+      {(pageTab === 'subMaterial' || generalOrderMode === 'manual') && (
       <section className="panel">
         <h2>{pageTab === 'subMaterial' ? '부자재 발주' : '직접 발주'}</h2>
         <p className="hint-text">
@@ -642,8 +670,9 @@ export default function PurchaseOrderPage() {
           </button>
         </div>
       </section>
+      )}
 
-      {pageTab === 'general' && (
+      {pageTab === 'general' && generalOrderMode === 'mrp' && (
       <section className="panel">
         <h2>MRP 발주 대상</h2>
         <p className="hint-text">

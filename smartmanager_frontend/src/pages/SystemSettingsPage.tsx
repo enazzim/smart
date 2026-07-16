@@ -183,6 +183,7 @@ function BackupPanel() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createModalKind, setCreateModalKind] = useState<'db-only' | 'full'>('db-only');
   const [backupReason, setBackupReason] = useState('');
 
   const load = async () => {
@@ -202,7 +203,8 @@ function BackupPanel() {
     void load();
   }, []);
 
-  const openCreateModal = () => {
+  const openCreateModal = (kind: 'db-only' | 'full') => {
+    setCreateModalKind(kind);
     setBackupReason('');
     setError(null);
     setCreateModalOpen(true);
@@ -215,7 +217,7 @@ function BackupPanel() {
     setError(null);
   };
 
-  const onCreateDb = async () => {
+  const onCreateBackup = async () => {
     const reason = backupReason.trim();
     if (!reason) {
       setError('백업 사유를 입력해 주세요.');
@@ -225,30 +227,20 @@ function BackupPanel() {
     setError(null);
     setMessage(null);
     try {
-      const created = await createBackup(reason);
-      setMessage(`DB 백업을 저장했습니다: ${created.fileName}`);
+      if (createModalKind === 'db-only') {
+        const created = await createBackup(reason);
+        setMessage(`DB 백업을 저장했습니다: ${created.fileName}`);
+      } else {
+        const created = await createFullBackup(reason);
+        setMessage(
+          `전체 백업을 저장했습니다: ${created.setName} (도면 PDF ${created.drawingPdfFileCount}건)`,
+        );
+      }
       setCreateModalOpen(false);
       setBackupReason('');
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : '백업 저장 실패');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const onCreateFull = async () => {
-    setSubmitting(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const created = await createFullBackup();
-      setMessage(
-        `전체 백업을 저장했습니다: ${created.setName} (도면 PDF ${created.drawingPdfFileCount}건)`,
-      );
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '전체 백업 저장 실패');
     } finally {
       setSubmitting(false);
     }
@@ -325,10 +317,10 @@ function BackupPanel() {
       <div className="panel-header-row">
         <h2>데이터 백업 및 복구</h2>
         <div className="inline-actions">
-          <button type="button" disabled={submitting} onClick={openCreateModal}>
+          <button type="button" disabled={submitting} onClick={() => openCreateModal('db-only')}>
             {submitting ? '처리 중…' : 'DB 백업'}
           </button>
-          <button type="button" disabled={submitting} onClick={() => void onCreateFull()}>
+          <button type="button" disabled={submitting} onClick={() => openCreateModal('full')}>
             {submitting ? '처리 중…' : '전체 백업 (DB+도면 PDF)'}
           </button>
         </div>
@@ -363,7 +355,10 @@ function BackupPanel() {
                 const size = item.kind === 'db-only' ? item.fileSizeBytes : item.totalSizeBytes;
                 const typeLabel =
                   item.kind === 'db-only' ? 'DB만' : `전체 (PDF ${item.drawingPdfFileCount}건)`;
-                const reason = item.kind === 'db-only' ? item.reason?.trim() || '—' : '—';
+                const reason =
+                  item.kind === 'db-only'
+                    ? item.reason?.trim() || '—'
+                    : item.reason?.trim() || '—';
                 return (
                   <tr key={key}>
                     <td>{typeLabel}</td>
@@ -397,7 +392,10 @@ function BackupPanel() {
       {createModalOpen && (
         <div className="modal-backdrop" role="presentation" onClick={closeCreateModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>DB 백업 저장</h2>
+            <h2>{createModalKind === 'full' ? '전체 백업 저장' : 'DB 백업 저장'}</h2>
+            {createModalKind === 'full' ? (
+              <p className="hint-text">DB와 도면 PDF를 함께 백업합니다. 백업 사유를 입력해 주세요.</p>
+            ) : null}
             <div className="form-grid">
               <label>
                 백업 사유 *
@@ -407,12 +405,18 @@ function BackupPanel() {
                   placeholder="예: A/S 품목 납품가능, 마이그레이션 적용 전"
                   onChange={(e) => setBackupReason(e.target.value)}
                   autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void onCreateBackup();
+                    }
+                  }}
                 />
               </label>
             </div>
             {error && <div className="error">{error}</div>}
             <div className="form-actions">
-              <button type="button" disabled={submitting} onClick={() => void onCreateDb()}>
+              <button type="button" disabled={submitting} onClick={() => void onCreateBackup()}>
                 {submitting ? '저장 중…' : '저장'}
               </button>
               <button type="button" className="secondary" disabled={submitting} onClick={closeCreateModal}>

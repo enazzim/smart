@@ -32,8 +32,11 @@ const PLAN_WORK_PLAN_STATUS_OPTIONS: { value: ProductionPlanWorkPlanStatus | '';
   { value: 'PLANNED', label: '수립' },
 ];
 
+type PlanRegisterMode = 'pending' | 'standalone';
+
 export default function ProductionPlanPage() {
   const confirm = useConfirm();
+  const [registerMode, setRegisterMode] = useState<PlanRegisterMode>('pending');
   const [candidates, setCandidates] = useState<SalesOrderLineListRow[]>([]);
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
@@ -289,6 +292,30 @@ export default function ProductionPlanPage() {
         </div>
       </header>
 
+      <div className="tab-row" aria-label="생산계획 등록 방식">
+        <button
+          type="button"
+          className={registerMode === 'pending' ? 'tab-active' : undefined}
+          onClick={() => {
+            setRegisterMode('pending');
+            setStandaloneError(null);
+          }}
+        >
+          수립 대기
+        </button>
+        <button
+          type="button"
+          className={registerMode === 'standalone' ? 'tab-active' : undefined}
+          onClick={() => {
+            setRegisterMode('standalone');
+            setCandidateError(null);
+          }}
+        >
+          계획 직접 추가
+        </button>
+      </div>
+
+      {registerMode === 'standalone' && (
       <section className="panel">
         <h2>계획 직접 추가</h2>
         <p className="hint-text">
@@ -327,7 +354,9 @@ export default function ProductionPlanPage() {
           </button>
         </div>
       </section>
+      )}
 
+      {registerMode === 'pending' && (
       <section className="panel">
         <h2>수립 대기</h2>
         <p className="hint-text">
@@ -422,6 +451,7 @@ export default function ProductionPlanPage() {
           </div>
         )}
       </section>
+      )}
 
       <section className="panel">
         <div className="panel-header-row">
