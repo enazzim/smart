@@ -465,6 +465,23 @@ function BoardDetailView({
             </ul>
           </section>
         )}
+
+        {boardType === 'NOTICE' && post.postKind === 'TOP' && (
+          <section className="board-readers">
+            <h3>읽음 확인 ({post.readers?.length ?? 0})</h3>
+            {(post.readers?.length ?? 0) === 0 ? (
+              <p className="board-readers-empty">아직 읽은 사람이 없습니다.</p>
+            ) : (
+              <ul className="board-readers-list">
+                {post.readers.map((reader) => (
+                  <li key={reader.userId}>
+                    {reader.name || '이름 없음'}({reader.loginId || '—'})
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
       </article>
 
       {post.replies.length > 0 && (
