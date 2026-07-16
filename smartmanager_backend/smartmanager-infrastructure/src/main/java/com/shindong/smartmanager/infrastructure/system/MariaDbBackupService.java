@@ -131,6 +131,15 @@ public class MariaDbBackupService {
         }
     }
 
+    /** 전체 백업 등 SQL 덤프 경로에 사유 메타데이터를 붙인다. */
+    public void attachReason(Path sqlPath, String reason) {
+        writeMetadata(sqlPath, normalizeReason(reason));
+    }
+
+    public java.util.Optional<String> findReason(Path sqlPath) {
+        return readReason(sqlPath);
+    }
+
     public void deleteBackup(String fileName) {
         Path path = resolveBackupFile(fileName);
         try {
