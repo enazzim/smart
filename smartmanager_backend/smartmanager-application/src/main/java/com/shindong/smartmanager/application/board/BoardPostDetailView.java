@@ -21,6 +21,7 @@ public record BoardPostDetailView(
         Instant updatedAt,
         List<BoardAttachmentView> attachments,
         List<BoardPostDetailView> replies,
+        List<BoardPostReaderView> readers,
         boolean canEdit,
         boolean canDelete
 ) {

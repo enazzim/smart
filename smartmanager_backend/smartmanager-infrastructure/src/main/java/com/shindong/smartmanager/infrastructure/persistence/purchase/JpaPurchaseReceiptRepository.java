@@ -103,6 +103,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
                 sql.append(" AND i.item_name LIKE :itemName");
                 params.put("itemName", "%" + criteria.itemName().trim() + "%");
             }
+            appendItemPropertyScopeFilter(sql, params, criteria.itemPropertyScope());
         }
         sql.append(" ORDER BY po.order_date DESC, po.order_no, pol.line_no");
 
@@ -257,6 +258,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
             }
             sql.append(")");
         }
+        appendReceiptItemPropertyScopeFilter(sql, params, criteria.itemPropertyScope());
         sql.append(" ORDER BY pr.receipt_date DESC, pr.receipt_no DESC");
 
         Query query = entityManager.createNativeQuery(sql.toString());
@@ -276,7 +278,65 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
                 && criteria.receiptDateFrom() == null
                 && criteria.receiptDateTo() == null
                 && (criteria.itemNum() == null || criteria.itemNum().isBlank())
-                && (criteria.itemName() == null || criteria.itemName().isBlank());
+                && (criteria.itemName() == null || criteria.itemName().isBlank())
+                && (criteria.itemPropertyScope() == null || criteria.itemPropertyScope().isBlank());
+    }
+
+    private static void appendItemPropertyScopeFilter(
+            StringBuilder sql,
+            Map<String, Object> params,
+            String itemPropertyScope
+    ) {
+        if (itemPropertyScope == null || itemPropertyScope.isBlank()) {
+            return;
+        }
+        String scope = itemPropertyScope.trim();
+        if ("SUB_MATERIAL".equals(scope)) {
+            sql.append(" AND i.property_classification = :itemPropertyClassification");
+            params.put("itemPropertyClassification", "부자재");
+        } else if ("GENERAL".equals(scope)) {
+            sql.append(" AND i.property_classification IN (:generalPropertyClassifications)");
+            params.put("generalPropertyClassifications", List.of("원자재", "상품"));
+        }
+    }
+
+    private static void appendReceiptItemPropertyScopeFilter(
+            StringBuilder sql,
+            Map<String, Object> params,
+            String itemPropertyScope
+    ) {
+        if (itemPropertyScope == null || itemPropertyScope.isBlank()) {
+            return;
+        }
+        String scope = itemPropertyScope.trim();
+        if ("SUB_MATERIAL".equals(scope)) {
+            sql.append("""
+                     AND EXISTS (
+                        SELECT 1 FROM purchase_receipt_line prl
+                        JOIN item i ON i.id = prl.item_id
+                        WHERE prl.purchase_receipt_id = pr.id AND prl.recording_state = 1
+                          AND i.property_classification = :scopePropertyClassification
+                    )
+                    """);
+            params.put("scopePropertyClassification", "부자재");
+        } else if ("GENERAL".equals(scope)) {
+            sql.append("""
+                     AND EXISTS (
+                        SELECT 1 FROM purchase_receipt_line prl
+                        JOIN item i ON i.id = prl.item_id
+                        WHERE prl.purchase_receipt_id = pr.id AND prl.recording_state = 1
+                          AND i.property_classification IN (:scopeGeneralPropertyClassifications)
+                    )
+                     AND NOT EXISTS (
+                        SELECT 1 FROM purchase_receipt_line prl
+                        JOIN item i ON i.id = prl.item_id
+                        WHERE prl.purchase_receipt_id = pr.id AND prl.recording_state = 1
+                          AND i.property_classification = :scopeSubMaterialClassification
+                    )
+                    """);
+            params.put("scopeGeneralPropertyClassifications", List.of("원자재", "상품"));
+            params.put("scopeSubMaterialClassification", "부자재");
+        }
     }
 
     @Override

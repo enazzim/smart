@@ -59,6 +59,9 @@ public class QualityInspectionJpaEntity {
     @Column(name = "unsuitability_status_code_id")
     private Long unsuitabilityStatusCodeId;
 
+    @Column(name = "failure_reason", length = 500)
+    private String failureReason;
+
     @Column(name = "completed_at")
     private Instant completedAt;
 
@@ -184,6 +187,14 @@ public class QualityInspectionJpaEntity {
 
     public void setUnsuitabilityStatusCodeId(Long unsuitabilityStatusCodeId) {
         this.unsuitabilityStatusCodeId = unsuitabilityStatusCodeId;
+    }
+
+    public String getFailureReason() {
+        return failureReason;
+    }
+
+    public void setFailureReason(String failureReason) {
+        this.failureReason = failureReason;
     }
 
     public Instant getCompletedAt() {

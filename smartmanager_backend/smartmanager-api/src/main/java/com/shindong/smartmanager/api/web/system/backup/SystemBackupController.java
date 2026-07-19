@@ -95,8 +95,8 @@ public class SystemBackupController {
     @PostMapping("/full")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('system:backup:execute')")
-    public FullBackupSetResponse createFull() {
-        return FullBackupSetResponse.from(databaseBackupApplicationService.createFullBackup());
+    public FullBackupSetResponse createFull(@Valid @RequestBody CreateBackupRequest request) {
+        return FullBackupSetResponse.from(databaseBackupApplicationService.createFullBackup(request.reason()));
     }
 
     @DeleteMapping("/full/{setName}")
@@ -161,7 +161,8 @@ public class SystemBackupController {
             String sqlFileName,
             long totalSizeBytes,
             long drawingPdfFileCount,
-            Instant createdAt
+            Instant createdAt,
+            String reason
     ) {
         static FullBackupSetResponse from(FullBackupSetView view) {
             return new FullBackupSetResponse(
@@ -169,7 +170,8 @@ public class SystemBackupController {
                     view.sqlFileName(),
                     view.totalSizeBytes(),
                     view.drawingPdfFileCount(),
-                    view.createdAt()
+                    view.createdAt(),
+                    view.reason()
             );
         }
     }

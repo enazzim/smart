@@ -39,10 +39,11 @@ public class PurchaseReceiptController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDateTo,
             @RequestParam(required = false) String itemNum,
-            @RequestParam(required = false) String itemName
+            @RequestParam(required = false) String itemName,
+            @RequestParam(required = false) String itemPropertyScope
     ) {
         PurchaseReceiptCandidateCriteria criteria = new PurchaseReceiptCandidateCriteria(
-                partnerName, orderNo, orderDateFrom, orderDateTo, itemNum, itemName
+                partnerName, orderNo, orderDateFrom, orderDateTo, itemNum, itemName, itemPropertyScope
         );
         return purchaseReceiptApplicationService.listCandidates(criteria).stream()
                 .map(PurchaseReceiptCandidateResponse::from)
@@ -56,10 +57,11 @@ public class PurchaseReceiptController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateTo,
             @RequestParam(required = false) String itemNum,
-            @RequestParam(required = false) String itemName
+            @RequestParam(required = false) String itemName,
+            @RequestParam(required = false) String itemPropertyScope
     ) {
         PurchaseReceiptListCriteria criteria = new PurchaseReceiptListCriteria(
-                partnerName, receiptDateFrom, receiptDateTo, itemNum, itemName
+                partnerName, receiptDateFrom, receiptDateTo, itemNum, itemName, itemPropertyScope
         );
         return purchaseReceiptApplicationService.list(criteria).stream()
                 .map(PurchaseReceiptResponse::from)
@@ -89,7 +91,8 @@ public class PurchaseReceiptController {
                                         line.lotNo(),
                                         Boolean.TRUE.equals(line.autoGenerateLot())
                                 ))
-                                .toList()
+                                .toList(),
+                        Boolean.TRUE.equals(request.allowOverQty())
                 ),
                 principal.loginId()
         ));

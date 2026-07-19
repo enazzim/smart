@@ -4,7 +4,8 @@ public enum PropertyClassification {
     원자재,
     제품,
     상품,
-    공정품;
+    공정품,
+    부자재;
 
     /** 생산 완료(최종 공정) 시 영업창고로 직접 입고하는 분류 */
     public boolean salesWarehouseAtProductionComplete() {

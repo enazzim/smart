@@ -168,7 +168,7 @@ export default function MasterImportPage() {
   const stageFile = useCallback(async (domain: ImportDomain, file: File) => {
     try {
       const buffer = await file.arrayBuffer();
-      const rows = await parseImportExcel(domain, buffer);
+      const rows = await parseImportExcel(domain, buffer, file.name);
       const parseErrors = validateImportRows(domain, rows);
       setStagedByDomain((prev) => ({
         ...prev,

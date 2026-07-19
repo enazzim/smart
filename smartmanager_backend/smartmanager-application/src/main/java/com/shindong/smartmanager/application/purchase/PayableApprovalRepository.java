@@ -14,6 +14,10 @@ public interface PayableApprovalRepository {
 
     OutsourceHistoryRecord findActiveOutsourceHistory(long id);
 
+    EtcClaimHistoryRecord findActiveEtcClaim(long id);
+
+    DefectClaimHistoryRecord findActiveDefectClaim(long id);
+
     void approvePurchaseHistory(long id, long userId);
 
     void cancelApprovalPurchaseHistory(long id, long userId);
@@ -22,7 +26,19 @@ public interface PayableApprovalRepository {
 
     void cancelApprovalOutsourceHistory(long id, long userId);
 
+    void approveEtcClaim(long id, long userId);
+
+    void cancelApprovalEtcClaim(long id, long userId);
+
+    void approveDefectClaim(long id, long userId);
+
+    void cancelApprovalDefectClaim(long id, long userId);
+
     void updatePurchaseHistoryFiscalPeriod(long id, int fiscalYear, int fiscalMonth);
 
     void updateOutsourceHistoryFiscalPeriod(long id, int fiscalYear, int fiscalMonth);
+
+    void updateEtcClaimFiscalPeriod(long id, int fiscalYear, int fiscalMonth);
+
+    void updateDefectClaimFiscalPeriod(long id, int fiscalYear, int fiscalMonth);
 }

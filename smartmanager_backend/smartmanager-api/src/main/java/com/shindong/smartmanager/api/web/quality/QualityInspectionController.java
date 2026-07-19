@@ -78,11 +78,13 @@ public class QualityInspectionController {
                         request.inspectionDecisionCodeId(),
                         request.unsuitabilityCauseCodeId(),
                         request.unsuitabilityStatusCodeId(),
+                        request.failureReason(),
                         request.completedDate(),
                         request.fiscalYear(),
                         request.fiscalMonth(),
                         request.lotNo(),
-                        Boolean.TRUE.equals(request.autoGenerateLot())
+                        Boolean.TRUE.equals(request.autoGenerateLot()),
+                        Boolean.TRUE.equals(request.allowOverQty())
                 ),
                 principal.loginId()
         ));

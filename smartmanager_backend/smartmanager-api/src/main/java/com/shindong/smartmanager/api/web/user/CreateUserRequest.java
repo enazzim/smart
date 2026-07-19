@@ -7,7 +7,7 @@ import java.util.List;
 
 public record CreateUserRequest(
         @NotBlank @Size(max = 100) String loginId,
-        @NotBlank @Size(min = 8, max = 100) String password,
+        @NotBlank @Size(max = 100) String password,
         @NotBlank @Size(max = 100) String name,
         @Size(max = 50) String contact,
         @Size(max = 200) String email,

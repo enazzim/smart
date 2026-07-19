@@ -240,6 +240,7 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
         }
         String partnerName = normalizeQuery(criteria.partnerName());
         String orderNo = normalizeQuery(criteria.orderNo());
+        String itemPropertyScope = normalizeScope(criteria.itemPropertyScope());
         return orderRepository.searchActive(
                 ACTIVE,
                 criteria.orderDateFrom(),
@@ -248,10 +249,39 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
                 orderNo,
                 criteria.status(),
                 criteria.excludeCancelled(),
-                PurchaseOrderStatus.CANCELLED
+                PurchaseOrderStatus.CANCELLED,
+                itemPropertyScope
         ).stream()
                 .map(order -> toView(order, loadLines(order.getId())))
+                .filter(view -> matchesItemPropertyScope(view, itemPropertyScope))
                 .toList();
+    }
+
+    private static String normalizeScope(String itemPropertyScope) {
+        if (itemPropertyScope == null || itemPropertyScope.isBlank()) {
+            return null;
+        }
+        return itemPropertyScope.trim();
+    }
+
+    private static boolean matchesItemPropertyScope(PurchaseOrderView view, String itemPropertyScope) {
+        if (itemPropertyScope == null || itemPropertyScope.isBlank()) {
+            return true;
+        }
+        boolean hasSubMaterial = view.lines().stream()
+                .anyMatch(line -> "부자재".equals(line.propertyClassification()));
+        boolean hasNonSubMaterial = view.lines().stream()
+                .anyMatch(line -> line.propertyClassification() != null
+                        && !line.propertyClassification().isBlank()
+                        && !"부자재".equals(line.propertyClassification()));
+        boolean hasGeneral = view.lines().stream()
+                .anyMatch(line -> "원자재".equals(line.propertyClassification())
+                        || "상품".equals(line.propertyClassification()));
+        return switch (itemPropertyScope) {
+            case "SUB_MATERIAL" -> hasSubMaterial && !hasNonSubMaterial;
+            case "GENERAL" -> hasGeneral && !hasSubMaterial;
+            default -> true;
+        };
     }
 
     private String normalizeQuery(String value) {

@@ -29,6 +29,8 @@ public class MiscStockMovementResolver {
             case 상품 -> MiscStockMovementTarget.of(LOCATION_SALES, null, null, null, classification);
             case 공정품 -> resolveWipProcess(item, processSequenceId, classification);
             case 제품 -> resolveProduct(item, processSequenceId, classification);
+            case 부자재 -> throw new IllegalArgumentException(
+                    "부자재는 창고 재고를 관리하지 않아 기타입출고 대상이 아닙니다: " + item.itemNo());
         };
     }
 

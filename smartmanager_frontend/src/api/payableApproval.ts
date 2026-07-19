@@ -1,7 +1,10 @@
 import { apiFetch, handleResponse } from './http';
 
-export type PayableApprovalLedgerKind = 'PURCHASE' | 'OUTSOURCE';
+export type PayableApprovalLedgerKind = 'PURCHASE' | 'OUTSOURCE' | 'ETC_CLAIM' | 'DEFECT_CLAIM';
 export type PayableApprovalStatus = 'PENDING' | 'APPROVED';
+/** 전체 / 구매입고 / 외주입고 / 기타구매입고 / 기타공제 */
+export type PayableApprovalCategory = 'ALL' | 'PURCHASE' | 'OUTSOURCE' | 'ETC' | 'CLAIM';
+export type PartnerPaymentCostCategory = 'PURCHASE' | 'OUTSOURCE';
 
 export interface PayableApprovalRow {
   ledgerKind: PayableApprovalLedgerKind;
@@ -27,6 +30,31 @@ export interface PayableApprovalRow {
   approvalCancelledByName?: string | null;
 }
 
+export interface ApproveOffsetItem {
+  ledgerKind: PayableApprovalLedgerKind;
+  historyId: number;
+  partnerId: number;
+  partnerName: string;
+  itemId?: number | null;
+  itemNo: string;
+  itemName: string;
+  costCategory?: PartnerPaymentCostCategory | null;
+  costCategoryLabel?: string | null;
+  approveAmount: number;
+  offsetAmount: number;
+  prepaidAfter: number;
+  unpaidIncrease: number;
+  offsetApplicable: boolean;
+}
+
+export interface ApproveOffsetResult {
+  itemCount: number;
+  totalApproveAmount: number;
+  totalOffsetAmount: number;
+  totalUnpaidIncrease: number;
+  offsets: ApproveOffsetItem[];
+}
+
 export interface PayableApprovalSearchParams {
   partnerName?: string;
   itemNo?: string;
@@ -35,6 +63,7 @@ export interface PayableApprovalSearchParams {
   receiptDateTo?: string;
   fiscalYear?: number;
   fiscalMonth?: number;
+  category?: PayableApprovalCategory;
 }
 
 function buildQuery(params: PayableApprovalSearchParams): string {
@@ -46,6 +75,7 @@ function buildQuery(params: PayableApprovalSearchParams): string {
   if (params.receiptDateTo) search.set('receiptDateTo', params.receiptDateTo);
   if (params.fiscalYear != null) search.set('fiscalYear', String(params.fiscalYear));
   if (params.fiscalMonth != null) search.set('fiscalMonth', String(params.fiscalMonth));
+  if (params.category && params.category !== 'ALL') search.set('category', params.category);
   const query = search.toString();
   return query ? `?${query}` : '';
 }
@@ -66,10 +96,22 @@ export async function fetchApprovedPayableApprovals(
   );
 }
 
+export async function previewPayableApproval(
+  items: { ledgerKind: PayableApprovalLedgerKind; historyId: number }[],
+): Promise<ApproveOffsetResult> {
+  return handleResponse(
+    await apiFetch('/api/v1/purchase/payable-approvals/approve/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    }),
+  );
+}
+
 export async function approvePayableItems(
   items: { ledgerKind: PayableApprovalLedgerKind; historyId: number }[],
-): Promise<void> {
-  await handleResponse(
+): Promise<ApproveOffsetResult> {
+  return handleResponse(
     await apiFetch('/api/v1/purchase/payable-approvals/approve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

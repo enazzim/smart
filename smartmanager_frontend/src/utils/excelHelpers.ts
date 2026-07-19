@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 
 export function extractCellValue(value: ExcelJS.CellValue): unknown {
   if (value == null) return '';
@@ -54,12 +55,116 @@ export async function downloadExcelWorkbook(workbook: ExcelJS.Workbook, fileName
   URL.revokeObjectURL(url);
 }
 
-export async function parseFirstSheetRows(buffer: ArrayBuffer): Promise<Record<string, unknown>[]> {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
-  const worksheet = workbook.worksheets[0];
-  if (!worksheet) throw new Error('엑셀 시트를 찾을 수 없습니다.');
+export type ParseSheetOptions = {
+  fileName?: string;
+};
 
+function looksLikeCsv(buffer: ArrayBuffer, fileName?: string): boolean {
+  if (fileName && /\.csv$/i.test(fileName)) {
+    return true;
+  }
+  const head = new TextDecoder('utf-8').decode(buffer.slice(0, 64));
+  // xlsx(zip)는 PK로 시작. CSV는 일반 텍스트.
+  return !head.startsWith('PK') && /[,;\t]/.test(head);
+}
+
+function parseCsvText(text: string): Record<string, unknown>[] {
+  const lines = text
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0);
+  if (lines.length === 0) {
+    return [];
+  }
+  const delimiter = lines[0].includes('\t') ? '\t' : lines[0].includes(';') ? ';' : ',';
+  const split = (line: string): string[] => {
+    const cells: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i += 1) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+        continue;
+      }
+      if (ch === delimiter && !inQuotes) {
+        cells.push(current.trim());
+        current = '';
+        continue;
+      }
+      current += ch;
+    }
+    cells.push(current.trim());
+    return cells;
+  };
+  const headers = split(lines[0]);
+  return lines.slice(1).map((line) => {
+    const values = split(line);
+    const record: Record<string, unknown> = {};
+    headers.forEach((header, index) => {
+      if (!header) return;
+      record[header] = values[index] ?? '';
+    });
+    return record;
+  });
+}
+
+/**
+ * 한셀/비표준 오피스에서 저장한 xlsx는 ExcelJS가 docProps 파싱에 실패하는 경우가 있음.
+ * (Cannot read properties of undefined (reading 'company'))
+ */
+async function sanitizeXlsxForExcelJs(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+  const zip = await JSZip.loadAsync(buffer);
+  // 메타데이터 파싱 실패를 피하기 위해 제거 (시트 데이터 읽기에는 불필요)
+  zip.remove('docProps/app.xml');
+  zip.remove('docProps/core.xml');
+
+  const xmlPaths = Object.keys(zip.files).filter(
+    (path) => !zip.files[path].dir && (path.endsWith('.xml') || path.endsWith('.rels')),
+  );
+  await Promise.all(
+    xmlPaths.map(async (path) => {
+      const file = zip.file(path);
+      if (!file) return;
+      let text = await file.async('string');
+      // 한셀 등에서 사용하는 x: 네임스페이스 접두사 제거
+      if (text.includes('<x:') || text.includes('</x:')) {
+        text = text.replace(/<\/?x:/g, (match) => match.replace('x:', ''));
+        zip.file(path, text);
+      }
+    }),
+  );
+
+  return zip.generateAsync({ type: 'arraybuffer' });
+}
+
+async function loadWorkbookFromBuffer(buffer: ArrayBuffer): Promise<ExcelJS.Workbook> {
+  const workbook = new ExcelJS.Workbook();
+  try {
+    await workbook.xlsx.load(buffer);
+    return workbook;
+  } catch (firstError) {
+    try {
+      const sanitized = await sanitizeXlsxForExcelJs(buffer);
+      const recovered = new ExcelJS.Workbook();
+      await recovered.xlsx.load(sanitized);
+      return recovered;
+    } catch {
+      const detail = firstError instanceof Error ? firstError.message : String(firstError);
+      throw new Error(
+        `엑셀 파일을 읽지 못했습니다. 화면의 「양식 다운로드」로 받은 파일을 사용하거나, `
+          + `Microsoft Excel/한셀에서 다시 저장(.xlsx)한 뒤 업로드해 주세요. (${detail})`,
+      );
+    }
+  }
+}
+
+function worksheetToRows(worksheet: ExcelJS.Worksheet): Record<string, unknown>[] {
   const headers: string[] = [];
   worksheet.getRow(1).eachCell({ includeEmpty: false }, (cell, colNumber) => {
     headers[colNumber - 1] = String(extractCellValue(cell.value)).trim();
@@ -77,6 +182,21 @@ export async function parseFirstSheetRows(buffer: ArrayBuffer): Promise<Record<s
     rows.push(record);
   });
   return rows;
+}
+
+export async function parseFirstSheetRows(
+  buffer: ArrayBuffer,
+  options?: ParseSheetOptions,
+): Promise<Record<string, unknown>[]> {
+  if (looksLikeCsv(buffer, options?.fileName)) {
+    const text = new TextDecoder('utf-8').decode(buffer);
+    return parseCsvText(text);
+  }
+
+  const workbook = await loadWorkbookFromBuffer(buffer);
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) throw new Error('엑셀 시트를 찾을 수 없습니다.');
+  return worksheetToRows(worksheet);
 }
 
 export function createWorkbookWithSheet(

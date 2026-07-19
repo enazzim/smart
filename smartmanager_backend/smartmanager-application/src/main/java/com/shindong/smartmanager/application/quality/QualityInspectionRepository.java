@@ -30,6 +30,7 @@ public interface QualityInspectionRepository {
             Long inspectionDecisionCodeId,
             Long unsuitabilityCauseCodeId,
             Long unsuitabilityStatusCodeId,
+            String failureReason,
             Instant completedAt,
             String actorUserId
     );
@@ -41,4 +42,7 @@ public interface QualityInspectionRepository {
     void cancelByReceiptLineId(long receiptLineId, String actorUserId);
 
     void cancelById(long id, String actorUserId);
+
+    /** 완료 검사를 대기 상태로 되돌린다 (검사 이력 취소). */
+    void revertCompletedToPending(long id, String actorUserId);
 }

@@ -20,6 +20,8 @@ import com.shindong.smartmanager.application.process.ProcessService;
 import com.shindong.smartmanager.application.process.ProcessView;
 import com.shindong.smartmanager.application.publiccode.PublicCodeRepository;
 import com.shindong.smartmanager.application.publiccode.PublicCodeSmallView;
+import com.shindong.smartmanager.application.unitprice.UnitPriceCommand;
+import com.shindong.smartmanager.application.unitprice.UnitPriceHistoryProjector;
 import com.shindong.smartmanager.application.unitprice.UnitPriceService;
 import com.shindong.smartmanager.application.workcenter.WorkCenterCommand;
 import com.shindong.smartmanager.application.workcenter.WorkCenterRepository;
@@ -233,7 +235,7 @@ public class MasterDataImportService {
             Long beginProcessCodeId = resolveOptionalProcessCodeId(row.beginProcessSmallCode());
             Long endProcessCodeId = resolveOptionalProcessCodeId(row.endProcessSmallCode());
             unitPriceService.register(
-                    new com.shindong.smartmanager.application.unitprice.UnitPriceCommand(
+                    new UnitPriceCommand(
                             row.costType(),
                             item.id(),
                             company.id(),
@@ -245,7 +247,8 @@ public class MasterDataImportService {
                             row.beginDate(),
                             row.endDate()
                     ),
-                    actorUserId
+                    actorUserId,
+                    UnitPriceHistoryProjector.REASON_MASTER_IMPORT_REGISTER
             );
         }, row -> row.itemNum() + ":" + row.businessRegNo());
     }

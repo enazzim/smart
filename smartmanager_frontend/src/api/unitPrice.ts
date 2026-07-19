@@ -8,6 +8,7 @@ export interface UnitPrice {
   itemId: number;
   itemNum: string;
   itemName: string;
+  propertyClassification?: string;
   companyId: number;
   companyName: string;
   businessRegistrationNum: string;
@@ -103,5 +104,59 @@ export async function deleteUnitPrice(id: number): Promise<void> {
     await apiFetch(`${API_BASE}/${id}`, {
       method: 'DELETE',
     }),
+  );
+}
+
+export interface UnitPriceHistory {
+  id: number;
+  unitPriceId: number;
+  type: CostType;
+  itemId: number;
+  itemNo: string;
+  itemName: string;
+  companyId: number;
+  companyName: string;
+  beginProcessCodeId?: number | null;
+  beginProcessCode?: string | null;
+  beginProcessName?: string | null;
+  endProcessCodeId?: number | null;
+  endProcessCode?: string | null;
+  endProcessName?: string | null;
+  orderRate: number;
+  standardUnitCost: number;
+  discountUnitCost?: number | null;
+  beginDate: string;
+  endDate?: string | null;
+  updateReason: string;
+  changedBy: string;
+  changedAt: string;
+}
+
+export async function fetchUnitPriceHistory(id: number): Promise<UnitPriceHistory[]> {
+  return handleResponse<UnitPriceHistory[]>(await apiFetch(`${API_BASE}/${id}/history`));
+}
+
+export type UnitPriceHistorySearchParams = {
+  type?: CostType;
+  companyId?: number;
+  itemId?: number;
+  changedFrom?: string;
+  changedTo?: string;
+  changedBy?: string;
+};
+
+export async function fetchAllUnitPriceHistory(
+  params: UnitPriceHistorySearchParams = {},
+): Promise<UnitPriceHistory[]> {
+  const search = new URLSearchParams();
+  if (params.type) search.set('type', params.type);
+  if (params.companyId != null) search.set('companyId', String(params.companyId));
+  if (params.itemId != null) search.set('itemId', String(params.itemId));
+  if (params.changedFrom?.trim()) search.set('changedFrom', params.changedFrom.trim());
+  if (params.changedTo?.trim()) search.set('changedTo', params.changedTo.trim());
+  if (params.changedBy?.trim()) search.set('changedBy', params.changedBy.trim());
+  const query = search.toString();
+  return handleResponse<UnitPriceHistory[]>(
+    await apiFetch(query ? `${API_BASE}/history?${query}` : `${API_BASE}/history`),
   );
 }

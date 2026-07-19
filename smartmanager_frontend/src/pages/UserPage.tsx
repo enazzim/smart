@@ -152,8 +152,8 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
       return;
     }
     if (!isEditing) {
-      if (form.password.length < 8) {
-        setError('비밀번호는 8자 이상이어야 합니다.');
+      if (!form.password) {
+        setError('비밀번호를 입력해 주세요.');
         return;
       }
       if (form.password !== form.passwordConfirm) {
@@ -382,7 +382,6 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
             <input
               type="password"
               required={!isEditing}
-              minLength={isEditing ? undefined : 8}
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               autoComplete="new-password"

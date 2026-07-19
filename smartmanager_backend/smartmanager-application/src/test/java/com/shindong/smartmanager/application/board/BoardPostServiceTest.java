@@ -8,7 +8,6 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class BoardPostServiceTest {
@@ -19,8 +18,7 @@ class BoardPostServiceTest {
                 new NoopBoardPostRepository(),
                 new NoopBoardFileStorage(),
                 new NoopUserRepository(),
-                104857600L,
-                Set.of("pdf")
+                104857600L
         );
 
         BoardUploadFile oversized = new BoardUploadFile(
@@ -68,6 +66,15 @@ class BoardPostServiceTest {
 
         @Override
         public void incrementViewCount(long postId) {
+        }
+
+        @Override
+        public void recordPostRead(long postId, long readerUserId) {
+        }
+
+        @Override
+        public List<BoardPostReaderRecord> findPostReadersExcludingAuthor(long postId, long authorUserId) {
+            return List.of();
         }
 
         @Override

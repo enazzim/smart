@@ -1,8 +1,12 @@
 package com.shindong.smartmanager.infrastructure.persistence.drawing;
 
+import com.shindong.smartmanager.domain.drawing.DrawingLifecycleStage;
+import com.shindong.smartmanager.infrastructure.persistence.company.CompanyJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.item.ItemJpaEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -27,9 +31,20 @@ public class DrawingMasterJpaEntity {
     @Column(name = "model_type", nullable = false, length = 50)
     private String modelType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "lifecycle_stage", nullable = false, length = 30)
+    private DrawingLifecycleStage lifecycleStage = DrawingLifecycleStage.RECEIVED;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_partner_id")
+    private CompanyJpaEntity sourcePartner;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "item_id")
     private ItemJpaEntity item;
+
+    @Column(name = "item_linked_at")
+    private Instant itemLinkedAt;
 
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
@@ -84,12 +99,36 @@ public class DrawingMasterJpaEntity {
         this.modelType = modelType;
     }
 
+    public DrawingLifecycleStage getLifecycleStage() {
+        return lifecycleStage;
+    }
+
+    public void setLifecycleStage(DrawingLifecycleStage lifecycleStage) {
+        this.lifecycleStage = lifecycleStage;
+    }
+
+    public CompanyJpaEntity getSourcePartner() {
+        return sourcePartner;
+    }
+
+    public void setSourcePartner(CompanyJpaEntity sourcePartner) {
+        this.sourcePartner = sourcePartner;
+    }
+
     public ItemJpaEntity getItem() {
         return item;
     }
 
     public void setItem(ItemJpaEntity item) {
         this.item = item;
+    }
+
+    public Instant getItemLinkedAt() {
+        return itemLinkedAt;
+    }
+
+    public void setItemLinkedAt(Instant itemLinkedAt) {
+        this.itemLinkedAt = itemLinkedAt;
     }
 
     public int getRecordingState() {

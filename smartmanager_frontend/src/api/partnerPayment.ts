@@ -2,6 +2,7 @@ import { apiFetch, handleResponse } from './http';
 
 export type PartnerPaymentStatus = 'ISSUED' | 'CANCELLED';
 export type PartnerPaymentCostCategory = 'PURCHASE' | 'OUTSOURCE';
+export type PartnerPaymentKind = 'NORMAL' | 'PREPAID';
 
 export interface PartnerPaymentCandidate {
   partnerId: number;
@@ -15,6 +16,21 @@ export interface PartnerPaymentCandidate {
   payable: boolean;
 }
 
+export interface PartnerPaymentLine {
+  id: number;
+  itemId: number;
+  itemNo: string;
+  itemName: string;
+  purchaseOrderLineId?: number | null;
+  outsourcingOrderLineId?: number | null;
+  orderNo?: string | null;
+  supplyAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+  offsetAmount: number;
+  remainingAmount: number;
+}
+
 export interface PartnerPayment {
   id: number;
   paymentNo: string;
@@ -24,6 +40,8 @@ export interface PartnerPayment {
   paymentDate: string;
   costCategory: PartnerPaymentCostCategory;
   costCategoryLabel: string;
+  paymentKind: PartnerPaymentKind;
+  paymentKindLabel: string;
   supplyAmount: number;
   vatAmount: number;
   totalAmount: number;
@@ -34,10 +52,44 @@ export interface PartnerPayment {
   createdAt: string;
   createdBy?: string | null;
   cancelable: boolean;
+  lines: PartnerPaymentLine[];
+  lineSummary?: string | null;
+}
+
+export interface PrepaidBalance {
+  partnerId: number;
+  partnerName: string;
+  itemId: number;
+  itemNo: string;
+  itemName: string;
+  costCategory: PartnerPaymentCostCategory;
+  costCategoryLabel: string;
+  prepaidIn: number;
+  prepaidOut: number;
+  prepaidRemaining: number;
+}
+
+export interface PrepaidOrderLineCandidate {
+  costCategory: PartnerPaymentCostCategory;
+  costCategoryLabel: string;
+  orderLineId: number;
+  orderId: number;
+  orderNo: string;
+  lineNo: number;
+  partnerId: number;
+  partnerName: string;
+  itemId: number;
+  itemNo: string;
+  itemName: string;
+  orderDate: string;
+  orderAmount: number;
+  prepaidLinkedAmount: number;
+  remainingAmount: number;
 }
 
 export interface PartnerPaymentCandidateParams {
   partnerName?: string;
+  includeZeroUnpaid?: boolean;
 }
 
 export interface PartnerPaymentListParams {
@@ -49,10 +101,19 @@ export interface PartnerPaymentListParams {
   excludeCancelled?: boolean;
 }
 
+export interface CreatePartnerPaymentLinePayload {
+  itemId: number;
+  purchaseOrderLineId?: number | null;
+  outsourcingOrderLineId?: number | null;
+  supplyAmount: number;
+  vatAmount?: number;
+}
+
 function buildCandidateQuery(params?: PartnerPaymentCandidateParams): string {
   if (!params) return '';
   const search = new URLSearchParams();
   if (params.partnerName?.trim()) search.set('partnerName', params.partnerName.trim());
+  if (params.includeZeroUnpaid) search.set('includeZeroUnpaid', 'true');
   const query = search.toString();
   return query ? `?${query}` : '';
 }
@@ -80,14 +141,48 @@ export async function fetchPartnerPayments(params?: PartnerPaymentListParams): P
   return handleResponse(await apiFetch(`/api/v1/purchase/payments${buildListQuery(params)}`));
 }
 
+export async function fetchPrepaidBalances(params?: {
+  partnerId?: number;
+  costCategory?: PartnerPaymentCostCategory;
+}): Promise<PrepaidBalance[]> {
+  const search = new URLSearchParams();
+  if (params?.partnerId != null) search.set('partnerId', String(params.partnerId));
+  if (params?.costCategory) search.set('costCategory', params.costCategory);
+  const query = search.toString();
+  return handleResponse(
+    await apiFetch(`/api/v1/purchase/payments/prepaid-balances${query ? `?${query}` : ''}`),
+  );
+}
+
+export async function fetchPrepaidOrderLineCandidates(params?: {
+  partnerId?: number;
+  costCategory?: PartnerPaymentCostCategory;
+  itemNo?: string;
+  itemName?: string;
+  orderNo?: string;
+}): Promise<PrepaidOrderLineCandidate[]> {
+  const search = new URLSearchParams();
+  if (params?.partnerId != null) search.set('partnerId', String(params.partnerId));
+  if (params?.costCategory) search.set('costCategory', params.costCategory);
+  if (params?.itemNo?.trim()) search.set('itemNo', params.itemNo.trim());
+  if (params?.itemName?.trim()) search.set('itemName', params.itemName.trim());
+  if (params?.orderNo?.trim()) search.set('orderNo', params.orderNo.trim());
+  const query = search.toString();
+  return handleResponse(
+    await apiFetch(`/api/v1/purchase/payments/order-line-candidates${query ? `?${query}` : ''}`),
+  );
+}
+
 export async function createPartnerPayment(payload: {
   partnerId: number;
   paymentDate: string;
   costCategory: PartnerPaymentCostCategory;
-  supplyAmount: number;
+  paymentKind?: PartnerPaymentKind;
+  supplyAmount?: number;
   vatAmount?: number;
   paymentMethod?: string;
   remark?: string;
+  lines?: CreatePartnerPaymentLinePayload[];
 }): Promise<PartnerPayment> {
   return handleResponse(
     await apiFetch('/api/v1/purchase/payments', {
