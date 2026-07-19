@@ -58,6 +58,7 @@ const QUALITY_PAGES = new Set<string>(['quality-inspection']);
 const STATS_PAGES = new Set<string>([
   'stats-vendor-purchase-status',
   'stats-purchase-daily',
+  'stats-partner-monthly-payable',
   'stats-warehouse-io',
   'stats-item-io',
   'stats-order-vs-receipt',

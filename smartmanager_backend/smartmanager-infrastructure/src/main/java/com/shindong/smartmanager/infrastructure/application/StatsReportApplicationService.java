@@ -5,6 +5,8 @@ import com.shindong.smartmanager.application.stats.ItemStockMovementView;
 import com.shindong.smartmanager.application.stats.OrderVsReceiptCriteria;
 import com.shindong.smartmanager.application.stats.OrderVsReceiptView;
 import com.shindong.smartmanager.application.stats.StatsReportQueryService;
+import com.shindong.smartmanager.application.stats.PartnerMonthlyPayableCriteria;
+import com.shindong.smartmanager.application.stats.PartnerMonthlyPayableView;
 import com.shindong.smartmanager.application.stats.PurchaseDailyReportCriteria;
 import com.shindong.smartmanager.application.stats.PurchaseDailyReportView;
 import com.shindong.smartmanager.application.stats.VendorPurchaseStatusCriteria;
@@ -39,6 +41,11 @@ public class StatsReportApplicationService {
     @Transactional(readOnly = true)
     public List<PurchaseDailyReportView> listPurchaseDailyReport(PurchaseDailyReportCriteria criteria) {
         return statsReportQueryService.listPurchaseDailyReport(criteria);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PartnerMonthlyPayableView> listPartnerMonthlyPayable(PartnerMonthlyPayableCriteria criteria) {
+        return statsReportQueryService.listPartnerMonthlyPayable(criteria);
     }
 
     @Transactional(readOnly = true)

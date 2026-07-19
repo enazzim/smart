@@ -90,6 +90,8 @@ public class StatsReportQueryService {
                         row.standardUnitPrice(),
                         row.unitPrice(),
                         row.amount(),
+                        row.offsetAmount(),
+                        row.unpaidIncrease(),
                         row.division(),
                         row.approvalStatus(),
                         row.fiscalYear(),
@@ -98,6 +100,24 @@ public class StatsReportQueryService {
                         yearTotals.getOrDefault(row.companyId(), BigDecimal.ZERO)
                 ))
                 .toList();
+    }
+
+    public List<PartnerMonthlyPayableView> listPartnerMonthlyPayable(PartnerMonthlyPayableCriteria criteria) {
+        if (criteria == null) {
+            throw new IllegalArgumentException("조회 조건이 필요합니다.");
+        }
+        YearMonth now = YearMonth.now();
+        int year = criteria.fiscalYear() > 0 ? criteria.fiscalYear() : now.getYear();
+        int month = criteria.fiscalMonth() > 0 ? criteria.fiscalMonth() : now.getMonthValue();
+        if (month < 1 || month > 12) {
+            throw new IllegalArgumentException("월은 1~12 범위여야 합니다.");
+        }
+        return statsReportRepository.findPartnerMonthlyPayable(new PartnerMonthlyPayableCriteria(
+                criteria.companyId(),
+                criteria.companyName(),
+                year,
+                month
+        ));
     }
 
     public List<WarehouseMonthlyIoView> listWarehouseMonthlyIo(WarehouseMonthlyIoCriteria criteria) {

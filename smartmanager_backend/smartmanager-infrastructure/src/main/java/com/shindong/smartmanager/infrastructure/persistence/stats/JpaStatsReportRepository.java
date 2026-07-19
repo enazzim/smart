@@ -4,6 +4,8 @@ import com.shindong.smartmanager.application.stats.ItemStockMovementCriteria;
 import com.shindong.smartmanager.application.stats.ItemStockMovementView;
 import com.shindong.smartmanager.application.stats.OrderVsReceiptCriteria;
 import com.shindong.smartmanager.application.stats.OrderVsReceiptView;
+import com.shindong.smartmanager.application.stats.PartnerMonthlyPayableCriteria;
+import com.shindong.smartmanager.application.stats.PartnerMonthlyPayableView;
 import com.shindong.smartmanager.application.stats.PurchaseDailyReportCriteria;
 import com.shindong.smartmanager.application.stats.PurchaseDailyReportView;
 import com.shindong.smartmanager.application.stats.StatsReportRepository;
@@ -737,6 +739,12 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                        ), 0) AS standard_unit_price,
                        ph.unit_price,
                        ph.amount,
+                       COALESCE(ppo.offset_amount, 0) AS offset_amount,
+                       CASE
+                         WHEN ph.approval_status = 'APPROVED'
+                         THEN ph.amount - COALESCE(ppo.offset_amount, 0)
+                         ELSE 0
+                       END AS unpaid_increase,
                        CASE
                          WHEN ph.source_type = 'ETC_PURCHASE_RECEIPT' THEN 'ETC'
                          ELSE 'PURCHASE'
@@ -750,6 +758,13 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                 LEFT JOIN quality_inspection qi
                        ON ph.source_type = 'QUALITY_INSPECTION' AND ph.source_id = qi.id
                       AND qi.recording_state = 1
+                LEFT JOIN (
+                  SELECT history_id, SUM(amount) AS offset_amount
+                  FROM partner_prepaid_offset
+                  WHERE recording_state = 1
+                    AND ledger_kind = 'PURCHASE_HISTORY'
+                  GROUP BY history_id
+                ) ppo ON ppo.history_id = ph.id
                 WHERE ph.recording_state = 1
                 """);
         Map<String, Object> params = new HashMap<>();
@@ -800,6 +815,12 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                        ), 0) AS standard_unit_price,
                        oh.unit_price,
                        oh.amount,
+                       COALESCE(ppo.offset_amount, 0) AS offset_amount,
+                       CASE
+                         WHEN oh.approval_status = 'APPROVED'
+                         THEN oh.amount - COALESCE(ppo.offset_amount, 0)
+                         ELSE 0
+                       END AS unpaid_increase,
                        'OUTSOURCE' AS division,
                        oh.approval_status,
                        oh.fiscal_year,
@@ -820,6 +841,13 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                        ON ool.id = COALESCE(orl_direct.outsourcing_order_line_id, orl_qi.outsourcing_order_line_id)
                 LEFT JOIN process_sequence ps ON ps.id = ool.process_sequence_id AND ps.recording_state = 1
                 LEFT JOIN public_code pc ON pc.id = ps.public_code_id AND pc.recording_state = 1
+                LEFT JOIN (
+                  SELECT history_id, SUM(amount) AS offset_amount
+                  FROM partner_prepaid_offset
+                  WHERE recording_state = 1
+                    AND ledger_kind = 'OUTSOURCE_HISTORY'
+                  GROUP BY history_id
+                ) ppo ON ppo.history_id = oh.id
                 WHERE oh.recording_state = 1
                 """);
         Map<String, Object> params = new HashMap<>();
@@ -848,6 +876,8 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                        0 AS standard_unit_price,
                        0 AS unit_price,
                        -ec.amount AS amount,
+                       0 AS offset_amount,
+                       0 AS unpaid_increase,
                        'CLAIM' AS division,
                        CASE WHEN ec.recognition = 'APPROVED' THEN 'APPROVED' ELSE 'PENDING' END AS approval_status,
                        ec.fiscal_year,
@@ -884,6 +914,8 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                             ELSE ROUND(dc.amount / dc.claim_qty, 2)
                        END AS unit_price,
                        -dc.amount AS amount,
+                       0 AS offset_amount,
+                       0 AS unpaid_increase,
                        'CLAIM' AS division,
                        CASE WHEN dc.recognition = 'APPROVED' THEN 'APPROVED' ELSE 'PENDING' END AS approval_status,
                        dc.fiscal_year,
@@ -1100,12 +1132,106 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                     toBigDecimal(row[15]),
                     toBigDecimal(row[16]),
                     toBigDecimal(row[17]),
-                    row[18].toString(),
-                    row[19] != null ? row[19].toString() : "",
-                    ((Number) row[20]).intValue(),
-                    ((Number) row[21]).intValue(),
+                    toBigDecimal(row[18]),
+                    toBigDecimal(row[19]),
+                    row[20].toString(),
+                    row[21] != null ? row[21].toString() : "",
+                    ((Number) row[22]).intValue(),
+                    ((Number) row[23]).intValue(),
                     BigDecimal.ZERO,
                     BigDecimal.ZERO
+            ));
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PartnerMonthlyPayableView> findPartnerMonthlyPayable(PartnerMonthlyPayableCriteria criteria) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT t.company_id,
+                       t.company_name,
+                       t.fiscal_year,
+                       t.fiscal_month,
+                       SUM(t.approved_amount) AS approved_amount,
+                       SUM(t.offset_amount) AS offset_amount,
+                       SUM(t.payable_amount) AS payable_amount
+                FROM (
+                  SELECT ph.company_id,
+                         c.company_name,
+                         ph.fiscal_year,
+                         ph.fiscal_month,
+                         ph.amount AS approved_amount,
+                         COALESCE(ppo.offset_amount, 0) AS offset_amount,
+                         ph.amount - COALESCE(ppo.offset_amount, 0) AS payable_amount
+                  FROM purchase_history ph
+                  JOIN company c ON c.id = ph.company_id AND c.recording_state = 1
+                  LEFT JOIN (
+                    SELECT history_id, SUM(amount) AS offset_amount
+                    FROM partner_prepaid_offset
+                    WHERE recording_state = 1
+                      AND ledger_kind = 'PURCHASE_HISTORY'
+                    GROUP BY history_id
+                  ) ppo ON ppo.history_id = ph.id
+                  WHERE ph.recording_state = 1
+                    AND ph.approval_status = 'APPROVED'
+                    AND ph.fiscal_year = :fiscalYear
+                    AND ph.fiscal_month = :fiscalMonth
+                  UNION ALL
+                  SELECT oh.company_id,
+                         c.company_name,
+                         oh.fiscal_year,
+                         oh.fiscal_month,
+                         oh.amount AS approved_amount,
+                         COALESCE(ppo.offset_amount, 0) AS offset_amount,
+                         oh.amount - COALESCE(ppo.offset_amount, 0) AS payable_amount
+                  FROM outsource_history oh
+                  JOIN company c ON c.id = oh.company_id AND c.recording_state = 1
+                  LEFT JOIN (
+                    SELECT history_id, SUM(amount) AS offset_amount
+                    FROM partner_prepaid_offset
+                    WHERE recording_state = 1
+                      AND ledger_kind = 'OUTSOURCE_HISTORY'
+                    GROUP BY history_id
+                  ) ppo ON ppo.history_id = oh.id
+                  WHERE oh.recording_state = 1
+                    AND oh.approval_status = 'APPROVED'
+                    AND oh.fiscal_year = :fiscalYear
+                    AND oh.fiscal_month = :fiscalMonth
+                ) t
+                WHERE 1 = 1
+                """);
+        Map<String, Object> params = new HashMap<>();
+        params.put("fiscalYear", criteria.fiscalYear());
+        params.put("fiscalMonth", criteria.fiscalMonth());
+        if (criteria.companyId() != null) {
+            sql.append(" AND t.company_id = :companyId");
+            params.put("companyId", criteria.companyId());
+        }
+        if (criteria.companyName() != null && !criteria.companyName().isBlank()) {
+            sql.append(" AND t.company_name LIKE :companyName");
+            params.put("companyName", "%" + criteria.companyName().trim() + "%");
+        }
+        sql.append("""
+                 GROUP BY t.company_id, t.company_name, t.fiscal_year, t.fiscal_month
+                 ORDER BY t.company_name
+                 LIMIT 5000
+                """);
+
+        Query query = entityManager.createNativeQuery(sql.toString());
+        params.forEach(query::setParameter);
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = query.getResultList();
+        List<PartnerMonthlyPayableView> result = new ArrayList<>();
+        for (Object[] row : rows) {
+            result.add(new PartnerMonthlyPayableView(
+                    ((Number) row[0]).longValue(),
+                    row[1] != null ? row[1].toString() : "",
+                    ((Number) row[2]).intValue(),
+                    ((Number) row[3]).intValue(),
+                    toBigDecimal(row[4]),
+                    toBigDecimal(row[5]),
+                    toBigDecimal(row[6])
             ));
         }
         return result;

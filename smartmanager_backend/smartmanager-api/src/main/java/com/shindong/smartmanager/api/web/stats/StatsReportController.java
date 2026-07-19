@@ -4,6 +4,8 @@ import com.shindong.smartmanager.application.stats.ItemStockMovementCriteria;
 import com.shindong.smartmanager.application.stats.ItemStockMovementView;
 import com.shindong.smartmanager.application.stats.OrderVsReceiptCriteria;
 import com.shindong.smartmanager.application.stats.OrderVsReceiptView;
+import com.shindong.smartmanager.application.stats.PartnerMonthlyPayableCriteria;
+import com.shindong.smartmanager.application.stats.PartnerMonthlyPayableView;
 import com.shindong.smartmanager.application.stats.PurchaseDailyReportCriteria;
 import com.shindong.smartmanager.application.stats.PurchaseDailyReportView;
 import com.shindong.smartmanager.application.stats.VendorPurchaseStatusCriteria;
@@ -80,6 +82,24 @@ public class StatsReportController {
                 division,
                 approvalStatus
         )).stream().map(PurchaseDailyReportResponse::from).toList();
+    }
+
+    @GetMapping("/partner-monthly-payable")
+    @PreAuthorize("hasAuthority('stats:partner-monthly-payable:read')")
+    public List<PartnerMonthlyPayableResponse> listPartnerMonthlyPayable(
+            @RequestParam(required = false) Long companyId,
+            @RequestParam(required = false) String companyName,
+            @RequestParam(required = false) Integer fiscalYear,
+            @RequestParam(required = false) Integer fiscalMonth
+    ) {
+        int year = fiscalYear != null ? fiscalYear : java.time.YearMonth.now().getYear();
+        int month = fiscalMonth != null ? fiscalMonth : java.time.YearMonth.now().getMonthValue();
+        return statsReportApplicationService.listPartnerMonthlyPayable(new PartnerMonthlyPayableCriteria(
+                companyId,
+                companyName,
+                year,
+                month
+        )).stream().map(PartnerMonthlyPayableResponse::from).toList();
     }
 
     @GetMapping("/vendor-purchase-status")
@@ -264,6 +284,8 @@ record PurchaseDailyReportResponse(
         BigDecimal standardUnitPrice,
         BigDecimal unitPrice,
         BigDecimal amount,
+        BigDecimal offsetAmount,
+        BigDecimal unpaidIncrease,
         String division,
         String approvalStatus,
         int fiscalYear,
@@ -291,12 +313,36 @@ record PurchaseDailyReportResponse(
                 view.standardUnitPrice(),
                 view.unitPrice(),
                 view.amount(),
+                view.offsetAmount(),
+                view.unpaidIncrease(),
                 view.division(),
                 view.approvalStatus(),
                 view.fiscalYear(),
                 view.fiscalMonth(),
                 view.monthTotal(),
                 view.yearTotal()
+        );
+    }
+}
+
+record PartnerMonthlyPayableResponse(
+        long companyId,
+        String companyName,
+        int fiscalYear,
+        int fiscalMonth,
+        BigDecimal approvedAmount,
+        BigDecimal offsetAmount,
+        BigDecimal payableAmount
+) {
+    static PartnerMonthlyPayableResponse from(PartnerMonthlyPayableView view) {
+        return new PartnerMonthlyPayableResponse(
+                view.companyId(),
+                view.companyName(),
+                view.fiscalYear(),
+                view.fiscalMonth(),
+                view.approvedAmount(),
+                view.offsetAmount(),
+                view.payableAmount()
         );
     }
 }

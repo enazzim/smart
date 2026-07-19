@@ -28,6 +28,8 @@ type DisplayRow =
       passedQty: number;
       failedQty: number;
       amount: number;
+      offsetAmount: number;
+      unpaidIncrease: number;
       monthTotal: number;
       yearTotal: number;
     }
@@ -37,6 +39,8 @@ type DisplayRow =
       passedQty: number;
       failedQty: number;
       amount: number;
+      offsetAmount: number;
+      unpaidIncrease: number;
       monthTotal: number;
       yearTotal: number;
     };
@@ -91,10 +95,14 @@ function buildDisplayRows(rows: PurchaseDailyReportRow[]): DisplayRow[] {
   let groupPassedQty = 0;
   let groupFailedQty = 0;
   let groupAmount = 0;
+  let groupOffsetAmount = 0;
+  let groupUnpaidIncrease = 0;
   let totalReceiptQty = 0;
   let totalPassedQty = 0;
   let totalFailedQty = 0;
   let totalAmount = 0;
+  let totalOffsetAmount = 0;
+  let totalUnpaidIncrease = 0;
   let grandMonthTotal = 0;
   let grandYearTotal = 0;
 
@@ -111,6 +119,8 @@ function buildDisplayRows(rows: PurchaseDailyReportRow[]): DisplayRow[] {
       passedQty: groupPassedQty,
       failedQty: groupFailedQty,
       amount: groupAmount,
+      offsetAmount: groupOffsetAmount,
+      unpaidIncrease: groupUnpaidIncrease,
       monthTotal,
       yearTotal,
     });
@@ -125,16 +135,22 @@ function buildDisplayRows(rows: PurchaseDailyReportRow[]): DisplayRow[] {
       groupPassedQty = 0;
       groupFailedQty = 0;
       groupAmount = 0;
+      groupOffsetAmount = 0;
+      groupUnpaidIncrease = 0;
     }
     result.push({ kind: 'data', row });
     groupReceiptQty += Number(row.receiptQty);
     groupPassedQty += Number(row.passedQty);
     groupFailedQty += Number(row.failedQty);
     groupAmount += Number(row.amount);
+    groupOffsetAmount += Number(row.offsetAmount ?? 0);
+    groupUnpaidIncrease += Number(row.unpaidIncrease ?? 0);
     totalReceiptQty += Number(row.receiptQty);
     totalPassedQty += Number(row.passedQty);
     totalFailedQty += Number(row.failedQty);
     totalAmount += Number(row.amount);
+    totalOffsetAmount += Number(row.offsetAmount ?? 0);
+    totalUnpaidIncrease += Number(row.unpaidIncrease ?? 0);
   }
   flushSubtotal();
   result.push({
@@ -143,6 +159,8 @@ function buildDisplayRows(rows: PurchaseDailyReportRow[]): DisplayRow[] {
     passedQty: totalPassedQty,
     failedQty: totalFailedQty,
     amount: totalAmount,
+    offsetAmount: totalOffsetAmount,
+    unpaidIncrease: totalUnpaidIncrease,
     monthTotal: grandMonthTotal,
     yearTotal: grandYearTotal,
   });
@@ -197,6 +215,8 @@ export default function PurchaseDailyReportPage() {
             기준단가: Number(row.standardUnitPrice),
             단가: Number(row.unitPrice),
             금액: Number(row.amount),
+            선급상계: Number(row.offsetAmount ?? 0),
+            실지급대상: Number(row.unpaidIncrease ?? 0),
             월계: '',
             구분: divisionLabel(row.division),
           };
@@ -220,6 +240,8 @@ export default function PurchaseDailyReportPage() {
             기준단가: '',
             단가: '',
             금액: entry.amount,
+            선급상계: entry.offsetAmount,
+            실지급대상: entry.unpaidIncrease,
             월계: entry.monthTotal,
             구분: '',
           };
@@ -242,6 +264,8 @@ export default function PurchaseDailyReportPage() {
           기준단가: '',
           단가: '',
           금액: entry.amount,
+          선급상계: entry.offsetAmount,
+          실지급대상: entry.unpaidIncrease,
           월계: entry.monthTotal,
           구분: '',
         };
@@ -452,6 +476,8 @@ export default function PurchaseDailyReportPage() {
                 <th className="num">기준단가</th>
                 <th className="num">단가</th>
                 <th className="num">금액</th>
+                <th className="num">선급상계</th>
+                <th className="num">실지급대상</th>
                 <th className="num">월계</th>
                 <th>구분</th>
               </tr>
@@ -460,6 +486,7 @@ export default function PurchaseDailyReportPage() {
               {displayRows.map((entry, index) => {
                 if (entry.kind === 'data') {
                   const row = entry.row;
+                  const offset = Number(row.offsetAmount ?? 0);
                   return (
                     <tr key={`${row.ledgerKind}-${row.historyId}`}>
                       <td className="num">{row.fiscalYear}</td>
@@ -479,6 +506,10 @@ export default function PurchaseDailyReportPage() {
                       <td className="num">{formatAmount(row.standardUnitPrice)}</td>
                       <td className="num">{formatAmount(row.unitPrice)}</td>
                       <td className="num">{formatAmount(row.amount)}</td>
+                      <td className={`num${offset > 0 ? ' amount-offset' : ''}`}>
+                        {offset > 0 ? formatAmount(offset) : '—'}
+                      </td>
+                      <td className="num">{formatAmount(row.unpaidIncrease ?? 0)}</td>
                       <td className="num">—</td>
                       <td>{divisionLabel(row.division)}</td>
                     </tr>
@@ -497,6 +528,10 @@ export default function PurchaseDailyReportPage() {
                       <td />
                       <td />
                       <td className="num">{formatAmount(entry.amount)}</td>
+                      <td className={`num${entry.offsetAmount > 0 ? ' amount-offset' : ''}`}>
+                        {formatAmount(entry.offsetAmount)}
+                      </td>
+                      <td className="num">{formatAmount(entry.unpaidIncrease)}</td>
                       <td className="num">{formatAmount(entry.monthTotal)}</td>
                       <td />
                     </tr>
@@ -514,6 +549,10 @@ export default function PurchaseDailyReportPage() {
                     <td />
                     <td />
                     <td className="num">{formatAmount(entry.amount)}</td>
+                    <td className={`num${entry.offsetAmount > 0 ? ' amount-offset' : ''}`}>
+                      {formatAmount(entry.offsetAmount)}
+                    </td>
+                    <td className="num">{formatAmount(entry.unpaidIncrease)}</td>
                     <td className="num">{formatAmount(entry.monthTotal)}</td>
                     <td />
                   </tr>

@@ -1,11 +1,11 @@
 # 품목 단위 선지급 · 승인 FIFO 상계 설계서 (TX1-PP)
 
-> **문서 버전:** 2.1  
-> **작성일:** 2026-07-16  
+> **문서 버전:** 2.2  
+> **작성일:** 2026-07-16 · **개정:** 2026-07-19  
 > **상태:** 구현  
-> **대상:** 구매 지급 · 외주 지급 · 승인처리  
+> **대상:** 구매 지급 · 외주 지급 · 승인처리 · **매입일보 · 월별 실지급액**  
 > **관련 문서:** [입고 지급 승인처리 설계서](./payable-approval-design.md)  
-> **변경:** v1.0(거래처+비용구분 FIFO) 폐기 → **거래처+품목+비용구분** 선급 버킷 및 FIFO 상계 · v2.1 UI 와이어프레임·컴포넌트 분리 추가 · 구현 반영 (V093)
+> **변경:** v1.0(거래처+비용구분 FIFO) 폐기 → **거래처+품목+비용구분** 선급 버킷 및 FIFO 상계 · v2.1 UI 와이어프레임·컴포넌트 분리 추가 · 구현 반영 (V093) · **v2.2 매입일보 선급상계·월별 실지급액 리포트**
 
 ---
 
@@ -628,9 +628,49 @@ A 선급은 B에 쓰이지 않음. 보정식으로 미지급 500,000 노출.
 - [ ] 입고/품질검사/발주 화면 업무 로직 변경 없음 (발주라인은 선지급 연결 조회만)
 - [ ] ledger monthly prepaid 컬럼 없음
 
+### 리포트 (v2.2)
+
+- [x] 매입일보: `offsetAmount` / `unpaidIncrease` · UI 「선급상계」「실지급대상」
+- [x] 월별 실지급액(거래처): 승인합 / 상계합 / 실지급대상 · 권한 `stats:partner-monthly-payable:read`
+
 ---
 
-## 14. 참고 코드 위치
+## 14. 매입일보 · 월별 실지급액 (v2.2)
+
+### 14.1 매입일보
+
+| 필드 | 의미 |
+|------|------|
+| `amount` | 매입(승인 대상) 금액 — **변경 없음** (전액 표시) |
+| `offsetAmount` | `partner_prepaid_offset` 합 (해당 `history_id`, active). 공제·미승인·상계 없음 → `0` |
+| `unpaidIncrease` | 승인(`APPROVED`) 행만 `amount − offsetAmount`, 그 외 `0` |
+
+조인 키:
+
+- 구매/기타매입: `ledger_kind = PURCHASE_HISTORY`, `history_id = purchase_history.id`
+- 외주: `ledger_kind = OUTSOURCE_HISTORY`, `history_id = outsource_history.id`
+- 공제(ETC/DEFECT claim): 상계 없음 → 항상 0
+
+UI: 「금액」 옆에 **선급상계**(상계 > 0이면 강조), **실지급대상** 컬럼. 소계·합계에 상계·실지급대상 합산. 월계/연계는 기존처럼 **금액 합**(상계 전) 유지.
+
+### 14.2 월별 실지급액 (거래처)
+
+조회 단위: **거래처 × 회계연·월**. APPROVED 구매·외주 이력만.
+
+```
+approvedAmount  = SUM(history.amount)           -- 해당 월 승인 매입 합
+offsetAmount    = SUM(partner_prepaid_offset)   -- 해당 이력에 걸린 active 상계
+payableAmount   = approvedAmount − offsetAmount -- 그 달 「실지급 대상」 증가분
+```
+
+공제·일반지급·선급 잔액 자체는 본 화면 범위 밖(미지급 잔액은 지급 화면 요약 유지).
+
+API: `GET /api/v1/stats/partner-monthly-payable?fiscalYear=&fiscalMonth=&companyId=`  
+메뉴: 통계및 지표 → **월별 실지급액**
+
+---
+
+## 15. 참고 코드 위치
 
 | 영역 | 경로 |
 |------|------|
@@ -642,4 +682,6 @@ A 선급은 B에 쓰이지 않음. 보정식으로 미지급 500,000 노출.
 | 지급 FE 컴포넌트 | `smartmanager_frontend/src/components/payment/*` |
 | 승인 FE | `smartmanager_frontend/src/pages/PayableApprovalPage.tsx` |
 | 승인 FE 컴포넌트 | `smartmanager_frontend/src/components/payableApproval/*` |
-| 스키마 | `V060__partner_payment.sql` |
+| 스키마 | `V060__partner_payment.sql` · `V093__partner_prepaid.sql` |
+| 매입일보 | `JpaStatsReportRepository` · `PurchaseDailyReportPage` |
+| 월별 실지급액 | `GET /api/v1/stats/partner-monthly-payable` · `PartnerMonthlyPayablePage` · `V094` |

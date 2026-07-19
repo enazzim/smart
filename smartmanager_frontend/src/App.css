@@ -950,6 +950,11 @@ th.num {
   font-variant-numeric: tabular-nums;
 }
 
+td.amount-offset {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 table tbody tr.report-subtotal-row {
   background: #eef4fc;
   font-weight: 600;

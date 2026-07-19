@@ -43,6 +43,7 @@ import SalesRevenuePage from '../pages/SalesRevenuePage';
 import SalesCollectionPage from '../pages/SalesCollectionPage';
 import VendorPurchaseStatusPage from '../pages/VendorPurchaseStatusPage';
 import PurchaseDailyReportPage from '../pages/PurchaseDailyReportPage';
+import PartnerMonthlyPayablePage from '../pages/PartnerMonthlyPayablePage';
 import WarehouseIoPage from '../pages/WarehouseIoPage';
 import ItemIoPage from '../pages/ItemIoPage';
 import OrderVsReceiptPage from '../pages/OrderVsReceiptPage';
@@ -109,6 +110,7 @@ export type QualityPageId = 'quality-inspection';
 export type StatsPageId =
   | 'stats-vendor-purchase-status'
   | 'stats-purchase-daily'
+  | 'stats-partner-monthly-payable'
   | 'stats-warehouse-io'
   | 'stats-item-io'
   | 'stats-order-vs-receipt';
@@ -200,6 +202,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     children: [
       { id: 'stats-vendor-purchase-status', label: '매입처별 매입현황' },
       { id: 'stats-purchase-daily', label: '매입일보' },
+      { id: 'stats-partner-monthly-payable', label: '월별 실지급액' },
       { id: 'stats-warehouse-io', label: '창고별 수불현황' },
       { id: 'stats-item-io', label: '품목별 수불현황' },
       { id: 'stats-order-vs-receipt', label: '발주대비입고' },
@@ -406,6 +409,9 @@ export function renderStatsPage(page: StatsPageId) {
   }
   if (page === 'stats-purchase-daily') {
     return <PurchaseDailyReportPage />;
+  }
+  if (page === 'stats-partner-monthly-payable') {
+    return <PartnerMonthlyPayablePage />;
   }
   if (page === 'stats-warehouse-io') {
     return <WarehouseIoPage />;

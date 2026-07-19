@@ -22,6 +22,10 @@ public record PurchaseDailyReportView(
         BigDecimal standardUnitPrice,
         BigDecimal unitPrice,
         BigDecimal amount,
+        /** 선급 상계액 (partner_prepaid_offset 합). 없으면 0 */
+        BigDecimal offsetAmount,
+        /** 승인 행의 실지급대상 증가분 (amount − offset). 미승인·공제는 0 */
+        BigDecimal unpaidIncrease,
         String division,
         String approvalStatus,
         int fiscalYear,

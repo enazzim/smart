@@ -142,6 +142,10 @@ export interface PurchaseDailyReportRow {
   standardUnitPrice: number;
   unitPrice: number;
   amount: number;
+  /** 선급 상계액 */
+  offsetAmount: number;
+  /** 승인 행의 실지급대상 증가분 */
+  unpaidIncrease: number;
   division: 'PURCHASE' | 'OUTSOURCE' | 'ETC' | 'CLAIM';
   approvalStatus: string;
   fiscalYear: number;
@@ -186,6 +190,37 @@ export async function fetchPurchaseDailyReport(
       fiscalMonth: params.fiscalMonth,
       division: params.division === 'ALL' ? undefined : params.division,
       approvalStatus: params.approvalStatus === 'ALL' ? undefined : params.approvalStatus,
+    })}`,
+  );
+  return handleResponse(res);
+}
+
+export interface PartnerMonthlyPayableRow {
+  companyId: number;
+  companyName: string;
+  fiscalYear: number;
+  fiscalMonth: number;
+  approvedAmount: number;
+  offsetAmount: number;
+  payableAmount: number;
+}
+
+export interface PartnerMonthlyPayableParams {
+  companyId?: number;
+  companyName?: string;
+  fiscalYear: number;
+  fiscalMonth: number;
+}
+
+export async function fetchPartnerMonthlyPayable(
+  params: PartnerMonthlyPayableParams,
+): Promise<PartnerMonthlyPayableRow[]> {
+  const res = await apiFetch(
+    `/api/v1/stats/partner-monthly-payable${toQuery({
+      companyId: params.companyId,
+      companyName: params.companyName,
+      fiscalYear: params.fiscalYear,
+      fiscalMonth: params.fiscalMonth,
     })}`,
   );
   return handleResponse(res);
