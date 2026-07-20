@@ -303,6 +303,10 @@ export default function MasterImportPage() {
         <h2>업로드 주의사항</h2>
         <ul>
           <li>각 항목별 <strong>양식 다운로드</strong> 후 데이터를 입력해 주세요.</li>
+          <li>
+            거래처: <strong>판매/구매/외주/비용거래처</strong> 컬럼에 해당하면 <code>Y</code>, 아니면 빈칸
+            (최소 1개).
+          </li>
           <li>엑셀 파일의 <strong>첫 번째 행(헤더)</strong>은 수정하지 마세요.</li>
           <li>실제 데이터는 <strong>두 번째 행(샘플) 다음</strong>부터 입력하거나, 샘플 행을 삭제 후 입력하세요.</li>
           <li>FK가 필요한 항목은 앞 단계 데이터가 먼저 등록되어 있어야 합니다.</li>

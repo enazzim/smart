@@ -33,12 +33,14 @@ export const IMPORT_DOMAINS: ImportDomainConfig[] = [
     order: 1,
     headers: [
       '상호', '대표자', '사업자등록번호', '법인등록번호', '사업장주소', '홈페이지', '업태', '종목',
-      '전화번호', '팩스', '매출기준일', '어음승인기준', '정기수금일1', '담당자', '이메일', '역할',
+      '전화번호', '팩스', '매출기준일', '어음승인기준', '정기수금일1', '담당자', '이메일',
+      '판매거래처', '구매거래처', '외주거래처', '비용거래처',
     ],
     sampleRow: {
       상호: '샘플거래처', 대표자: '홍길동', 사업자등록번호: '1234567890', 법인등록번호: '',
       사업장주소: '서울시', 홈페이지: '', 업태: '', 종목: '', 전화번호: '', 팩스: '',
-      매출기준일: '', 어음승인기준: '', 정기수금일1: '', 담당자: '', 이메일: '', 역할: 'SALES,PURCHASE',
+      매출기준일: '', 어음승인기준: '', 정기수금일1: '', 담당자: '', 이메일: '',
+      판매거래처: 'Y', 구매거래처: 'Y', 외주거래처: '', 비용거래처: '',
     },
     fileName: '거래처일괄등록양식.xlsx',
     sheetName: '거래처',
@@ -128,12 +130,56 @@ export const IMPORT_DOMAINS: ImportDomainConfig[] = [
   },
 ];
 
-function parseLotTrackedFlag(value: unknown): boolean {
+/** Y / 예 / 1 / O / ○ 등 → true. 빈칸·N → false */
+function parseYesFlag(value: unknown): boolean {
   const raw = cellString(value).trim().toLowerCase();
   if (!raw) {
     return false;
   }
-  return raw === 'y' || raw === 'yes' || raw === 'true' || raw === '1' || raw === '예';
+  if (raw === 'n' || raw === 'no' || raw === 'false' || raw === '0' || raw === '아니오' || raw === 'x') {
+    return false;
+  }
+  return (
+    raw === 'y' ||
+    raw === 'yes' ||
+    raw === 'true' ||
+    raw === '1' ||
+    raw === '예' ||
+    raw === 'o' ||
+    raw === '○' ||
+    raw === 'v' ||
+    raw === '✓'
+  );
+}
+
+function parseLotTrackedFlag(value: unknown): boolean {
+  return parseYesFlag(value);
+}
+
+/**
+ * 판매/구매/외주/비용 컬럼 → API용 roles 문자열 (SALES,PURCHASE,...)
+ * 구 양식 `역할` 컬럼이 있으면 하위 호환으로 사용.
+ */
+function parseCompanyRoles(row: Record<string, unknown>): string {
+  const roles: string[] = [];
+  if (parseYesFlag(row['판매거래처'])) roles.push('SALES');
+  if (parseYesFlag(row['구매거래처'])) roles.push('PURCHASE');
+  if (parseYesFlag(row['외주거래처'])) roles.push('OUTSOURCE');
+  if (parseYesFlag(row['비용거래처'])) roles.push('COST');
+
+  if (roles.length > 0) {
+    return roles.join(',');
+  }
+
+  const legacy = cellString(row['역할']);
+  if (legacy) {
+    return legacy
+      .split(/[,|]/)
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean)
+      .join(',');
+  }
+  return '';
 }
 
 function cellString(value: unknown): string {
@@ -191,7 +237,7 @@ function mapRow(domain: ImportDomain, row: Record<string, unknown>): Record<stri
         fixCollectDay1: cellNumber(row['정기수금일1']) ?? null,
         contactName: cellString(row['담당자']) || null,
         contactEmail: cellString(row['이메일']) || null,
-        roles: cellString(row['역할']),
+        roles: parseCompanyRoles(row),
       };
     case 'item':
       return {
@@ -274,7 +320,14 @@ export function validateImportRows(
     for (const field of required) {
       const value = row[field];
       if (value === undefined || value === null || value === '') {
-        errors.push({ rowNumber, message: `${field} 필수` });
+        if (domain === 'company' && field === 'roles') {
+          errors.push({
+            rowNumber,
+            message: '판매/구매/외주/비용거래처 중 최소 1개에 Y 입력',
+          });
+        } else {
+          errors.push({ rowNumber, message: `${field} 필수` });
+        }
       }
     }
   });

@@ -1,7 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+// 운영(EC2): http://<host>/smartmanager/
+// 로컬 dev: http://localhost:5173/
+export default defineConfig(({ mode }) => ({
+  base: mode === 'production' ? '/smartmanager/' : '/',
   plugins: [react()],
   define: {
     global: 'globalThis',
@@ -20,4 +23,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
