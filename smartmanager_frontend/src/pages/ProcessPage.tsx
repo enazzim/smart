@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import CodeOptionSearchField, { type CodeOptionSelection } from '../components/CodeOptionSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import type {
   CreateProcessRequest,
@@ -17,6 +18,7 @@ import {
   updateProcessPlan,
 } from '../api/process';
 import { formatInteger } from '../utils/numberFormat';
+import { NON_RAW_ITEM_CLASSES } from '../utils/itemClassFilters';
 import { useConfirm } from '../context/ConfirmContext';
 
 const WORK_DISTINCTION_OPTIONS: { value: WorkDistinction; label: string }[] = [
@@ -55,27 +57,56 @@ function toItemFromProcess(process: ProcessPlan): ItemSearchSelection {
   };
 }
 
+function matchesProcessCode(process: ProcessPlan, code: CodeOptionSelection | null): boolean {
+  if (!code) {
+    return true;
+  }
+  return (
+    process.processCodeId === code.id ||
+    process.processCode === code.code ||
+    process.processName === code.name
+  );
+}
+
 export default function ProcessPage() {
   const confirm = useConfirm();
   const [processCodes, setProcessCodes] = useState<CodeOption[]>([]);
   const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
   const [processes, setProcesses] = useState<ProcessPlan[]>([]);
+  const [draftItem, setDraftItem] = useState<ItemSearchSelection | null>(null);
+  const [draftProcessCode, setDraftProcessCode] = useState<CodeOptionSelection | null>(null);
+  const [appliedItem, setAppliedItem] = useState<ItemSearchSelection | null>(null);
+  const [appliedProcessCode, setAppliedProcessCode] = useState<CodeOptionSelection | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [clearToken, setClearToken] = useState(0);
   const [formItem, setFormItem] = useState<ItemSearchSelection | null>(null);
-  const [filterItem, setFilterItem] = useState<ItemSearchSelection | null>(null);
   const [form, setForm] = useState<CreateProcessRequest>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = editingId !== null;
   const showWorkCenter = form.workDistinction === 'INHOUSE' || form.workDistinction === 'SPLIT';
   const showOutsideOrderRate = form.workDistinction === 'SPLIT';
-  const showItemColumn = filterItem === null;
+  const showItemColumn = appliedItem === null;
+
+  const processCodeOptions = useMemo(
+    (): CodeOptionSelection[] =>
+      processCodes.map((code) => ({ id: code.id, code: code.code, name: code.name })),
+    [processCodes],
+  );
+
+  const displayedProcesses = useMemo(() => {
+    if (!hasSearched) {
+      return [];
+    }
+    return processes.filter((process) => matchesProcessCode(process, appliedProcessCode));
+  }, [processes, appliedProcessCode, hasSearched]);
 
   const processExportRows = useMemo(
     () =>
-      processes.map((process) => {
+      displayedProcesses.map((process) => {
         const row: Record<string, string | number> = {
           ID: process.id,
         };
@@ -94,21 +125,8 @@ export default function ProcessPage() {
         });
         return row;
       }),
-    [processes, showItemColumn],
+    [displayedProcesses, showItemColumn],
   );
-
-  const refreshProcessList = useCallback(async (item?: ItemSearchSelection | null) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const target = item !== undefined ? item : filterItem;
-      setProcesses(await fetchProcessPlans(target?.id));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '목록 조회 실패');
-    } finally {
-      setLoading(false);
-    }
-  }, [filterItem]);
 
   useEffect(() => {
     void (async () => {
@@ -125,31 +143,48 @@ export default function ProcessPage() {
     })();
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await fetchProcessPlans(filterItem?.id);
-        if (!cancelled) {
-          setProcesses(data);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : '공정 목록 조회 실패');
-          setProcesses([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [filterItem?.id]);
+  const onSearch = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const rows = await fetchProcessPlans(draftItem?.id);
+      setProcesses(rows);
+      setAppliedItem(draftItem);
+      setAppliedProcessCode(draftProcessCode);
+      setHasSearched(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '공정 목록 조회 실패');
+      setProcesses([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onResetSearch = () => {
+    setDraftItem(null);
+    setDraftProcessCode(null);
+    setAppliedItem(null);
+    setAppliedProcessCode(null);
+    setProcesses([]);
+    setHasSearched(false);
+    setClearToken((token) => token + 1);
+    setError(null);
+  };
+
+  const refreshListIfSearched = useCallback(async () => {
+    if (!hasSearched) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      setProcesses(await fetchProcessPlans(appliedItem?.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '목록 조회 실패');
+    } finally {
+      setLoading(false);
+    }
+  }, [hasSearched, appliedItem?.id]);
 
   const resetForm = () => {
     setForm({
@@ -196,7 +231,7 @@ export default function ProcessPage() {
         await createProcessPlan(payload);
       }
       resetForm();
-      await refreshProcessList();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : isEditing ? '수정 실패' : '등록 실패');
     } finally {
@@ -214,7 +249,7 @@ export default function ProcessPage() {
       if (editingId === process.id) {
         resetForm();
       }
-      await refreshProcessList();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '삭제 실패');
     }
@@ -356,25 +391,36 @@ export default function ProcessPage() {
         </div>
         <div className="search-row">
           <ItemSearchField
-            label="품목 필터 (선택)"
-            selectedItem={filterItem}
-            onSelect={(item) => {
-              setFilterItem(item);
-            }}
-            placeholder="전체 조회 — 품목번호 또는 품목명 입력"
+            label="품목 (선택)"
+            selectedItem={draftItem}
+            onSelect={setDraftItem}
+            allowedClassifications={NON_RAW_ITEM_CLASSES}
+            clearToken={clearToken}
+            placeholder="품목번호 또는 품목명 입력"
           />
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => setFilterItem(null)}
-          >
-            전체
+          <CodeOptionSearchField
+            label="공정명 (선택)"
+            options={processCodeOptions}
+            selected={draftProcessCode}
+            onSelect={setDraftProcessCode}
+            clearToken={clearToken}
+            placeholder="코드 또는 공정명 입력"
+          />
+          <button type="button" disabled={loading} onClick={() => void onSearch()}>
+            조회
+          </button>
+          <button type="button" className="secondary" disabled={loading} onClick={onResetSearch}>
+            초기화
           </button>
         </div>
-        {loading ? (
+        {!hasSearched ? (
+          <p className="hint-text">조회 버튼을 누르면 목록이 표시됩니다.</p>
+        ) : loading ? (
           <p>불러오는 중…</p>
         ) : processes.length === 0 ? (
           <p>등록된 공정이 없습니다.</p>
+        ) : displayedProcesses.length === 0 ? (
+          <p>검색 조건에 맞는 공정이 없습니다.</p>
         ) : (
           <div className="table-wrap">
           <table>
@@ -392,7 +438,7 @@ export default function ProcessPage() {
               </tr>
             </thead>
             <tbody>
-              {processes.map((process) => (
+              {displayedProcesses.map((process) => (
                 <tr key={process.id} className={editingId === process.id ? 'row-editing' : undefined}>
                   <td className="num">{formatInteger(process.id)}</td>
                   {showItemColumn && (

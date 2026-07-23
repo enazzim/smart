@@ -31,6 +31,8 @@ public class MiscStockMovementResolver {
             case 제품 -> resolveProduct(item, processSequenceId, classification);
             case 부자재 -> throw new IllegalArgumentException(
                     "부자재는 창고 재고를 관리하지 않아 기타입출고 대상이 아닙니다: " + item.itemNo());
+            case 팬텀 -> throw new IllegalArgumentException(
+                    "팬텀은 창고 재고를 관리하지 않아 기타입출고 대상이 아닙니다: " + item.itemNo());
         };
     }
 

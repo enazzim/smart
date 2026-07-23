@@ -48,11 +48,13 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
   const [form, setForm] = useState(emptyForm);
   const [passwordForm, setPasswordForm] = useState(emptyPasswordForm);
   const [searchQuery, setSearchQuery] = useState('');
+  const [appliedQuery, setAppliedQuery] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingLoginId, setEditingLoginId] = useState<string | null>(null);
   const [loginIdAvailable, setLoginIdAvailable] = useState<boolean | null>(null);
   const [checkingLoginId, setCheckingLoginId] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -83,8 +85,10 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
       } else {
         setUsers(rows);
       }
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록 조회 실패');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -97,13 +101,23 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
           const [roleList, diaryGroups] = await Promise.all([fetchRoles(), fetchWorkDiaryGroups()]);
           setRoles(roleList);
           setWorkDiaryGroups(diaryGroups);
+        } else {
+          setLoading(true);
+          await load('');
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : '초기 로드 실패');
+        setLoading(false);
       }
     })();
-    void load();
   }, [canManageUsers]);
+
+  const refreshListIfSearched = async () => {
+    if (!hasSearched) {
+      return;
+    }
+    await load(appliedQuery);
+  };
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -193,7 +207,7 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
         });
       }
       resetForm();
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : isEditing ? '수정 실패' : '등록 실패');
     } finally {
@@ -236,15 +250,27 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
       if (editingId === user.id) {
         resetForm();
       }
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '삭제 실패');
     }
   };
 
-  const onSearch = (e: React.FormEvent) => {
+  const onSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    void load(searchQuery);
+    const ok = await load(searchQuery);
+    if (ok) {
+      setAppliedQuery(searchQuery);
+      setHasSearched(true);
+    }
+  };
+
+  const onResetSearch = () => {
+    setSearchQuery('');
+    setAppliedQuery('');
+    setUsers([]);
+    setHasSearched(false);
+    setError(null);
   };
 
   if (isSelfService) {
@@ -477,10 +503,15 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
             />
           </label>
           <button type="submit" disabled={loading}>
-            검색
+            조회
+          </button>
+          <button type="button" className="secondary" disabled={loading} onClick={onResetSearch}>
+            초기화
           </button>
         </form>
-        {loading ? (
+        {!hasSearched ? (
+          <p className="hint-text">조회 버튼을 누르면 목록이 표시됩니다.</p>
+        ) : loading ? (
           <p>로딩 중…</p>
         ) : (
           <div className="table-wrap">
@@ -499,7 +530,7 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>등록된 사용자가 없습니다.</td>
+                  <td colSpan={7}>검색 조건에 맞는 사용자가 없습니다.</td>
                 </tr>
               ) : (
                 users.map((user) => (

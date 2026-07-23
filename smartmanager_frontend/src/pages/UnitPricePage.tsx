@@ -3,6 +3,7 @@ import type { CompanyRoleType } from '../api/company';
 import type { PropertyClassification } from '../api/item';
 import type { CodeOption } from '../api/process';
 import { fetchProcessCodeOptions } from '../api/process';
+import { ALL_ITEM_CLASSES } from '../utils/itemClassFilters';
 import type {
   CostType,
   CreateUnitPriceRequest,
@@ -148,13 +149,17 @@ export default function UnitPricePage() {
 
   const [processCodes, setProcessCodes] = useState<CodeOption[]>([]);
   const [prices, setPrices] = useState<UnitPrice[]>([]);
-  const [filterItem, setFilterItem] = useState<ItemSearchSelection | null>(null);
-  const [filterCompany, setFilterCompany] = useState<CompanySearchSelection | null>(null);
+  const [draftItem, setDraftItem] = useState<ItemSearchSelection | null>(null);
+  const [draftCompany, setDraftCompany] = useState<CompanySearchSelection | null>(null);
+  const [appliedItem, setAppliedItem] = useState<ItemSearchSelection | null>(null);
+  const [appliedCompany, setAppliedCompany] = useState<CompanySearchSelection | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [clearToken, setClearToken] = useState(0);
   const [formItem, setFormItem] = useState<ItemSearchSelection | null>(null);
   const [formCompany, setFormCompany] = useState<CompanySearchSelection | null>(null);
   const [form, setForm] = useState<CreateUnitPriceRequest & { updateReason?: string }>(emptyForm('SALE'));
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -204,9 +209,23 @@ export default function UnitPricePage() {
     [historyRows],
   );
 
+  const displayedPrices = useMemo(() => {
+    if (!hasSearched) {
+      return [];
+    }
+    let rows = prices;
+    if (appliedItem) {
+      rows = rows.filter((price) => price.itemId === appliedItem.id);
+    }
+    if (appliedCompany) {
+      rows = rows.filter((price) => price.companyId === appliedCompany.id);
+    }
+    return rows;
+  }, [prices, appliedItem, appliedCompany, hasSearched]);
+
   const unitPriceExportRows = useMemo(
     () =>
-      prices.map((price) => {
+      displayedPrices.map((price) => {
         const row: Record<string, string | number> = {
           품목번호: price.itemNum,
           품목명: price.itemName,
@@ -223,12 +242,46 @@ export default function UnitPricePage() {
         row['적용기간'] = price.endDate ? `${price.beginDate} ~ ${price.endDate}` : `${price.beginDate} ~`;
         return row;
       }),
-    [prices, tabConfig],
+    [displayedPrices, tabConfig],
   );
 
-  const listQuery = filterItem?.itemNo ?? filterCompany?.companyName ?? '';
+  useEffect(() => {
+    void fetchProcessCodeOptions().then(setProcessCodes).catch(() => setProcessCodes([]));
+  }, []);
 
-  const refreshList = useCallback(async () => {
+  const onSearch = async () => {
+    const listQuery = draftItem?.itemNo ?? draftCompany?.companyName ?? '';
+    setLoading(true);
+    setError(null);
+    try {
+      setPrices(await fetchUnitPrices(activeTab, listQuery));
+      setAppliedItem(draftItem);
+      setAppliedCompany(draftCompany);
+      setHasSearched(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '목록 조회 실패');
+      setPrices([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onResetSearch = () => {
+    setDraftItem(null);
+    setDraftCompany(null);
+    setAppliedItem(null);
+    setAppliedCompany(null);
+    setPrices([]);
+    setHasSearched(false);
+    setClearToken((token) => token + 1);
+    setError(null);
+  };
+
+  const refreshListIfSearched = useCallback(async () => {
+    if (!hasSearched) {
+      return;
+    }
+    const listQuery = appliedItem?.itemNo ?? appliedCompany?.companyName ?? '';
     setLoading(true);
     setError(null);
     try {
@@ -238,15 +291,7 @@ export default function UnitPricePage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, listQuery]);
-
-  useEffect(() => {
-    void fetchProcessCodeOptions().then(setProcessCodes).catch(() => setProcessCodes([]));
-  }, []);
-
-  useEffect(() => {
-    void refreshList();
-  }, [refreshList]);
+  }, [hasSearched, activeTab, appliedItem?.itemNo, appliedCompany?.companyName]);
 
   const resetForm = () => {
     setForm(emptyForm(activeTab));
@@ -258,8 +303,13 @@ export default function UnitPricePage() {
   const switchTab = (type: CostType) => {
     setActiveTab(type);
     resetForm();
-    setFilterItem(null);
-    setFilterCompany(null);
+    setDraftItem(null);
+    setDraftCompany(null);
+    setAppliedItem(null);
+    setAppliedCompany(null);
+    setPrices([]);
+    setHasSearched(false);
+    setClearToken((token) => token + 1);
   };
 
   const startEdit = (price: UnitPrice) => {
@@ -382,7 +432,7 @@ export default function UnitPricePage() {
         });
       }
       resetForm();
-      await refreshList();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장 실패');
     } finally {
@@ -396,7 +446,7 @@ export default function UnitPricePage() {
     try {
       await deleteUnitPrice(id);
       if (editingId === id) resetForm();
-      await refreshList();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '삭제 실패');
     }
@@ -602,35 +652,36 @@ export default function UnitPricePage() {
           </div>
         </div>
         <div className="search-row">
-          <ItemSearchField
-            label="품목 필터 (선택)"
-            selectedItem={filterItem}
-            onSelect={setFilterItem}
-            allowedClassifications={tabConfig.itemClasses}
-            placeholder="전체 조회 — 품목번호 또는 품목명 입력"
-          />
           <CompanySearchField
-            label="거래처 필터 (선택)"
-            partnerType={tabConfig.partnerType}
-            selectedCompany={filterCompany}
-            onSelect={setFilterCompany}
+            label="거래처 (선택)"
+            selectedCompany={draftCompany}
+            onSelect={setDraftCompany}
+            clearToken={clearToken}
+            placeholder="상호 또는 사업자번호 입력"
           />
-          <button
-            type="button"
-            className="secondary"
-            disabled={loading}
-            onClick={() => {
-              setFilterItem(null);
-              setFilterCompany(null);
-            }}
-          >
-            전체
+          <ItemSearchField
+            label="품목 (선택)"
+            selectedItem={draftItem}
+            onSelect={setDraftItem}
+            allowedClassifications={ALL_ITEM_CLASSES}
+            clearToken={clearToken}
+            placeholder="품목번호 또는 품목명 입력"
+          />
+          <button type="button" disabled={loading} onClick={() => void onSearch()}>
+            조회
+          </button>
+          <button type="button" className="secondary" disabled={loading} onClick={onResetSearch}>
+            초기화
           </button>
         </div>
-        {loading ? (
+        {!hasSearched ? (
+          <p className="hint-text">조회 버튼을 누르면 목록이 표시됩니다.</p>
+        ) : loading ? (
           <p>불러오는 중…</p>
         ) : prices.length === 0 ? (
           <p>등록된 단가가 없습니다.</p>
+        ) : displayedPrices.length === 0 ? (
+          <p>검색 조건에 맞는 단가가 없습니다.</p>
         ) : (
           <div className="table-wrap">
           <table>
@@ -651,7 +702,7 @@ export default function UnitPricePage() {
               </tr>
             </thead>
             <tbody>
-              {prices.map((price) => (
+              {displayedPrices.map((price) => (
                 <tr key={price.id}>
                   <td>
                     {price.itemNum}

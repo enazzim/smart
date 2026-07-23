@@ -1,5 +1,6 @@
-import { lazy, Suspense, type ComponentType } from 'react';
+import { Suspense, type ComponentType } from 'react';
 import type { AuthenticatedUser } from '../api/auth';
+import { lazyWithReload } from '../utils/lazyWithReload';
 import CompanyPage from '../pages/CompanyPage';
 import ItemPage from '../pages/ItemPage';
 import ItemCompositionPage from '../pages/ItemCompositionPage';
@@ -49,7 +50,7 @@ import ItemIoPage from '../pages/ItemIoPage';
 import OrderVsReceiptPage from '../pages/OrderVsReceiptPage';
 import PlaceholderPage from '../pages/PlaceholderPage';
 
-const DrawingPage = lazy(() => import('../pages/DrawingPage'));
+const DrawingPage = lazyWithReload(() => import('../pages/DrawingPage'));
 
 /** TO-BE 업무 흐름 기준 대메뉴 */
 export type MenuCategory =

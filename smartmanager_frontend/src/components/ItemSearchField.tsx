@@ -48,15 +48,9 @@ async function loadProductItems(
   query: string,
   allowedClasses: Set<PropertyClassification>,
 ): Promise<ItemSearchSelection[]> {
+  // 전체 바인딩 후 입력값으로 클라이언트 필터 (포커스·타이핑 시)
+  const results = await fetchItems();
   const trimmed = query.trim();
-
-  let results = trimmed
-    ? await fetchItems(trimmed, undefined)
-    : await fetchItems();
-
-  if (trimmed && results.length === 0) {
-    results = await fetchItems(undefined, trimmed);
-  }
 
   return results
     .filter((item) => allowedClasses.has(item.propertyClassification))

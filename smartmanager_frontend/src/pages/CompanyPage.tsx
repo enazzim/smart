@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { Company, CompanyRoleType, CreateCompanyRequest, UpdateCompanyRequest } from '../api/company';
 import { createCompany, deleteCompany, fetchCompanies, updateCompany } from '../api/company';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
@@ -49,22 +49,28 @@ function toUpdatePayload(company: Company): UpdateCompanyRequest {
 export default function CompanyPage() {
   const confirm = useConfirm();
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [filterCompany, setFilterCompany] = useState<CompanySearchSelection | null>(null);
+  const [draftCompany, setDraftCompany] = useState<CompanySearchSelection | null>(null);
+  const [appliedCompany, setAppliedCompany] = useState<CompanySearchSelection | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [clearToken, setClearToken] = useState(0);
   const [form, setForm] = useState<CreateCompanyRequest>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingBusinessRegNo, setEditingBusinessRegNo] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = editingId !== null;
 
   const displayedCompanies = useMemo(() => {
-    if (!filterCompany) {
+    if (!hasSearched) {
+      return [];
+    }
+    if (!appliedCompany) {
       return companies;
     }
-    return companies.filter((company) => company.id === filterCompany.id);
-  }, [companies, filterCompany]);
+    return companies.filter((company) => company.id === appliedCompany.id);
+  }, [companies, appliedCompany, hasSearched]);
 
   const companyExportRows = useMemo(
     () =>
@@ -78,21 +84,47 @@ export default function CompanyPage() {
     [displayedCompanies],
   );
 
-  const load = useCallback(async () => {
+  const loadCompanies = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setCompanies(await fetchCompanies());
+      return await fetchCompanies();
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록 조회 실패');
+      return null;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const onSearch = async () => {
+    const rows = await loadCompanies();
+    if (rows == null) {
+      return;
+    }
+    setCompanies(rows);
+    setAppliedCompany(draftCompany);
+    setHasSearched(true);
+  };
+
+  const onResetSearch = () => {
+    setDraftCompany(null);
+    setAppliedCompany(null);
+    setCompanies([]);
+    setHasSearched(false);
+    setClearToken((token) => token + 1);
+    setError(null);
+  };
+
+  const refreshListIfSearched = async () => {
+    if (!hasSearched) {
+      return;
+    }
+    const rows = await loadCompanies();
+    if (rows != null) {
+      setCompanies(rows);
+    }
+  };
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -153,7 +185,7 @@ export default function CompanyPage() {
         await createCompany({ ...form, businessRegNo });
       }
       resetForm();
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : isEditing ? '수정 실패' : '등록 실패');
     } finally {
@@ -171,7 +203,7 @@ export default function CompanyPage() {
       if (editingId === company.id) {
         resetForm();
       }
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '삭제 실패');
     }
@@ -282,21 +314,22 @@ export default function CompanyPage() {
         </div>
         <div className="search-row">
           <CompanySearchField
-            label="거래처 검색 (선택)"
-            selectedCompany={filterCompany}
-            onSelect={setFilterCompany}
-            placeholder="전체 조회 — 상호 또는 사업자번호 입력"
+            label="거래처"
+            selectedCompany={draftCompany}
+            onSelect={setDraftCompany}
+            clearToken={clearToken}
+            placeholder="상호 또는 사업자번호 입력"
           />
-          <button
-            type="button"
-            className="secondary"
-            disabled={loading || filterCompany == null}
-            onClick={() => setFilterCompany(null)}
-          >
-            전체
+          <button type="button" disabled={loading} onClick={() => void onSearch()}>
+            조회
+          </button>
+          <button type="button" className="secondary" disabled={loading} onClick={onResetSearch}>
+            초기화
           </button>
         </div>
-        {loading ? (
+        {!hasSearched ? (
+          <p className="hint-text">조회 버튼을 누르면 목록이 표시됩니다.</p>
+        ) : loading ? (
           <p>불러오는 중…</p>
         ) : companies.length === 0 ? (
           <p>등록된 거래처가 없습니다.</p>

@@ -24,13 +24,10 @@ import { useAuth } from '../context/AuthContext';
 import { downloadExplosionExcel, downloadReverseExcel } from '../utils/bomExcelExport';
 import { formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
+import { BOM_CHILD_ITEM_CLASSES, NON_RAW_ITEM_CLASSES } from '../utils/itemClassFilters';
 
 const PARENT_CLASSES: PropertyClassification[] = ['제품', '상품', '공정품'];
 const CHILD_CLASSES: PropertyClassification[] = ['원자재', '공정품'];
-/** 목록 필터: 상품·원자재 제외 (제품·공정품) */
-const PARENT_FILTER_CLASSES: PropertyClassification[] = ['제품', '공정품'];
-/** 목록 필터: 제품·상품 제외 (원자재·공정품) */
-const CHILD_FILTER_CLASSES: PropertyClassification[] = ['원자재', '공정품'];
 
 type ModalKind = 'explosion' | 'reverse' | 'copy' | null;
 
@@ -116,9 +113,13 @@ export default function ItemCompositionPage() {
   const canEditLot = Boolean(currentUser?.authorities.includes('basis:item:write'));
 
   const [rows, setRows] = useState<ItemComposition[]>([]);
-  const [filterParent, setFilterParent] = useState<ItemSearchSelection | null>(null);
-  const [filterChild, setFilterChild] = useState<ItemSearchSelection | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [draftParent, setDraftParent] = useState<ItemSearchSelection | null>(null);
+  const [draftChild, setDraftChild] = useState<ItemSearchSelection | null>(null);
+  const [appliedParent, setAppliedParent] = useState<ItemSearchSelection | null>(null);
+  const [appliedChild, setAppliedChild] = useState<ItemSearchSelection | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [clearToken, setClearToken] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [lotBusyItemId, setLotBusyItemId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -157,28 +158,56 @@ export default function ItemCompositionPage() {
     [rows],
   );
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (
+    parent: ItemSearchSelection | null,
+    child: ItemSearchSelection | null,
+  ) => {
     setLoading(true);
     setError(null);
     try {
       setRows(
         await fetchItemCompositions(
-          filterParent?.itemNo,
-          filterChild?.itemNo,
-          filterParent?.id,
-          filterChild?.id,
+          parent?.itemNo,
+          child?.itemNo,
+          parent?.id,
+          child?.id,
         ),
       );
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록 조회 실패');
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [filterParent?.id, filterParent?.itemNo, filterChild?.id, filterChild?.itemNo]);
+  }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const onSearch = async () => {
+    const ok = await load(draftParent, draftChild);
+    if (ok) {
+      setAppliedParent(draftParent);
+      setAppliedChild(draftChild);
+      setHasSearched(true);
+    }
+  };
+
+  const onResetSearch = () => {
+    setDraftParent(null);
+    setDraftChild(null);
+    setAppliedParent(null);
+    setAppliedChild(null);
+    setRows([]);
+    setHasSearched(false);
+    setClearToken((token) => token + 1);
+    setError(null);
+  };
+
+  const refreshListIfSearched = async () => {
+    if (!hasSearched) {
+      return;
+    }
+    await load(appliedParent, appliedChild);
+  };
 
   const closeModal = () => {
     setModal(null);
@@ -249,7 +278,7 @@ export default function ItemCompositionPage() {
         await createItemComposition(payload);
       }
       resetForm();
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장 실패');
     } finally {
@@ -267,14 +296,14 @@ export default function ItemCompositionPage() {
       if (editingId === row.id) {
         resetForm();
       }
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '삭제 실패');
     }
   };
 
   const onExplosion = async () => {
-    const itemNum = filterParent?.itemNo;
+    const itemNum = draftParent?.itemNo;
     if (!itemNum) {
       setError('정전개는 모품목을 선택해 주세요.');
       return;
@@ -294,12 +323,12 @@ export default function ItemCompositionPage() {
   };
 
   const refreshExplosionTree = useCallback(async () => {
-    const itemNum = filterParent?.itemNo ?? explosionTree?.itemNum;
+    const itemNum = draftParent?.itemNo ?? explosionTree?.itemNum;
     if (!itemNum) {
       return;
     }
     setExplosionTree(await fetchBomExplosion(itemNum));
-  }, [filterParent?.itemNo, explosionTree?.itemNum]);
+  }, [draftParent?.itemNo, explosionTree?.itemNum]);
 
   const onToggleLot = async (node: BomTreeNode) => {
     if (!canEditLot) {
@@ -334,7 +363,7 @@ export default function ItemCompositionPage() {
   };
 
   const openLotEnablePreview = async () => {
-    const itemNum = explosionTree?.itemNum ?? filterParent?.itemNo;
+    const itemNum = explosionTree?.itemNum ?? draftParent?.itemNo;
     if (!itemNum || !canEditLot) {
       return;
     }
@@ -366,7 +395,7 @@ export default function ItemCompositionPage() {
   };
 
   const applyLotEnableBulk = async () => {
-    const itemNum = explosionTree?.itemNum ?? filterParent?.itemNo;
+    const itemNum = explosionTree?.itemNum ?? draftParent?.itemNo;
     if (!itemNum || !canEditLot) {
       return;
     }
@@ -405,7 +434,7 @@ export default function ItemCompositionPage() {
   };
 
   const onReverse = async () => {
-    const itemNum = filterChild?.itemNo;
+    const itemNum = draftChild?.itemNo;
     if (!itemNum) {
       setError('역전개는 자품목을 선택해 주세요.');
       return;
@@ -424,7 +453,7 @@ export default function ItemCompositionPage() {
   };
 
   const openCopy = () => {
-    setCopySource(filterParent);
+    setCopySource(draftParent);
     setCopyTarget(null);
     setModal('copy');
     setError(null);
@@ -445,7 +474,7 @@ export default function ItemCompositionPage() {
       });
       setToast(`${result.copiedCount}건 복사되었습니다.`);
       closeModal();
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'BOM 복사 실패');
     } finally {
@@ -454,13 +483,18 @@ export default function ItemCompositionPage() {
   };
 
   const filterByParent = (row: ItemComposition) => {
-    setFilterParent({
+    const parent: ItemSearchSelection = {
       id: row.parentItemId,
       itemNo: row.parentItemNo,
       itemName: row.parentItemName,
-    });
-    setFilterChild(null);
+    };
+    setDraftParent(parent);
+    setDraftChild(null);
+    setAppliedParent(parent);
+    setAppliedChild(null);
+    setHasSearched(true);
     closeModal();
+    void load(parent, null);
   };
 
   useEffect(() => {
@@ -561,32 +595,26 @@ export default function ItemCompositionPage() {
         <div className="bom-toolbar">
           <div className="search-row">
             <ItemSearchField
-              label="모품목 필터 (선택)"
-              selectedItem={filterParent}
-              onSelect={(item) => {
-                setFilterParent(item);
-              }}
-              allowedClassifications={PARENT_FILTER_CLASSES}
-              placeholder="전체 조회 — 품목번호 또는 품목명 입력"
+              label="모품목번호"
+              selectedItem={draftParent}
+              onSelect={setDraftParent}
+              clearToken={clearToken}
+              allowedClassifications={NON_RAW_ITEM_CLASSES}
+              placeholder="품목번호 또는 품목명 입력"
             />
             <ItemSearchField
-              label="자품목 필터 (선택)"
-              selectedItem={filterChild}
-              onSelect={(item) => {
-                setFilterChild(item);
-              }}
-              allowedClassifications={CHILD_FILTER_CLASSES}
-              placeholder="전체 조회 — 품목번호 또는 품목명 입력"
+              label="자품목번호"
+              selectedItem={draftChild}
+              onSelect={setDraftChild}
+              clearToken={clearToken}
+              allowedClassifications={BOM_CHILD_ITEM_CLASSES}
+              placeholder="품목번호 또는 품목명 입력"
             />
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => {
-                setFilterParent(null);
-                setFilterChild(null);
-              }}
-            >
-              전체
+            <button type="button" disabled={loading} onClick={() => void onSearch()}>
+              조회
+            </button>
+            <button type="button" className="secondary" disabled={loading} onClick={onResetSearch}>
+              초기화
             </button>
           </div>
           <div className="toolbar-actions">
@@ -602,10 +630,12 @@ export default function ItemCompositionPage() {
           </div>
         </div>
 
-        {loading ? (
+        {!hasSearched ? (
+          <p className="hint-text">조회 버튼을 누르면 목록이 표시됩니다.</p>
+        ) : loading ? (
           <p>불러오는 중…</p>
         ) : rows.length === 0 ? (
-          <p>등록된 BOM이 없습니다.</p>
+          <p>검색 조건에 맞는 BOM이 없습니다.</p>
         ) : (
           <div className="table-wrap">
           <table>

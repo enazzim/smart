@@ -152,6 +152,8 @@ Nginx 동일 오리진이면 CORS를 localhost:5173만 허용해도 브라우저
 AL2023는 `sites-available` 대신 **`/etc/nginx/conf.d/`** 를 사용합니다.
 
 - [ ] [deploy/nginx/smartmanager.conf](../../deploy/nginx/smartmanager.conf) → `/etc/nginx/conf.d/smartmanager.conf`
+- [ ] `/smartmanager/assets/` → 장기 캐시(`immutable`), 없는 파일은 404
+- [ ] `/smartmanager/index.html` → `Cache-Control: no-cache` (배포 후 옛 번들 맵 방지)
 - [ ] 기본 conf와 `default_server` 충돌 시 기존 설정 조정
 - [ ] `root` → `/var/smartmanager/www`
 - [ ] `/api/` → `http://127.0.0.1:8080`

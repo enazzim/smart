@@ -133,7 +133,8 @@ public class MasterDataImportService {
                             row.minOrderQuantity(),
                             row.lotTracked()
                     ),
-                    actorUserId
+                    actorUserId,
+                    true
             );
         }, row -> row.itemNo());
     }

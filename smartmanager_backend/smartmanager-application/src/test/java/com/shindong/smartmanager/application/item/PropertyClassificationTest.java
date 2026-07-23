@@ -29,6 +29,9 @@ class PropertyClassificationTest {
         assertEquals(PropertyClassification.부자재, PropertyClassification.fromImportLabel("소모품"));
         assertEquals(PropertyClassification.공정품, PropertyClassification.fromImportLabel("반제품"));
         assertEquals(PropertyClassification.원자재, PropertyClassification.fromImportLabel("원자재"));
+        assertEquals(PropertyClassification.팬텀, PropertyClassification.fromImportLabel("팬텀"));
+        assertFalse(PropertyClassification.팬텀.selectableOnItemScreen());
+        assertTrue(PropertyClassification.원자재.selectableOnItemScreen());
     }
 
     @Test
