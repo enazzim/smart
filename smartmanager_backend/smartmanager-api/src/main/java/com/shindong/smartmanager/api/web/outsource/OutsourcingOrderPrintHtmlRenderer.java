@@ -2,6 +2,7 @@ package com.shindong.smartmanager.api.web.outsource;
 
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderPrintLineView;
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderPrintView;
+import com.shindong.smartmanager.domain.company.BusinessRegNos;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -136,6 +137,7 @@ final class OutsourcingOrderPrintHtmlRenderer {
                     </div>
                     <div>
                       <p>업체명 : <strong>%s</strong></p>
+                      <p>사업자번호 : %s</p>
                     </div>
                     <div>
                       <p style="text-align:right;">전화 : %s &nbsp; FAX: %s</p>
@@ -201,6 +203,7 @@ final class OutsourcingOrderPrintHtmlRenderer {
                 escape(nullToDash(view.issuerFax())),
                 escape(nullToDash(view.issuerAddress())),
                 escape(view.partnerName()),
+                escape(nullToDash(BusinessRegNos.formatForDisplay(view.partnerBusinessRegNo()))),
                 escape(nullToDash(view.partnerTelephone())),
                 escape(nullToDash(view.partnerFax())),
                 rows,

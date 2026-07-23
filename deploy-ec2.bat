@@ -17,6 +17,7 @@ set "REMOTE_WWW=/var/smartmanager/www"
 set "REMOTE_WEB_DIR=/var/smartmanager/www/smartmanager"
 set "REMOTE_TMP=/tmp/smartmanager-deploy"
 set "NGINX_CONF=%ROOT%deploy\nginx\smartmanager.conf"
+set "APPLY_API_SH=%ROOT%deploy\scripts\ec2-apply-api.sh"
 set "TARGET=all"
 set "SKIP_BUILD=0"
 set "DO_API=0"
@@ -137,6 +138,16 @@ if "%DO_API%"=="1" (
         echo ERROR: JAR upload failed.
         exit /b 1
     )
+    if not exist "%APPLY_API_SH%" (
+        echo ERROR: Missing %APPLY_API_SH%
+        exit /b 1
+    )
+    echo   - Apply script
+    scp -i "%PEM_KEY%" -o IdentitiesOnly=yes "%APPLY_API_SH%" %EC2_USER%@%EC2_HOST%:%REMOTE_TMP%/ec2-apply-api.sh
+    if errorlevel 1 (
+        echo ERROR: Apply script upload failed.
+        exit /b 1
+    )
 )
 
 if "%DO_WEB%"=="1" (
@@ -169,12 +180,13 @@ rem ---------- Apply on EC2 ----------
 echo [3/4] Applying on server...
 
 if "%DO_API%"=="1" (
-    ssh -i "%PEM_KEY%" -o IdentitiesOnly=yes %EC2_USER%@%EC2_HOST% "sudo systemctl stop smartmanager-api && sudo cp %REMOTE_TMP%/smartmanager-api.jar %REMOTE_APP%/smartmanager-api.jar && sudo chown smartmanager:smartmanager %REMOTE_APP%/smartmanager-api.jar && sudo systemctl start smartmanager-api"
+    rem Flyway repair-on-migrate one-shot then start (see deploy/scripts/ec2-apply-api.sh)
+    ssh -i "%PEM_KEY%" -o IdentitiesOnly=yes %EC2_USER%@%EC2_HOST% "sed -i 's/\r$//' %REMOTE_TMP%/ec2-apply-api.sh && chmod +x %REMOTE_TMP%/ec2-apply-api.sh && bash %REMOTE_TMP%/ec2-apply-api.sh %REMOTE_TMP%/smartmanager-api.jar"
     if errorlevel 1 (
         echo ERROR: API deploy failed on server.
         exit /b 1
     )
-    echo   - API restarted
+    echo   - API restarted ^(Flyway repair-on-migrate once^)
 )
 
 if "%DO_WEB%"=="1" (

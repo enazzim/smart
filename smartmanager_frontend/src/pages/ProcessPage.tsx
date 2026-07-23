@@ -315,13 +315,14 @@ export default function ProcessPage() {
               <input
                 required
                 type="number"
-                min={1}
-                max={99}
+                min={0}
+                max={100}
                 value={form.outsideOrderRate ?? 0}
                 onChange={(e) =>
                   setForm({ ...form, outsideOrderRate: Number(e.target.value) })
                 }
               />
+              <span className="field-hint">0=전량 자가, 100=전량 외주 (운영 중 수정 가능)</span>
             </label>
           )}
           <label>

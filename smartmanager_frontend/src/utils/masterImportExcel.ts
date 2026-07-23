@@ -4,6 +4,7 @@ import {
   normalizeExcelDate,
   parseFirstSheetRows,
 } from './excelHelpers';
+import { canonicalizeBusinessRegNo } from './businessRegNo';
 
 export type ImportDomain =
   | 'company'
@@ -187,11 +188,31 @@ function cellString(value: unknown): string {
   return String(value).trim();
 }
 
+/** 레거시 자산분류 → 현행 Enum (Cut-over). 소모품→부자재, 반제품→공정품 */
+function mapPropertyClassification(raw: string): string {
+  switch (raw) {
+    case '소모품':
+      return '부자재';
+    case '반제품':
+      return '공정품';
+    default:
+      return raw;
+  }
+}
+
 function cellNumber(value: unknown): number | undefined {
   const text = cellString(value).replace(/,/g, '');
   if (!text) return undefined;
   const parsed = Number(text);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/** 수량 0을 유효 값으로 유지 (빈칸만 undefined) */
+function cellNumberAllowZero(value: unknown): number | undefined {
+  if (value === 0 || value === '0') {
+    return 0;
+  }
+  return cellNumber(value);
 }
 
 function normalizeDate(value: unknown): string {
@@ -224,7 +245,7 @@ function mapRow(domain: ImportDomain, row: Record<string, unknown>): Record<stri
       return {
         companyName: cellString(row['상호']),
         presidentName: cellString(row['대표자']),
-        businessRegNo: cellString(row['사업자등록번호']),
+        businessRegNo: canonicalizeBusinessRegNo(cellString(row['사업자등록번호'])),
         corporationRegNo: cellString(row['법인등록번호']) || null,
         businessAddress: cellString(row['사업장주소']),
         homepageUrl: cellString(row['홈페이지']) || null,
@@ -243,7 +264,7 @@ function mapRow(domain: ImportDomain, row: Record<string, unknown>): Record<stri
       return {
         itemNo: cellString(row['품목번호']),
         itemName: cellString(row['품목명']),
-        propertyClassification: cellString(row['자산분류']),
+        propertyClassification: mapPropertyClassification(cellString(row['자산분류'])),
         modelType: cellString(row['기종']),
         unit: cellString(row['단위']),
         standard: cellString(row['규격']) || null,
@@ -260,7 +281,8 @@ function mapRow(domain: ImportDomain, row: Record<string, unknown>): Record<stri
         parentItemNum: cellString(row['모품목번호']),
         childItemNum: cellString(row['자품목번호']),
         parentQuantity: cellNumber(row['모품수량']),
-        childQuantity: cellNumber(row['자품수량']),
+        // 0 허용(하위 전개 제외용). undefined만 미입력으로 취급
+        childQuantity: cellNumberAllowZero(row['자품수량']),
       };
     case 'work-center':
       return {
@@ -268,16 +290,20 @@ function mapRow(domain: ImportDomain, row: Record<string, unknown>): Record<stri
         mainProcessSmallCode: cellString(row['대표공정코드']),
         operationTime: cellNumber(row['가동시간(분)']),
       };
-    case 'process':
+    case 'process': {
+      const workDistinction = cellString(row['작업구분']).toUpperCase();
+      const usesOutsideRate = workDistinction === 'SPLIT';
       return {
         itemNo: cellString(row['품목번호']),
         processSequenceNum: cellNumber(row['순서번호']),
         processSmallCode: cellString(row['공정코드']),
-        workDistinction: cellString(row['작업구분']),
+        workDistinction,
         workCenterName: cellString(row['작업장명']) || null,
-        outsideOrderRate: cellNumber(row['발주비율']) ?? null,
+        // OUTSOURCE·INHOUSE: 엑셀 발주비율 무시. SPLIT만 0~100 사용
+        outsideOrderRate: usesOutsideRate ? cellNumberAllowZero(row['발주비율']) ?? 0 : 0,
         progressRate: cellNumber(row['진척비율']) ?? null,
       };
+    }
     case 'work-standard':
       return {
         itemNum: cellString(row['품목번호']),
@@ -291,19 +317,23 @@ function mapRow(domain: ImportDomain, row: Record<string, unknown>): Record<stri
         setupTime: cellNumber(row['준비시간(분)']),
         standardTime: cellNumber(row['표준시간(초)']),
       };
-    case 'unit-price':
+    case 'unit-price': {
+      const costType = cellString(row['단가구분']).toUpperCase();
+      const usesProcess = costType === 'OUTSOURCE';
       return {
-        costType: cellString(row['단가구분']),
+        costType,
         itemNum: cellString(row['품목번호']),
         businessRegNo: cellString(row['사업자등록번호']),
-        beginProcessSmallCode: cellString(row['시작공정코드']) || null,
-        endProcessSmallCode: cellString(row['종료공정코드']) || null,
+        // 판매·구매: 엑셀 공정값 무시 → null / 외주만 사용
+        beginProcessSmallCode: usesProcess ? cellString(row['시작공정코드']) || null : null,
+        endProcessSmallCode: usesProcess ? cellString(row['종료공정코드']) || null : null,
         orderRate: cellNumber(row['발주비율']) ?? null,
         standardUnitCost: cellNumber(row['표준단가']),
         discountUnitCost: cellNumber(row['할인단가']) ?? null,
         beginDate: normalizeDate(row['적용시작일']),
         endDate: normalizeDate(row['적용종료일']) || null,
       };
+    }
     default:
       return row;
   }
@@ -319,6 +349,7 @@ export function validateImportRows(
     const required = getRequiredFields(domain);
     for (const field of required) {
       const value = row[field];
+      // 숫자 0은 유효 입력으로 인정 (자품수량 0 등)
       if (value === undefined || value === null || value === '') {
         if (domain === 'company' && field === 'roles') {
           errors.push({
@@ -328,6 +359,23 @@ export function validateImportRows(
         } else {
           errors.push({ rowNumber, message: `${field} 필수` });
         }
+      }
+    }
+    if (domain === 'item-composition') {
+      const parentQty = row.parentQuantity;
+      const childQty = row.childQuantity;
+      if (typeof parentQty === 'number' && !(parentQty > 0)) {
+        errors.push({ rowNumber, message: '모품수량은 0보다 커야 합니다.' });
+      }
+      if (typeof childQty === 'number' && childQty < 0) {
+        errors.push({ rowNumber, message: '자품수량은 0 이상이어야 합니다.' });
+      }
+    }
+    if (domain === 'process') {
+      const distinction = String(row.workDistinction ?? '').toUpperCase();
+      const rate = row.outsideOrderRate;
+      if (distinction === 'SPLIT' && typeof rate === 'number' && (rate < 0 || rate > 100)) {
+        errors.push({ rowNumber, message: '혼합(SPLIT) 발주비율은 0~100 사이여야 합니다.' });
       }
     }
   });

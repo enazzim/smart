@@ -309,6 +309,7 @@ export default function MasterImportPage() {
           </li>
           <li>엑셀 파일의 <strong>첫 번째 행(헤더)</strong>은 수정하지 마세요.</li>
           <li>실제 데이터는 <strong>두 번째 행(샘플) 다음</strong>부터 입력하거나, 샘플 행을 삭제 후 입력하세요.</li>
+          <li>품목구성: 자품수량은 <strong>0 이상</strong> (0이면 하위 전개·소요에서 제외).</li>
           <li>FK가 필요한 항목은 앞 단계 데이터가 먼저 등록되어 있어야 합니다.</li>
         </ul>
       </aside>

@@ -114,6 +114,7 @@ FLUSH PRIVILEGES;
 - [ ] DB URL / username / password
 - [ ] JWT secret (32자 이상 랜덤)
 - [ ] admin 초기 비밀번호 (배포 후 즉시 변경)
+- [ ] Flyway: 이미 적용된 V00x 파일은 수정하지 않음 (변경은 새 버전). API 배포 시 deploy-ec2.bat가 repair-on-migrate 1회 적용
 - [ ] 도면·게시판·백업 절대 경로
 
 | 설정 | 운영 권장 |

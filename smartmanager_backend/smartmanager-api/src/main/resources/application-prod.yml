@@ -21,6 +21,8 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
     validate-on-migrate: true
+    # deploy-ec2.bat API 배포 시 일시적으로 true (checksum mismatch repair)
+    repair-on-migrate: ${SMARTMANAGER_FLYWAY_REPAIR_ON_MIGRATE:false}
 
 logging:
   level:

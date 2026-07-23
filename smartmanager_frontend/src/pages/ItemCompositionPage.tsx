@@ -222,8 +222,8 @@ export default function ItemCompositionPage() {
     e.preventDefault();
     const pQty = Number(parentQty);
     const cQty = Number(childQty);
-    if (!Number.isFinite(pQty) || pQty <= 0 || !Number.isFinite(cQty) || cQty <= 0) {
-      setError('모품수량·자품수량은 0보다 커야 합니다.');
+    if (!Number.isFinite(pQty) || pQty <= 0 || !Number.isFinite(cQty) || cQty < 0) {
+      setError('모품수량은 0보다 커야 하고, 자품수량은 0 이상이어야 합니다.');
       return;
     }
 
@@ -531,7 +531,7 @@ export default function ItemCompositionPage() {
             <input
               required
               type="number"
-              min="0.0001"
+              min="0"
               step="any"
               value={childQty}
               onChange={(e) => setChildQty(e.target.value)}

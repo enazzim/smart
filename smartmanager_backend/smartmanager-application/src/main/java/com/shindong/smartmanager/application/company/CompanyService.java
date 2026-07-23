@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.application.company;
 
 import com.shindong.smartmanager.application.event.DomainEventStore;
+import com.shindong.smartmanager.domain.company.BusinessRegNos;
 import com.shindong.smartmanager.domain.company.CompanyRoleType;
 import com.shindong.smartmanager.domain.event.AggregateTypes;
 import com.shindong.smartmanager.domain.event.DomainEvent;
@@ -28,17 +29,22 @@ public class CompanyService {
     }
 
     public CompanyView register(CompanyCommand command, String actorUserId) {
-        validateRoles(command.roles());
-        validateRequiredFields(command.companyName(), command.presidentName(), command.businessRegNo(), command.businessAddress());
-        if (companyRepository.existsActiveByBusinessRegNo(command.businessRegNo())) {
-            throw new IllegalArgumentException("이미 등록된 사업자번호입니다: " + command.businessRegNo());
+        CompanyCommand normalized = withCanonicalBusinessRegNo(command);
+        validateRoles(normalized.roles());
+        validateRequiredFields(
+                normalized.companyName(),
+                normalized.presidentName(),
+                normalized.businessRegNo(),
+                normalized.businessAddress());
+        if (companyRepository.existsActiveByBusinessRegNo(normalized.businessRegNo())) {
+            throw new IllegalArgumentException("이미 등록된 사업자번호입니다: " + normalized.businessRegNo());
         }
 
-        long companyId = companyRepository.save(command, actorUserId);
-        companyRepository.replaceRoles(companyId, command.roles());
+        long companyId = companyRepository.save(normalized, actorUserId);
+        companyRepository.replaceRoles(companyId, normalized.roles());
 
         int fiscalYear = Year.now().getValue();
-        partnerLedgerProjector.ensureAccounts(companyId, command.roles(), fiscalYear, actorUserId);
+        partnerLedgerProjector.ensureAccounts(companyId, normalized.roles(), fiscalYear, actorUserId);
 
         domainEventStore.append(DomainEvent.create(
                 EventTypes.COMPANY_REGISTERED,
@@ -46,7 +52,7 @@ public class CompanyService {
                 AggregateTypes.COMPANY,
                 String.valueOf(companyId),
                 actorUserId,
-                buildRegisteredPayload(command, companyId, fiscalYear)
+                buildRegisteredPayload(normalized, companyId, fiscalYear)
         ));
 
         return companyRepository.findActiveById(companyId)
@@ -101,6 +107,31 @@ public class CompanyService {
     public CompanyView getActive(long id) {
         return companyRepository.findActiveById(id)
                 .orElseThrow(() -> new IllegalArgumentException("거래처를 찾을 수 없습니다: " + id));
+    }
+
+    private CompanyCommand withCanonicalBusinessRegNo(CompanyCommand command) {
+        String canonical = BusinessRegNos.canonicalize(command.businessRegNo());
+        if (canonical.equals(command.businessRegNo())) {
+            return command;
+        }
+        return new CompanyCommand(
+                command.companyName(),
+                command.presidentName(),
+                canonical,
+                command.corporationRegNo(),
+                command.businessAddress(),
+                command.homepageUrl(),
+                command.businessType(),
+                command.businessItem(),
+                command.telephone(),
+                command.fax(),
+                command.saleStandardDay(),
+                command.billApprovalStandard(),
+                command.fixCollectDay1(),
+                command.contactName(),
+                command.contactEmail(),
+                command.roles()
+        );
     }
 
     private void validateRoles(List<CompanyRoleType> roles) {

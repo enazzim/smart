@@ -4,6 +4,11 @@ import { createCompany, deleteCompany, fetchCompanies, updateCompany } from '../
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { formatInteger } from '../utils/numberFormat';
+import {
+  canonicalizeBusinessRegNo,
+  formatBusinessRegNo,
+  isStandardBusinessRegNo,
+} from '../utils/businessRegNo';
 import { useConfirm } from '../context/ConfirmContext';
 
 const ROLE_OPTIONS: { value: CompanyRoleType; label: string }[] = [
@@ -66,7 +71,7 @@ export default function CompanyPage() {
       displayedCompanies.map((company) => ({
         ID: company.id,
         상호: company.companyName,
-        사업자번호: company.businessRegNo,
+        사업자번호: formatBusinessRegNo(company.businessRegNo),
         대표자: company.presidentName,
         역할: company.roles.join(', '),
       })),
@@ -105,10 +110,11 @@ export default function CompanyPage() {
 
   const startEdit = (company: Company) => {
     setEditingId(company.id);
-    setEditingBusinessRegNo(company.businessRegNo);
+    const displayRegNo = formatBusinessRegNo(company.businessRegNo);
+    setEditingBusinessRegNo(displayRegNo);
     setForm({
       ...toUpdatePayload(company),
-      businessRegNo: company.businessRegNo,
+      businessRegNo: displayRegNo,
     });
     setError(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -123,7 +129,28 @@ export default function CompanyPage() {
         const { businessRegNo: _ignored, ...updatePayload } = form;
         await updateCompany(editingId, updatePayload);
       } else {
-        await createCompany(form);
+        const rawRegNo = form.businessRegNo.trim();
+        if (!rawRegNo) {
+          setError('사업자번호는 필수입니다.');
+          return;
+        }
+        let businessRegNo = canonicalizeBusinessRegNo(rawRegNo);
+        if (!isStandardBusinessRegNo(rawRegNo)) {
+          const ok = await confirm(
+            `사업자등록번호 형식이 표준(XXX-XX-XXXXX, 숫자 10자리)과 다릅니다.\n입력값: ${rawRegNo}\n\n이대로 등록하시겠습니까?`,
+            {
+              title: '사업자등록번호 형식 확인',
+              confirmLabel: '그대로 등록',
+              cancelLabel: '수정',
+            },
+          );
+          if (!ok) {
+            return;
+          }
+          businessRegNo = rawRegNo;
+        }
+        setForm((prev) => ({ ...prev, businessRegNo }));
+        await createCompany({ ...form, businessRegNo });
       }
       resetForm();
       await load();
@@ -183,8 +210,16 @@ export default function CompanyPage() {
             <input
               required
               readOnly={isEditing}
+              placeholder="000-00-00000 또는 숫자 10자리"
               value={isEditing ? (editingBusinessRegNo ?? form.businessRegNo) : form.businessRegNo}
               onChange={(e) => setForm({ ...form, businessRegNo: e.target.value })}
+              onBlur={() => {
+                if (isEditing) return;
+                const raw = form.businessRegNo.trim();
+                if (isStandardBusinessRegNo(raw)) {
+                  setForm((prev) => ({ ...prev, businessRegNo: formatBusinessRegNo(raw) }));
+                }
+              }}
               className={isEditing ? 'readonly' : undefined}
             />
           </label>
@@ -285,7 +320,7 @@ export default function CompanyPage() {
                 <tr key={c.id} className={editingId === c.id ? 'row-editing' : undefined}>
                   <td className="num">{formatInteger(c.id)}</td>
                   <td>{c.companyName}</td>
-                  <td>{c.businessRegNo}</td>
+                  <td>{formatBusinessRegNo(c.businessRegNo)}</td>
                   <td>{c.presidentName}</td>
                   <td>{c.roles.join(', ')}</td>
                   <td className="actions">

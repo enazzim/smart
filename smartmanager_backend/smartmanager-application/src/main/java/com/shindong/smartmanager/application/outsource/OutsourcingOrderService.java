@@ -167,6 +167,7 @@ public class OutsourcingOrderService {
                 orderNos,
                 orderDate,
                 first.partnerName(),
+                first.partnerBusinessRegNo(),
                 partner.telephone(),
                 partner.fax(),
                 DEFAULT_ISSUER_COMPANY_NAME,

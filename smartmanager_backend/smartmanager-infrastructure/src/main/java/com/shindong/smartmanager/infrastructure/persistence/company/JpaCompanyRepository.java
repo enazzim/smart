@@ -4,6 +4,7 @@ import com.shindong.smartmanager.application.company.CompanyCommand;
 import com.shindong.smartmanager.application.company.CompanyRepository;
 import com.shindong.smartmanager.application.company.CompanyUpdateCommand;
 import com.shindong.smartmanager.application.company.CompanyView;
+import com.shindong.smartmanager.domain.company.BusinessRegNos;
 import com.shindong.smartmanager.domain.company.CompanyRoleType;
 import java.time.Instant;
 import java.util.List;
@@ -27,7 +28,7 @@ public class JpaCompanyRepository implements CompanyRepository {
 
     @Override
     public boolean existsActiveByBusinessRegNo(String businessRegNo) {
-        return companyRepository.existsByBusinessRegNoAndRecordingState(businessRegNo, 1);
+        return findActiveEntityByBusinessRegNo(businessRegNo).isPresent();
     }
 
     @Override
@@ -92,8 +93,32 @@ public class JpaCompanyRepository implements CompanyRepository {
 
     @Override
     public Optional<CompanyView> findActiveByBusinessRegNo(String businessRegNo) {
-        return companyRepository.findByBusinessRegNoAndRecordingState(businessRegNo, 1)
+        return findActiveEntityByBusinessRegNo(businessRegNo)
                 .map(entity -> toView(entity, findRoles(entity.getId())));
+    }
+
+    /**
+     * 하이픈 유무·과거 숫자만 저장분까지 동일 사업자로 본다.
+     */
+    private Optional<CompanyJpaEntity> findActiveEntityByBusinessRegNo(String businessRegNo) {
+        String canonical = BusinessRegNos.canonicalize(businessRegNo);
+        Optional<CompanyJpaEntity> byCanonical =
+                companyRepository.findByBusinessRegNoAndRecordingState(canonical, 1);
+        if (byCanonical.isPresent()) {
+            return byCanonical;
+        }
+        String digits = BusinessRegNos.digitsOnly(businessRegNo);
+        if (!digits.isEmpty() && !digits.equals(canonical)) {
+            Optional<CompanyJpaEntity> byDigits =
+                    companyRepository.findByBusinessRegNoAndRecordingState(digits, 1);
+            if (byDigits.isPresent()) {
+                return byDigits;
+            }
+        }
+        if (!businessRegNo.equals(canonical) && !businessRegNo.equals(digits)) {
+            return companyRepository.findByBusinessRegNoAndRecordingState(businessRegNo.trim(), 1);
+        }
+        return Optional.empty();
     }
 
     @Override

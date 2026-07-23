@@ -29,6 +29,8 @@ import com.shindong.smartmanager.application.workcenter.WorkCenterService;
 import com.shindong.smartmanager.application.workcenter.WorkCenterView;
 import com.shindong.smartmanager.application.workstandard.WorkStandardService;
 import com.shindong.smartmanager.domain.item.CheckDistinction;
+import com.shindong.smartmanager.domain.company.BusinessRegNos;
+import com.shindong.smartmanager.domain.pricing.CostType;
 import com.shindong.smartmanager.domain.process.ProcessVariant;
 import com.shindong.smartmanager.domain.process.WorkDistinction;
 import java.util.ArrayList;
@@ -177,6 +179,11 @@ public class MasterDataImportService {
                 workCenterId = resolveWorkCenterId(row.workCenterName());
             }
             int outsideOrderRate = row.outsideOrderRate() != null ? row.outsideOrderRate() : 0;
+            // OUTSOURCE·INHOUSE는 ProcessService에서 0으로 정규화. SPLIT은 0~100 허용.
+            if (row.workDistinction() == WorkDistinction.OUTSOURCE
+                    || row.workDistinction() == WorkDistinction.INHOUSE) {
+                outsideOrderRate = 0;
+            }
             short progressRate = row.progressRate() != null ? row.progressRate() : 100;
             processService.register(
                     new ProcessCommand(
@@ -232,8 +239,13 @@ public class MasterDataImportService {
                     .orElseThrow(() -> new IllegalArgumentException("거래처를 찾을 수 없습니다: " + row.businessRegNo()));
             ItemView item = itemRepository.findActiveByItemNo(row.itemNum().trim())
                     .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + row.itemNum()));
-            Long beginProcessCodeId = resolveOptionalProcessCodeId(row.beginProcessSmallCode());
-            Long endProcessCodeId = resolveOptionalProcessCodeId(row.endProcessSmallCode());
+            // 판매·구매단가는 공정 미사용 — 엑셀 값이 있어도 무시하고 NULL
+            Long beginProcessCodeId = null;
+            Long endProcessCodeId = null;
+            if (row.costType() == CostType.OUTSOURCE) {
+                beginProcessCodeId = resolveOptionalProcessCodeId(row.beginProcessSmallCode());
+                endProcessCodeId = resolveOptionalProcessCodeId(row.endProcessSmallCode());
+            }
             unitPriceService.register(
                     new UnitPriceCommand(
                             row.costType(),
@@ -294,7 +306,7 @@ public class MasterDataImportService {
     }
 
     private static String normalizeBusinessRegNo(String value) {
-        return value.replaceAll("\\D", "");
+        return BusinessRegNos.canonicalize(value);
     }
 
     private static String blankToNull(String value) {
