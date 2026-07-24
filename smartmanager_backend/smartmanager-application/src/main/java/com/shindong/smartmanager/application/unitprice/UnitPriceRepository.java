@@ -47,4 +47,6 @@ public interface UnitPriceRepository {
     void appendChangeLog(long unitPriceId, String updateReason, String actorUserId);
 
     List<UnitPriceChangeLogView> findChangeLogs(long unitPriceId);
+
+    List<UnitPriceChangeLogView> findChangeLogs(UnitPriceHistorySearchQuery query);
 }

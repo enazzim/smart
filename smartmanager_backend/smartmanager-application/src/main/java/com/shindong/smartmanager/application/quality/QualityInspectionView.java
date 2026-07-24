@@ -24,6 +24,7 @@ public record QualityInspectionView(
         LocalDate receiptDate,
         Instant createdAt,
         Instant completedAt,
-        boolean lotTracked
+        boolean lotTracked,
+        String failureReason
 ) {
 }

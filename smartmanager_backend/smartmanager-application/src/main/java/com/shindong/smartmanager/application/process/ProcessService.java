@@ -47,17 +47,18 @@ public class ProcessService {
     }
 
     public ProcessView register(ProcessCommand command, String actorUserId) {
-        validateCommand(command, null);
-        ItemView item = getAllowedItem(command.itemId());
-        ProcessCodeLookup.ProcessCodeInfo processCode = getAllowedProcessCode(command.processCodeId());
+        ProcessCommand normalized = normalizeOutsideOrderRate(command);
+        validateCommand(normalized, null);
+        ItemView item = getAllowedItem(normalized.itemId());
+        ProcessCodeLookup.ProcessCodeInfo processCode = getAllowedProcessCode(normalized.processCodeId());
 
         if (processRepository.existsActiveDuplicate(
-                command.itemId(), command.processCodeId(), command.processSequenceNum(), null)) {
+                normalized.itemId(), normalized.processCodeId(), normalized.processSequenceNum(), null)) {
             throw new IllegalArgumentException("동일 품목·공정·순번 조합이 이미 존재합니다.");
         }
 
-        long processId = processRepository.save(command, ProcessVariant.plan, actorUserId);
-        wipBalanceProjector.ensure(command.itemId(), processId, actorUserId);
+        long processId = processRepository.save(normalized, ProcessVariant.plan, actorUserId);
+        wipBalanceProjector.ensure(normalized.itemId(), processId, actorUserId);
 
         domainEventStore.append(DomainEvent.create(
                 EventTypes.PROCESS_REGISTERED,
@@ -65,7 +66,7 @@ public class ProcessService {
                 AggregateTypes.PROCESS,
                 String.valueOf(processId),
                 actorUserId,
-                buildPayload(processId, command, item, processCode)
+                buildPayload(processId, normalized, item, processCode)
         ));
 
         return getActive(processId);
@@ -73,21 +74,22 @@ public class ProcessService {
 
     public ProcessView update(long id, ProcessUpdateCommand command, String actorUserId) {
         ProcessView existing = getActive(id);
-        validateCommand(toCommand(command), id);
-        ItemView item = getAllowedItem(command.itemId());
-        ProcessCodeLookup.ProcessCodeInfo processCode = getAllowedProcessCode(command.processCodeId());
+        ProcessUpdateCommand normalized = normalizeOutsideOrderRate(command);
+        validateCommand(toCommand(normalized), id);
+        ItemView item = getAllowedItem(normalized.itemId());
+        ProcessCodeLookup.ProcessCodeInfo processCode = getAllowedProcessCode(normalized.processCodeId());
 
         if (processRepository.existsActiveDuplicate(
-                command.itemId(), command.processCodeId(), command.processSequenceNum(), id)) {
+                normalized.itemId(), normalized.processCodeId(), normalized.processSequenceNum(), id)) {
             throw new IllegalArgumentException("동일 품목·공정·순번 조합이 이미 존재합니다.");
         }
 
-        processRepository.update(id, command, actorUserId);
+        processRepository.update(id, normalized, actorUserId);
 
-        if (existing.itemId() != command.itemId()) {
-            wipBalanceProjector.updateItemId(id, command.itemId(), actorUserId);
+        if (existing.itemId() != normalized.itemId()) {
+            wipBalanceProjector.updateItemId(id, normalized.itemId(), actorUserId);
         } else {
-            wipBalanceProjector.reconcile(command.itemId(), id, actorUserId);
+            wipBalanceProjector.reconcile(normalized.itemId(), id, actorUserId);
         }
 
         domainEventStore.append(DomainEvent.create(
@@ -96,7 +98,7 @@ public class ProcessService {
                 AggregateTypes.PROCESS,
                 String.valueOf(id),
                 actorUserId,
-                buildPayload(id, toCommand(command), item, processCode)
+                buildPayload(id, toCommand(normalized), item, processCode)
         ));
 
         return getActive(id);
@@ -150,26 +152,62 @@ public class ProcessService {
         switch (command.workDistinction()) {
             case INHOUSE -> {
                 requireWorkCenter(command.workCenterId());
-                if (command.outsideOrderRate() != 0) {
-                    throw new IllegalArgumentException("자가 공정의 발주비율은 0이어야 합니다.");
-                }
+                // 발주비율은 normalizeOutsideOrderRate에서 0으로 고정
             }
             case OUTSOURCE -> {
                 if (command.workCenterId() != null) {
                     throw new IllegalArgumentException("외주 공정은 작업장을 지정할 수 없습니다.");
                 }
-                if (command.outsideOrderRate() != 0) {
-                    throw new IllegalArgumentException("외주 공정의 발주비율은 0이어야 합니다.");
-                }
+                // 발주비율은 무시 후 0 저장 (normalizeOutsideOrderRate)
             }
             case SPLIT -> {
                 requireWorkCenter(command.workCenterId());
-                if (command.outsideOrderRate() < 1 || command.outsideOrderRate() > 99) {
-                    throw new IllegalArgumentException("혼합 공정의 발주비율은 1~99 사이여야 합니다.");
+                // 전량 자가(0)~전량 외주(100)까지 운영 중 조정 가능
+                if (command.outsideOrderRate() < 0 || command.outsideOrderRate() > 100) {
+                    throw new IllegalArgumentException("혼합 공정의 발주비율은 0~100 사이여야 합니다.");
                 }
             }
             default -> throw new IllegalArgumentException("지원하지 않는 작업구분입니다.");
         }
+    }
+
+    /** 자가·외주 전용은 발주비율 입력을 무시하고 0으로 저장한다. */
+    private ProcessCommand normalizeOutsideOrderRate(ProcessCommand command) {
+        if (command.workDistinction() == WorkDistinction.INHOUSE
+                || command.workDistinction() == WorkDistinction.OUTSOURCE) {
+            if (command.outsideOrderRate() == 0) {
+                return command;
+            }
+            return new ProcessCommand(
+                    command.itemId(),
+                    command.processSequenceNum(),
+                    command.processCodeId(),
+                    command.workDistinction(),
+                    command.workCenterId(),
+                    0,
+                    command.progressRate()
+            );
+        }
+        return command;
+    }
+
+    private ProcessUpdateCommand normalizeOutsideOrderRate(ProcessUpdateCommand command) {
+        if (command.workDistinction() == WorkDistinction.INHOUSE
+                || command.workDistinction() == WorkDistinction.OUTSOURCE) {
+            if (command.outsideOrderRate() == 0) {
+                return command;
+            }
+            return new ProcessUpdateCommand(
+                    command.itemId(),
+                    command.processSequenceNum(),
+                    command.processCodeId(),
+                    command.workDistinction(),
+                    command.workCenterId(),
+                    0,
+                    command.progressRate()
+            );
+        }
+        return command;
     }
 
     private void requireWorkCenter(Long workCenterId) {

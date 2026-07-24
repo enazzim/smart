@@ -14,7 +14,6 @@ import java.util.regex.Pattern;
 public class UserService {
 
     private static final String ADMIN_LOGIN_ID = "admin";
-    private static final int MIN_PASSWORD_LENGTH = 8;
     private static final Pattern EMAIL_PATTERN =
             Pattern.compile("^[\\w.%+-]+@[\\w.-]+\\.[A-Za-z]{2,}$");
     private static final String WORK_DIARY_GROUP = "WORK_DIARY_GROUP";
@@ -153,9 +152,6 @@ public class UserService {
     private void validatePassword(String password) {
         if (password == null || password.isBlank()) {
             throw new IllegalArgumentException("비밀번호는 필수입니다.");
-        }
-        if (password.length() < MIN_PASSWORD_LENGTH) {
-            throw new IllegalArgumentException("비밀번호는 " + MIN_PASSWORD_LENGTH + "자 이상이어야 합니다.");
         }
     }
 

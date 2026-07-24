@@ -6,6 +6,10 @@ import com.shindong.smartmanager.application.purchase.PartnerPaymentCandidateVie
 import com.shindong.smartmanager.application.purchase.PartnerPaymentListCriteria;
 import com.shindong.smartmanager.application.purchase.PartnerPaymentService;
 import com.shindong.smartmanager.application.purchase.PartnerPaymentView;
+import com.shindong.smartmanager.application.purchase.PrepaidBalanceView;
+import com.shindong.smartmanager.application.purchase.PrepaidOrderLineCandidateCriteria;
+import com.shindong.smartmanager.application.purchase.PrepaidOrderLineCandidateView;
+import com.shindong.smartmanager.domain.purchase.PartnerPaymentCostCategory;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +31,16 @@ public class PartnerPaymentApplicationService {
     @Transactional(readOnly = true)
     public List<PartnerPaymentView> list(PartnerPaymentListCriteria criteria) {
         return partnerPaymentService.list(criteria);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PrepaidBalanceView> listPrepaidBalances(Long partnerId, PartnerPaymentCostCategory costCategory) {
+        return partnerPaymentService.listPrepaidBalances(partnerId, costCategory);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PrepaidOrderLineCandidateView> listOrderLineCandidates(PrepaidOrderLineCandidateCriteria criteria) {
+        return partnerPaymentService.listOrderLineCandidates(criteria);
     }
 
     @Transactional

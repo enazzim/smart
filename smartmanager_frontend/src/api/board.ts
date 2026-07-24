@@ -38,6 +38,13 @@ export interface BoardAttachment {
   createdAt: string;
 }
 
+export interface BoardPostReader {
+  userId: number;
+  loginId: string;
+  name: string;
+  readAt: string;
+}
+
 export interface BoardPostDetail {
   id: number;
   boardType: BoardType;
@@ -54,6 +61,7 @@ export interface BoardPostDetail {
   updatedAt: string | null;
   attachments: BoardAttachment[];
   replies: BoardPostDetail[];
+  readers: BoardPostReader[];
   canEdit: boolean;
   canDelete: boolean;
 }

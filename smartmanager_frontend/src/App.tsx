@@ -10,6 +10,8 @@ import {
 } from './api/systemSettings';
 import { normalizeFiscalCutoverSetting, DEFAULT_FISCAL_CUTOVER_SETTING } from './utils/fiscalCalendar';
 import { setSessionExpiredHandler } from './api/http';
+import { useSessionIdleTimeout } from './hooks/useSessionIdleTimeout';
+import { consumeSessionNotice, sessionNoticeMessage } from './utils/sessionIdle';
 import LoginPage from './pages/LoginPage';
 import AppShell from './layout/AppShell';
 import type { AppSelection } from './layout/selection';
@@ -77,6 +79,11 @@ function AuthenticatedApp({
     });
     return () => setSessionExpiredHandler(null);
   }, [onSessionExpired]);
+
+  useSessionIdleTimeout(true, () => {
+    writeSavedNavPath(locationRef.current);
+    onSessionExpired();
+  });
 
   useEffect(() => {
     if (parsed == null) {
@@ -239,9 +246,16 @@ function AppRouter() {
   const [authed, setAuthed] = useState(isAuthenticated());
   const [sessionChecking, setSessionChecking] = useState(isAuthenticated());
   const [currentUser, setCurrentUser] = useState<AuthenticatedUser | null>(null);
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
   const [materialIssueEnabled, setMaterialIssueEnabled] = useState(false);
   const [negativeStockAllowed, setNegativeStockAllowed] = useState(true);
   const [fiscalCutoverSetting, setFiscalCutoverSetting] = useState(DEFAULT_FISCAL_CUTOVER_SETTING);
+
+  useEffect(() => {
+    if (!authed) {
+      setLoginNotice(sessionNoticeMessage(consumeSessionNotice()));
+    }
+  }, [authed]);
 
   useEffect(() => {
     if (!authed) {
@@ -297,9 +311,11 @@ function AppRouter() {
   if (!authed) {
     return (
       <LoginPage
+        notice={loginNotice}
         onSuccess={() => {
           const saved = readSavedNavPath();
           clearSavedNavPath();
+          setLoginNotice(null);
           setSessionChecking(true);
           setAuthed(true);
           if (saved && saved !== '/') {
@@ -341,8 +357,9 @@ function AppRouter() {
 }
 
 export default function App() {
+  const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename === '/' ? undefined : basename}>
       <AppRouter />
     </BrowserRouter>
   );

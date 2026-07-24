@@ -91,6 +91,8 @@ export interface PurchaseOrderListParams {
   orderNo?: string;
   status?: PurchaseOrderStatus;
   excludeCancelled?: boolean;
+  /** GENERAL | SUB_MATERIAL */
+  itemPropertyScope?: 'GENERAL' | 'SUB_MATERIAL';
 }
 
 export async function fetchPurchaseOrders(params?: PurchaseOrderListParams): Promise<PurchaseOrder[]> {
@@ -112,6 +114,9 @@ export async function fetchPurchaseOrders(params?: PurchaseOrderListParams): Pro
   }
   if (params?.excludeCancelled !== undefined) {
     search.set('excludeCancelled', String(params.excludeCancelled));
+  }
+  if (params?.itemPropertyScope) {
+    search.set('itemPropertyScope', params.itemPropertyScope);
   }
   const query = search.toString();
   const res = await apiFetch(`/api/v1/purchase/orders${query ? `?${query}` : ''}`);

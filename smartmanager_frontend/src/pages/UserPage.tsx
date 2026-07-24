@@ -12,6 +12,7 @@ import {
   updateUser,
 } from '../api/user';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import { useConfirm } from '../context/ConfirmContext';
 
 const emptyForm: CreateUserRequest & { passwordConfirm: string } = {
@@ -48,11 +49,13 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
   const [form, setForm] = useState(emptyForm);
   const [passwordForm, setPasswordForm] = useState(emptyPasswordForm);
   const [searchQuery, setSearchQuery] = useState('');
+  const [appliedQuery, setAppliedQuery] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingLoginId, setEditingLoginId] = useState<string | null>(null);
   const [loginIdAvailable, setLoginIdAvailable] = useState<boolean | null>(null);
   const [checkingLoginId, setCheckingLoginId] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -83,8 +86,10 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
       } else {
         setUsers(rows);
       }
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록 조회 실패');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -97,13 +102,23 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
           const [roleList, diaryGroups] = await Promise.all([fetchRoles(), fetchWorkDiaryGroups()]);
           setRoles(roleList);
           setWorkDiaryGroups(diaryGroups);
+        } else {
+          setLoading(true);
+          await load('');
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : '초기 로드 실패');
+        setLoading(false);
       }
     })();
-    void load();
   }, [canManageUsers]);
+
+  const refreshListIfSearched = async () => {
+    if (!hasSearched) {
+      return;
+    }
+    await load(appliedQuery);
+  };
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -152,8 +167,8 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
       return;
     }
     if (!isEditing) {
-      if (form.password.length < 8) {
-        setError('비밀번호는 8자 이상이어야 합니다.');
+      if (!form.password) {
+        setError('비밀번호를 입력해 주세요.');
         return;
       }
       if (form.password !== form.passwordConfirm) {
@@ -193,7 +208,7 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
         });
       }
       resetForm();
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : isEditing ? '수정 실패' : '등록 실패');
     } finally {
@@ -236,15 +251,27 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
       if (editingId === user.id) {
         resetForm();
       }
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '삭제 실패');
     }
   };
 
-  const onSearch = (e: React.FormEvent) => {
+  const onSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    void load(searchQuery);
+    const ok = await load(searchQuery);
+    if (ok) {
+      setAppliedQuery(searchQuery);
+      setHasSearched(true);
+    }
+  };
+
+  const onResetSearch = () => {
+    setSearchQuery('');
+    setAppliedQuery('');
+    setUsers([]);
+    setHasSearched(false);
+    setError(null);
   };
 
   if (isSelfService) {
@@ -382,7 +409,6 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
             <input
               type="password"
               required={!isEditing}
-              minLength={isEditing ? undefined : 8}
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               autoComplete="new-password"
@@ -478,15 +504,24 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
             />
           </label>
           <button type="submit" disabled={loading}>
-            검색
+            조회
+          </button>
+          <button type="button" className="secondary" disabled={loading} onClick={onResetSearch}>
+            초기화
           </button>
         </form>
-        {loading ? (
+        {!hasSearched ? (
+          <p className="hint-text">조회 버튼을 누르면 목록이 표시됩니다.</p>
+        ) : loading ? (
           <p>로딩 중…</p>
+        ) : users.length === 0 ? (
+          <p>검색 조건에 맞는 사용자가 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={users}
+            columnCount={7}
+            getRowKey={(user) => user.id}
+            renderHeader={() => (
               <tr>
                 <th>아이디</th>
                 <th>이름</th>
@@ -496,35 +531,26 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
                 <th>업무일지그룹</th>
                 <th />
               </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
-                <tr>
-                  <td colSpan={7}>등록된 사용자가 없습니다.</td>
-                </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.id}>
-                    <td>{user.loginId}</td>
-                    <td>{user.name}</td>
-                    <td>{user.contact ?? '—'}</td>
-                    <td>{user.email ?? '—'}</td>
-                    <td>{user.roleCodes.join(', ') || '—'}</td>
-                    <td>{user.workDiaryGroupName ?? '—'}</td>
-                    <td className="row-actions">
-                      <button type="button" className="btn-action" onClick={() => startEdit(user)}>
-                        수정
-                      </button>
-                      <button type="button" className="btn-action danger" onClick={() => void onDelete(user)}>
-                        삭제
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(user) => (
+              <tr>
+                <td>{user.loginId}</td>
+                <td>{user.name}</td>
+                <td>{user.contact ?? '—'}</td>
+                <td>{user.email ?? '—'}</td>
+                <td>{user.roleCodes.join(', ') || '—'}</td>
+                <td>{user.workDiaryGroupName ?? '—'}</td>
+                <td className="row-actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(user)}>
+                    수정
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(user)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
     </div>

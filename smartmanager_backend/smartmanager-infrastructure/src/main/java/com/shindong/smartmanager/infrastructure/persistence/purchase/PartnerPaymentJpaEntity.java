@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.purchase;
 
 import com.shindong.smartmanager.domain.purchase.PartnerPaymentCostCategory;
+import com.shindong.smartmanager.domain.purchase.PartnerPaymentKind;
 import com.shindong.smartmanager.domain.purchase.PartnerPaymentStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -34,6 +35,10 @@ public class PartnerPaymentJpaEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "cost_category", nullable = false)
     private PartnerPaymentCostCategory costCategory;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_kind", nullable = false)
+    private PartnerPaymentKind paymentKind = PartnerPaymentKind.NORMAL;
 
     @Column(name = "supply_amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal supplyAmount;
@@ -112,6 +117,14 @@ public class PartnerPaymentJpaEntity {
 
     public void setCostCategory(PartnerPaymentCostCategory costCategory) {
         this.costCategory = costCategory;
+    }
+
+    public PartnerPaymentKind getPaymentKind() {
+        return paymentKind;
+    }
+
+    public void setPaymentKind(PartnerPaymentKind paymentKind) {
+        this.paymentKind = paymentKind;
     }
 
     public BigDecimal getSupplyAmount() {

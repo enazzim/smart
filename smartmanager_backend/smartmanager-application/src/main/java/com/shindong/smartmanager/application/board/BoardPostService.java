@@ -6,9 +6,7 @@ import com.shindong.smartmanager.domain.board.PostKind;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
-import java.util.Set;
 
 public class BoardPostService {
 
@@ -25,20 +23,17 @@ public class BoardPostService {
     private final BoardFileStorage boardFileStorage;
     private final UserRepository userRepository;
     private final long maxFileSizeBytes;
-    private final Set<String> allowedExtensions;
 
     public BoardPostService(
             BoardPostRepository boardPostRepository,
             BoardFileStorage boardFileStorage,
             UserRepository userRepository,
-            long maxFileSizeBytes,
-            Set<String> allowedExtensions
+            long maxFileSizeBytes
     ) {
         this.boardPostRepository = boardPostRepository;
         this.boardFileStorage = boardFileStorage;
         this.userRepository = userRepository;
         this.maxFileSizeBytes = maxFileSizeBytes;
-        this.allowedExtensions = allowedExtensions;
     }
 
     public String defaultEditorTemplate() {
@@ -59,6 +54,9 @@ public class BoardPostService {
         if (shouldIncrement) {
             boardPostRepository.incrementViewCount(postId);
             post = findActivePost(postId);
+        }
+        if (shouldRecordNoticeRead(post, actorUserId, incrementViewCount)) {
+            boardPostRepository.recordPostRead(postId, actorUserId);
         }
         return toDetail(post, actorUserId, true);
     }
@@ -266,6 +264,7 @@ public class BoardPostService {
                     .map(reply -> toDetail(reply, actorUserId, false))
                     .toList();
         }
+        List<BoardPostReaderView> readers = resolveReaders(post);
         boolean canModify = isAuthor(post, actorUserId);
         return new BoardPostDetailView(
                 post.id(),
@@ -283,9 +282,36 @@ public class BoardPostService {
                 post.updatedAt(),
                 attachments,
                 replies,
+                readers,
                 canModify,
                 canModify
         );
+    }
+
+    private boolean shouldRecordNoticeRead(
+            BoardPostRepository.BoardPostRecord post,
+            long actorUserId,
+            boolean incrementViewCount
+    ) {
+        return incrementViewCount
+                && post.boardType() == BoardType.NOTICE
+                && post.postKind() == PostKind.TOP
+                && !isAuthor(post, actorUserId);
+    }
+
+    private List<BoardPostReaderView> resolveReaders(BoardPostRepository.BoardPostRecord post) {
+        if (post.boardType() != BoardType.NOTICE || post.postKind() != PostKind.TOP) {
+            return List.of();
+        }
+        long authorUserId = post.authorUserId() != null ? post.authorUserId() : -1L;
+        return boardPostRepository.findPostReadersExcludingAuthor(post.id(), authorUserId).stream()
+                .map(reader -> new BoardPostReaderView(
+                        reader.userId(),
+                        reader.loginId() != null ? reader.loginId() : "",
+                        reader.name() != null ? reader.name() : "",
+                        reader.readAt()
+                ))
+                .toList();
     }
 
     private boolean isAuthor(BoardPostRepository.BoardPostRecord post, long actorUserId) {
@@ -363,21 +389,6 @@ public class BoardPostService {
         if (uploadFile.fileSize() > maxFileSizeBytes) {
             throw new IllegalArgumentException("첨부파일은 100MB 이하여야 합니다.");
         }
-        String extension = extractExtension(uploadFile.originalFileName());
-        if (extension.isEmpty() || !allowedExtensions.contains(extension)) {
-            throw new IllegalArgumentException("허용되지 않은 첨부파일 형식입니다: " + extension);
-        }
-    }
-
-    private String extractExtension(String fileName) {
-        if (fileName == null) {
-            return "";
-        }
-        int dot = fileName.lastIndexOf('.');
-        if (dot < 0 || dot == fileName.length() - 1) {
-            return "";
-        }
-        return fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
     private void assertCanModify(BoardPostRepository.BoardPostRecord post, long actorUserId, boolean moderator) {

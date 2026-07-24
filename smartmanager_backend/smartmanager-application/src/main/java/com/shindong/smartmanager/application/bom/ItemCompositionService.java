@@ -340,7 +340,7 @@ public class ItemCompositionService {
     }
 
     private BigDecimal resolveUnitPriceAmount(UnitPriceView price) {
-        if (price.discountUnitCost() != null) {
+        if (price.discountUnitCost() != null && price.discountUnitCost().signum() > 0) {
             return price.discountUnitCost();
         }
         return price.standardUnitCost() != null ? price.standardUnitCost() : BigDecimal.ZERO;
@@ -368,8 +368,9 @@ public class ItemCompositionService {
         if (parentQuantity == null || parentQuantity.signum() <= 0) {
             throw new IllegalArgumentException("모품수량은 0보다 커야 합니다.");
         }
-        if (childQuantity == null || childQuantity.signum() <= 0) {
-            throw new IllegalArgumentException("자품수량은 0보다 커야 합니다.");
+        // 자품수량 0: BOM에 등록만 하고 전개·소요 계산에서 하위를 떨어내지 않을 때 사용
+        if (childQuantity == null || childQuantity.signum() < 0) {
+            throw new IllegalArgumentException("자품수량은 0 이상이어야 합니다.");
         }
     }
 

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { fetchCompanies, type CompanyRoleType } from '../api/company';
+import { formatBusinessRegNo } from '../utils/businessRegNo';
+import { sortByKoreanField } from '../utils/koreanSort';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -13,7 +15,7 @@ export type CompanySearchSelection = {
 };
 
 function formatCompanyLabel(company: CompanySearchSelection) {
-  return `${company.companyName} (${company.businessRegNo})`;
+  return `${company.companyName} (${formatBusinessRegNo(company.businessRegNo)})`;
 }
 
 function matchesQuery(company: CompanySearchSelection, query: string) {
@@ -41,13 +43,16 @@ async function loadCompanies(
   })();
 
   const trimmed = query.trim();
-  return filteredByRole
-    .map((company) => ({
-      id: company.id,
-      companyName: company.companyName,
-      businessRegNo: company.businessRegNo,
-    }))
-    .filter((company) => matchesQuery(company, trimmed));
+  return sortByKoreanField(
+    filteredByRole
+      .map((company) => ({
+        id: company.id,
+        companyName: company.companyName,
+        businessRegNo: company.businessRegNo,
+      }))
+      .filter((company) => matchesQuery(company, trimmed)),
+    (company) => company.companyName,
+  );
 }
 
 export interface CompanySearchFieldProps {

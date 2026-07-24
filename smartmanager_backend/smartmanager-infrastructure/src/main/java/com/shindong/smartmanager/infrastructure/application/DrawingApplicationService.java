@@ -3,6 +3,9 @@ package com.shindong.smartmanager.infrastructure.application;
 import com.shindong.smartmanager.application.drawing.DrawingHistoryDetailView;
 import com.shindong.smartmanager.application.drawing.DrawingHistoryView;
 import com.shindong.smartmanager.application.drawing.DrawingInfoUpdateCommand;
+import com.shindong.smartmanager.application.drawing.DrawingLifecycleUpdateCommand;
+import com.shindong.smartmanager.application.drawing.DrawingLinkItemCommand;
+import com.shindong.smartmanager.application.drawing.DrawingListFilter;
 import com.shindong.smartmanager.application.drawing.DrawingListView;
 import com.shindong.smartmanager.application.drawing.DrawingReferenceCandidateView;
 import com.shindong.smartmanager.application.drawing.DrawingReferenceChildCommand;
@@ -10,6 +13,7 @@ import com.shindong.smartmanager.application.drawing.DrawingReferenceIntegrityIs
 import com.shindong.smartmanager.application.drawing.DrawingReferenceService;
 import com.shindong.smartmanager.application.drawing.DrawingReferenceView;
 import com.shindong.smartmanager.application.drawing.DrawingRegisterCommand;
+import com.shindong.smartmanager.application.drawing.DrawingReopenDevCommand;
 import com.shindong.smartmanager.application.drawing.DrawingReviseCommand;
 import com.shindong.smartmanager.application.drawing.DrawingService;
 import com.shindong.smartmanager.application.drawing.DrawingWhereUsedView;
@@ -39,6 +43,11 @@ public class DrawingApplicationService {
     @Transactional(readOnly = true)
     public List<DrawingListView> listActive() {
         return drawingService.listActive();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DrawingListView> listActive(DrawingListFilter filter) {
+        return drawingService.listActive(filter);
     }
 
     @Transactional(readOnly = true)
@@ -89,6 +98,21 @@ public class DrawingApplicationService {
     @Transactional
     public String promoteToProd(String partNo, String actorUserId) {
         return drawingService.promoteToProd(partNo, actorUserId);
+    }
+
+    @Transactional
+    public void linkItem(String masterId, DrawingLinkItemCommand command, String actorUserId) {
+        drawingService.linkItem(masterId, command, actorUserId);
+    }
+
+    @Transactional
+    public void updateLifecycle(String masterId, DrawingLifecycleUpdateCommand command, String actorUserId) {
+        drawingService.updateLifecycle(masterId, command, actorUserId);
+    }
+
+    @Transactional
+    public String reopenDev(String partNo, DrawingReopenDevCommand command, String actorUserId) {
+        return drawingService.reopenDev(partNo, command, actorUserId);
     }
 
     @Transactional(readOnly = true)

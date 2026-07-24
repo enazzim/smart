@@ -2,6 +2,7 @@ package com.shindong.smartmanager.application.closing;
 
 import com.shindong.smartmanager.application.system.SystemSettingService;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.function.Function;
 
 /**
@@ -73,5 +74,25 @@ public class FiscalCalendarService {
             return Integer.compare(left.fiscalYear(), right.fiscalYear());
         }
         return Integer.compare(left.fiscalMonth(), right.fiscalMonth());
+    }
+
+    /**
+     * 회계연·월에 속하는 달력 일자 구간(양끝 포함).
+     * 예: 마감일 25일, 2024년 7월 회계월 → 2024-06-26 ~ 2024-07-25
+     */
+    public FiscalPeriodDateRange toCalendarDateRange(FiscalPeriod period) {
+        if (period == null) {
+            throw new IllegalArgumentException("회계기간이 필요합니다.");
+        }
+        YearMonth endYm = YearMonth.of(period.fiscalYear(), period.fiscalMonth());
+        int endCutover = Math.min(resolveCutoverDay(endYm.atEndOfMonth()), endYm.lengthOfMonth());
+        LocalDate endInclusive = endYm.atDay(endCutover);
+
+        FiscalPeriod previous = period.previous();
+        YearMonth startYm = YearMonth.of(previous.fiscalYear(), previous.fiscalMonth());
+        int prevCutover = Math.min(resolveCutoverDay(startYm.atEndOfMonth()), startYm.lengthOfMonth());
+        LocalDate startInclusive = startYm.atDay(prevCutover).plusDays(1);
+
+        return new FiscalPeriodDateRange(startInclusive, endInclusive);
     }
 }

@@ -18,6 +18,8 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
     validate-on-migrate: true
+    # V002 등 이미 적용된 마이그레이션 파일 수정 시 checksum mismatch 자동 보정
+    repair-on-migrate: true
 
 logging:
   level:

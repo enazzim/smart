@@ -16,6 +16,9 @@ import {
 } from '../api/purchaseReceipt';
 import { formatAmount, formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
+
+type ReceiptTab = 'candidates' | 'history' | 'subCandidates' | 'subHistory';
+
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -66,7 +69,12 @@ export default function PurchaseReceiptPage() {
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [tab, setTab] = useState<'candidates' | 'history'>('candidates');
+  const [tab, setTab] = useState<ReceiptTab>('candidates');
+  const itemPropertyScope: 'GENERAL' | 'SUB_MATERIAL' =
+    tab === 'subCandidates' || tab === 'subHistory' ? 'SUB_MATERIAL' : 'GENERAL';
+  const isCandidateTab = tab === 'candidates' || tab === 'subCandidates';
+  const isHistoryTab = tab === 'history' || tab === 'subHistory';
+  const isSubMaterialTab = itemPropertyScope === 'SUB_MATERIAL';
   const selectableCandidates = useMemo(
     () => candidates.filter((row) => row.remainQty > 0),
     [candidates],
@@ -91,7 +99,7 @@ export default function PurchaseReceiptPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchPurchaseReceiptCandidates(filters);
+      const data = await fetchPurchaseReceiptCandidates({ ...filters, itemPropertyScope });
       setCandidates(data);
       setSelectedLineIds(new Set());
       setReceiptQtyByLineId({});
@@ -102,26 +110,28 @@ export default function PurchaseReceiptPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, itemPropertyScope]);
   const loadReceipts = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const data = await fetchPurchaseReceipts(historyFilters);
+      const data = await fetchPurchaseReceipts({ ...historyFilters, itemPropertyScope });
       setReceipts(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : '입고 이력을 불러오지 못했습니다.');
     } finally {
       setHistoryLoading(false);
     }
-  }, [historyFilters]);
+  }, [historyFilters, itemPropertyScope]);
   useEffect(() => {
-    void loadCandidates();
-  }, [loadCandidates]);
+    if (isCandidateTab) {
+      void loadCandidates();
+    }
+  }, [isCandidateTab, loadCandidates]);
   useEffect(() => {
-    if (tab === 'history') {
+    if (isHistoryTab) {
       void loadReceipts();
     }
-  }, [tab, loadReceipts]);
+  }, [isHistoryTab, loadReceipts]);
   const toggleLine = (row: PurchaseReceiptCandidate, checked: boolean) => {
     setSelectedLineIds((prev) => {
       const next = new Set(prev);
@@ -186,11 +196,7 @@ export default function PurchaseReceiptPage() {
       setError('입고할 라인을 선택하고 수량을 입력해 주세요.');
       return;
     }
-    for (const { row, qty } of linesToSubmit) {
-      if (qty > row.remainQty) {
-        setError(`${row.itemNum} 입고 수량이 잔량(${formatQty(row.remainQty)})을 초과합니다.`);
-        return;
-      }
+    for (const { row } of linesToSubmit) {
       if (
         row.lotTracked &&
         row.checkDistinction === 'NONE' &&
@@ -201,6 +207,24 @@ export default function PurchaseReceiptPage() {
         return;
       }
     }
+    const overLines = linesToSubmit.filter(({ row, qty }) => qty > row.remainQty);
+    let allowOverQty = false;
+    if (overLines.length > 0) {
+      const detail = overLines
+        .map(
+          ({ row, qty }) =>
+            `· ${row.itemNum}: 입고 ${formatQty(qty)} / 잔량 ${formatQty(row.remainQty)}`,
+        )
+        .join('\n');
+      const ok = await confirm(
+        `잔량보다 많은 수량이 있습니다.\n\n${detail}\n\n그래도 등록하시겠습니까?\n(초과분은 승인 시 지급금액에 반영됩니다.)`,
+        { title: '잔량 초과 확인', confirmLabel: '그래도 등록', cancelLabel: '닫기' },
+      );
+      if (!ok) {
+        return;
+      }
+      allowOverQty = true;
+    }
     setSubmitting(true);
     setError(null);
     setSuccess(null);
@@ -209,6 +233,7 @@ export default function PurchaseReceiptPage() {
         receiptDate,
         fiscalYear: fiscalPeriod.period.fiscalYear,
         fiscalMonth: fiscalPeriod.period.fiscalMonth,
+        allowOverQty,
         lines: linesToSubmit.map(({ row, qty }) => ({
           purchaseOrderLineId: row.purchaseOrderLineId,
           receiptQty: qty,
@@ -232,7 +257,10 @@ export default function PurchaseReceiptPage() {
     }
   };
   const onCancelReceipt = async (receipt: PurchaseReceipt) => {
-    if (!(await confirm(`${receipt.receiptNo} 입고를 취소하시겠습니까?`, { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true }))) {
+    if (!(await confirm(
+      `${receipt.receiptNo} 입고를 취소하시겠습니까?\n품질검사가 완료된 입고는 취소할 수 없습니다. (검사 대기로 복귀 후 취소)`,
+      { title: '취소 확인', confirmLabel: '예, 취소', cancelLabel: '닫기', danger: true },
+    ))) {
       return;
     }
     setCancellingId(receipt.id);
@@ -253,7 +281,11 @@ export default function PurchaseReceiptPage() {
     <div className="page">
       <header className="page-header">
         <h1>구매입고</h1>
-        <p>미입고 발주 라인에 대해 입고 등록합니다. 무검사품은 즉시 창고에 반영됩니다.</p>
+        <p>
+          {isSubMaterialTab
+            ? '부자재 발주 잔량을 입고 등록합니다. 부자재는 창고 재고 반영 없이 매입이력만 기록합니다.'
+            : '미입고 발주 라인에 대해 입고 등록합니다. 무검사품은 즉시 창고에 반영됩니다.'}
+        </p>
       </header>
       <div className="tab-row">
         <button type="button" className={tab === 'candidates' ? 'tab-active' : undefined} onClick={() => setTab('candidates')}>
@@ -262,10 +294,24 @@ export default function PurchaseReceiptPage() {
         <button type="button" className={tab === 'history' ? 'tab-active' : undefined} onClick={() => setTab('history')}>
           입고 이력
         </button>
+        <button
+          type="button"
+          className={tab === 'subCandidates' ? 'tab-active' : undefined}
+          onClick={() => setTab('subCandidates')}
+        >
+          부자재입고
+        </button>
+        <button
+          type="button"
+          className={tab === 'subHistory' ? 'tab-active' : undefined}
+          onClick={() => setTab('subHistory')}
+        >
+          부자재입고이력
+        </button>
       </div>
       {error && <p className="error-banner">{error}</p>}
       {success && <p className="success-banner">{success}</p>}
-      {tab === 'candidates' && (
+      {isCandidateTab && (
         <>
           <section className="filter-panel">
             <label>
@@ -320,7 +366,9 @@ export default function PurchaseReceiptPage() {
               onPeriodChange={fiscalPeriod.onPeriodChange}
             />
             <button type="button" disabled={submitting || linesToSubmit.length === 0} onClick={() => void onSubmit()}>
-              {submitting ? '등록 중…' : `입고 등록 (${linesToSubmit.length}건)`}
+              {submitting
+                ? '등록 중…'
+                : `${isSubMaterialTab ? '부자재 ' : ''}입고 등록 (${linesToSubmit.length}건)`}
             </button>
           </section>
           {loading ? (
@@ -457,7 +505,7 @@ export default function PurchaseReceiptPage() {
           )}
         </>
       )}
-      {tab === 'history' && (
+      {isHistoryTab && (
         <>
           <section className="filter-panel">
             <label>
@@ -502,8 +550,12 @@ export default function PurchaseReceiptPage() {
             </button>
           </section>
           <div className="panel-header-row">
-            <h2>입고 이력</h2>
-            <GridExcelExportButton fileBaseName="구매입고이력" disabled={historyLoading} rows={historyExportRows} />
+            <h2>{isSubMaterialTab ? '부자재 입고 이력' : '입고 이력'}</h2>
+            <GridExcelExportButton
+              fileBaseName={isSubMaterialTab ? '부자재입고이력' : '구매입고이력'}
+              disabled={historyLoading}
+              rows={historyExportRows}
+            />
           </div>
           {historyLoading ? (
             <p>불러오는 중…</p>

@@ -30,12 +30,14 @@ export function getVisibleMenuCategories(roleCodes: string[]): MenuCategory[] {
       'outsource',
       'inventory',
       'quality',
+      'stats',
       'basis',
       'system',
     ];
   }
 
-  const visible = new Set<MenuCategory>(['home']);
+  // 통계및 지표: 로그인 사용자 전원
+  const visible = new Set<MenuCategory>(['home', 'stats']);
 
   if (roleCodes.includes('BASIS_MANAGER')) {
     visible.add('basis');
@@ -85,6 +87,18 @@ export function canManageDrawings(authorities: string[]): boolean {
 /** 휴지통 영구 삭제 — SYSTEM_ADMIN (`basis:drawing:hard-delete`) */
 export function canHardDeleteDrawings(authorities: string[]): boolean {
   return authorities.includes('basis:drawing:hard-delete');
+}
+
+/** 도면 목록 기본 탭 — UI 가이드 (권한 코드 분리 없음) */
+export function getDrawingDefaultTab(roleCodes: string[]): 'dev' | 'prod' {
+  if (roleCodes.includes('PRODUCTION_OPERATOR') && !roleCodes.includes('BASIS_MANAGER')) {
+    return 'prod';
+  }
+  return 'dev';
+}
+
+export function isProductionDrawingViewer(roleCodes: string[], canManageDrawings: boolean): boolean {
+  return !canManageDrawings && roleCodes.includes('PRODUCTION_OPERATOR');
 }
 
 /** 운영자 등 — 사이드바 없이 내 계정(비밀번호 변경)만 필요할 때 */

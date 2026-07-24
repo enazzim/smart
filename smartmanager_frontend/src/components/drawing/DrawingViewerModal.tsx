@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { ArrowRightCircle, Eye, Plus, Trash2, X } from 'lucide-react';
+import { Archive, ArrowRightCircle, Eye, Link2, ListPlus, Plus, RefreshCw, RotateCcw, Trash2, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   drawingPdfUrl,
@@ -8,15 +8,34 @@ import {
   fetchDrawingReferences,
   fetchDrawingWhereUsed,
   promoteDrawing,
+  reopenDrawingDev,
   replaceDrawingReferences,
+  updateDrawingLifecycle,
   type DrawingHistoryItem,
+  type DrawingListItem,
   type DrawingReferenceCandidate,
   type DrawingReferenceItem,
   type DrawingType,
   type DrawingWhereUsedItem,
 } from '../../api/drawing';
+import {
+  archiveActionLabel,
+  canArchiveDrawing,
+  canEditLifecycleManually,
+  canLinkItem,
+  canPromoteDrawing,
+  canReopenDev,
+  canUnarchiveDrawing,
+  DEV_ACTIVE_LIFECYCLE_STAGES,
+  isArchivedLifecycle,
+  lifecycleBadgeClass,
+  lifecycleStageLabel,
+  restoreStageAfterUnarchive,
+  type DrawingLifecycleStage,
+} from '../../utils/drawingLifecycle';
 import { useDrawingWebSocket } from '../../hooks/useDrawingWebSocket';
 import PdfViewer from './PdfViewer';
+import DrawingLinkItemModal from './DrawingLinkItemModal';
 import { useConfirm } from '../../context/ConfirmContext';
 
 type ViewerPanel = 'pdf' | 'contains' | 'where-used';
@@ -57,12 +76,20 @@ interface DrawingViewerModalProps {
   masterId: string;
   partNo: string;
   drawingType: DrawingType;
+  lifecycleStage?: DrawingLifecycleStage | null;
+  sourcePartnerName?: string | null;
+  itemId?: number | null;
+  itemNo?: string | null;
+  itemLinkedAt?: string | null;
+  historyHighlightQuery?: string;
   isDeleted?: boolean;
   readOnly?: boolean;
   canManage?: boolean;
   actorUserId?: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
+  /** 목록·상세 props 동기화 (lifecycle·품목 연결 등) */
+  onDrawingMetaChange?: (patch: Partial<DrawingListItem>) => void;
 }
 
 export default function DrawingViewerModal({
@@ -71,12 +98,19 @@ export default function DrawingViewerModal({
   masterId,
   partNo,
   drawingType,
+  lifecycleStage,
+  sourcePartnerName,
+  itemId,
+  itemNo,
+  itemLinkedAt,
+  historyHighlightQuery,
   isDeleted,
   readOnly,
   canManage,
   actorUserId,
   onSuccess,
   onError,
+  onDrawingMetaChange,
 }: DrawingViewerModalProps) {
   const confirm = useConfirm();
   const queryClient = useQueryClient();
@@ -90,15 +124,60 @@ export default function DrawingViewerModal({
   const [addHistoryId, setAddHistoryId] = useState('');
   const [addQuery, setAddQuery] = useState('');
   const [addListOpen, setAddListOpen] = useState(false);
+  const [bulkPreviewOpen, setBulkPreviewOpen] = useState(false);
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [savingRefs, setSavingRefs] = useState(false);
   const [peerPdf, setPeerPdf] = useState<PeerPdfView | null>(null);
+  const [linkItemOpen, setLinkItemOpen] = useState(false);
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [currentLifecycleStage, setCurrentLifecycleStage] = useState<DrawingLifecycleStage | null | undefined>(
+    lifecycleStage,
+  );
   const candidateListId = useId();
   const addBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { isRevisionAlertOpen, revisionData, dismissRevisionAlert } = useDrawingWebSocket(
     open ? partNo : '',
   );
 
-  const editable = Boolean(canManage && !readOnly && !isDeleted && selectedHistory?.isLatest === 'Y');
+  const archived = isArchivedLifecycle(currentLifecycleStage);
+  const editable = Boolean(
+    canManage && !readOnly && !isDeleted && !archived && selectedHistory?.isLatest === 'Y',
+  );
+  const lifecycleEditable = Boolean(
+    canManage &&
+      canEditLifecycleManually(
+        drawingType,
+        selectedHistory?.isLatest === 'Y',
+        Boolean(isDeleted),
+        Boolean(readOnly),
+        currentLifecycleStage,
+      ),
+  );
+  const archiveAvailable = Boolean(
+    canManage &&
+      canArchiveDrawing(
+        drawingType,
+        selectedHistory?.isLatest === 'Y',
+        Boolean(isDeleted),
+        Boolean(readOnly),
+        currentLifecycleStage,
+      ),
+  );
+  const unarchiveAvailable = Boolean(
+    canManage &&
+      canUnarchiveDrawing(
+        selectedHistory?.isLatest === 'Y',
+        Boolean(isDeleted),
+        Boolean(readOnly),
+        currentLifecycleStage,
+      ),
+  );
+
+  useEffect(() => {
+    if (open) {
+      setCurrentLifecycleStage(lifecycleStage);
+    }
+  }, [open, lifecycleStage]);
 
   const reloadHistories = (preferHistoryId?: string | null) => {
     if (!masterId) {
@@ -131,6 +210,8 @@ export default function DrawingViewerModal({
     setAddHistoryId('');
     setAddQuery('');
     setAddListOpen(false);
+    setBulkPreviewOpen(false);
+    setBulkSelectedIds(new Set());
     reloadHistories();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open/masterId 전환 시에만 초기 로드
   }, [open, masterId]);
@@ -144,6 +225,8 @@ export default function DrawingViewerModal({
     setAddHistoryId('');
     setAddQuery('');
     setAddListOpen(false);
+    setBulkPreviewOpen(false);
+    setBulkSelectedIds(new Set());
     if (panel === 'pdf') {
       return;
     }
@@ -207,21 +290,170 @@ export default function DrawingViewerModal({
     setAddListOpen(false);
   };
 
+  const historyMatchesHighlight = (history: DrawingHistoryItem): boolean => {
+    const query = historyHighlightQuery?.trim().toLowerCase();
+    if (!query) {
+      return false;
+    }
+    const version = `v${history.majorVersion}.${history.minorVersion}`;
+    const haystack = [
+      history.changeReason,
+      history.changeType,
+      version,
+      `${history.majorVersion}.${history.minorVersion}`,
+    ]
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(query);
+  };
+
   if (!open) {
     return null;
   }
 
+  const syncDrawingListMeta = async (patch: Partial<DrawingListItem>) => {
+    const nextPatch = { id: masterId, ...patch };
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['drawings'] },
+      (prev) => {
+        if (!Array.isArray(prev)) {
+          return prev;
+        }
+        return prev.map((row) => (row.id === masterId ? { ...row, ...nextPatch } : row));
+      },
+    );
+    onDrawingMetaChange?.(nextPatch);
+    await queryClient.refetchQueries({ queryKey: ['drawings'] });
+  };
+
   const handlePromote = async () => {
-    if (!(await confirm('이 도면을 양산품(PROD) V1.0으로 이관하시겠습니까?\n구성 참조 자식은 모두 PROD여야 합니다.', { cancelLabel: '닫기', danger: true }))) {
+    if (
+      !(await confirm(
+        '이 도면을 양산품(PROD)으로 이관하시겠습니까?\n구성 참조 자식은 모두 PROD여야 합니다.',
+        { cancelLabel: '닫기', danger: true },
+      ))
+    ) {
       return;
     }
     try {
       await promoteDrawing(partNo, actorUserId);
-      await queryClient.invalidateQueries({ queryKey: ['drawings'] });
+      await syncDrawingListMeta({
+        drawingType: 'PROD',
+        lifecycleStage: 'MASS_PROD_READY',
+      });
       onSuccess('양산 이관이 완료되었습니다.');
       onClose();
     } catch (error) {
       onError(error instanceof Error ? error.message : '이관에 실패했습니다.');
+    }
+  };
+
+  const handleReopenDev = async () => {
+    const reason = window.prompt('개발 재개 사유를 입력해 주세요. (선택)');
+    if (reason === null) {
+      return;
+    }
+    if (
+      !(await confirm(
+        '양산(PROD) 도면을 개발 단계로 재개하시겠습니까?\n이후 변경은 개발 이력에서 진행합니다.',
+        { title: '개발 재개', confirmLabel: '재개', cancelLabel: '닫기', danger: true },
+      ))
+    ) {
+      return;
+    }
+    try {
+      await reopenDrawingDev(partNo, { reason: reason.trim() || null }, actorUserId);
+      await syncDrawingListMeta({
+        drawingType: 'DEV',
+        lifecycleStage: 'SAMPLE',
+      });
+      onSuccess('개발 단계로 재개되었습니다.');
+      onClose();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : '개발 재개에 실패했습니다.');
+    }
+  };
+
+  const handleLifecycleChange = async (nextStage: DrawingLifecycleStage) => {
+    if (!lifecycleEditable || nextStage === currentLifecycleStage) {
+      return;
+    }
+    setLifecycleBusy(true);
+    try {
+      await updateDrawingLifecycle(masterId, { lifecycleStage: nextStage }, actorUserId);
+      setCurrentLifecycleStage(nextStage);
+      await syncDrawingListMeta({ lifecycleStage: nextStage });
+      onSuccess(`업무 단계가 「${lifecycleStageLabel(nextStage)}」로 변경되었습니다.`);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : '업무 단계 변경에 실패했습니다.');
+    } finally {
+      setLifecycleBusy(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    if (!archiveAvailable) {
+      return;
+    }
+    const isProd = drawingType === 'PROD';
+    const message = isProd
+      ? '이 양산 도면을 보관하시겠습니까?\n\n더 이상 양산·개정에 사용하지 않습니다.\n기출고분 AS·재제작 납품을 위해 PDF·이력은 열람만 가능하며, 개정·버전업·개발 재개·품목 연결은 할 수 없습니다.\n필요 시 「보관 해제」로 다시 활성 상태로 되돌릴 수 있습니다.'
+      : '개발을 중단하고 보관하시겠습니까?\n\n프로젝트 취소·보류 시 사용합니다.\nPDF·이력은 남으며, 이후 개정·양산 이관은 할 수 없습니다.\n필요 시 「보관 해제」로 되돌릴 수 있습니다.\n(양산 종료 보관은 양산품 상세의 「보관」을 사용하세요.)';
+    if (
+      !(await confirm(message, {
+        title: archiveActionLabel(drawingType),
+        confirmLabel: '보관',
+        cancelLabel: '닫기',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
+    setLifecycleBusy(true);
+    try {
+      await updateDrawingLifecycle(masterId, { lifecycleStage: 'ARCHIVED' }, actorUserId);
+      setCurrentLifecycleStage('ARCHIVED');
+      await syncDrawingListMeta({ lifecycleStage: 'ARCHIVED' });
+      onSuccess(
+        isProd
+          ? '양산 도면을 보관했습니다. AS·기출고용으로 열람만 가능합니다.'
+          : '개발 중단(보관) 처리되었습니다.',
+      );
+    } catch (error) {
+      onError(error instanceof Error ? error.message : '보관 처리에 실패했습니다.');
+    } finally {
+      setLifecycleBusy(false);
+    }
+  };
+
+  const handleUnarchive = async () => {
+    if (!unarchiveAvailable) {
+      return;
+    }
+    const restoreStage = restoreStageAfterUnarchive(drawingType, itemId);
+    const restoreLabel = lifecycleStageLabel(restoreStage);
+    if (
+      !(await confirm(
+        `보관을 해제하고 「${restoreLabel}」 단계로 되돌리시겠습니까?\n\n해제 후에는 다시 개정·품목 연결·개발 재개 등 업무를 진행할 수 있습니다.`,
+        {
+          title: '보관 해제',
+          confirmLabel: '보관 해제',
+          cancelLabel: '닫기',
+        },
+      ))
+    ) {
+      return;
+    }
+    setLifecycleBusy(true);
+    try {
+      await updateDrawingLifecycle(masterId, { lifecycleStage: restoreStage }, actorUserId);
+      setCurrentLifecycleStage(restoreStage);
+      await syncDrawingListMeta({ lifecycleStage: restoreStage });
+      onSuccess(`보관을 해제했습니다. 업무 단계: 「${restoreLabel}」`);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : '보관 해제에 실패했습니다.');
+    } finally {
+      setLifecycleBusy(false);
     }
   };
 
@@ -252,6 +484,30 @@ export default function DrawingViewerModal({
     }
   };
 
+  const candidateToReference = (
+    candidate: DrawingReferenceCandidate,
+    parentHistoryId: string,
+    sortOrder: number,
+  ): DrawingReferenceItem => ({
+    id: `tmp-${candidate.historyId}`,
+    parentHistoryId,
+    childHistoryId: candidate.historyId,
+    refRole: 'COMPONENT',
+    sortOrder,
+    remark: null,
+    child: {
+      historyId: candidate.historyId,
+      masterId: candidate.masterId,
+      partNo: candidate.partNo,
+      partName: candidate.partName,
+      drawingType: candidate.drawingType,
+      majorVersion: candidate.majorVersion,
+      minorVersion: candidate.minorVersion,
+      itemId: candidate.itemId,
+      itemNo: candidate.itemNo,
+    },
+  });
+
   const handleAddReference = async () => {
     if (!addHistoryId || !selectedHistory) {
       return;
@@ -263,28 +519,74 @@ export default function DrawingViewerModal({
     }
     const next: DrawingReferenceItem[] = [
       ...references,
-      {
-        id: `tmp-${candidate.historyId}`,
-        parentHistoryId: selectedHistory.id,
-        childHistoryId: candidate.historyId,
-        refRole: 'COMPONENT',
-        sortOrder: references.length + 1,
-        remark: null,
-        child: {
-          historyId: candidate.historyId,
-          masterId: candidate.masterId,
-          partNo: candidate.partNo,
-          partName: candidate.partName,
-          drawingType: candidate.drawingType,
-          majorVersion: candidate.majorVersion,
-          minorVersion: candidate.minorVersion,
-          itemId: candidate.itemId,
-          itemNo: candidate.itemNo,
-        },
-      },
+      candidateToReference(candidate, selectedHistory.id, references.length + 1),
     ];
     clearCandidateSelection();
     await persistReferences(next);
+  };
+
+  const openBulkPreview = () => {
+    if (candidateOptions.length === 0) {
+      onError('추가할 BOM 하위 도면 후보가 없습니다.');
+      return;
+    }
+    setBulkSelectedIds(new Set(candidateOptions.map((row) => row.historyId)));
+    setBulkPreviewOpen(true);
+  };
+
+  const closeBulkPreview = () => {
+    setBulkPreviewOpen(false);
+    setBulkSelectedIds(new Set());
+  };
+
+  const toggleBulkSelected = (historyId: string) => {
+    setBulkSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(historyId)) {
+        next.delete(historyId);
+      } else {
+        next.add(historyId);
+      }
+      return next;
+    });
+  };
+
+  const toggleBulkSelectAll = () => {
+    setBulkSelectedIds((prev) => {
+      if (prev.size === candidateOptions.length) {
+        return new Set();
+      }
+      return new Set(candidateOptions.map((row) => row.historyId));
+    });
+  };
+
+  const handleConfirmBulkAdd = async () => {
+    if (!selectedHistory) {
+      return;
+    }
+    const selected = candidateOptions.filter((row) => bulkSelectedIds.has(row.historyId));
+    if (selected.length === 0) {
+      onError('저장할 하위 도면을 선택해 주세요.');
+      return;
+    }
+    const confirmed = await confirm(
+      `선택한 BOM 하위 도면 ${selected.length}건을 구성 참조에 추가하시겠습니까?`,
+      { title: 'BOM 하위 일괄 추가', confirmLabel: '저장', cancelLabel: '닫기' },
+    );
+    if (!confirmed) {
+      return;
+    }
+    let sortOrder = references.length;
+    const next: DrawingReferenceItem[] = [
+      ...references,
+      ...selected.map((row) => {
+        sortOrder += 1;
+        return candidateToReference(row, selectedHistory.id, sortOrder);
+      }),
+    ];
+    await persistReferences(next);
+    closeBulkPreview();
+    clearCandidateSelection();
   };
 
   const handleRemoveReference = async (childHistoryId: string) => {
@@ -309,6 +611,79 @@ export default function DrawingViewerModal({
             <button type="button" className="modal-close-btn" onClick={onClose} aria-label="닫기">
               <X size={20} />
             </button>
+          </div>
+
+          <div className="drawing-viewer-meta">
+            <div className="drawing-viewer-meta__row">
+              <span className={lifecycleBadgeClass(currentLifecycleStage)}>
+                {lifecycleStageLabel(currentLifecycleStage)}
+              </span>
+              {lifecycleEditable ? (
+                <label className="drawing-lifecycle-select">
+                  <span className="hint-text">업무 단계 (개발 진행)</span>
+                  <select
+                    value={currentLifecycleStage ?? 'RECEIVED'}
+                    disabled={lifecycleBusy}
+                    onChange={(e) => void handleLifecycleChange(e.target.value as DrawingLifecycleStage)}
+                  >
+                    {DEV_ACTIVE_LIFECYCLE_STAGES.map((stage) => (
+                      <option key={stage} value={stage}>
+                        {lifecycleStageLabel(stage)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+            {archived ? (
+              <p className="hint-text drawing-viewer-meta__archive-hint">
+                보관 상태입니다. 기출고·AS용 PDF·이력 열람만 가능하며, 개정·버전업·품목 연결·개발 재개는 할 수
+                없습니다. 다시 사용하려면 「보관 해제」를 눌러 주세요.
+              </p>
+            ) : null}
+            {sourcePartnerName ? (
+              <p className="drawing-viewer-meta__text">선수신 거래처: {sourcePartnerName}</p>
+            ) : null}
+            {itemNo ? (
+              <p className="drawing-viewer-meta__text">
+                연결 품목: {itemNo}
+                {itemLinkedAt ? ` · ${itemLinkedAt}` : ''}
+              </p>
+            ) : null}
+            {editable && canLinkItem(drawingType, currentLifecycleStage) ? (
+              <button type="button" className="secondary drawing-viewer-meta__action" onClick={() => setLinkItemOpen(true)}>
+                <Link2 size={16} />
+                {itemNo ? '품목 재연결' : '품목 연결'}
+              </button>
+            ) : null}
+            {editable && canReopenDev(drawingType, currentLifecycleStage) ? (
+              <button type="button" className="secondary drawing-viewer-meta__action" onClick={() => void handleReopenDev()}>
+                <RefreshCw size={16} />
+                개발 재개
+              </button>
+            ) : null}
+            {archiveAvailable ? (
+              <button
+                type="button"
+                className="secondary drawing-viewer-meta__action drawing-viewer-meta__action--archive"
+                disabled={lifecycleBusy}
+                onClick={() => void handleArchive()}
+              >
+                <Archive size={16} />
+                {archiveActionLabel(drawingType)}
+              </button>
+            ) : null}
+            {unarchiveAvailable ? (
+              <button
+                type="button"
+                className="secondary drawing-viewer-meta__action drawing-viewer-meta__action--unarchive"
+                disabled={lifecycleBusy}
+                onClick={() => void handleUnarchive()}
+              >
+                <RotateCcw size={16} />
+                보관 해제
+              </button>
+            ) : null}
           </div>
 
           <div className="drawing-viewer-tabs" role="tablist">
@@ -341,12 +716,17 @@ export default function DrawingViewerModal({
           <div className="drawing-viewer-body">
             <aside className="drawing-history-sidebar">
               <h3>개정 이력 (최신순)</h3>
+              {historyHighlightQuery ? (
+                <p className="hint-text">AS 검색어 「{historyHighlightQuery}」와 일치하는 이력이 강조됩니다.</p>
+              ) : (
+                <p className="hint-text">과거 이력 PDF는 워터마크와 함께 열람됩니다. V1.1 = 메이저 1·마이너 1.</p>
+              )}
               <ul className="drawing-history-list">
                 {histories.map((history) => (
                   <li key={history.id}>
                     <button
                       type="button"
-                      className={`drawing-history-item${selectedHistory?.id === history.id ? ' drawing-history-item--active' : ''}`}
+                      className={`drawing-history-item${selectedHistory?.id === history.id ? ' drawing-history-item--active' : ''}${historyMatchesHighlight(history) ? ' drawing-history-item--highlight' : ''}`}
                       onClick={() => setSelectedHistory(history)}
                     >
                       <div className="drawing-history-item__top">
@@ -369,15 +749,22 @@ export default function DrawingViewerModal({
                   <PdfViewer
                     key={selectedHistory.id}
                     pdfUrl={drawingPdfUrl(partNo, selectedHistory.id)}
-                    partNo={`${partNo} V${selectedHistory.majorVersion}.${selectedHistory.minorVersion}`}
+                    partNo={partNo}
+                    title={`${partNo} V${selectedHistory.majorVersion}.${selectedHistory.minorVersion}`}
+                    updateOfflineCache={selectedHistory.isLatest === 'Y'}
                     onError={onError}
                     toolbarActions={
-                      !readOnly && drawingType === 'DEV' && selectedHistory.isLatest === 'Y' && !isDeleted ? (
-                        <button type="button" className="btn-promote" onClick={() => void handlePromote()}>
-                          <ArrowRightCircle size={16} />
-                          양산 도면으로 이관
-                        </button>
-                      ) : null
+                      <>
+                        {!readOnly &&
+                        canPromoteDrawing(drawingType, currentLifecycleStage) &&
+                        selectedHistory.isLatest === 'Y' &&
+                        !isDeleted ? (
+                          <button type="button" className="btn-promote" onClick={() => void handlePromote()}>
+                            <ArrowRightCircle size={16} />
+                            양산 도면으로 이관
+                          </button>
+                        ) : null}
+                      </>
                     }
                   />
                 ) : (
@@ -476,7 +863,97 @@ export default function DrawingViewerModal({
                         <Plus size={16} />
                         추가
                       </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={savingRefs || candidateOptions.length === 0}
+                        onClick={openBulkPreview}
+                        title={
+                          candidateOptions.length === 0
+                            ? '추가 가능한 BOM 하위 도면이 없습니다'
+                            : `미연결 BOM 하위 ${candidateOptions.length}건 미리보기`
+                        }
+                      >
+                        <ListPlus size={16} />
+                        BOM 하위 일괄 추가
+                      </button>
                     </div>
+                  )}
+                  {editable && bulkPreviewOpen && (
+                    <section className="drawing-ref-bulk-preview">
+                      <div className="drawing-ref-bulk-preview__header">
+                        <h4>BOM 하위 일괄 추가 미리보기</h4>
+                        <div className="drawing-ref-bulk-preview__actions">
+                          <button
+                            type="button"
+                            className="secondary"
+                            disabled={savingRefs}
+                            onClick={closeBulkPreview}
+                          >
+                            닫기
+                          </button>
+                          <button
+                            type="button"
+                            disabled={savingRefs || bulkSelectedIds.size === 0}
+                            onClick={() => void handleConfirmBulkAdd()}
+                          >
+                            {savingRefs ? '저장 중…' : `선택 ${bulkSelectedIds.size}건 저장`}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="hint-text">
+                        이미 구성된 도면은 제외됩니다. 저장 전 체크 해제로 제외할 수 있습니다.
+                      </p>
+                      <div className="table-wrap">
+                        <table className="drawing-ref-table">
+                          <thead>
+                            <tr>
+                              <th>
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    candidateOptions.length > 0 &&
+                                    bulkSelectedIds.size === candidateOptions.length
+                                  }
+                                  disabled={savingRefs || candidateOptions.length === 0}
+                                  onChange={toggleBulkSelectAll}
+                                  aria-label="전체 선택"
+                                />
+                              </th>
+                              <th>레벨</th>
+                              <th>품번</th>
+                              <th>품명</th>
+                              <th>품목</th>
+                              <th>구분</th>
+                              <th>버전</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {candidateOptions.map((row) => (
+                              <tr key={row.historyId}>
+                                <td>
+                                  <input
+                                    type="checkbox"
+                                    checked={bulkSelectedIds.has(row.historyId)}
+                                    disabled={savingRefs}
+                                    onChange={() => toggleBulkSelected(row.historyId)}
+                                    aria-label={`${row.partNo} 선택`}
+                                  />
+                                </td>
+                                <td>L{row.bomLevel}</td>
+                                <td>{row.partNo}</td>
+                                <td>{row.partName}</td>
+                                <td>{row.itemNo ?? '-'}</td>
+                                <td>{row.drawingType}</td>
+                                <td>
+                                  V{row.majorVersion}.{row.minorVersion}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
                   )}
                   {editable && candidatesHint && <p className="hint-text">{candidatesHint}</p>}
                   <p className="hint-text">후보 목록은 이 도면에 연결된 품목의 BOM 하위(도면 있는 품목)만 표시합니다.</p>
@@ -633,6 +1110,27 @@ export default function DrawingViewerModal({
             </div>
           </div>
         </div>
+      )}
+
+      {linkItemOpen && (
+        <DrawingLinkItemModal
+          open={linkItemOpen}
+          onClose={() => setLinkItemOpen(false)}
+          drawingId={masterId}
+          partNo={partNo}
+          initialItemId={itemId}
+          initialItemNo={itemNo}
+          actorUserId={actorUserId}
+          onSuccess={(message) => {
+            setLinkItemOpen(false);
+            onSuccess(message);
+            void (async () => {
+              await queryClient.refetchQueries({ queryKey: ['drawings'] });
+              onClose();
+            })();
+          }}
+          onError={onError}
+        />
       )}
 
       {isRevisionAlertOpen && (

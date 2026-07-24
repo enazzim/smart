@@ -29,6 +29,7 @@ export interface PurchaseReceiptCandidateParams {
   orderDateTo?: string;
   itemNum?: string;
   itemName?: string;
+  itemPropertyScope?: 'GENERAL' | 'SUB_MATERIAL';
 }
 
 export interface CreatePurchaseReceiptLineRequest {
@@ -43,6 +44,7 @@ export interface CreatePurchaseReceiptRequest {
   fiscalYear?: number;
   fiscalMonth?: number;
   lines: CreatePurchaseReceiptLineRequest[];
+  allowOverQty?: boolean;
 }
 
 export interface PurchaseReceiptLine {
@@ -79,6 +81,7 @@ export interface PurchaseReceiptListParams {
   receiptDateTo?: string;
   itemNum?: string;
   itemName?: string;
+  itemPropertyScope?: 'GENERAL' | 'SUB_MATERIAL';
 }
 
 function toCandidateQuery(params: PurchaseReceiptCandidateParams): string {
@@ -89,6 +92,7 @@ function toCandidateQuery(params: PurchaseReceiptCandidateParams): string {
   if (params.orderDateTo) search.set('orderDateTo', params.orderDateTo);
   if (params.itemNum) search.set('itemNum', params.itemNum);
   if (params.itemName) search.set('itemName', params.itemName);
+  if (params.itemPropertyScope) search.set('itemPropertyScope', params.itemPropertyScope);
   const q = search.toString();
   return q ? `?${q}` : '';
 }
@@ -100,6 +104,7 @@ function toReceiptListQuery(params: PurchaseReceiptListParams): string {
   if (params.receiptDateTo) search.set('receiptDateTo', params.receiptDateTo);
   if (params.itemNum) search.set('itemNum', params.itemNum);
   if (params.itemName) search.set('itemName', params.itemName);
+  if (params.itemPropertyScope) search.set('itemPropertyScope', params.itemPropertyScope);
   const q = search.toString();
   return q ? `?${q}` : '';
 }

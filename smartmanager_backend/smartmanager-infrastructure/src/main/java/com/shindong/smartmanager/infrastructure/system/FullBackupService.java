@@ -3,13 +3,9 @@ package com.shindong.smartmanager.infrastructure.system;
 import com.shindong.smartmanager.application.system.backup.FullBackupSetView;
 import com.shindong.smartmanager.infrastructure.config.DrawingProperties;
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -57,7 +53,7 @@ public class FullBackupService {
         }
     }
 
-    public FullBackupSetView createFullBackup() {
+    public FullBackupSetView createFullBackup(String reason) {
         String stamp = LocalDateTime.now().format(STAMP_FORMAT);
         String setName = SET_PREFIX + stamp;
         Path setDirectory = mariaDbBackupService.getBackupDirectory().resolve(setName).normalize();
@@ -65,6 +61,7 @@ public class FullBackupService {
         try {
             Files.createDirectories(setDirectory);
             mariaDbBackupService.createBackupAt(sqlTarget);
+            mariaDbBackupService.attachReason(sqlTarget, reason);
             copyDrawingPdfsToBackup(setDirectory.resolve(DRAWING_PDF_DIR_NAME));
             return toView(setDirectory, setName);
         } catch (RuntimeException | IOException ex) {
@@ -184,7 +181,8 @@ public class FullBackupService {
                     sqlFile.getFileName().toString(),
                     directorySize(setDirectory),
                     pdfCount,
-                    Files.getLastModifiedTime(setDirectory).toInstant()
+                    Files.getLastModifiedTime(setDirectory).toInstant(),
+                    mariaDbBackupService.findReason(sqlFile).orElse(null)
             );
         } catch (IOException ex) {
             throw new IllegalStateException("전체 백업 정보를 읽을 수 없습니다: " + setName, ex);
@@ -192,34 +190,25 @@ public class FullBackupService {
     }
 
     private static long directorySize(Path root) throws IOException {
-        final long[] total = {0L};
-        Files.walkFileTree(root, new SimpleFileVisitor<>() {
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                total[0] += attrs.size();
-                return FileVisitResult.CONTINUE;
+        long total = 0L;
+        try (Stream<Path> stream = Files.walk(root)) {
+            for (Path path : stream.filter(Files::isRegularFile).toList()) {
+                total += Files.size(path);
             }
-        });
-        return total[0];
+        }
+        return total;
     }
 
     private static void deleteDirectory(Path directory) throws IOException {
         if (!Files.exists(directory)) {
             return;
         }
-        Files.walkFileTree(directory, new SimpleFileVisitor<>() {
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                Files.delete(file);
-                return FileVisitResult.CONTINUE;
+        try (Stream<Path> stream = Files.walk(directory)) {
+            List<Path> paths = stream.sorted(Comparator.reverseOrder()).toList();
+            for (Path path : paths) {
+                Files.deleteIfExists(path);
             }
-
-            @Override
-            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-                Files.delete(dir);
-                return FileVisitResult.CONTINUE;
-            }
-        });
+        }
     }
 
     private static void deleteDirectoryQuietly(Path directory) {

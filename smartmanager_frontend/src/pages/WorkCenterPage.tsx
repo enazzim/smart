@@ -9,6 +9,7 @@ import {
   updateWorkCenter,
 } from '../api/workCenter';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import { formatInteger } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
 
@@ -28,8 +29,10 @@ export default function WorkCenterPage() {
   const [processCodes, setProcessCodes] = useState<CodeOption[]>([]);
   const [form, setForm] = useState<CreateWorkCenterRequest>(emptyForm);
   const [searchQuery, setSearchQuery] = useState('');
+  const [appliedQuery, setAppliedQuery] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,13 +49,15 @@ export default function WorkCenterPage() {
     [workCenters],
   );
 
-  const load = async (query = searchQuery) => {
+  const load = async (query: string) => {
     setLoading(true);
     setError(null);
     try {
       setWorkCenters(await fetchWorkCenters(query || undefined));
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록 조회 실패');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -72,8 +77,14 @@ export default function WorkCenterPage() {
         setError(e instanceof Error ? e.message : '공정코드 조회 실패');
       }
     })();
-    void load();
   }, []);
+
+  const refreshListIfSearched = async () => {
+    if (!hasSearched) {
+      return;
+    }
+    await load(appliedQuery);
+  };
 
   const resetForm = () => {
     setForm({
@@ -109,7 +120,7 @@ export default function WorkCenterPage() {
         await createWorkCenter(form);
       }
       resetForm();
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : isEditing ? '수정 실패' : '등록 실패');
     } finally {
@@ -127,15 +138,27 @@ export default function WorkCenterPage() {
       if (editingId === wc.id) {
         resetForm();
       }
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '삭제 실패');
     }
   };
 
-  const onSearch = (e: React.FormEvent) => {
+  const onSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    void load(searchQuery);
+    const ok = await load(searchQuery);
+    if (ok) {
+      setAppliedQuery(searchQuery);
+      setHasSearched(true);
+    }
+  };
+
+  const onResetSearch = () => {
+    setSearchQuery('');
+    setAppliedQuery('');
+    setWorkCenters([]);
+    setHasSearched(false);
+    setError(null);
   };
 
   return (
@@ -215,28 +238,24 @@ export default function WorkCenterPage() {
             />
           </label>
           <button type="submit" disabled={loading}>
-            검색
+            조회
           </button>
-          <button
-            type="button"
-            className="secondary"
-            disabled={loading}
-            onClick={() => {
-              setSearchQuery('');
-              void load('');
-            }}
-          >
+          <button type="button" className="secondary" disabled={loading} onClick={onResetSearch}>
             초기화
           </button>
         </form>
-        {loading ? (
+        {!hasSearched ? (
+          <p className="hint-text">조회 버튼을 누르면 목록이 표시됩니다.</p>
+        ) : loading ? (
           <p>불러오는 중…</p>
         ) : workCenters.length === 0 ? (
-          <p>등록된 작업장이 없습니다.</p>
+          <p>검색 조건에 맞는 작업장이 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={workCenters}
+            columnCount={5}
+            getRowKey={(wc) => wc.id}
+            renderHeader={() => (
               <tr>
                 <th className="num">ID</th>
                 <th>작업장명</th>
@@ -244,27 +263,24 @@ export default function WorkCenterPage() {
                 <th className="num">가동시간(분)</th>
                 <th>작업</th>
               </tr>
-            </thead>
-            <tbody>
-              {workCenters.map((wc) => (
-                <tr key={wc.id} className={editingId === wc.id ? 'row-editing' : undefined}>
-                  <td className="num">{formatInteger(wc.id)}</td>
-                  <td>{wc.wcName}</td>
-                  <td>{formatProcessLabel(wc.mainProcessCode, wc.mainProcessName)}</td>
-                  <td className="num">{formatInteger(wc.operationTime)}</td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => startEdit(wc)}>
-                      수정
-                    </button>
-                    <button type="button" className="btn-action danger" onClick={() => void onDelete(wc)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(wc) => (
+              <tr className={editingId === wc.id ? 'row-editing' : undefined}>
+                <td className="num">{formatInteger(wc.id)}</td>
+                <td>{wc.wcName}</td>
+                <td>{formatProcessLabel(wc.mainProcessCode, wc.mainProcessName)}</td>
+                <td className="num">{formatInteger(wc.operationTime)}</td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(wc)}>
+                    수정
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(wc)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
     </div>

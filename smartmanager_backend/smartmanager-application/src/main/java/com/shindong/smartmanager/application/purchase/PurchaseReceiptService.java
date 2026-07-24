@@ -13,6 +13,7 @@ import com.shindong.smartmanager.domain.inventory.LotOriginType;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
 import com.shindong.smartmanager.domain.item.CheckDistinction;
 import com.shindong.smartmanager.domain.item.PropertyClassification;
+import com.shindong.smartmanager.domain.purchase.PartnerPrepaidOffsetLedgerKind;
 import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
 import com.shindong.smartmanager.domain.purchase.PurchaseHistorySourceType;
 import com.shindong.smartmanager.domain.purchase.PurchaseOrderStatus;
@@ -36,6 +37,7 @@ public class PurchaseReceiptService {
     private final InventoryBalanceService inventoryBalanceService;
     private final LotService lotService;
     private final PartnerLedgerService partnerLedgerService;
+    private final PartnerPaymentRepository partnerPaymentRepository;
     private final MonthClosingService monthClosingService;
     private final FiscalCalendarService fiscalCalendarService;
 
@@ -46,6 +48,7 @@ public class PurchaseReceiptService {
             InventoryBalanceService inventoryBalanceService,
             LotService lotService,
             PartnerLedgerService partnerLedgerService,
+            PartnerPaymentRepository partnerPaymentRepository,
             MonthClosingService monthClosingService,
             FiscalCalendarService fiscalCalendarService
     ) {
@@ -55,6 +58,7 @@ public class PurchaseReceiptService {
         this.inventoryBalanceService = inventoryBalanceService;
         this.lotService = lotService;
         this.partnerLedgerService = partnerLedgerService;
+        this.partnerPaymentRepository = partnerPaymentRepository;
         this.monthClosingService = monthClosingService;
         this.fiscalCalendarService = fiscalCalendarService;
     }
@@ -84,7 +88,7 @@ public class PurchaseReceiptService {
         Set<Long> affectedOrderIds = new HashSet<>();
         for (CreatePurchaseReceiptLineCommand line : command.lines()) {
             PurchaseOrderLineReceiptContext ctx = receiptRepository.findOrderLineContext(line.purchaseOrderLineId());
-            validateReceiptLine(line, ctx);
+            validateReceiptLine(line, ctx, command.allowOverQty());
             contextByLineId.put(line.purchaseOrderLineId(), ctx);
             linesByPartner.computeIfAbsent(ctx.partnerId(), ignored -> new ArrayList<>()).add(line);
             affectedOrderIds.add(ctx.purchaseOrderId());
@@ -222,11 +226,15 @@ public class PurchaseReceiptService {
                 resultLines
         );
     }
-    private void validateReceiptLine(CreatePurchaseReceiptLineCommand line, PurchaseOrderLineReceiptContext ctx) {
+    private void validateReceiptLine(
+            CreatePurchaseReceiptLineCommand line,
+            PurchaseOrderLineReceiptContext ctx,
+            boolean allowOverQty
+    ) {
         if (ctx.orderStatus() == PurchaseOrderStatus.CANCELLED) {
             throw new IllegalArgumentException("취소된 발주 라인은 입고할 수 없습니다: lineId=" + line.purchaseOrderLineId());
         }
-        if (line.receiptQty().compareTo(ctx.remainQty()) > 0) {
+        if (line.receiptQty().compareTo(ctx.remainQty()) > 0 && !allowOverQty) {
             throw new IllegalArgumentException(
                     "입고 수량이 잔량을 초과합니다. 품목=" + ctx.itemNum()
                             + ", 잔량=" + ctx.remainQty().stripTrailingZeros().toPlainString()
@@ -246,6 +254,14 @@ public class PurchaseReceiptService {
             return;
         }
         monthClosingService.assertTransactionOpen(receipt.receiptDate());
+        for (PurchaseReceiptLineView line : receipt.lines()) {
+            qualityInspectionRepository.findActiveByReceiptLineId(line.id()).ifPresent(inspection -> {
+                if (inspection.status() == QualityInspectionStatus.COMPLETED) {
+                    throw new IllegalArgumentException(
+                            "품질검사가 완료된 입고는 취소할 수 없습니다. 품질검사 이력에서 검사를 검사대기로 되돌린 뒤 입고를 취소하세요.");
+                }
+            });
+        }
         Set<Long> affectedOrderIds = new HashSet<>();
         for (PurchaseReceiptLineView line : receipt.lines()) {
             PurchaseOrderLineReceiptContext ctx = receiptRepository.findOrderLineContext(line.purchaseOrderLineId());
@@ -269,22 +285,6 @@ public class PurchaseReceiptService {
                 if (inspection.status() == QualityInspectionStatus.PENDING) {
                     qualityInspectionRepository.cancelByReceiptLineId(line.id(), actorUserId);
                     receiptRepository.releaseWaitingInspectionQty(ctx.purchaseOrderLineId(), line.receiptQty(), actorUserId);
-                } else if (inspection.status() == QualityInspectionStatus.COMPLETED
-                        && inspection.passedQty().compareTo(BigDecimal.ZERO) > 0
-                        && postedQty.compareTo(BigDecimal.ZERO) == 0) {
-                    reverseStockAndLedger(
-                            line,
-                            ctx,
-                            receipt.partnerId(),
-                            receipt.receiptDate(),
-                            inspection.passedQty(),
-                            PurchaseHistorySourceType.QUALITY_INSPECTION,
-                            inspection.id(),
-                            "QUALITY_INSPECTION_CANCEL",
-                            actorUserId
-                    );
-                    receiptRepository.subtractReceivedQty(ctx.purchaseOrderLineId(), inspection.passedQty(), actorUserId);
-                    qualityInspectionRepository.cancelByReceiptLineId(line.id(), actorUserId);
                 }
             });
         }
@@ -362,35 +362,37 @@ public class PurchaseReceiptService {
             boolean autoGenerateLot,
             String actorUserId
     ) {
-        String locationCode = resolveLocationCode(ctx.propertyClassification());
         BigDecimal amount = lineAmount(qty, ctx.unitPrice());
-        Long lotId = resolveLotIdForInbound(
-                ctx,
-                lotNo,
-                autoGenerateLot,
-                historySourceType,
-                historySourceType == PurchaseHistorySourceType.PURCHASE_RECEIPT
-                        ? receiptLine.id()
-                        : historySourceId,
-                actorUserId
-        );
-        inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
-                ctx.itemId(),
-                locationCode,
-                movementDate,
-                StockMovementType.IN,
-                qty,
-                amount,
-                movementReferenceType,
-                historySourceType == PurchaseHistorySourceType.PURCHASE_RECEIPT
-                        ? receiptLine.id()
-                        : historySourceId,
-                null,
-                null,
-                null,
-                lotId,
-                actorUserId
-        ));
+        if (!isSubMaterial(ctx.propertyClassification())) {
+            String locationCode = resolveLocationCode(ctx.propertyClassification());
+            Long lotId = resolveLotIdForInbound(
+                    ctx,
+                    lotNo,
+                    autoGenerateLot,
+                    historySourceType,
+                    historySourceType == PurchaseHistorySourceType.PURCHASE_RECEIPT
+                            ? receiptLine.id()
+                            : historySourceId,
+                    actorUserId
+            );
+            inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
+                    ctx.itemId(),
+                    locationCode,
+                    movementDate,
+                    StockMovementType.IN,
+                    qty,
+                    amount,
+                    movementReferenceType,
+                    historySourceType == PurchaseHistorySourceType.PURCHASE_RECEIPT
+                            ? receiptLine.id()
+                            : historySourceId,
+                    null,
+                    null,
+                    null,
+                    lotId,
+                    actorUserId
+            ));
+        }
         FiscalPeriod period = fiscalPeriodOverride != null
                 ? fiscalPeriodOverride
                 : fiscalCalendarService.resolvePeriod(movementDate);
@@ -424,33 +426,40 @@ public class PurchaseReceiptService {
             String movementReferenceType,
             String actorUserId
     ) {
-        String locationCode = resolveLocationCode(ctx.propertyClassification());
         BigDecimal amount = lineAmount(qty, ctx.unitPrice());
-        String originalReferenceType = historySourceType == PurchaseHistorySourceType.PURCHASE_RECEIPT
-                ? "PURCHASE_RECEIPT"
-                : "QUALITY_INSPECTION";
-        long originalReferenceId = historySourceType == PurchaseHistorySourceType.PURCHASE_RECEIPT
-                ? receiptLine.id()
-                : historySourceId;
-        Long lotId = inventoryBalanceService.findLotIdByReference(originalReferenceType, originalReferenceId)
-                .orElse(null);
-        inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
-                ctx.itemId(),
-                locationCode,
-                movementDate,
-                StockMovementType.OUT,
-                qty,
-                amount,
-                movementReferenceType,
-                historySourceId,
-                null,
-                null,
-                null,
-                lotId,
-                actorUserId
-        ));
+        if (!isSubMaterial(ctx.propertyClassification())) {
+            String locationCode = resolveLocationCode(ctx.propertyClassification());
+            String originalReferenceType = historySourceType == PurchaseHistorySourceType.PURCHASE_RECEIPT
+                    ? "PURCHASE_RECEIPT"
+                    : "QUALITY_INSPECTION";
+            long originalReferenceId = historySourceType == PurchaseHistorySourceType.PURCHASE_RECEIPT
+                    ? receiptLine.id()
+                    : historySourceId;
+            Long lotId = inventoryBalanceService.findLotIdByReference(originalReferenceType, originalReferenceId)
+                    .orElse(null);
+            inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
+                    ctx.itemId(),
+                    locationCode,
+                    movementDate,
+                    StockMovementType.OUT,
+                    qty,
+                    amount,
+                    movementReferenceType,
+                    historySourceId,
+                    null,
+                    null,
+                    null,
+                    lotId,
+                    actorUserId
+            ));
+        }
         List<PurchaseHistoryRecord> histories = purchaseHistoryRepository.findActiveBySource(
                 historySourceType, historySourceId);
+        // 이력 비활성 전에 선급 상계를 복원하지 않으면 품질검사 재등록 시 이중상계처럼 보인다.
+        for (PurchaseHistoryRecord history : histories) {
+            partnerPaymentRepository.deactivateOffsetsByHistory(
+                    PartnerPrepaidOffsetLedgerKind.PURCHASE_HISTORY, history.id(), actorUserId);
+        }
         purchaseHistoryRepository.deactivateBySource(historySourceType, historySourceId, actorUserId);
         for (PurchaseHistoryRecord history : histories) {
             if (history.approvalStatus() == PayableApprovalStatus.APPROVED) {
@@ -506,10 +515,16 @@ public class PurchaseReceiptService {
         return switch (classification) {
             case 원자재 -> "RAW";
             case 상품, 제품 -> "SALES";
+            case 부자재 -> throw new IllegalArgumentException("부자재는 창고 재고를 관리하지 않습니다.");
             default -> throw new IllegalArgumentException(
                     "구매입고가 허용되지 않는 재고분류입니다: " + propertyClassification
             );
         };
+    }
+
+    static boolean isSubMaterial(String propertyClassification) {
+        return propertyClassification != null
+                && PropertyClassification.부자재.name().equals(propertyClassification);
     }
     static CheckDistinction resolveCheckDistinction(String value) {
         if (value == null || value.isBlank()) {

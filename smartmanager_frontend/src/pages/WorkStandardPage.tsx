@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import type { ProcessPlan, WorkCenter } from '../api/process';
 import { fetchProcessPlans, fetchWorkCenters } from '../api/process';
 import type { Equipment } from '../api/equipment';
@@ -16,6 +17,7 @@ import {
   updateWorkStandard,
 } from '../api/workStandard';
 import { formatInteger } from '../utils/numberFormat';
+import { NON_RAW_ITEM_CLASSES } from '../utils/itemClassFilters';
 import { useConfirm } from '../context/ConfirmContext';
 
 const INHOUSE_PROCESS = new Set(['INHOUSE', 'SPLIT']);
@@ -58,21 +60,24 @@ export default function WorkStandardPage() {
   const [userList, setUserList] = useState<User[]>([]);
   const [processOptions, setProcessOptions] = useState<ProcessPlan[]>([]);
   const [standards, setStandards] = useState<WorkStandard[]>([]);
+  const [draftItem, setDraftItem] = useState<ItemSearchSelection | null>(null);
+  const [appliedItem, setAppliedItem] = useState<ItemSearchSelection | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [clearToken, setClearToken] = useState(0);
   const [formItem, setFormItem] = useState<ItemSearchSelection | null>(null);
-  const [filterItem, setFilterItem] = useState<ItemSearchSelection | null>(null);
   const [form, setForm] = useState<CreateWorkStandardRequest>(emptyForm);
   const [copySource, setCopySource] = useState<ItemSearchSelection | null>(null);
   const [copyTarget, setCopyTarget] = useState<ItemSearchSelection | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingStandard, setEditingStandard] = useState<WorkStandard | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [copying, setCopying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
   const isEditing = editingId !== null;
-  const showItemColumn = filterItem === null;
+  const showItemColumn = appliedItem === null;
 
   const workStandardExportRows = useMemo(
     () =>
@@ -97,18 +102,20 @@ export default function WorkStandardPage() {
     [standards, showItemColumn],
   );
 
-  const refreshList = useCallback(async (item?: ItemSearchSelection | null) => {
+  const refreshListIfSearched = useCallback(async () => {
+    if (!hasSearched) {
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const target = item === undefined ? filterItem : item;
-      setStandards(await fetchWorkStandards(target?.itemNo));
+      setStandards(await fetchWorkStandards(appliedItem?.itemNo));
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록 조회 실패');
     } finally {
       setLoading(false);
     }
-  }, [filterItem]);
+  }, [hasSearched, appliedItem?.itemNo]);
 
   const loadProcessOptions = useCallback(async (item: ItemSearchSelection | null) => {
     if (!item) {
@@ -121,26 +128,21 @@ export default function WorkStandardPage() {
 
   useEffect(() => {
     void (async () => {
-      setLoading(true);
       setError(null);
       try {
-        const [centers, allStandards, equipment, users] = await Promise.all([
+        const [centers, equipment, users] = await Promise.all([
           fetchWorkCenters(),
-          fetchWorkStandards(),
           fetchEquipment(),
           fetchUsers(),
         ]);
         setWorkCenters(centers);
         setEquipmentList(equipment);
         setUserList(users);
-        setStandards(allStandards);
         if (centers.length > 0) {
           setForm((prev) => (prev.workCenterId === 0 ? { ...prev, workCenterId: centers[0].id } : prev));
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : '초기 로드 실패');
-      } finally {
-        setLoading(false);
       }
     })();
   }, []);
@@ -154,6 +156,30 @@ export default function WorkStandardPage() {
       setProcessOptions([]);
     }
   }, [formItem, loadProcessOptions]);
+
+  const onSearch = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setStandards(await fetchWorkStandards(draftItem?.itemNo));
+      setAppliedItem(draftItem);
+      setHasSearched(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '목록 조회 실패');
+      setStandards([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onResetSearch = () => {
+    setDraftItem(null);
+    setAppliedItem(null);
+    setStandards([]);
+    setHasSearched(false);
+    setClearToken((token) => token + 1);
+    setError(null);
+  };
 
   const resetForm = () => {
     setForm({
@@ -208,7 +234,7 @@ export default function WorkStandardPage() {
         await createWorkStandard(payload);
       }
       resetForm();
-      await refreshList();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : isEditing ? '수정 실패' : '등록 실패');
     } finally {
@@ -226,7 +252,7 @@ export default function WorkStandardPage() {
       if (editingId === standard.id) {
         resetForm();
       }
-      await refreshList();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '삭제 실패');
     }
@@ -249,7 +275,7 @@ export default function WorkStandardPage() {
       setCopyMessage(`${copied}건 복사되었습니다. (UK 충돌·공정 미매칭 행은 건너뜀)`);
       setCopySource(null);
       setCopyTarget(null);
-      await refreshList();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '표준복사 실패');
     } finally {
@@ -456,34 +482,32 @@ export default function WorkStandardPage() {
         </div>
         <div className="search-row">
           <ItemSearchField
-            label="품목 필터 (선택)"
-            selectedItem={filterItem}
-            onSelect={(item) => {
-              setFilterItem(item);
-              void refreshList(item);
-            }}
-            placeholder="전체 조회 — 품목번호 또는 품목명 입력"
+            label="품목 (선택)"
+            selectedItem={draftItem}
+            onSelect={setDraftItem}
+            allowedClassifications={NON_RAW_ITEM_CLASSES}
+            clearToken={clearToken}
+            placeholder="품목번호 또는 품목명 입력"
           />
-          <button
-            type="button"
-            className="secondary"
-            disabled={loading}
-            onClick={() => {
-              setFilterItem(null);
-              void refreshList(null);
-            }}
-          >
-            전체
+          <button type="button" disabled={loading} onClick={() => void onSearch()}>
+            조회
+          </button>
+          <button type="button" className="secondary" disabled={loading} onClick={onResetSearch}>
+            초기화
           </button>
         </div>
-        {loading ? (
+        {!hasSearched ? (
+          <p className="hint-text">조회 버튼을 누르면 목록이 표시됩니다.</p>
+        ) : loading ? (
           <p>불러오는 중…</p>
         ) : standards.length === 0 ? (
           <p>등록된 작업표준이 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={standards}
+            columnCount={showItemColumn ? 11 : 9}
+            getRowKey={(ws) => ws.id}
+            renderHeader={() => (
               <tr>
                 {showItemColumn && (
                   <>
@@ -501,39 +525,36 @@ export default function WorkStandardPage() {
                 <th className="num">표준(초)</th>
                 <th>작업</th>
               </tr>
-            </thead>
-            <tbody>
-              {standards.map((ws) => (
-                <tr key={ws.id} className={editingId === ws.id ? 'row-editing' : undefined}>
-                  {showItemColumn && (
-                    <>
-                      <td>{ws.itemNum}</td>
-                      <td>{ws.itemName}</td>
-                    </>
-                  )}
-                  <td className="num">{formatInteger(ws.processSequenceNum)}</td>
-                  <td>
-                    {ws.processCode} {ws.processName}
-                  </td>
-                  <td>{ws.wcName}</td>
-                  <td>{ws.equipmentName ?? '—'}</td>
-                  <td>{ws.mainWorkerName ?? '—'}</td>
-                  <td className="num">{formatInteger(ws.priorityOrder)}</td>
-                  <td className="num">{formatInteger(ws.setupTime)}</td>
-                  <td className="num">{formatInteger(ws.standardTime)}</td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => startEdit(ws)}>
-                      수정
-                    </button>
-                    <button type="button" className="btn-action danger" onClick={() => void onDelete(ws)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(ws) => (
+              <tr className={editingId === ws.id ? 'row-editing' : undefined}>
+                {showItemColumn && (
+                  <>
+                    <td>{ws.itemNum}</td>
+                    <td>{ws.itemName}</td>
+                  </>
+                )}
+                <td className="num">{formatInteger(ws.processSequenceNum)}</td>
+                <td>
+                  {ws.processCode} {ws.processName}
+                </td>
+                <td>{ws.wcName}</td>
+                <td>{ws.equipmentName ?? '—'}</td>
+                <td>{ws.mainWorkerName ?? '—'}</td>
+                <td className="num">{formatInteger(ws.priorityOrder)}</td>
+                <td className="num">{formatInteger(ws.setupTime)}</td>
+                <td className="num">{formatInteger(ws.standardTime)}</td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(ws)}>
+                    수정
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(ws)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
     </div>

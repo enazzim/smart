@@ -1,4 +1,5 @@
 import { apiFetch, handleResponse } from './http';
+import { sortByKoreanField } from '../utils/koreanSort';
 
 export interface WorkCenter {
   id: number;
@@ -22,7 +23,8 @@ const API_BASE = '/api/v1/basis/work-centers';
 
 export async function fetchWorkCenters(query?: string): Promise<WorkCenter[]> {
   const url = query?.trim() ? `${API_BASE}?q=${encodeURIComponent(query.trim())}` : API_BASE;
-  return handleResponse<WorkCenter[]>(await apiFetch(url));
+  const centers = await handleResponse<WorkCenter[]>(await apiFetch(url));
+  return sortByKoreanField(centers, (wc) => wc.wcName);
 }
 
 export async function fetchWorkCenter(id: number): Promise<WorkCenter> {

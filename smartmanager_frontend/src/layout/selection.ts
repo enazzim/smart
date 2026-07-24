@@ -6,6 +6,7 @@ import type {
   PurchasePageId,
   QualityPageId,
   SalesPageId,
+  StatsPageId,
   SystemPage,
 } from './menuConfig';
 import type { BoardScreen } from '../pages/BoardPage';
@@ -22,4 +23,5 @@ export type AppSelection =
   | { category: 'purchase'; page: PurchasePageId }
   | { category: 'inventory'; page: InventoryPageId }
   | { category: 'quality'; page: QualityPageId }
-  | { category: 'outsource'; page: OutsourcePageId };
+  | { category: 'outsource'; page: OutsourcePageId }
+  | { category: 'stats'; page: StatsPageId };

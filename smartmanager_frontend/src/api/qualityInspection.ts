@@ -22,6 +22,7 @@ export interface QualityInspection {
   createdAt: string;
   completedAt?: string | null;
   lotTracked: boolean;
+  failureReason?: string | null;
 }
 
 export interface QualityInspectionListParams {
@@ -42,11 +43,13 @@ export interface CompleteQualityInspectionRequest {
   inspectionDecisionCodeId?: number | null;
   unsuitabilityCauseCodeId?: number | null;
   unsuitabilityStatusCodeId?: number | null;
+  failureReason?: string | null;
   completedDate: string;
   fiscalYear?: number;
   fiscalMonth?: number;
   lotNo?: string;
   autoGenerateLot?: boolean;
+  allowOverQty?: boolean;
 }
 
 function buildQuery(params?: QualityInspectionListParams): string {
