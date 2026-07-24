@@ -461,7 +461,8 @@ flowchart TD
 
 ### 6.4 입고·품질검사
 
-**변경 없음.** 재고·검사만. 선급·미지급은 지급·승인에서만 변경.
+재고·검사는 기존과 동일. 다만 **매입/외주 이력 비활성**(품질검사 취소·입고 취소 등) 시 해당 이력의 `partner_prepaid_offset`도 비활성하여 **선급 잔액을 복원**한다.  
+복원하지 않으면 재검사·재승인 시 선급이 이미 소진된 것처럼 보여 이중상계처럼 계산된다.
 
 ---
 
@@ -661,9 +662,11 @@ UI: 「금액」 옆에 **선급상계**(상계 > 0이면 강조), **실지급�
 approvedAmount  = SUM(history.amount)           -- 해당 월 승인 매입 합
 offsetAmount    = SUM(partner_prepaid_offset)   -- 해당 이력에 걸린 active 상계
 payableAmount   = approvedAmount − offsetAmount -- 그 달 「실지급 대상」 증가분
+paidAmount      = SUM(partner_payment.supply)   -- 같은 회계월 일반지급(NORMAL·ISSUED) 공급가
+unpaidAmount    = max(0, payableAmount − paidAmount)
 ```
 
-공제·일반지급·선급 잔액 자체는 본 화면 범위 밖(미지급 잔액은 지급 화면 요약 유지).
+선급 잔액·누적 미지급 잔액(지급 화면 요약)과 별개로, 본 화면 미지급액은 **해당 월 실지급대상 대비** 잔여입니다.
 
 API: `GET /api/v1/stats/partner-monthly-payable?fiscalYear=&fiscalMonth=&companyId=`  
 메뉴: 통계및 지표 → **월별 실지급액**

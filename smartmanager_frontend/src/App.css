@@ -851,6 +851,28 @@ button[disabled] {
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
+/* 기준정보 목록 — 약 10행 높이 + 세로 가상 스크롤 */
+.app-main .table-wrap.table-wrap--virtual {
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.app-main .table-wrap.table-wrap--virtual > table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sm-blue-50);
+  box-shadow: inset 0 -1px 0 #e2e8f0;
+}
+
+.app-main .table-wrap.table-wrap--virtual tr.virtual-spacer-row td {
+  padding: 0;
+  border: none;
+  line-height: 0;
+  font-size: 0;
+}
+
 .app-main .table-wrap::-webkit-scrollbar:horizontal,
 .ui-table-wrap::-webkit-scrollbar:horizontal {
   height: 10px;

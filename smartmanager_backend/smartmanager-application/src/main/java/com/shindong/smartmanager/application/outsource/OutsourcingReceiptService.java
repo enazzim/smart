@@ -9,12 +9,14 @@ import com.shindong.smartmanager.application.inventory.LotView;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.ledger.PartnerLedgerService;
+import com.shindong.smartmanager.application.purchase.PartnerPaymentRepository;
 import com.shindong.smartmanager.application.quality.QualityInspectionRepository;
 import com.shindong.smartmanager.domain.event.AggregateTypes;
 import com.shindong.smartmanager.domain.event.DomainEvent;
 import com.shindong.smartmanager.domain.event.EventTypes;
 import com.shindong.smartmanager.domain.inventory.LotOriginType;
 import com.shindong.smartmanager.domain.item.CheckDistinction;
+import com.shindong.smartmanager.domain.purchase.PartnerPrepaidOffsetLedgerKind;
 import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
 import com.shindong.smartmanager.domain.outsource.OutsourceHistorySourceType;
 import com.shindong.smartmanager.domain.outsource.OutsourcingOrderStatus;
@@ -43,6 +45,7 @@ public class OutsourcingReceiptService {
     private final ItemRepository itemRepository;
     private final LotService lotService;
     private final PartnerLedgerService partnerLedgerService;
+    private final PartnerPaymentRepository partnerPaymentRepository;
     private final MonthClosingService monthClosingService;
     private final FiscalCalendarService fiscalCalendarService;
     private final DomainEventStore domainEventStore;
@@ -56,6 +59,7 @@ public class OutsourcingReceiptService {
             ItemRepository itemRepository,
             LotService lotService,
             PartnerLedgerService partnerLedgerService,
+            PartnerPaymentRepository partnerPaymentRepository,
             MonthClosingService monthClosingService,
             FiscalCalendarService fiscalCalendarService,
             DomainEventStore domainEventStore
@@ -68,6 +72,7 @@ public class OutsourcingReceiptService {
         this.itemRepository = itemRepository;
         this.lotService = lotService;
         this.partnerLedgerService = partnerLedgerService;
+        this.partnerPaymentRepository = partnerPaymentRepository;
         this.monthClosingService = monthClosingService;
         this.fiscalCalendarService = fiscalCalendarService;
         this.domainEventStore = domainEventStore;
@@ -453,6 +458,11 @@ public class OutsourcingReceiptService {
 
         List<OutsourceHistoryRecord> histories = outsourceHistoryRepository.findActiveBySource(
                 historySourceType, historySourceId);
+        // 이력 비활성 전에 선급 상계를 복원하지 않으면 품질검사 재등록 시 이중상계처럼 보인다.
+        for (OutsourceHistoryRecord history : histories) {
+            partnerPaymentRepository.deactivateOffsetsByHistory(
+                    PartnerPrepaidOffsetLedgerKind.OUTSOURCE_HISTORY, history.id(), actorUserId);
+        }
         outsourceHistoryRepository.deactivateBySource(historySourceType, historySourceId, actorUserId);
 
         for (OutsourceHistoryRecord history : histories) {

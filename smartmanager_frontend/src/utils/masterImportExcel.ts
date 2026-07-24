@@ -122,7 +122,7 @@ export const IMPORT_DOMAINS: ImportDomainConfig[] = [
       '표준단가', '할인단가', '적용시작일', '적용종료일',
     ],
     sampleRow: {
-      단가구분: 'SALE', 품목번호: 'ITEM-001', 사업자등록번호: '1234567890',
+      단가구분: '판매단가', 품목번호: 'ITEM-001', 사업자등록번호: '1234567890',
       시작공정코드: '', 종료공정코드: '', 발주비율: '', 표준단가: 1000, 할인단가: '',
       적용시작일: '2026-01-01', 적용종료일: '',
     },
@@ -198,6 +198,16 @@ function mapPropertyClassification(raw: string): string {
     default:
       return raw;
   }
+}
+
+/** Cut-over 엑셀: 판매단가/구매단가/외주단가 → SALE/PURCHASE/OUTSOURCE */
+function mapCostType(raw: string): string {
+  const text = raw.trim();
+  const upper = text.toUpperCase();
+  if (upper === 'SALE' || text === '판매' || text === '판매단가') return 'SALE';
+  if (upper === 'PURCHASE' || text === '구매' || text === '구매단가') return 'PURCHASE';
+  if (upper === 'OUTSOURCE' || text === '외주' || text === '외주단가') return 'OUTSOURCE';
+  return upper;
 }
 
 function cellNumber(value: unknown): number | undefined {
@@ -318,18 +328,21 @@ function mapRow(domain: ImportDomain, row: Record<string, unknown>): Record<stri
         standardTime: cellNumber(row['표준시간(초)']),
       };
     case 'unit-price': {
-      const costType = cellString(row['단가구분']).toUpperCase();
+      const costType = mapCostType(cellString(row['단가구분']));
       const usesProcess = costType === 'OUTSOURCE';
       return {
         costType,
         itemNum: cellString(row['품목번호']),
-        businessRegNo: cellString(row['사업자등록번호']),
+        businessRegNo: canonicalizeBusinessRegNo(cellString(row['사업자등록번호'])),
         // 판매·구매: 엑셀 공정값 무시 → null / 외주만 사용
         beginProcessSmallCode: usesProcess ? cellString(row['시작공정코드']) || null : null,
         endProcessSmallCode: usesProcess ? cellString(row['종료공정코드']) || null : null,
         orderRate: cellNumber(row['발주비율']) ?? null,
         standardUnitCost: cellNumber(row['표준단가']),
-        discountUnitCost: cellNumber(row['할인단가']) ?? null,
+        discountUnitCost: (() => {
+          const discount = cellNumber(row['할인단가']);
+          return discount != null && discount > 0 ? discount : null;
+        })(),
         beginDate: normalizeDate(row['적용시작일']),
         endDate: normalizeDate(row['적용종료일']) || null,
       };
@@ -376,6 +389,31 @@ export function validateImportRows(
       const rate = row.outsideOrderRate;
       if (distinction === 'SPLIT' && typeof rate === 'number' && (rate < 0 || rate > 100)) {
         errors.push({ rowNumber, message: '혼합(SPLIT) 발주비율은 0~100 사이여야 합니다.' });
+      }
+    }
+    if (domain === 'unit-price') {
+      const costType = String(row.costType ?? '');
+      if (costType && !['SALE', 'PURCHASE', 'OUTSOURCE'].includes(costType)) {
+        errors.push({
+          rowNumber,
+          message: '단가구분은 SALE/PURCHASE/OUTSOURCE(또는 판매단가/구매단가/외주단가)여야 합니다.',
+        });
+      }
+      if (costType === 'OUTSOURCE') {
+        if (!row.beginProcessSmallCode) {
+          errors.push({ rowNumber, message: '외주단가는 시작공정코드 필수' });
+        }
+        if (!row.endProcessSmallCode) {
+          errors.push({ rowNumber, message: '외주단가는 종료공정코드 필수' });
+        }
+        if (row.orderRate === undefined || row.orderRate === null || row.orderRate === '') {
+          errors.push({ rowNumber, message: '외주단가는 발주비율 필수' });
+        }
+      }
+      if (costType === 'PURCHASE') {
+        if (row.orderRate === undefined || row.orderRate === null || row.orderRate === '') {
+          errors.push({ rowNumber, message: '구매단가는 발주비율 필수' });
+        }
       }
     }
   });

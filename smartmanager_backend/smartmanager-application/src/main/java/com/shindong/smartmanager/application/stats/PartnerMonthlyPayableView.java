@@ -9,6 +9,8 @@ public record PartnerMonthlyPayableView(
         int fiscalMonth,
         BigDecimal approvedAmount,
         BigDecimal offsetAmount,
-        BigDecimal payableAmount
+        BigDecimal payableAmount,
+        BigDecimal paidAmount,
+        BigDecimal unpaidAmount
 ) {
 }

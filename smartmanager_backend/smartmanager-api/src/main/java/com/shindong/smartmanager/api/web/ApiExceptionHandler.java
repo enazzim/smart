@@ -1,11 +1,13 @@
 package com.shindong.smartmanager.api.web;
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.shindong.smartmanager.application.common.AppBusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -72,6 +74,31 @@ public class ApiExceptionHandler {
                 .orElse("요청 값이 올바르지 않습니다.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ApiErrorResponse("VALIDATION_FAILED", message));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleNotReadable(HttpMessageNotReadableException ex) {
+        Throwable root = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause() : ex;
+        String message = "요청 본문을 읽을 수 없습니다.";
+        if (root instanceof InvalidFormatException invalidFormat) {
+            String field = invalidFormat.getPath().isEmpty()
+                    ? ""
+                    : invalidFormat.getPath().get(invalidFormat.getPath().size() - 1).getFieldName();
+            String value = String.valueOf(invalidFormat.getValue());
+            if (invalidFormat.getTargetType() != null
+                    && invalidFormat.getTargetType().isEnum()
+                    && "costType".equals(field)) {
+                message = "단가구분은 SALE/PURCHASE/OUTSOURCE(또는 판매단가/구매단가/외주단가)여야 합니다: " + value;
+            } else if (field != null && !field.isBlank()) {
+                message = field + " 값이 올바르지 않습니다: " + value;
+            } else if (root.getMessage() != null && !root.getMessage().isBlank()) {
+                message = root.getMessage();
+            }
+        } else if (root.getMessage() != null && !root.getMessage().isBlank()) {
+            message = root.getMessage();
+        }
+        return ResponseEntity.badRequest()
+                .body(new ApiErrorResponse("INVALID_REQUEST", message));
     }
 
     @ExceptionHandler(Exception.class)

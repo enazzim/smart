@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import type { ProcessPlan, WorkCenter } from '../api/process';
 import { fetchProcessPlans, fetchWorkCenters } from '../api/process';
 import type { Equipment } from '../api/equipment';
@@ -502,9 +503,11 @@ export default function WorkStandardPage() {
         ) : standards.length === 0 ? (
           <p>등록된 작업표준이 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={standards}
+            columnCount={showItemColumn ? 11 : 9}
+            getRowKey={(ws) => ws.id}
+            renderHeader={() => (
               <tr>
                 {showItemColumn && (
                   <>
@@ -522,39 +525,36 @@ export default function WorkStandardPage() {
                 <th className="num">표준(초)</th>
                 <th>작업</th>
               </tr>
-            </thead>
-            <tbody>
-              {standards.map((ws) => (
-                <tr key={ws.id} className={editingId === ws.id ? 'row-editing' : undefined}>
-                  {showItemColumn && (
-                    <>
-                      <td>{ws.itemNum}</td>
-                      <td>{ws.itemName}</td>
-                    </>
-                  )}
-                  <td className="num">{formatInteger(ws.processSequenceNum)}</td>
-                  <td>
-                    {ws.processCode} {ws.processName}
-                  </td>
-                  <td>{ws.wcName}</td>
-                  <td>{ws.equipmentName ?? '—'}</td>
-                  <td>{ws.mainWorkerName ?? '—'}</td>
-                  <td className="num">{formatInteger(ws.priorityOrder)}</td>
-                  <td className="num">{formatInteger(ws.setupTime)}</td>
-                  <td className="num">{formatInteger(ws.standardTime)}</td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => startEdit(ws)}>
-                      수정
-                    </button>
-                    <button type="button" className="btn-action danger" onClick={() => void onDelete(ws)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(ws) => (
+              <tr className={editingId === ws.id ? 'row-editing' : undefined}>
+                {showItemColumn && (
+                  <>
+                    <td>{ws.itemNum}</td>
+                    <td>{ws.itemName}</td>
+                  </>
+                )}
+                <td className="num">{formatInteger(ws.processSequenceNum)}</td>
+                <td>
+                  {ws.processCode} {ws.processName}
+                </td>
+                <td>{ws.wcName}</td>
+                <td>{ws.equipmentName ?? '—'}</td>
+                <td>{ws.mainWorkerName ?? '—'}</td>
+                <td className="num">{formatInteger(ws.priorityOrder)}</td>
+                <td className="num">{formatInteger(ws.setupTime)}</td>
+                <td className="num">{formatInteger(ws.standardTime)}</td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(ws)}>
+                    수정
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(ws)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
     </div>

@@ -19,6 +19,7 @@
   "dependencies": {
     "@stomp/stompjs": "^7.2.0",
     "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-virtual": "^3.13.12",
     "exceljs": "^4.4.0",
     "jszip": "^3.10.1",
     "lucide-react": "^1.24.0",

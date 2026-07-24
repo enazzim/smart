@@ -29,12 +29,16 @@ export default function PartnerMonthlyPayablePage() {
     let approved = 0;
     let offset = 0;
     let payable = 0;
+    let paid = 0;
+    let unpaid = 0;
     for (const row of rows) {
       approved += Number(row.approvedAmount);
       offset += Number(row.offsetAmount);
       payable += Number(row.payableAmount);
+      paid += Number(row.paidAmount);
+      unpaid += Number(row.unpaidAmount);
     }
-    return { approved, offset, payable };
+    return { approved, offset, payable, paid, unpaid };
   }, [rows]);
 
   const exportRows = useMemo(
@@ -46,6 +50,8 @@ export default function PartnerMonthlyPayablePage() {
         승인합: Number(row.approvedAmount),
         선급상계: Number(row.offsetAmount),
         실지급대상: Number(row.payableAmount),
+        실지급액: Number(row.paidAmount),
+        미지급액: Number(row.unpaidAmount),
       })),
     [rows],
   );
@@ -95,7 +101,8 @@ export default function PartnerMonthlyPayablePage() {
         <div>
           <h1>월별 실지급액</h1>
           <p>
-            거래처별 해당 월 승인 매입 합에서 선급 상계를 뺀 실지급 대상 증가분입니다. (승인된 구매·외주만)
+            거래처별 해당 월 승인 매입 합에서 선급 상계를 뺀 실지급 대상과, 같은 회계월 일반지급(공급가) ·
+            미지급액입니다. (승인된 구매·외주만)
           </p>
         </div>
       </header>
@@ -155,11 +162,14 @@ export default function PartnerMonthlyPayablePage() {
                 <th className="num">승인합</th>
                 <th className="num">선급상계</th>
                 <th className="num">실지급대상</th>
+                <th className="num">실지급액</th>
+                <th className="num">미지급액</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => {
                 const offset = Number(row.offsetAmount);
+                const unpaid = Number(row.unpaidAmount);
                 return (
                   <tr key={row.companyId}>
                     <td className="num">{row.fiscalYear}</td>
@@ -170,6 +180,10 @@ export default function PartnerMonthlyPayablePage() {
                       {offset > 0 ? formatAmount(offset) : '—'}
                     </td>
                     <td className="num">{formatAmount(row.payableAmount)}</td>
+                    <td className="num">{formatAmount(row.paidAmount)}</td>
+                    <td className={`num${unpaid > 0 ? ' amount-offset' : ''}`}>
+                      {formatAmount(row.unpaidAmount)}
+                    </td>
                   </tr>
                 );
               })}
@@ -181,6 +195,10 @@ export default function PartnerMonthlyPayablePage() {
                   {formatAmount(totals.offset)}
                 </td>
                 <td className="num">{formatAmount(totals.payable)}</td>
+                <td className="num">{formatAmount(totals.paid)}</td>
+                <td className={`num${totals.unpaid > 0 ? ' amount-offset' : ''}`}>
+                  {formatAmount(totals.unpaid)}
+                </td>
               </tr>
             </tbody>
           </table>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { sortByKoreanField } from '../utils/koreanSort';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -73,7 +74,12 @@ export default function CodeOptionSearchField({
 
   const applyFilter = useCallback(
     (searchQuery: string) => {
-      setFiltered(options.filter((opt) => matchesQuery(opt, searchQuery)));
+      setFiltered(
+        sortByKoreanField(
+          options.filter((opt) => matchesQuery(opt, searchQuery)),
+          (opt) => opt.name,
+        ),
+      );
     },
     [options],
   );

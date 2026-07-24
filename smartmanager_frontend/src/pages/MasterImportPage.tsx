@@ -312,6 +312,10 @@ export default function MasterImportPage() {
           <li>품목 자산분류: <code>원자재</code>/<code>제품</code>/<code>상품</code>/<code>공정품</code>/<code>부자재</code>/<code>팬텀</code> (<code>팬텀</code>은 일괄등록만).</li>
           <li>품목구성: 자품수량은 <strong>0 이상</strong> (0이면 하위 전개·소요에서 제외).</li>
           <li>FK가 필요한 항목은 앞 단계 데이터가 먼저 등록되어 있어야 합니다.</li>
+          <li>
+            단가구분: <code>SALE</code>/<code>PURCHASE</code>/<code>OUTSOURCE</code> 또는{' '}
+            <code>판매단가</code>/<code>구매단가</code>/<code>외주단가</code> (대량 건은 자동 분할 업로드).
+          </li>
         </ul>
       </aside>
 

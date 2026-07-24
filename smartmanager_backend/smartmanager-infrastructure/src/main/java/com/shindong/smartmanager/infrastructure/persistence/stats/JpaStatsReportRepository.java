@@ -1,5 +1,8 @@
 package com.shindong.smartmanager.infrastructure.persistence.stats;
 
+import com.shindong.smartmanager.application.closing.FiscalCalendarService;
+import com.shindong.smartmanager.application.closing.FiscalPeriod;
+import com.shindong.smartmanager.application.closing.FiscalPeriodDateRange;
 import com.shindong.smartmanager.application.stats.ItemStockMovementCriteria;
 import com.shindong.smartmanager.application.stats.ItemStockMovementView;
 import com.shindong.smartmanager.application.stats.OrderVsReceiptCriteria;
@@ -36,6 +39,12 @@ public class JpaStatsReportRepository implements StatsReportRepository {
 
     @PersistenceContext
     private EntityManager entityManager;
+
+    private final FiscalCalendarService fiscalCalendarService;
+
+    public JpaStatsReportRepository(FiscalCalendarService fiscalCalendarService) {
+        this.fiscalCalendarService = fiscalCalendarService;
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -1148,6 +1157,9 @@ public class JpaStatsReportRepository implements StatsReportRepository {
     @Override
     @Transactional(readOnly = true)
     public List<PartnerMonthlyPayableView> findPartnerMonthlyPayable(PartnerMonthlyPayableCriteria criteria) {
+        FiscalPeriodDateRange paymentRange = fiscalCalendarService.toCalendarDateRange(
+                new FiscalPeriod(criteria.fiscalYear(), criteria.fiscalMonth())
+        );
         StringBuilder sql = new StringBuilder("""
                 SELECT t.company_id,
                        t.company_name,
@@ -1155,7 +1167,8 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                        t.fiscal_month,
                        SUM(t.approved_amount) AS approved_amount,
                        SUM(t.offset_amount) AS offset_amount,
-                       SUM(t.payable_amount) AS payable_amount
+                       SUM(t.payable_amount) AS payable_amount,
+                       COALESCE(MAX(pay.paid_amount), 0) AS paid_amount
                 FROM (
                   SELECT ph.company_id,
                          c.company_name,
@@ -1199,11 +1212,23 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                     AND oh.fiscal_year = :fiscalYear
                     AND oh.fiscal_month = :fiscalMonth
                 ) t
+                LEFT JOIN (
+                  SELECT partner_id, SUM(supply_amount) AS paid_amount
+                  FROM partner_payment
+                  WHERE recording_state = 1
+                    AND status = 'ISSUED'
+                    AND payment_kind = 'NORMAL'
+                    AND payment_date >= :paymentDateFrom
+                    AND payment_date <= :paymentDateTo
+                  GROUP BY partner_id
+                ) pay ON pay.partner_id = t.company_id
                 WHERE 1 = 1
                 """);
         Map<String, Object> params = new HashMap<>();
         params.put("fiscalYear", criteria.fiscalYear());
         params.put("fiscalMonth", criteria.fiscalMonth());
+        params.put("paymentDateFrom", Date.valueOf(paymentRange.startInclusive()));
+        params.put("paymentDateTo", Date.valueOf(paymentRange.endInclusive()));
         if (criteria.companyId() != null) {
             sql.append(" AND t.company_id = :companyId");
             params.put("companyId", criteria.companyId());
@@ -1224,6 +1249,9 @@ public class JpaStatsReportRepository implements StatsReportRepository {
         List<Object[]> rows = query.getResultList();
         List<PartnerMonthlyPayableView> result = new ArrayList<>();
         for (Object[] row : rows) {
+            BigDecimal payableAmount = toBigDecimal(row[6]);
+            BigDecimal paidAmount = toBigDecimal(row[7]);
+            BigDecimal unpaidAmount = payableAmount.subtract(paidAmount).max(BigDecimal.ZERO);
             result.add(new PartnerMonthlyPayableView(
                     ((Number) row[0]).longValue(),
                     row[1] != null ? row[1].toString() : "",
@@ -1231,7 +1259,9 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                     ((Number) row[3]).intValue(),
                     toBigDecimal(row[4]),
                     toBigDecimal(row[5]),
-                    toBigDecimal(row[6])
+                    payableAmount,
+                    paidAmount,
+                    unpaidAmount
             ));
         }
         return result;

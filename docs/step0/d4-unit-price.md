@@ -79,9 +79,9 @@
 
 | `cost_type` | 허용 `property_classification` | 추가 |
 |-------------|----------------------------------|------|
-| `PURCHASE` | `원자재`, `상품` | |
-| `SALE` | `제품`, `상품` | |
-| `OUTSOURCE` | `제품`, `공정품` | plan `process_sequence`에 `INHOUSE`·`SPLIT` **1건 이상** |
+| `PURCHASE` | `원자재`, `상품`, `부자재` | 상품은 판매·구매 단가 모두 가능 |
+| `SALE` | `제품`, `상품`, `공정품` | 상품은 판매·구매 단가 모두 가능 |
+| `OUTSOURCE` | `제품`, `공정품` | plan `process_sequence`에 `OUTSOURCE`·`SPLIT` **1건 이상** (시작·종료 공정도 동일; `INHOUSE`만 있으면 불가) |
 
 ### 3.3 거래처 역할 (`d4-company` `company_role`)
 

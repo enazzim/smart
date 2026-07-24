@@ -89,7 +89,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
         String sql = """
                 SELECT COALESCE(SUM(line_remaining), 0)
                 FROM (
-                    SELECT ppl.total_amount - COALESCE(off.offset_amount, 0) AS line_remaining
+                    SELECT ppl.supply_amount - COALESCE(off.offset_amount, 0) AS line_remaining
                     FROM partner_payment_line ppl
                     JOIN partner_payment pp ON pp.id = ppl.payment_id
                     LEFT JOIN (
@@ -181,7 +181,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                     SELECT partner_id, SUM(line_remaining) AS prepaid_remaining
                     FROM (
                         SELECT pp.partner_id,
-                               ppl.total_amount - COALESCE(off.offset_amount, 0) AS line_remaining
+                               ppl.supply_amount - COALESCE(off.offset_amount, 0) AS line_remaining
                         FROM partner_payment_line ppl
                         JOIN partner_payment pp ON pp.id = ppl.payment_id
                         LEFT JOIN (
@@ -253,9 +253,9 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
         StringBuilder sql = new StringBuilder("""
                 SELECT pp.partner_id, c.company_name, ppl.item_id, i.item_no, i.item_name,
                        pp.cost_category,
-                       SUM(ppl.total_amount) AS prepaid_in,
+                       SUM(ppl.supply_amount) AS prepaid_in,
                        SUM(COALESCE(off.offset_amount, 0)) AS prepaid_out,
-                       SUM(ppl.total_amount - COALESCE(off.offset_amount, 0)) AS prepaid_remaining
+                       SUM(ppl.supply_amount - COALESCE(off.offset_amount, 0)) AS prepaid_remaining
                 FROM partner_payment_line ppl
                 JOIN partner_payment pp ON pp.id = ppl.payment_id
                 JOIN company c ON c.id = pp.partner_id
@@ -338,7 +338,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
     ) {
         String sql = """
                 SELECT ppl.id, pp.id, pp.payment_no, pp.payment_date, pp.partner_id, ppl.item_id,
-                       pp.cost_category, ppl.total_amount, COALESCE(off.offset_amount, 0) AS offset_amount
+                       pp.cost_category, ppl.supply_amount, COALESCE(off.offset_amount, 0) AS offset_amount
                 FROM partner_payment_line ppl
                 JOIN partner_payment pp ON pp.id = ppl.payment_id
                 LEFT JOIN (
@@ -354,7 +354,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                   AND pp.partner_id = :partnerId
                   AND ppl.item_id = :itemId
                   AND pp.cost_category = :costCategory
-                  AND (ppl.total_amount - COALESCE(off.offset_amount, 0)) > 0
+                  AND (ppl.supply_amount - COALESCE(off.offset_amount, 0)) > 0
                 ORDER BY pp.payment_date ASC, pp.payment_no ASC, ppl.id ASC
                 """;
         Query query = entityManager.createNativeQuery(sql);
@@ -533,7 +533,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                 JOIN company c ON c.id = po.partner_id
                 JOIN item i ON i.id = pol.item_id
                 LEFT JOIN (
-                    SELECT ppl.purchase_order_line_id, SUM(ppl.total_amount) AS prepaid_amount
+                    SELECT ppl.purchase_order_line_id, SUM(ppl.supply_amount) AS prepaid_amount
                     FROM partner_payment_line ppl
                     JOIN partner_payment pp ON pp.id = ppl.payment_id
                     WHERE ppl.recording_state = 1
@@ -565,7 +565,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                 JOIN company c ON c.id = oo.partner_id
                 JOIN item i ON i.id = ool.item_id
                 LEFT JOIN (
-                    SELECT ppl.outsourcing_order_line_id, SUM(ppl.total_amount) AS prepaid_amount
+                    SELECT ppl.outsourcing_order_line_id, SUM(ppl.supply_amount) AS prepaid_amount
                     FROM partner_payment_line ppl
                     JOIN partner_payment pp ON pp.id = ppl.payment_id
                     WHERE ppl.recording_state = 1
@@ -648,7 +648,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
     private BigDecimal remainingPurchaseOrderLineAmount(long orderLineId) {
         String sql = """
                 SELECT pol.amount - COALESCE((
-                    SELECT SUM(ppl.total_amount)
+                    SELECT SUM(ppl.supply_amount)
                     FROM partner_payment_line ppl
                     JOIN partner_payment pp ON pp.id = ppl.payment_id
                     WHERE ppl.recording_state = 1
@@ -672,7 +672,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
     private BigDecimal remainingOutsourceOrderLineAmount(long orderLineId) {
         String sql = """
                 SELECT ool.amount - COALESCE((
-                    SELECT SUM(ppl.total_amount)
+                    SELECT SUM(ppl.supply_amount)
                     FROM partner_payment_line ppl
                     JOIN partner_payment pp ON pp.id = ppl.payment_id
                     WHERE ppl.recording_state = 1

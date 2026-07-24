@@ -203,6 +203,8 @@ export interface PartnerMonthlyPayableRow {
   approvedAmount: number;
   offsetAmount: number;
   payableAmount: number;
+  paidAmount: number;
+  unpaidAmount: number;
 }
 
 export interface PartnerMonthlyPayableParams {

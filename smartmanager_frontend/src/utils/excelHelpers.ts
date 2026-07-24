@@ -30,15 +30,28 @@ export function excelSerialToIsoDate(serial: number): string | null {
 
 export function normalizeExcelDate(value: unknown): string {
   if (value == null || value === '') return '';
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (value instanceof Date) {
+    // 엑셀 로컬 날짜가 UTC로 밀려 전날이 되지 않도록 로컬 YMD 사용
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
   if (typeof value === 'number') {
     const parsed = excelSerialToIsoDate(value);
     if (parsed) return parsed;
   }
   const text = String(value).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  // ISO datetime (SheetJS 등) → 날짜만
+  const isoDate = text.match(/^(\d{4}-\d{2}-\d{2})[T\s]/);
+  if (isoDate) return isoDate[1];
   if (/^\d{8}$/.test(text)) return `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}`;
   if (/^\d{4}\/\d{2}\/\d{2}$/.test(text)) return text.replace(/\//g, '-');
+  if (/^\d{4}\.\d{1,2}\.\d{1,2}$/.test(text)) {
+    const [yy, mm, dd] = text.split('.');
+    return `${yy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+  }
   return text;
 }
 

@@ -20,6 +20,7 @@ import {
 } from '../api/itemComposition';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import { useAuth } from '../context/AuthContext';
 import { downloadExplosionExcel, downloadReverseExcel } from '../utils/bomExcelExport';
 import { formatQty } from '../utils/numberFormat';
@@ -637,9 +638,11 @@ export default function ItemCompositionPage() {
         ) : rows.length === 0 ? (
           <p>검색 조건에 맞는 BOM이 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={rows}
+            columnCount={7}
+            getRowKey={(row) => row.id}
+            renderHeader={() => (
               <tr>
                 <th>모품목</th>
                 <th>모품목명</th>
@@ -649,29 +652,26 @@ export default function ItemCompositionPage() {
                 <th className="num">자품수량</th>
                 <th>작업</th>
               </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className={editingId === row.id ? 'row-editing' : undefined}>
-                  <td>{row.parentItemNo}</td>
-                  <td>{row.parentItemName}</td>
-                  <td>{row.childItemNo}</td>
-                  <td>{row.childItemName}</td>
-                  <td className="num">{formatQty(row.parentQuantity)}</td>
-                  <td className="num">{formatQty(row.childQuantity)}</td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => startEdit(row)}>
-                      수정
-                    </button>
-                    <button type="button" className="btn-action danger" onClick={() => void onDelete(row)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(row) => (
+              <tr className={editingId === row.id ? 'row-editing' : undefined}>
+                <td>{row.parentItemNo}</td>
+                <td>{row.parentItemName}</td>
+                <td>{row.childItemNo}</td>
+                <td>{row.childItemName}</td>
+                <td className="num">{formatQty(row.parentQuantity)}</td>
+                <td className="num">{formatQty(row.childQuantity)}</td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(row)}>
+                    수정
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(row)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
 

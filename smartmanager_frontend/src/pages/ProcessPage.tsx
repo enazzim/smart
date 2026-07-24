@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import CodeOptionSearchField, { type CodeOptionSelection } from '../components/CodeOptionSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import type {
   CreateProcessRequest,
   ProcessPlan,
@@ -422,9 +423,11 @@ export default function ProcessPage() {
         ) : displayedProcesses.length === 0 ? (
           <p>검색 조건에 맞는 공정이 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={displayedProcesses}
+            columnCount={showItemColumn ? 9 : 8}
+            getRowKey={(process) => process.id}
+            renderHeader={() => (
               <tr>
                 <th className="num">ID</th>
                 {showItemColumn && <th>품목</th>}
@@ -436,44 +439,41 @@ export default function ProcessPage() {
                 <th className="num">진척%</th>
                 <th>작업</th>
               </tr>
-            </thead>
-            <tbody>
-              {displayedProcesses.map((process) => (
-                <tr key={process.id} className={editingId === process.id ? 'row-editing' : undefined}>
-                  <td className="num">{formatInteger(process.id)}</td>
-                  {showItemColumn && (
-                    <td>
-                      {process.itemNo} — {process.itemName}
-                    </td>
-                  )}
-                  <td className="num">{formatInteger(process.processSequenceNum)}</td>
+            )}
+            renderRow={(process) => (
+              <tr className={editingId === process.id ? 'row-editing' : undefined}>
+                <td className="num">{formatInteger(process.id)}</td>
+                {showItemColumn && (
                   <td>
-                    {process.processCode} — {process.processName}
+                    {process.itemNo} — {process.itemName}
                   </td>
-                  <td>
-                    {WORK_DISTINCTION_OPTIONS.find((o) => o.value === process.workDistinction)?.label ??
-                      process.workDistinction}
-                  </td>
-                  <td>{process.wcName ?? '—'}</td>
-                  <td className="num">{formatInteger(process.outsideOrderRate)}</td>
-                  <td className="num">{formatInteger(process.progressRate)}</td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => startEdit(process)}>
-                      수정
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-action danger"
-                      onClick={() => void onDelete(process)}
-                    >
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+                )}
+                <td className="num">{formatInteger(process.processSequenceNum)}</td>
+                <td>
+                  {process.processCode} — {process.processName}
+                </td>
+                <td>
+                  {WORK_DISTINCTION_OPTIONS.find((o) => o.value === process.workDistinction)?.label ??
+                    process.workDistinction}
+                </td>
+                <td>{process.wcName ?? '—'}</td>
+                <td className="num">{formatInteger(process.outsideOrderRate)}</td>
+                <td className="num">{formatInteger(process.progressRate)}</td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(process)}>
+                    수정
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-action danger"
+                    onClick={() => void onDelete(process)}
+                  >
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
     </div>

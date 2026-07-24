@@ -16,6 +16,7 @@ import DrawingReviseModal from '../components/drawing/DrawingReviseModal';
 import DrawingViewerModal from '../components/drawing/DrawingViewerModal';
 import DrawingInfoEditModal from '../components/drawing/DrawingInfoEditModal';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import {
   canReviseDrawing,
   isArchivedLifecycle,
@@ -657,48 +658,48 @@ function DrawingDashboard({
               ))}
             </div>
 
-            <div className="table-wrap drawing-table-desktop">
-              <table>
-                <thead>
-                  <tr>
-                    <th>품번</th>
-                    <th>업무 단계</th>
-                    <th>선수신 거래처</th>
-                    <th>연결 품목</th>
-                    <th>품명</th>
-                    <th>기종</th>
-                    <th>버전</th>
-                    <th>최근 등록일</th>
-                    <th>관리</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredDrawings.map((row) => (
-                    <tr key={row.id}>
-                      <td>
-                        <strong>{row.partNo}</strong>
-                      </td>
-                      <td>
-                        <span className={lifecycleBadgeClass(row.lifecycleStage)}>
-                          {lifecycleStageLabel(row.lifecycleStage)}
-                        </span>
-                      </td>
-                      <td>{row.sourcePartnerName ?? '—'}</td>
-                      <td>{row.itemNo ?? '—'}</td>
-                      <td>{row.partName}</td>
-                      <td>{row.modelType}</td>
-                      <td>
-                        <span className="drawing-version-badge">
-                          V{row.majorVersion}.{row.minorVersion}
-                        </span>
-                      </td>
-                      <td>{row.updatedAt}</td>
-                      <td className="row-actions">{renderRowActions(row)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <VirtualMasterTable
+              className="drawing-table-desktop"
+              rows={filteredDrawings}
+              columnCount={9}
+              getRowKey={(row) => row.id}
+              renderHeader={() => (
+                <tr>
+                  <th>품번</th>
+                  <th>업무 단계</th>
+                  <th>선수신 거래처</th>
+                  <th>연결 품목</th>
+                  <th>품명</th>
+                  <th>기종</th>
+                  <th>버전</th>
+                  <th>최근 등록일</th>
+                  <th>관리</th>
+                </tr>
+              )}
+              renderRow={(row) => (
+                <tr>
+                  <td>
+                    <strong>{row.partNo}</strong>
+                  </td>
+                  <td>
+                    <span className={lifecycleBadgeClass(row.lifecycleStage)}>
+                      {lifecycleStageLabel(row.lifecycleStage)}
+                    </span>
+                  </td>
+                  <td>{row.sourcePartnerName ?? '—'}</td>
+                  <td>{row.itemNo ?? '—'}</td>
+                  <td>{row.partName}</td>
+                  <td>{row.modelType}</td>
+                  <td>
+                    <span className="drawing-version-badge">
+                      V{row.majorVersion}.{row.minorVersion}
+                    </span>
+                  </td>
+                  <td>{row.updatedAt}</td>
+                  <td className="row-actions">{renderRowActions(row)}</td>
+                </tr>
+              )}
+            />
           </>
         )}
       </section>

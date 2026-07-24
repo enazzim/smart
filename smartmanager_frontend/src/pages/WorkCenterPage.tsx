@@ -9,6 +9,7 @@ import {
   updateWorkCenter,
 } from '../api/workCenter';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import { formatInteger } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
 
@@ -250,9 +251,11 @@ export default function WorkCenterPage() {
         ) : workCenters.length === 0 ? (
           <p>검색 조건에 맞는 작업장이 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={workCenters}
+            columnCount={5}
+            getRowKey={(wc) => wc.id}
+            renderHeader={() => (
               <tr>
                 <th className="num">ID</th>
                 <th>작업장명</th>
@@ -260,27 +263,24 @@ export default function WorkCenterPage() {
                 <th className="num">가동시간(분)</th>
                 <th>작업</th>
               </tr>
-            </thead>
-            <tbody>
-              {workCenters.map((wc) => (
-                <tr key={wc.id} className={editingId === wc.id ? 'row-editing' : undefined}>
-                  <td className="num">{formatInteger(wc.id)}</td>
-                  <td>{wc.wcName}</td>
-                  <td>{formatProcessLabel(wc.mainProcessCode, wc.mainProcessName)}</td>
-                  <td className="num">{formatInteger(wc.operationTime)}</td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => startEdit(wc)}>
-                      수정
-                    </button>
-                    <button type="button" className="btn-action danger" onClick={() => void onDelete(wc)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(wc) => (
+              <tr className={editingId === wc.id ? 'row-editing' : undefined}>
+                <td className="num">{formatInteger(wc.id)}</td>
+                <td>{wc.wcName}</td>
+                <td>{formatProcessLabel(wc.mainProcessCode, wc.mainProcessName)}</td>
+                <td className="num">{formatInteger(wc.operationTime)}</td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(wc)}>
+                    수정
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(wc)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
     </div>

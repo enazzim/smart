@@ -57,7 +57,10 @@ export async function fetchUnitPrices(type: CostType, q?: string): Promise<UnitP
 }
 
 export function resolveUnitPriceAmount(price: UnitPrice): number {
-  return price.discountUnitCost ?? price.standardUnitCost;
+  if (price.discountUnitCost != null && price.discountUnitCost > 0) {
+    return price.discountUnitCost;
+  }
+  return price.standardUnitCost;
 }
 
 function isEffectiveUnitPrice(price: UnitPrice, refDate: string): boolean {

@@ -23,6 +23,7 @@ import {
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import { formatAmount, formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
 
@@ -683,9 +684,14 @@ export default function UnitPricePage() {
         ) : displayedPrices.length === 0 ? (
           <p>검색 조건에 맞는 단가가 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={displayedPrices}
+            columnCount={
+              5 + (tabConfig.showProcess ? 2 : 0) + (tabConfig.orderRateDisabled ? 0 : 1)
+            }
+            rowHeight={56}
+            getRowKey={(price) => price.id}
+            renderHeader={() => (
               <tr>
                 <th>품목</th>
                 <th>거래처</th>
@@ -700,52 +706,49 @@ export default function UnitPricePage() {
                 <th>적용기간</th>
                 <th>작업</th>
               </tr>
-            </thead>
-            <tbody>
-              {displayedPrices.map((price) => (
-                <tr key={price.id}>
-                  <td>
-                    {price.itemNum}
-                    <br />
-                    <small>{price.itemName}</small>
-                  </td>
-                  <td>{price.companyName}</td>
-                  {tabConfig.showProcess && (
-                    <>
-                      <td>{price.processName ?? '—'}</td>
-                      <td>{price.endProcessName ?? '—'}</td>
-                    </>
-                  )}
-                  {!tabConfig.orderRateDisabled && (
-                    <td className="num">{formatQty(price.orderRate)}%</td>
-                  )}
-                  <td className="num">{formatAmount(price.standardUnitCost)}</td>
-                  <td>
-                    {price.beginDate}
-                    {price.endDate ? ` ~ ${price.endDate}` : ' ~'}
-                  </td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => startEdit(price)}>
-                      수정
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-action"
-                      onClick={() =>
-                        void openHistory(price.id, `${price.itemNum} ${price.itemName}`.trim())
-                      }
-                    >
-                      이력
-                    </button>
-                    <button type="button" className="btn-action danger" onClick={() => void onDelete(price.id)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(price) => (
+              <tr>
+                <td>
+                  {price.itemNum}
+                  <br />
+                  <small>{price.itemName}</small>
+                </td>
+                <td>{price.companyName}</td>
+                {tabConfig.showProcess && (
+                  <>
+                    <td>{price.processName ?? '—'}</td>
+                    <td>{price.endProcessName ?? '—'}</td>
+                  </>
+                )}
+                {!tabConfig.orderRateDisabled && (
+                  <td className="num">{formatQty(price.orderRate)}%</td>
+                )}
+                <td className="num">{formatAmount(price.standardUnitCost)}</td>
+                <td>
+                  {price.beginDate}
+                  {price.endDate ? ` ~ ${price.endDate}` : ' ~'}
+                </td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(price)}>
+                    수정
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-action"
+                    onClick={() =>
+                      void openHistory(price.id, `${price.itemNum} ${price.itemName}`.trim())
+                    }
+                  >
+                    이력
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(price.id)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
 

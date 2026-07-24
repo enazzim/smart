@@ -13,6 +13,7 @@ import com.shindong.smartmanager.domain.inventory.LotOriginType;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
 import com.shindong.smartmanager.domain.item.CheckDistinction;
 import com.shindong.smartmanager.domain.item.PropertyClassification;
+import com.shindong.smartmanager.domain.purchase.PartnerPrepaidOffsetLedgerKind;
 import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
 import com.shindong.smartmanager.domain.purchase.PurchaseHistorySourceType;
 import com.shindong.smartmanager.domain.purchase.PurchaseOrderStatus;
@@ -36,6 +37,7 @@ public class PurchaseReceiptService {
     private final InventoryBalanceService inventoryBalanceService;
     private final LotService lotService;
     private final PartnerLedgerService partnerLedgerService;
+    private final PartnerPaymentRepository partnerPaymentRepository;
     private final MonthClosingService monthClosingService;
     private final FiscalCalendarService fiscalCalendarService;
 
@@ -46,6 +48,7 @@ public class PurchaseReceiptService {
             InventoryBalanceService inventoryBalanceService,
             LotService lotService,
             PartnerLedgerService partnerLedgerService,
+            PartnerPaymentRepository partnerPaymentRepository,
             MonthClosingService monthClosingService,
             FiscalCalendarService fiscalCalendarService
     ) {
@@ -55,6 +58,7 @@ public class PurchaseReceiptService {
         this.inventoryBalanceService = inventoryBalanceService;
         this.lotService = lotService;
         this.partnerLedgerService = partnerLedgerService;
+        this.partnerPaymentRepository = partnerPaymentRepository;
         this.monthClosingService = monthClosingService;
         this.fiscalCalendarService = fiscalCalendarService;
     }
@@ -451,6 +455,11 @@ public class PurchaseReceiptService {
         }
         List<PurchaseHistoryRecord> histories = purchaseHistoryRepository.findActiveBySource(
                 historySourceType, historySourceId);
+        // 이력 비활성 전에 선급 상계를 복원하지 않으면 품질검사 재등록 시 이중상계처럼 보인다.
+        for (PurchaseHistoryRecord history : histories) {
+            partnerPaymentRepository.deactivateOffsetsByHistory(
+                    PartnerPrepaidOffsetLedgerKind.PURCHASE_HISTORY, history.id(), actorUserId);
+        }
         purchaseHistoryRepository.deactivateBySource(historySourceType, historySourceId, actorUserId);
         for (PurchaseHistoryRecord history : histories) {
             if (history.approvalStatus() == PayableApprovalStatus.APPROVED) {

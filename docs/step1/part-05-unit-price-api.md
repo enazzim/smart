@@ -70,10 +70,10 @@ PUT /api/v1/basis/unit-prices/{id}
 
 | 구분 | 규칙 |
 |------|------|
-| 품목 자산분류 | PURCHASE: 원자재·상품 / SALE: 제품·상품 / OUTSOURCE: 제품·공정품 |
+| 품목 자산분류 | PURCHASE: 원자재·상품·부자재 / SALE: 제품·상품·공정품 / OUTSOURCE: 제품·공정품 |
 | 거래처 역할 | SALE→`SALES`, PURCHASE→`PURCHASE`, OUTSOURCE→`OUTSOURCE` |
 | 외주 공정 | `beginProcessCodeId`·`endProcessCodeId` 필수, 품목 plan에 존재·순번 유효 |
-| 외주 품목 | plan에 `INHOUSE` 또는 `SPLIT` 공정 1건 이상 |
+| 외주 품목 | plan에 `OUTSOURCE` 또는 `SPLIT` 공정 1건 이상 (시작·종료 공정도 외주·혼합만) |
 | 발주비율 | SALE=0 고정 / 동일 `(type,item_id)` 합계 ≤100% / 외주는 공정구간별 합계 ≤100% |
 | UK | `(cost_type, item_id, company_id, begin_date, begin/end_process_code_id)` 활성 1건 |
 

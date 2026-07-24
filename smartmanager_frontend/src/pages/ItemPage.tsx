@@ -9,6 +9,7 @@ import type {
 import { createItem, deleteItem, fetchItems, updateItem } from '../api/item';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import { formatAmount, formatInteger } from '../utils/numberFormat';
 import { ALL_ITEM_CLASSES } from '../utils/itemClassFilters';
 import { useConfirm } from '../context/ConfirmContext';
@@ -398,9 +399,11 @@ export default function ItemPage() {
         ) : items.length === 0 ? (
           <p>검색 조건에 맞는 품목이 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={items}
+            columnCount={11}
+            getRowKey={(item) => item.id}
+            renderHeader={() => (
               <tr>
                 <th className="num">ID</th>
                 <th>품목번호</th>
@@ -414,38 +417,35 @@ export default function ItemPage() {
                 <th>검사구분</th>
                 <th>작업</th>
               </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id} className={editingId === item.id ? 'row-editing' : undefined}>
-                  <td className="num">{formatInteger(item.id)}</td>
-                  <td>{item.itemNo}</td>
-                  <td>{item.itemName}</td>
-                  <td>{item.propertyClassification}</td>
-                  <td>{item.modelType ?? ''}</td>
-                  <td>{item.lotTracked ? 'Y' : 'N'}</td>
-                  <td>{item.unit}</td>
-                  <td>{item.standard ?? ''}</td>
-                  <td className="num">
-                    {item.standardUnitCost != null ? formatAmount(item.standardUnitCost) : ''}
-                  </td>
-                  <td>
-                    {CHECK_OPTIONS.find((opt) => opt.value === (item.checkDistinction ?? 'NONE'))
-                      ?.label ?? ''}
-                  </td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => startEdit(item)}>
-                      수정
-                    </button>
-                    <button type="button" className="btn-action danger" onClick={() => void onDelete(item)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(item) => (
+              <tr className={editingId === item.id ? 'row-editing' : undefined}>
+                <td className="num">{formatInteger(item.id)}</td>
+                <td>{item.itemNo}</td>
+                <td>{item.itemName}</td>
+                <td>{item.propertyClassification}</td>
+                <td>{item.modelType ?? ''}</td>
+                <td>{item.lotTracked ? 'Y' : 'N'}</td>
+                <td>{item.unit}</td>
+                <td>{item.standard ?? ''}</td>
+                <td className="num">
+                  {item.standardUnitCost != null ? formatAmount(item.standardUnitCost) : ''}
+                </td>
+                <td>
+                  {CHECK_OPTIONS.find((opt) => opt.value === (item.checkDistinction ?? 'NONE'))
+                    ?.label ?? ''}
+                </td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(item)}>
+                    수정
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(item)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
     </div>

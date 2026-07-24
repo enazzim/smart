@@ -11,6 +11,7 @@ import {
 import type { WorkCenter } from '../api/process';
 import { fetchWorkCenters } from '../api/process';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import { formatInteger } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
 
@@ -329,9 +330,11 @@ export default function EquipmentPage() {
         ) : equipmentList.length === 0 ? (
           <p>검색 조건에 맞는 설비가 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={equipmentList}
+            columnCount={9}
+            getRowKey={(eq) => eq.id}
+            renderHeader={() => (
               <tr>
                 <th>번호</th>
                 <th>설비명</th>
@@ -343,31 +346,28 @@ export default function EquipmentPage() {
                 <th>교체</th>
                 <th>작업</th>
               </tr>
-            </thead>
-            <tbody>
-              {equipmentList.map((eq) => (
-                <tr key={eq.id} className={editingId === eq.id ? 'row-editing' : undefined}>
-                  <td>{eq.equipmentNum}</td>
-                  <td>{eq.equipmentName}</td>
-                  <td>{eq.equipmentCategoryName}</td>
-                  <td>{eq.wcName ?? '—'}</td>
-                  <td className="num">{formatInteger(eq.designShot)}</td>
-                  <td className="num">{formatInteger(eq.accumulatedShot)}</td>
-                  <td className="num">{formatInteger(eq.workShot)}</td>
-                  <td>{eq.replacementDue ? '필요' : '—'}</td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => startEdit(eq)}>
-                      수정
-                    </button>
-                    <button type="button" className="btn-action danger" onClick={() => void onDelete(eq)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(eq) => (
+              <tr className={editingId === eq.id ? 'row-editing' : undefined}>
+                <td>{eq.equipmentNum}</td>
+                <td>{eq.equipmentName}</td>
+                <td>{eq.equipmentCategoryName}</td>
+                <td>{eq.wcName ?? '—'}</td>
+                <td className="num">{formatInteger(eq.designShot)}</td>
+                <td className="num">{formatInteger(eq.accumulatedShot)}</td>
+                <td className="num">{formatInteger(eq.workShot)}</td>
+                <td>{eq.replacementDue ? '필요' : '—'}</td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(eq)}>
+                    수정
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(eq)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
     </div>

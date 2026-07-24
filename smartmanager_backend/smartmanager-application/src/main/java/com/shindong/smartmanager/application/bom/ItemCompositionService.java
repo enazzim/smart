@@ -340,7 +340,7 @@ public class ItemCompositionService {
     }
 
     private BigDecimal resolveUnitPriceAmount(UnitPriceView price) {
-        if (price.discountUnitCost() != null) {
+        if (price.discountUnitCost() != null && price.discountUnitCost().signum() > 0) {
             return price.discountUnitCost();
         }
         return price.standardUnitCost() != null ? price.standardUnitCost() : BigDecimal.ZERO;

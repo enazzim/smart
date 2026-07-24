@@ -106,13 +106,14 @@ public class PartnerPaymentService {
             supplyAmount = normalizeMoney(command.supplyAmount(), "공급가");
             vatAmount = command.vatAmount() != null ? normalizeMoney(command.vatAmount(), "부가세") : BigDecimal.ZERO;
             totalAmount = supplyAmount.add(vatAmount).setScale(2, RoundingMode.HALF_UP);
-            if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalArgumentException("지급 금액은 0보다 커야 합니다.");
+            if (supplyAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("지급 공급가는 0보다 커야 합니다.");
             }
+            // 미지급 잔액·원장은 공급가 기준 — 부가세 포함 총액과 비교하지 않는다.
             BigDecimal unpaid = partnerPaymentRepository.unpaidPartnerAmount(command.partnerId());
-            if (totalAmount.compareTo(unpaid) > 0) {
+            if (supplyAmount.compareTo(unpaid) > 0) {
                 throw new IllegalArgumentException(
-                        "일반지급 금액이 미지급 잔액(" + unpaid.stripTrailingZeros().toPlainString() + ")을 초과합니다."
+                        "일반지급 공급가가 미지급 잔액(" + unpaid.stripTrailingZeros().toPlainString() + ")을 초과합니다."
                 );
             }
         }
@@ -201,7 +202,7 @@ public class PartnerPaymentService {
             if (linkedLineId != null) {
                 BigDecimal remaining = partnerPaymentRepository.remainingOrderLineAmount(
                         command.costCategory(), linkedLineId);
-                if (total.compareTo(remaining) > 0) {
+                if (supply.compareTo(remaining) > 0) {
                     throw new IllegalArgumentException(
                             "발주라인 잔여금액(" + remaining.stripTrailingZeros().toPlainString()
                                     + ")을 초과하는 선지급은 등록할 수 없습니다."

@@ -332,7 +332,9 @@ record PartnerMonthlyPayableResponse(
         int fiscalMonth,
         BigDecimal approvedAmount,
         BigDecimal offsetAmount,
-        BigDecimal payableAmount
+        BigDecimal payableAmount,
+        BigDecimal paidAmount,
+        BigDecimal unpaidAmount
 ) {
     static PartnerMonthlyPayableResponse from(PartnerMonthlyPayableView view) {
         return new PartnerMonthlyPayableResponse(
@@ -342,7 +344,9 @@ record PartnerMonthlyPayableResponse(
                 view.fiscalMonth(),
                 view.approvedAmount(),
                 view.offsetAmount(),
-                view.payableAmount()
+                view.payableAmount(),
+                view.paidAmount(),
+                view.unpaidAmount()
         );
     }
 }

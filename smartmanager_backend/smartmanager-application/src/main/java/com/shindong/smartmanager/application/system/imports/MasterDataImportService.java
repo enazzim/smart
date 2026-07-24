@@ -327,6 +327,9 @@ public class MasterDataImportService {
         String key(T row);
     }
 
+    /** 응답 본문 비대화·프록시 타임아웃 방지 — failureCount는 전체, failures는 샘플만. */
+    private static final int MAX_FAILURE_DETAILS = 100;
+
     private <T> BulkImportResult bulk(
             List<T> rows,
             String actorUserId,
@@ -338,19 +341,23 @@ public class MasterDataImportService {
         }
         List<BulkFailure> failures = new ArrayList<>();
         int success = 0;
+        int failureCount = 0;
         for (int i = 0; i < rows.size(); i++) {
             T row = rows.get(i);
             try {
                 action.apply(row);
                 success++;
             } catch (RuntimeException ex) {
-                failures.add(new BulkFailure(
-                        i,
-                        keyExtractor.key(row),
-                        ex.getMessage() != null ? ex.getMessage() : "등록 실패"
-                ));
+                failureCount++;
+                if (failures.size() < MAX_FAILURE_DETAILS) {
+                    failures.add(new BulkFailure(
+                            i,
+                            keyExtractor.key(row),
+                            ex.getMessage() != null ? ex.getMessage() : "등록 실패"
+                    ));
+                }
             }
         }
-        return new BulkImportResult(success, failures.size(), failures);
+        return new BulkImportResult(success, failureCount, failures);
     }
 }

@@ -12,6 +12,7 @@ import {
   updateUser,
 } from '../api/user';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import { useConfirm } from '../context/ConfirmContext';
 
 const emptyForm: CreateUserRequest & { passwordConfirm: string } = {
@@ -513,10 +514,14 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
           <p className="hint-text">조회 버튼을 누르면 목록이 표시됩니다.</p>
         ) : loading ? (
           <p>로딩 중…</p>
+        ) : users.length === 0 ? (
+          <p>검색 조건에 맞는 사용자가 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={users}
+            columnCount={7}
+            getRowKey={(user) => user.id}
+            renderHeader={() => (
               <tr>
                 <th>아이디</th>
                 <th>이름</th>
@@ -526,35 +531,26 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
                 <th>업무일지그룹</th>
                 <th />
               </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
-                <tr>
-                  <td colSpan={7}>검색 조건에 맞는 사용자가 없습니다.</td>
-                </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.id}>
-                    <td>{user.loginId}</td>
-                    <td>{user.name}</td>
-                    <td>{user.contact ?? '—'}</td>
-                    <td>{user.email ?? '—'}</td>
-                    <td>{user.roleCodes.join(', ') || '—'}</td>
-                    <td>{user.workDiaryGroupName ?? '—'}</td>
-                    <td className="row-actions">
-                      <button type="button" className="btn-action" onClick={() => startEdit(user)}>
-                        수정
-                      </button>
-                      <button type="button" className="btn-action danger" onClick={() => void onDelete(user)}>
-                        삭제
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(user) => (
+              <tr>
+                <td>{user.loginId}</td>
+                <td>{user.name}</td>
+                <td>{user.contact ?? '—'}</td>
+                <td>{user.email ?? '—'}</td>
+                <td>{user.roleCodes.join(', ') || '—'}</td>
+                <td>{user.workDiaryGroupName ?? '—'}</td>
+                <td className="row-actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(user)}>
+                    수정
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(user)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
     </div>

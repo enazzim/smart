@@ -3,6 +3,7 @@ import type { Company, CompanyRoleType, CreateCompanyRequest, UpdateCompanyReque
 import { createCompany, deleteCompany, fetchCompanies, updateCompany } from '../api/company';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import { formatInteger } from '../utils/numberFormat';
 import {
   canonicalizeBusinessRegNo,
@@ -336,9 +337,11 @@ export default function CompanyPage() {
         ) : displayedCompanies.length === 0 ? (
           <p>검색 조건에 맞는 거래처가 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={displayedCompanies}
+            columnCount={6}
+            getRowKey={(c) => c.id}
+            renderHeader={() => (
               <tr>
                 <th className="num">ID</th>
                 <th>상호</th>
@@ -347,28 +350,25 @@ export default function CompanyPage() {
                 <th>역할</th>
                 <th>작업</th>
               </tr>
-            </thead>
-            <tbody>
-              {displayedCompanies.map((c) => (
-                <tr key={c.id} className={editingId === c.id ? 'row-editing' : undefined}>
-                  <td className="num">{formatInteger(c.id)}</td>
-                  <td>{c.companyName}</td>
-                  <td>{formatBusinessRegNo(c.businessRegNo)}</td>
-                  <td>{c.presidentName}</td>
-                  <td>{c.roles.join(', ')}</td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => startEdit(c)}>
-                      수정
-                    </button>
-                    <button type="button" className="btn-action danger" onClick={() => void onDelete(c)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(c) => (
+              <tr className={editingId === c.id ? 'row-editing' : undefined}>
+                <td className="num">{formatInteger(c.id)}</td>
+                <td>{c.companyName}</td>
+                <td>{formatBusinessRegNo(c.businessRegNo)}</td>
+                <td>{c.presidentName}</td>
+                <td>{c.roles.join(', ')}</td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(c)}>
+                    수정
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(c)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
     </div>

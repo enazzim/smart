@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { fetchItems } from '../api/item';
 import type { PropertyClassification } from '../api/item';
+import { sortByKoreanField } from '../utils/koreanSort';
 
-const DEFAULT_ALLOWED_CLASSES: PropertyClassification[] = ['제품', '공정품'];
+const DEFAULT_ALLOWED_CLASSES: PropertyClassification[] = ['제품', '상품', '공정품'];
 const SEARCH_DEBOUNCE_MS = 300;
 
 function toAllowedClassesKey(classes?: PropertyClassification[]): string {
@@ -52,17 +53,20 @@ async function loadProductItems(
   const results = await fetchItems();
   const trimmed = query.trim();
 
-  return results
-    .filter((item) => allowedClasses.has(item.propertyClassification))
-    .filter((item) => matchesQuery(item, trimmed))
-    .map((item) => ({
-      id: item.id,
-      itemNo: item.itemNo,
-      itemName: item.itemName,
-      propertyClassification: item.propertyClassification,
-      modelType: item.modelType,
-      lotTracked: item.lotTracked,
-    }));
+  return sortByKoreanField(
+    results
+      .filter((item) => allowedClasses.has(item.propertyClassification))
+      .filter((item) => matchesQuery(item, trimmed))
+      .map((item) => ({
+        id: item.id,
+        itemNo: item.itemNo,
+        itemName: item.itemName,
+        propertyClassification: item.propertyClassification,
+        modelType: item.modelType,
+        lotTracked: item.lotTracked,
+      })),
+    (item) => item.itemName,
+  );
 }
 
 export interface ItemSearchFieldProps {
@@ -112,7 +116,11 @@ export default function ItemSearchField({
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const loadLocalOptions = useCallback(
-    (searchQuery: string) => items!.filter((item) => matchesQuery(item, searchQuery)),
+    (searchQuery: string) =>
+      sortByKoreanField(
+        items!.filter((item) => matchesQuery(item, searchQuery)),
+        (item) => item.itemName,
+      ),
     [items],
   );
 
