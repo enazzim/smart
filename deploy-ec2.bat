@@ -181,7 +181,8 @@ echo [3/4] Applying on server...
 
 if "%DO_API%"=="1" (
     rem Flyway repair-on-migrate one-shot then start (see deploy/scripts/ec2-apply-api.sh)
-    ssh -i "%PEM_KEY%" -o IdentitiesOnly=yes %EC2_USER%@%EC2_HOST% "sed -i 's/\r$//' %REMOTE_TMP%/ec2-apply-api.sh && chmod +x %REMOTE_TMP%/ec2-apply-api.sh && bash %REMOTE_TMP%/ec2-apply-api.sh %REMOTE_TMP%/smartmanager-api.jar"
+    rem Keepalive: health wait + daemon-reload can exceed default SSH idle cutoff
+    ssh -i "%PEM_KEY%" -o IdentitiesOnly=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=20 %EC2_USER%@%EC2_HOST% "sed -i 's/\r$//' %REMOTE_TMP%/ec2-apply-api.sh && chmod +x %REMOTE_TMP%/ec2-apply-api.sh && bash %REMOTE_TMP%/ec2-apply-api.sh %REMOTE_TMP%/smartmanager-api.jar"
     if errorlevel 1 (
         echo ERROR: API deploy failed on server.
         exit /b 1

@@ -38,6 +38,9 @@ const drawingQueryClient = new QueryClient({
   },
 });
 
+const EMPTY_DRAWINGS: DrawingListItem[] = [];
+const EMPTY_PART_NOS: string[] = [];
+
 type DrawingTab = 'dev' | 'prod' | 'deleted';
 
 interface DrawingPageProps {
@@ -113,13 +116,13 @@ function DrawingDashboard({
     [appliedLifecycleStage, appliedHistoryQuery],
   );
 
-  const { data: drawings = [], isLoading, isError, isFetching } = useQuery({
+  const { data: drawings = EMPTY_DRAWINGS, isLoading, isError, isFetching } = useQuery({
     queryKey: ['drawings', listQuery],
     queryFn: () => fetchDrawings(listQuery),
     enabled: hasSearched,
   });
 
-  const { data: deletedDrawings = [], isFetching: isFetchingDeleted } = useQuery({
+  const { data: deletedDrawings = EMPTY_DRAWINGS, isFetching: isFetchingDeleted } = useQuery({
     queryKey: ['deletedDrawings'],
     queryFn: fetchDeletedDrawings,
     enabled: hasSearched,
@@ -127,10 +130,20 @@ function DrawingDashboard({
 
   useEffect(() => {
     if (!hasSearched) {
-      setCachedPartNos([]);
+      setCachedPartNos((prev) => (prev.length === 0 ? prev : EMPTY_PART_NOS));
       return;
     }
-    void listCachedDrawingPartNos().then(setCachedPartNos).catch(() => setCachedPartNos([]));
+    let cancelled = false;
+    void listCachedDrawingPartNos()
+      .then((partNos) => {
+        if (!cancelled) setCachedPartNos(partNos);
+      })
+      .catch(() => {
+        if (!cancelled) setCachedPartNos(EMPTY_PART_NOS);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [hasSearched, drawings, deletedDrawings]);
 
   const refreshLists = async () => {

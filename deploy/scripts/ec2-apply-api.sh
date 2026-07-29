@@ -9,6 +9,18 @@ DROPIN_DIR="/etc/systemd/system/smartmanager-api.service.d"
 DROPIN_FILE="${DROPIN_DIR}/90-flyway-repair.conf"
 HEALTH_URL="http://127.0.0.1:8080/api/health"
 
+daemon_reload_retry() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    if sudo systemctl daemon-reload; then
+      return 0
+    fi
+    echo "  daemon-reload attempt ${attempt} failed; retrying..." >&2
+    sleep $((attempt * 2))
+  done
+  return 1
+}
+
 if [[ ! -f "${JAR_SRC}" ]]; then
   echo "ERROR: jar not found: ${JAR_SRC}" >&2
   exit 1
@@ -27,7 +39,10 @@ sudo tee "${DROPIN_FILE}" >/dev/null <<'EOF'
 [Service]
 Environment=SMARTMANAGER_FLYWAY_REPAIR_ON_MIGRATE=true
 EOF
-sudo systemctl daemon-reload
+if ! daemon_reload_retry; then
+  echo "ERROR: systemctl daemon-reload failed before start." >&2
+  exit 1
+fi
 
 echo "Starting smartmanager-api..."
 sudo systemctl start smartmanager-api
@@ -46,8 +61,16 @@ done
 if [[ "${HEALTH_OK}" -eq 1 ]]; then
   echo "Clearing Flyway repair-on-migrate flag..."
   sudo rm -f "${DROPIN_FILE}"
-  sudo systemctl daemon-reload
-  echo "API apply completed."
+  # JVM 기동 직후 dbus/systemd 부하로 daemon-reload가 자주 타임아웃된다.
+  # drop-in 파일은 이미 지웠으므로, reload 실패해도 API 배포 자체는 성공으로 본다.
+  sleep 3
+  if daemon_reload_retry; then
+    echo "API apply completed."
+  else
+    echo "WARNING: daemon-reload timed out after Health OK (API is running)." >&2
+    echo "  Drop-in already removed. Later run: sudo systemctl daemon-reload" >&2
+    echo "API apply completed (with daemon-reload warning)."
+  fi
   exit 0
 fi
 
