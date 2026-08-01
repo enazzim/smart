@@ -1,14 +1,18 @@
 package com.shindong.smartmanager.api.web.purchase;
 
 import com.shindong.smartmanager.api.security.SecurityUtils;
+import com.shindong.smartmanager.application.purchase.ApproveOffsetResultView;
 import com.shindong.smartmanager.application.purchase.PayableApprovalCriteria;
 import com.shindong.smartmanager.application.purchase.PayableApprovalItemCommand;
 import com.shindong.smartmanager.application.purchase.UpdatePayableApprovalFiscalPeriodCommand;
+import com.shindong.smartmanager.domain.purchase.PartnerPaymentCostCategory;
+import com.shindong.smartmanager.domain.purchase.PayableApprovalCategory;
 import com.shindong.smartmanager.domain.purchase.PayableApprovalLedgerKind;
 import com.shindong.smartmanager.infrastructure.application.PayableApprovalApplicationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -42,10 +46,11 @@ public class PayableApprovalController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateTo,
             @RequestParam(required = false) Integer fiscalYear,
-            @RequestParam(required = false) Integer fiscalMonth
+            @RequestParam(required = false) Integer fiscalMonth,
+            @RequestParam(required = false) PayableApprovalCategory category
     ) {
         return payableApprovalApplicationService.listPending(new PayableApprovalCriteria(
-                partnerName, itemNo, itemName, receiptDateFrom, receiptDateTo, fiscalYear, fiscalMonth
+                partnerName, itemNo, itemName, receiptDateFrom, receiptDateTo, fiscalYear, fiscalMonth, category
         )).stream().map(PayableApprovalResponse::from).toList();
     }
 
@@ -58,25 +63,35 @@ public class PayableApprovalController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDateTo,
             @RequestParam(required = false) Integer fiscalYear,
-            @RequestParam(required = false) Integer fiscalMonth
+            @RequestParam(required = false) Integer fiscalMonth,
+            @RequestParam(required = false) PayableApprovalCategory category
     ) {
         return payableApprovalApplicationService.listApproved(new PayableApprovalCriteria(
-                partnerName, itemNo, itemName, receiptDateFrom, receiptDateTo, fiscalYear, fiscalMonth
+                partnerName, itemNo, itemName, receiptDateFrom, receiptDateTo, fiscalYear, fiscalMonth, category
         )).stream().map(PayableApprovalResponse::from).toList();
     }
 
-    @PostMapping("/approve")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PostMapping("/approve/preview")
     @PreAuthorize("hasAuthority('purchase:payable-approval:write')")
-    public void approve(@Valid @RequestBody PayableApprovalBatchRequest request) {
+    public ApproveOffsetResultResponse preview(@Valid @RequestBody PayableApprovalBatchRequest request) {
+        return ApproveOffsetResultResponse.from(payableApprovalApplicationService.preview(
+                request.items().stream()
+                        .map(item -> new PayableApprovalItemCommand(item.ledgerKind(), item.historyId()))
+                        .toList()
+        ));
+    }
+
+    @PostMapping("/approve")
+    @PreAuthorize("hasAuthority('purchase:payable-approval:write')")
+    public ApproveOffsetResultResponse approve(@Valid @RequestBody PayableApprovalBatchRequest request) {
         var principal = SecurityUtils.requirePrincipal();
-        payableApprovalApplicationService.approve(
+        return ApproveOffsetResultResponse.from(payableApprovalApplicationService.approve(
                 request.items().stream()
                         .map(item -> new PayableApprovalItemCommand(item.ledgerKind(), item.historyId()))
                         .toList(),
                 principal.userId(),
                 principal.loginId()
-        );
+        ));
     }
 
     @PostMapping("/cancel-approval")
@@ -126,5 +141,61 @@ public class PayableApprovalController {
             @NotNull Integer fiscalYear,
             @NotNull Integer fiscalMonth
     ) {
+    }
+
+    public record ApproveOffsetResultResponse(
+            int itemCount,
+            BigDecimal totalApproveAmount,
+            BigDecimal totalOffsetAmount,
+            BigDecimal totalUnpaidIncrease,
+            List<ApproveOffsetItemResponse> offsets
+    ) {
+        public static ApproveOffsetResultResponse from(ApproveOffsetResultView view) {
+            return new ApproveOffsetResultResponse(
+                    view.itemCount(),
+                    view.totalApproveAmount(),
+                    view.totalOffsetAmount(),
+                    view.totalUnpaidIncrease(),
+                    view.offsets().stream().map(ApproveOffsetItemResponse::from).toList()
+            );
+        }
+    }
+
+    public record ApproveOffsetItemResponse(
+            PayableApprovalLedgerKind ledgerKind,
+            long historyId,
+            long partnerId,
+            String partnerName,
+            Long itemId,
+            String itemNo,
+            String itemName,
+            PartnerPaymentCostCategory costCategory,
+            String costCategoryLabel,
+            BigDecimal approveAmount,
+            BigDecimal offsetAmount,
+            BigDecimal prepaidAfter,
+            BigDecimal unpaidIncrease,
+            boolean offsetApplicable
+    ) {
+        public static ApproveOffsetItemResponse from(ApproveOffsetResultView.ApproveOffsetItemView view) {
+            return new ApproveOffsetItemResponse(
+                    view.ledgerKind(),
+                    view.historyId(),
+                    view.partnerId(),
+                    view.partnerName(),
+                    view.itemId(),
+                    view.itemNo(),
+                    view.itemName(),
+                    view.costCategory(),
+                    view.costCategory() == null
+                            ? null
+                            : (view.costCategory() == PartnerPaymentCostCategory.PURCHASE ? "구매" : "외주"),
+                    view.approveAmount(),
+                    view.offsetAmount(),
+                    view.prepaidAfter(),
+                    view.unpaidIncrease(),
+                    view.offsetApplicable()
+            );
+        }
     }
 }

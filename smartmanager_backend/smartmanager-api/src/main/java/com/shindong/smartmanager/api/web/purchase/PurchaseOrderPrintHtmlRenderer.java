@@ -2,6 +2,7 @@ package com.shindong.smartmanager.api.web.purchase;
 
 import com.shindong.smartmanager.application.purchase.PurchaseOrderPrintLineView;
 import com.shindong.smartmanager.application.purchase.PurchaseOrderPrintView;
+import com.shindong.smartmanager.domain.company.BusinessRegNos;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -140,7 +141,7 @@ final class PurchaseOrderPrintHtmlRenderer {
                   </p>
                 """.formatted(
                 escape(view.partnerName()),
-                escape(nullToDash(view.partnerBusinessRegNo())),
+                escape(nullToDash(BusinessRegNos.formatForDisplay(view.partnerBusinessRegNo()))),
                 escape(view.issuerCompanyName()),
                 escape(nullToDash(view.issuerAddress())),
                 escape(nullToDash(view.issuerPhone())),

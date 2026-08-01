@@ -10,6 +10,11 @@ import {
   type SalesCollectionListParams,
 } from '../api/salesCollection';
 import { formatAmount } from '../utils/numberFormat';
+import {
+  breakdownFromSupply,
+  breakdownFromTotal,
+  formatMoneyInput,
+} from '../utils/vatAmount';
 import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
@@ -43,6 +48,7 @@ export default function SalesCollectionPage() {
   const [collectionDate, setCollectionDate] = useState(todayIso());
   const [supplyAmount, setSupplyAmount] = useState('');
   const [vatAmount, setVatAmount] = useState('0');
+  const [totalAmountInput, setTotalAmountInput] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('계좌이체');
   const [remark, setRemark] = useState('');
   const [loadingCandidates, setLoadingCandidates] = useState(true);
@@ -91,16 +97,78 @@ export default function SalesCollectionPage() {
     [candidates, selectedPartnerId],
   );
 
-  const totalAmount = useMemo(() => {
-    const supply = parseAmount(supplyAmount) ?? 0;
-    const vat = parseAmount(vatAmount) ?? 0;
-    return supply + vat;
-  }, [supplyAmount, vatAmount]);
+  const totalAmount = useMemo(() => parseAmount(totalAmountInput) ?? 0, [totalAmountInput]);
+
+  const applyBreakdown = (supply: number, vat: number, total: number) => {
+    setSupplyAmount(formatMoneyInput(supply));
+    setVatAmount(formatMoneyInput(vat));
+    setTotalAmountInput(formatMoneyInput(total));
+  };
+
+  /** 공급가 입력 → 부가세·총액 계산 (입력 중인 공급가는 그대로 유지) */
+  const onSupplyAmountChange = (raw: string) => {
+    setSupplyAmount(raw);
+    if (raw.trim() === '') {
+      setVatAmount('0');
+      setTotalAmountInput('');
+      return;
+    }
+    const supply = parseAmount(raw);
+    if (supply == null) {
+      return;
+    }
+    const next = breakdownFromSupply(supply);
+    setVatAmount(formatMoneyInput(next.vat));
+    setTotalAmountInput(formatMoneyInput(next.total));
+  };
+
+  /** 공급가 포커스 아웃 시 소수점 절사 후 부가세·총액 확정 */
+  const onSupplyAmountBlur = () => {
+    if (supplyAmount.trim() === '') {
+      return;
+    }
+    const supply = parseAmount(supplyAmount);
+    if (supply == null) {
+      return;
+    }
+    const next = breakdownFromSupply(supply);
+    applyBreakdown(next.supply, next.vat, next.total);
+  };
+
+  /** 총액 입력 → 공급가·부가세 계산 (입력 중인 총액은 그대로 유지) */
+  const onTotalAmountChange = (raw: string) => {
+    setTotalAmountInput(raw);
+    if (raw.trim() === '') {
+      setSupplyAmount('');
+      setVatAmount('0');
+      return;
+    }
+    const total = parseAmount(raw);
+    if (total == null) {
+      return;
+    }
+    const next = breakdownFromTotal(total);
+    setSupplyAmount(formatMoneyInput(next.supply));
+    setVatAmount(formatMoneyInput(next.vat));
+  };
+
+  /** 총액 포커스 아웃 시 공급가·부가세 재계산 후, 총액은 공급가+부가세로 확정 */
+  const onTotalAmountBlur = () => {
+    if (totalAmountInput.trim() === '') {
+      return;
+    }
+    const total = parseAmount(totalAmountInput);
+    if (total == null) {
+      return;
+    }
+    const next = breakdownFromTotal(total);
+    applyBreakdown(next.supply, next.vat, next.total);
+  };
 
   const onSelectPartner = (row: SalesCollectionCandidate) => {
     setSelectedPartnerId(row.partnerId);
-    setSupplyAmount(String(row.uncollectedAmount));
-    setVatAmount('0');
+    const next = breakdownFromTotal(row.uncollectedAmount);
+    applyBreakdown(next.supply, next.vat, next.total);
     setCollectionError(null);
   };
 
@@ -136,6 +204,7 @@ export default function SalesCollectionPage() {
       setSelectedPartnerId(null);
       setSupplyAmount('');
       setVatAmount('0');
+      setTotalAmountInput('');
       setRemark('');
       await loadCandidates();
       await loadCollections();
@@ -251,8 +320,10 @@ export default function SalesCollectionPage() {
               min={0}
               step="any"
               value={supplyAmount}
-              onChange={(e) => setSupplyAmount(e.target.value)}
+              onChange={(e) => onSupplyAmountChange(e.target.value)}
+              onBlur={onSupplyAmountBlur}
               disabled={submitting || selectedPartnerId == null}
+              title="공급가 입력 시 부가세·총액 자동계산"
             />
           </label>
           <label>
@@ -262,13 +333,23 @@ export default function SalesCollectionPage() {
               min={0}
               step="any"
               value={vatAmount}
-              onChange={(e) => setVatAmount(e.target.value)}
+              readOnly
               disabled={submitting || selectedPartnerId == null}
+              title="공급가 × 10% (소수점 있으면 절상)"
             />
           </label>
           <label>
             총액
-            <input type="text" readOnly value={formatAmount(totalAmount)} />
+            <input
+              type="number"
+              min={0}
+              step="any"
+              value={totalAmountInput}
+              onChange={(e) => onTotalAmountChange(e.target.value)}
+              onBlur={onTotalAmountBlur}
+              disabled={submitting || selectedPartnerId == null}
+              title="총액 입력 시 공급가·부가세 자동계산"
+            />
           </label>
           <label>
             결제수단

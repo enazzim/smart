@@ -6,7 +6,7 @@ public record DrawingRegisterCommand(
         String partNo,
         String partName,
         String modelType,
-        Long itemId,
+        Long sourcePartnerId,
         DrawingType drawingType,
         String filePath,
         long fileSizeBytes

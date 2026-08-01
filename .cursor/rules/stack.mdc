@@ -1,0 +1,17 @@
+---
+description: SmartManager 고정 기술 스택 (Boot 3.5 / React+Vite+TS)
+alwaysApply: true
+---
+
+# 기술 스택 (고정)
+
+| 영역 | 스택 |
+|------|------|
+| Backend | Spring Framework 6 · **Spring Boot 3.5** |
+| Frontend | **React 19+** · **Vite** · **TypeScript** (엄격 타입) |
+
+## 규칙
+
+- 백엔드 신규·의존성: Boot **3.5.x** 기준. 메이저 다운그레이드·임의 프레임워크 교체 금지.
+- 프론트 화면·컴포넌트: Vite + TypeScript. CRA·JS 단독 신규 금지.
+- 라이브러리는 프로젝트 기존 선택·안정 버전을 우선하고, 불필요한 신규 의존성을 넣지 않는다.

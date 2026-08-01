@@ -71,6 +71,7 @@ export default function BasisInfoPage({ currentUser }: BasisInfoPageProps) {
       <div className="basis-tab-content">
         {renderBasisPage(tab, {
           currentUser,
+          roleCodes: currentUser?.roleCodes ?? [],
           canManageUsers: manageUsers,
           canManageDrawings: manageDrawings,
           canHardDeleteDrawings: hardDeleteDrawings,

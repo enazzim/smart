@@ -1,0 +1,24 @@
+---
+description: TX 취소·삭제 패턴 A/B/C 및 stock_movement append-only
+globs: smartmanager_backend/**/*.java,smartmanager_frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# TX 취소·삭제 정책
+
+SSOT: `docs/step0/tx-cancel-delete-policy.md`
+
+## 패턴 (택일)
+
+| 패턴 | 조건 | 헤더 | `recording_state` | `stock_movement` |
+|------|------|------|-------------------|------------------|
+| **A** | 재고·원장 반영 확정 TX | `status=CANCELLED` | **1 유지** | 역분개 `*_CANCEL` **INSERT만** |
+| **B** | 계획·재발급 필요 | `status=CANCELLED` | **0** | 해당 없음/별도 |
+| **C** | 하위 TX·재고 없는 임시 | — | DELETE 또는 rs=0 | 해당 없음 |
+
+## 불변
+
+- **A**: 부가 이력·자식은 `recording_state=0`. 마감 `monthClosingService.assertTransactionOpen` 선행. `domain_event` 취소 발행.
+- **`stock_movement`**: 삭제·`recording_state=0` **금지** (append-only).
+- **마스터**: HTTP DELETE → `recording_state=0`만 (물리 DELETE 금지) — `master-audit-fields` 규칙.
+- 발행 전표 번호는 취소 후에도 **재사용 금지**(A, rs=1 보관).

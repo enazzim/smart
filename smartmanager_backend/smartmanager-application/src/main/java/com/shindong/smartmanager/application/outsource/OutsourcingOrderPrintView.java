@@ -8,6 +8,7 @@ public record OutsourcingOrderPrintView(
         String orderNos,
         LocalDate orderDate,
         String partnerName,
+        String partnerBusinessRegNo,
         String partnerTelephone,
         String partnerFax,
         String issuerCompanyName,

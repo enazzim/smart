@@ -47,7 +47,7 @@
 | 3 | 공정 | processCodeId | public_code_id | `processCodeId` | Y | FK → `public_code.id` |
 | 4 | 작업구분 | workDistinction | work_distinction | `workDistinction` | Y | ENUM (§2.3) |
 | 5 | 작업장 | workCenterId | work_center_id | `workCenterId` | 조건부 | INHOUSE·SPLIT 시 **필수** |
-| 6 | 발주비율 | outsideOrderRate | outside_order_rate | `outsideOrderRate` | 조건부 | SPLIT 시 **1~99** |
+| 6 | 발주비율 | outsideOrderRate | outside_order_rate | `outsideOrderRate` | 조건부 | SPLIT 시 **0~100** (0=전량 자가, 100=전량 외주) |
 | 7 | 진척비율 | progressRate | progress_rate | `progressRate` | Y | 기본 **100** |
 
 **공정 콤보 (`code_group` 조회 · `public_code` PK 저장):**
@@ -82,8 +82,8 @@
 | 코드 | 화면 라벨 | `work_center_id` | `outside_order_rate` |
 |------|-----------|:----------------:|:--------------------:|
 | `INHOUSE` | 자가 | **필수** | `0` (입력 비활성) |
-| `OUTSOURCE` | 외주 | **null** | `0` (입력 비활성) |
-| `SPLIT` | 자가/외주 | **필수** | **1~99** (%) |
+| `OUTSOURCE` | 외주 | **null** | `0` (입력값 무시·저장 시 0) |
+| `SPLIT` | 자가/외주 | **필수** | **0~100** (%) |
 
 > 레거시 index 1·2·3 → 위 3코드로 통일. SPLIT 수량 분할 **실행**은 PRD-W (마스터는 비율만 저장).
 
@@ -198,7 +198,8 @@ Base: `/api/v1/basis/processes/plan`
 - 활성 UK `(item_id, public_code_id, process_sequence)` 중복 불가
 - `INHOUSE`·`SPLIT` → `work_center_id` 필수
 - `OUTSOURCE` → `work_center_id` null
-- `SPLIT` → `outside_order_rate` 1~99
+- `SPLIT` → `outside_order_rate` 0~100
+- `OUTSOURCE`/`INHOUSE` → 발주비율 입력 무시 후 0 저장
 - 삭제: `work_standard`·생산 실적 참조 시 정책 검토
 
 ### 4.1 UI (`/basis/processes/plan`)

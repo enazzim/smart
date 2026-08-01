@@ -1,11 +1,14 @@
 package com.shindong.smartmanager.api.web.unitprice;
 
 import com.shindong.smartmanager.api.security.BasisAuthorize;
+import com.shindong.smartmanager.application.unitprice.UnitPriceHistorySearchQuery;
 import com.shindong.smartmanager.application.unitprice.UnitPriceUpdateCommand;
 import com.shindong.smartmanager.domain.pricing.CostType;
 import com.shindong.smartmanager.infrastructure.application.UnitPriceApplicationService;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +42,28 @@ public class UnitPriceController {
     ) {
         return unitPriceApplicationService.listActive(type, q).stream()
                 .map(UnitPriceResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/history")
+    public List<UnitPriceHistoryResponse> listHistory(
+            @RequestParam(required = false) CostType type,
+            @RequestParam(required = false) Long companyId,
+            @RequestParam(required = false) Long itemId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate changedFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate changedTo,
+            @RequestParam(required = false) String changedBy
+    ) {
+        UnitPriceHistorySearchQuery query = new UnitPriceHistorySearchQuery(
+                type,
+                companyId,
+                itemId,
+                changedFrom,
+                changedTo,
+                changedBy
+        );
+        return unitPriceApplicationService.listAllHistory(query).stream()
+                .map(UnitPriceHistoryResponse::from)
                 .toList();
     }
 

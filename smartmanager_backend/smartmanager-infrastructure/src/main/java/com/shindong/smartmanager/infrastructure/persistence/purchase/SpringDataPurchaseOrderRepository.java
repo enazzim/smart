@@ -29,6 +29,46 @@ public interface SpringDataPurchaseOrderRepository extends JpaRepository<Purchas
               AND (:excludeCancelled = false OR po.status <> :cancelledStatus)
               AND (:orderNo IS NULL OR :orderNo = '' OR LOWER(po.orderNo) LIKE LOWER(CONCAT('%', :orderNo, '%')))
               AND (:partnerName IS NULL OR :partnerName = '' OR LOWER(c.companyName) LIKE LOWER(CONCAT('%', :partnerName, '%')))
+              AND (
+                    :itemPropertyScope IS NULL OR :itemPropertyScope = ''
+                    OR (
+                        :itemPropertyScope = 'SUB_MATERIAL'
+                        AND EXISTS (
+                            SELECT 1 FROM PurchaseOrderLineJpaEntity pol
+                            JOIN ItemJpaEntity i ON i.id = pol.itemId
+                            WHERE pol.purchaseOrderId = po.id
+                              AND pol.recordingState = 1
+                              AND i.propertyClassification = com.shindong.smartmanager.domain.item.PropertyClassification.부자재
+                        )
+                        AND NOT EXISTS (
+                            SELECT 1 FROM PurchaseOrderLineJpaEntity pol2
+                            JOIN ItemJpaEntity i2 ON i2.id = pol2.itemId
+                            WHERE pol2.purchaseOrderId = po.id
+                              AND pol2.recordingState = 1
+                              AND i2.propertyClassification <> com.shindong.smartmanager.domain.item.PropertyClassification.부자재
+                        )
+                    )
+                    OR (
+                        :itemPropertyScope = 'GENERAL'
+                        AND EXISTS (
+                            SELECT 1 FROM PurchaseOrderLineJpaEntity pol
+                            JOIN ItemJpaEntity i ON i.id = pol.itemId
+                            WHERE pol.purchaseOrderId = po.id
+                              AND pol.recordingState = 1
+                              AND i.propertyClassification IN (
+                                  com.shindong.smartmanager.domain.item.PropertyClassification.원자재,
+                                  com.shindong.smartmanager.domain.item.PropertyClassification.상품
+                              )
+                        )
+                        AND NOT EXISTS (
+                            SELECT 1 FROM PurchaseOrderLineJpaEntity pol2
+                            JOIN ItemJpaEntity i2 ON i2.id = pol2.itemId
+                            WHERE pol2.purchaseOrderId = po.id
+                              AND pol2.recordingState = 1
+                              AND i2.propertyClassification = com.shindong.smartmanager.domain.item.PropertyClassification.부자재
+                        )
+                    )
+              )
             ORDER BY po.orderDate DESC, po.id DESC
             """)
     List<PurchaseOrderJpaEntity> searchActive(
@@ -39,6 +79,7 @@ public interface SpringDataPurchaseOrderRepository extends JpaRepository<Purchas
             @Param("orderNo") String orderNo,
             @Param("status") PurchaseOrderStatus status,
             @Param("excludeCancelled") boolean excludeCancelled,
-            @Param("cancelledStatus") PurchaseOrderStatus cancelledStatus
+            @Param("cancelledStatus") PurchaseOrderStatus cancelledStatus,
+            @Param("itemPropertyScope") String itemPropertyScope
     );
 }

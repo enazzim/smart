@@ -1,0 +1,51 @@
+# 운영 프로필. 시크릿은 환경변수(/etc/smartmanager/api.env)로 주입한다.
+# 기동: --spring.profiles.active=prod 또는 SPRING_PROFILES_ACTIVE=prod
+
+spring:
+  datasource:
+    url: ${SMARTMANAGER_DB_URL:jdbc:mariadb://localhost:3306/smartmanager?characterEncoding=utf8mb4&serverTimezone=Asia/Seoul}
+    username: ${SMARTMANAGER_DB_USER}
+    password: ${SMARTMANAGER_DB_PASSWORD}
+    driver-class-name: org.mariadb.jdbc.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MariaDBDialect
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    validate-on-migrate: true
+    # deploy-ec2.bat API 배포 시 일시적으로 true (checksum mismatch repair)
+    repair-on-migrate: ${SMARTMANAGER_FLYWAY_REPAIR_ON_MIGRATE:false}
+
+logging:
+  level:
+    root: info
+    org.hibernate.SQL: warn
+    org.flywaydb: info
+
+smartmanager:
+  security:
+    jwt:
+      secret: ${SMARTMANAGER_JWT_SECRET}
+      expiration-minutes: ${SMARTMANAGER_JWT_EXPIRATION_MINUTES:480}
+    admin:
+      login-id: ${SMARTMANAGER_ADMIN_LOGIN_ID:admin}
+      initial-password: ${SMARTMANAGER_ADMIN_INITIAL_PASSWORD}
+      enabled: ${SMARTMANAGER_ADMIN_SEED_ENABLED:true}
+  board:
+    files-dir: ${SMARTMANAGER_BOARD_FILES_DIR:/var/smartmanager/filedownload}
+    max-file-size-bytes: 104857600
+    allowed-extensions: pdf,doc,docx,xls,xlsx,png,jpg,jpeg,zip
+  backup:
+    dir: ${SMARTMANAGER_BACKUP_DIR:/var/smartmanager/backup}
+    # mariadb-bin-dir: PATH에 mariadb-dump가 없을 때만 지정
+  drawing:
+    storage-dir: ${SMARTMANAGER_DRAWING_STORAGE_DIR:/var/smartmanager/drawing-storage/pdf}
+    max-file-size-bytes: ${SMARTMANAGER_DRAWING_MAX_FILE_BYTES:104857600}

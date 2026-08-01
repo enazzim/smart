@@ -1,10 +1,12 @@
 package com.shindong.smartmanager.application.purchase;
 
 import com.shindong.smartmanager.domain.purchase.PartnerPaymentCostCategory;
+import com.shindong.smartmanager.domain.purchase.PartnerPaymentKind;
 import com.shindong.smartmanager.domain.purchase.PartnerPaymentStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 public record PartnerPaymentView(
         long id,
@@ -14,6 +16,7 @@ public record PartnerPaymentView(
         String partnerBusinessRegNo,
         LocalDate paymentDate,
         PartnerPaymentCostCategory costCategory,
+        PartnerPaymentKind paymentKind,
         BigDecimal supplyAmount,
         BigDecimal vatAmount,
         BigDecimal totalAmount,
@@ -22,6 +25,8 @@ public record PartnerPaymentView(
         PartnerPaymentStatus status,
         Instant createdAt,
         String createdBy,
-        boolean cancelable
+        boolean cancelable,
+        List<PartnerPaymentLineView> lines,
+        String lineSummary
 ) {
 }

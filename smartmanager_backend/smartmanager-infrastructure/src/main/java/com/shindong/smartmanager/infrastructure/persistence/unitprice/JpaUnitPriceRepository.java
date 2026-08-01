@@ -2,6 +2,7 @@ package com.shindong.smartmanager.infrastructure.persistence.unitprice;
 
 import com.shindong.smartmanager.application.unitprice.UnitPriceChangeLogView;
 import com.shindong.smartmanager.application.unitprice.UnitPriceCommand;
+import com.shindong.smartmanager.application.unitprice.UnitPriceHistorySearchQuery;
 import com.shindong.smartmanager.application.unitprice.UnitPriceRepository;
 import com.shindong.smartmanager.application.unitprice.UnitPriceUpdateCommand;
 import com.shindong.smartmanager.application.unitprice.UnitPriceView;
@@ -15,6 +16,7 @@ import com.shindong.smartmanager.infrastructure.persistence.item.SpringDataItemR
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -197,24 +199,70 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
     @Override
     public List<UnitPriceChangeLogView> findChangeLogs(long unitPriceId) {
         return changeLogRepository.findByUnitPriceIdOrderByChangedAtDesc(unitPriceId).stream()
-                .map(log -> new UnitPriceChangeLogView(
-                        log.getId(),
-                        log.getUnitPriceId(),
-                        log.getCostType(),
-                        log.getItemId(),
-                        log.getCompanyId(),
-                        log.getBeginProcessCodeId(),
-                        log.getEndProcessCodeId(),
-                        log.getOrderRate(),
-                        log.getStandardUnitCost(),
-                        log.getDiscountUnitCost(),
-                        log.getBeginDate(),
-                        log.getEndDate(),
-                        log.getUpdateReason(),
-                        log.getChangedBy(),
-                        log.getChangedAt()
-                ))
+                .map(this::toChangeLogView)
                 .toList();
+    }
+
+    @Override
+    public List<UnitPriceChangeLogView> findChangeLogs(UnitPriceHistorySearchQuery query) {
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        Instant fromInstant = query.changedFrom() == null
+                ? null
+                : query.changedFrom().atStartOfDay(zone).toInstant();
+        Instant toExclusiveInstant = query.changedTo() == null
+                ? null
+                : query.changedTo().plusDays(1).atStartOfDay(zone).toInstant();
+        String changedBy = query.changedBy() == null ? "" : query.changedBy().trim();
+        return changeLogRepository.search(
+                        query.costType(),
+                        query.companyId(),
+                        query.itemId(),
+                        fromInstant,
+                        toExclusiveInstant,
+                        changedBy
+                ).stream()
+                .map(this::toChangeLogView)
+                .toList();
+    }
+
+    private UnitPriceChangeLogView toChangeLogView(UnitPriceChangeLogJpaEntity log) {
+        ItemJpaEntity item = itemRepository.findById(log.getItemId()).orElse(null);
+        CompanyJpaEntity company = companyRepository.findById(log.getCompanyId()).orElse(null);
+        ProcessCodeSnapshot begin = resolveProcessCodeQuiet(log.getBeginProcessCodeId());
+        ProcessCodeSnapshot end = resolveProcessCodeQuiet(log.getEndProcessCodeId());
+        return new UnitPriceChangeLogView(
+                log.getId(),
+                log.getUnitPriceId(),
+                log.getCostType(),
+                log.getItemId(),
+                item != null ? item.getItemNo() : "",
+                item != null ? item.getItemName() : "",
+                log.getCompanyId(),
+                company != null ? company.getCompanyName() : "",
+                log.getBeginProcessCodeId(),
+                begin.code(),
+                begin.name(),
+                log.getEndProcessCodeId(),
+                end.code(),
+                end.name(),
+                log.getOrderRate(),
+                log.getStandardUnitCost(),
+                log.getDiscountUnitCost(),
+                log.getBeginDate(),
+                log.getEndDate(),
+                log.getUpdateReason(),
+                log.getChangedBy(),
+                log.getChangedAt()
+        );
+    }
+
+    private ProcessCodeSnapshot resolveProcessCodeQuiet(Long processCodeId) {
+        if (processCodeId == null) {
+            return new ProcessCodeSnapshot(null, null);
+        }
+        return publicCodeRepository.findById(processCodeId)
+                .map(code -> new ProcessCodeSnapshot(code.getSmallCode(), code.getSmallName()))
+                .orElseGet(() -> new ProcessCodeSnapshot(null, null));
     }
 
     private BigDecimal normalizeOrderRate(CostType costType, BigDecimal orderRate) {
@@ -239,6 +287,7 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
                 entity.getItemId(),
                 item.getItemNo(),
                 item.getItemName(),
+                item.getPropertyClassification() != null ? item.getPropertyClassification().name() : "",
                 entity.getCompanyId(),
                 company.getCompanyName(),
                 company.getBusinessRegNo(),

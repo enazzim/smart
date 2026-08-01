@@ -107,7 +107,11 @@ export function buildUnitPriceLookup(
 ): Map<string, number> {
   const map = new Map<string, number>();
   for (const unitPrice of unitPrices) {
-    map.set(unitPriceKey(unitPrice.companyId, unitPrice.itemId), unitPrice.discountUnitCost ?? unitPrice.standardUnitCost);
+    const amount =
+      unitPrice.discountUnitCost != null && unitPrice.discountUnitCost > 0
+        ? unitPrice.discountUnitCost
+        : unitPrice.standardUnitCost;
+    map.set(unitPriceKey(unitPrice.companyId, unitPrice.itemId), amount);
   }
   return map;
 }

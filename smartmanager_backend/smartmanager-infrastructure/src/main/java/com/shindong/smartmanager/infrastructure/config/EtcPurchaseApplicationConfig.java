@@ -8,6 +8,7 @@ import com.shindong.smartmanager.application.purchase.EtcPurchaseOrderRepository
 import com.shindong.smartmanager.application.purchase.EtcPurchaseOrderService;
 import com.shindong.smartmanager.application.purchase.EtcPurchaseReceiptRepository;
 import com.shindong.smartmanager.application.purchase.EtcPurchaseReceiptService;
+import com.shindong.smartmanager.application.purchase.PartnerPaymentRepository;
 import com.shindong.smartmanager.application.purchase.PurchaseHistoryRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,6 +31,7 @@ public class EtcPurchaseApplicationConfig {
             EtcPurchaseReceiptRepository receiptRepository,
             PurchaseHistoryRepository purchaseHistoryRepository,
             PartnerLedgerService partnerLedgerService,
+            PartnerPaymentRepository partnerPaymentRepository,
             MonthClosingService monthClosingService,
             FiscalCalendarService fiscalCalendarService
     ) {
@@ -38,6 +40,7 @@ public class EtcPurchaseApplicationConfig {
                 receiptRepository,
                 purchaseHistoryRepository,
                 partnerLedgerService,
+                partnerPaymentRepository,
                 monthClosingService,
                 fiscalCalendarService
         );

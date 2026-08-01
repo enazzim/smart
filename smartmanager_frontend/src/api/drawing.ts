@@ -1,4 +1,5 @@
 import { apiFetch, getAccessToken, handleResponse } from './http';
+import type { DrawingLifecycleStage } from '../utils/drawingLifecycle';
 
 export type DrawingType = 'DEV' | 'PROD';
 
@@ -9,6 +10,10 @@ export interface DrawingListItem {
   modelType: string;
   itemId?: number | null;
   itemNo?: string | null;
+  lifecycleStage?: DrawingLifecycleStage | null;
+  sourcePartnerId?: number | null;
+  sourcePartnerName?: string | null;
+  itemLinkedAt?: string | null;
   majorVersion: number;
   minorVersion: number;
   updatedAt: string;
@@ -29,7 +34,7 @@ export interface DrawingRegisterPayload {
   partNo: string;
   partName: string;
   modelType: string;
-  itemId?: number | null;
+  sourcePartnerId?: number | null;
   drawingType: DrawingType;
 }
 
@@ -42,7 +47,18 @@ export interface DrawingInfoUpdatePayload {
   partNo: string;
   partName: string;
   modelType: string;
-  itemId?: number | null;
+}
+
+export interface DrawingLifecycleUpdatePayload {
+  lifecycleStage: DrawingLifecycleStage;
+}
+
+export interface DrawingLinkItemPayload {
+  itemId: number;
+}
+
+export interface DrawingReopenDevPayload {
+  reason?: string | null;
 }
 
 const API_BASE = '/api/v1/basis/drawings';
@@ -64,8 +80,22 @@ async function parseActionError(response: Response, fallback: string): Promise<n
   throw new Error(message);
 }
 
-export async function fetchDrawings(): Promise<DrawingListItem[]> {
-  return handleResponse<DrawingListItem[]>(await apiFetch(API_BASE, { cache: 'no-store' }));
+export interface DrawingListQuery {
+  lifecycleStage?: DrawingLifecycleStage | null;
+  historyQuery?: string | null;
+}
+
+export async function fetchDrawings(query?: DrawingListQuery): Promise<DrawingListItem[]> {
+  const params = new URLSearchParams();
+  if (query?.lifecycleStage) {
+    params.set('lifecycleStage', query.lifecycleStage);
+  }
+  if (query?.historyQuery?.trim()) {
+    params.set('historyQuery', query.historyQuery.trim());
+  }
+  const suffix = params.toString();
+  const url = suffix ? `${API_BASE}?${suffix}` : API_BASE;
+  return handleResponse<DrawingListItem[]>(await apiFetch(url, { cache: 'no-store' }));
 }
 
 export async function fetchDeletedDrawings(): Promise<DrawingListItem[]> {
@@ -292,6 +322,60 @@ export async function promoteDrawing(partNo: string, actorUserId?: string): Prom
   });
   if (!response.ok) {
     await parseActionError(response, '양산 이관에 실패했습니다.');
+  }
+}
+
+export async function linkDrawingItem(
+  masterId: string,
+  payload: DrawingLinkItemPayload,
+  actorUserId?: string,
+): Promise<void> {
+  const response = await apiFetch(`${API_BASE}/${masterId}/link-item`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...actorHeaders(actorUserId),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    await parseActionError(response, '품목 연결에 실패했습니다.');
+  }
+}
+
+export async function updateDrawingLifecycle(
+  masterId: string,
+  payload: DrawingLifecycleUpdatePayload,
+  actorUserId?: string,
+): Promise<void> {
+  const response = await apiFetch(`${API_BASE}/${masterId}/lifecycle`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...actorHeaders(actorUserId),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    await parseActionError(response, '업무 단계 변경에 실패했습니다.');
+  }
+}
+
+export async function reopenDrawingDev(
+  partNo: string,
+  payload: DrawingReopenDevPayload,
+  actorUserId?: string,
+): Promise<void> {
+  const response = await apiFetch(`${API_BASE}/${encodeURIComponent(partNo)}/reopen-dev`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...actorHeaders(actorUserId),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    await parseActionError(response, '개발 재개에 실패했습니다.');
   }
 }
 

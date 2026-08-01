@@ -17,13 +17,16 @@ public class JpaBoardPostRepository implements BoardPostRepository {
 
     private final SpringDataBoardPostRepository boardPostRepository;
     private final SpringDataBoardAttachmentRepository boardAttachmentRepository;
+    private final SpringDataBoardPostReadRepository boardPostReadRepository;
 
     public JpaBoardPostRepository(
             SpringDataBoardPostRepository boardPostRepository,
-            SpringDataBoardAttachmentRepository boardAttachmentRepository
+            SpringDataBoardAttachmentRepository boardAttachmentRepository,
+            SpringDataBoardPostReadRepository boardPostReadRepository
     ) {
         this.boardPostRepository = boardPostRepository;
         this.boardAttachmentRepository = boardAttachmentRepository;
+        this.boardPostReadRepository = boardPostReadRepository;
     }
 
     @Override
@@ -112,6 +115,32 @@ public class JpaBoardPostRepository implements BoardPostRepository {
     @Transactional
     public void incrementViewCount(long postId) {
         boardPostRepository.incrementViewCount(postId);
+    }
+
+    @Override
+    @Transactional
+    public void recordPostRead(long postId, long readerUserId) {
+        if (boardPostReadRepository.findByPostIdAndReaderUserId(postId, readerUserId).isPresent()) {
+            return;
+        }
+        BoardPostReadJpaEntity entity = new BoardPostReadJpaEntity();
+        entity.setPostId(postId);
+        entity.setReaderUserId(readerUserId);
+        entity.setReadAt(Instant.now());
+        boardPostReadRepository.save(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BoardPostReaderRecord> findPostReadersExcludingAuthor(long postId, long authorUserId) {
+        return boardPostReadRepository.findReadersExcludingAuthor(postId, authorUserId).stream()
+                .map(row -> new BoardPostReaderRecord(
+                        ((Number) row[0]).longValue(),
+                        (String) row[1],
+                        (String) row[2],
+                        (Instant) row[3]
+                ))
+                .toList();
     }
 
     @Override

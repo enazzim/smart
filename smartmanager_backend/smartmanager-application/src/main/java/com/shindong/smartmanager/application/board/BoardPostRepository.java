@@ -36,6 +36,14 @@ public interface BoardPostRepository {
     ) {
     }
 
+    record BoardPostReaderRecord(
+            long userId,
+            String loginId,
+            String name,
+            java.time.Instant readAt
+    ) {
+    }
+
     long saveTopPost(
             BoardType boardType,
             String title,
@@ -60,6 +68,10 @@ public interface BoardPostRepository {
     void setPinned(long postId, boolean pinned, String actorLoginId, String actorUserId);
 
     void incrementViewCount(long postId);
+
+    void recordPostRead(long postId, long readerUserId);
+
+    List<BoardPostReaderRecord> findPostReadersExcludingAuthor(long postId, long authorUserId);
 
     void softDeletePost(long postId, String actorLoginId, String actorUserId);
 

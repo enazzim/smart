@@ -1,0 +1,28 @@
+[Unit]
+Description=Smart-Manager API (Spring Boot)
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+Type=simple
+User=smartmanager
+Group=smartmanager
+WorkingDirectory=/var/smartmanager/app
+
+Environment=SPRING_PROFILES_ACTIVE=prod
+EnvironmentFile=-/etc/smartmanager/api.env
+
+ExecStart=/usr/bin/java -jar /var/smartmanager/app/smartmanager-api.jar
+Restart=always
+RestartSec=5
+
+# 로그는 journald: journalctl -u smartmanager-api -f
+StandardOutput=journal
+StandardError=journal
+
+# 업로드·백업 등 장시간 요청을 위해 넉넉히
+TimeoutStopSec=60
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target

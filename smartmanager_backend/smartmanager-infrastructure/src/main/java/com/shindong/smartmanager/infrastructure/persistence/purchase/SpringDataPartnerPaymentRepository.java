@@ -18,13 +18,13 @@ public interface SpringDataPartnerPaymentRepository extends JpaRepository<Partne
     );
 
     @Query("""
-            SELECT COALESCE(SUM(p.totalAmount), 0)
+            SELECT COALESCE(SUM(p.supplyAmount), 0)
             FROM PartnerPaymentJpaEntity p
             WHERE p.partnerId = :partnerId
               AND p.recordingState = :active
               AND p.status = :issued
             """)
-    java.math.BigDecimal sumIssuedTotalAmountByPartnerId(
+    java.math.BigDecimal sumIssuedSupplyAmountByPartnerId(
             @Param("partnerId") long partnerId,
             @Param("active") int active,
             @Param("issued") PartnerPaymentStatus issued

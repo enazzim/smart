@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type {
   CheckDistinction,
   CreateItemRequest,
@@ -8,10 +8,14 @@ import type {
 } from '../api/item';
 import { createItem, deleteItem, fetchItems, updateItem } from '../api/item';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import { formatAmount, formatInteger } from '../utils/numberFormat';
+import { ALL_ITEM_CLASSES } from '../utils/itemClassFilters';
 import { useConfirm } from '../context/ConfirmContext';
 
-const PROPERTY_OPTIONS: PropertyClassification[] = ['원자재', '제품', '상품', '공정품'];
+const PROPERTY_OPTIONS: PropertyClassification[] = ['원자재', '제품', '상품', '공정품', '부자재'];
+/** 화면 등록·수정에서 선택 가능한 분류. 팬텀은 일괄등록 전용(기존 팬텀 수정 시에만 표시). */
 
 const CHECK_OPTIONS: { value: CheckDistinction; label: string }[] = [
   { value: 'NONE', label: '무검사' },
@@ -55,15 +59,26 @@ export default function ItemPage() {
   const confirm = useConfirm();
   const [items, setItems] = useState<Item[]>([]);
   const [form, setForm] = useState<CreateItemRequest>(emptyForm);
-  const [searchItemNo, setSearchItemNo] = useState('');
-  const [searchItemName, setSearchItemName] = useState('');
+  const [draftItemNo, setDraftItemNo] = useState<ItemSearchSelection | null>(null);
+  const [draftItemName, setDraftItemName] = useState<ItemSearchSelection | null>(null);
+  const [appliedItemNo, setAppliedItemNo] = useState<ItemSearchSelection | null>(null);
+  const [appliedItemName, setAppliedItemName] = useState<ItemSearchSelection | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [clearToken, setClearToken] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingItemNo, setEditingItemNo] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = editingId !== null;
+
+  const propertySelectOptions = useMemo((): PropertyClassification[] => {
+    if (isEditing && form.propertyClassification === '팬텀') {
+      return ['팬텀', ...PROPERTY_OPTIONS];
+    }
+    return PROPERTY_OPTIONS;
+  }, [isEditing, form.propertyClassification]);
 
   const itemExportRows = useMemo(
     () =>
@@ -84,21 +99,50 @@ export default function ItemPage() {
     [items],
   );
 
-  const load = async (itemNo = searchItemNo, itemName = searchItemName) => {
+  const fetchWithFilters = async (
+    itemNoSel: ItemSearchSelection | null,
+    itemNameSel: ItemSearchSelection | null,
+  ) => {
     setLoading(true);
     setError(null);
     try {
-      setItems(await fetchItems(itemNo || undefined, itemName || undefined));
+      const rows = await fetchItems(itemNoSel?.itemNo, itemNameSel?.itemName);
+      setItems(rows);
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록 조회 실패');
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    void load();
-  }, []);
+  const onSearch = async () => {
+    const ok = await fetchWithFilters(draftItemNo, draftItemName);
+    if (ok) {
+      setAppliedItemNo(draftItemNo);
+      setAppliedItemName(draftItemName);
+      setHasSearched(true);
+    }
+  };
+
+  const onResetSearch = () => {
+    setDraftItemNo(null);
+    setDraftItemName(null);
+    setAppliedItemNo(null);
+    setAppliedItemName(null);
+    setItems([]);
+    setHasSearched(false);
+    setClearToken((token) => token + 1);
+    setError(null);
+  };
+
+  const refreshListIfSearched = async () => {
+    if (!hasSearched) {
+      return;
+    }
+    await fetchWithFilters(appliedItemNo, appliedItemName);
+  };
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -126,7 +170,7 @@ export default function ItemPage() {
         await createItem(form);
       }
       resetForm();
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : isEditing ? '수정 실패' : '등록 실패');
     } finally {
@@ -144,7 +188,7 @@ export default function ItemPage() {
       if (editingId === item.id) {
         resetForm();
       }
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '삭제 실패');
     }
@@ -189,7 +233,7 @@ export default function ItemPage() {
                 setForm({ ...form, propertyClassification: e.target.value as PropertyClassification })
               }
             >
-              {PROPERTY_OPTIONS.map((opt) => (
+              {propertySelectOptions.map((opt) => (
                 <option key={opt} value={opt}>
                   {opt}
                 </option>
@@ -323,26 +367,43 @@ export default function ItemPage() {
           <GridExcelExportButton fileBaseName="품목목록" disabled={loading} rows={itemExportRows} />
         </div>
         <div className="search-row">
-          <label>
-            품목번호
-            <input value={searchItemNo} onChange={(e) => setSearchItemNo(e.target.value)} />
-          </label>
-          <label>
-            품목명
-            <input value={searchItemName} onChange={(e) => setSearchItemName(e.target.value)} />
-          </label>
-          <button type="button" onClick={() => void load()}>
-            검색
+          <ItemSearchField
+            label="품목번호"
+            selectedItem={draftItemNo}
+            onSelect={setDraftItemNo}
+            clearToken={clearToken}
+            allowedClassifications={ALL_ITEM_CLASSES}
+            displayMode="itemNo"
+            placeholder="품목번호 입력"
+          />
+          <ItemSearchField
+            label="품목명"
+            selectedItem={draftItemName}
+            onSelect={setDraftItemName}
+            clearToken={clearToken}
+            allowedClassifications={ALL_ITEM_CLASSES}
+            displayMode="itemName"
+            placeholder="품목명 입력"
+          />
+          <button type="button" disabled={loading} onClick={() => void onSearch()}>
+            조회
+          </button>
+          <button type="button" className="secondary" disabled={loading} onClick={onResetSearch}>
+            초기화
           </button>
         </div>
-        {loading ? (
+        {!hasSearched ? (
+          <p className="hint-text">조회 버튼을 누르면 목록이 표시됩니다.</p>
+        ) : loading ? (
           <p>불러오는 중…</p>
         ) : items.length === 0 ? (
-          <p>등록된 품목이 없습니다.</p>
+          <p>검색 조건에 맞는 품목이 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={items}
+            columnCount={11}
+            getRowKey={(item) => item.id}
+            renderHeader={() => (
               <tr>
                 <th className="num">ID</th>
                 <th>품목번호</th>
@@ -356,38 +417,35 @@ export default function ItemPage() {
                 <th>검사구분</th>
                 <th>작업</th>
               </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id} className={editingId === item.id ? 'row-editing' : undefined}>
-                  <td className="num">{formatInteger(item.id)}</td>
-                  <td>{item.itemNo}</td>
-                  <td>{item.itemName}</td>
-                  <td>{item.propertyClassification}</td>
-                  <td>{item.modelType ?? ''}</td>
-                  <td>{item.lotTracked ? 'Y' : 'N'}</td>
-                  <td>{item.unit}</td>
-                  <td>{item.standard ?? ''}</td>
-                  <td className="num">
-                    {item.standardUnitCost != null ? formatAmount(item.standardUnitCost) : ''}
-                  </td>
-                  <td>
-                    {CHECK_OPTIONS.find((opt) => opt.value === (item.checkDistinction ?? 'NONE'))
-                      ?.label ?? ''}
-                  </td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => startEdit(item)}>
-                      수정
-                    </button>
-                    <button type="button" className="btn-action danger" onClick={() => void onDelete(item)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(item) => (
+              <tr className={editingId === item.id ? 'row-editing' : undefined}>
+                <td className="num">{formatInteger(item.id)}</td>
+                <td>{item.itemNo}</td>
+                <td>{item.itemName}</td>
+                <td>{item.propertyClassification}</td>
+                <td>{item.modelType ?? ''}</td>
+                <td>{item.lotTracked ? 'Y' : 'N'}</td>
+                <td>{item.unit}</td>
+                <td>{item.standard ?? ''}</td>
+                <td className="num">
+                  {item.standardUnitCost != null ? formatAmount(item.standardUnitCost) : ''}
+                </td>
+                <td>
+                  {CHECK_OPTIONS.find((opt) => opt.value === (item.checkDistinction ?? 'NONE'))
+                    ?.label ?? ''}
+                </td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(item)}>
+                    수정
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(item)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
     </div>

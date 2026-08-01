@@ -1,13 +1,16 @@
 package com.shindong.smartmanager.application.drawing;
 
+import com.shindong.smartmanager.domain.drawing.DrawingLifecycleStage;
 import com.shindong.smartmanager.domain.drawing.DrawingType;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -119,7 +122,9 @@ class DrawingReferenceServiceTest {
         private final Map<String, DrawingHistoryDetailView> histories = new HashMap<>();
 
         void putMaster(String id, String partNo, int recordingState) {
-            masters.put(id, new DrawingMasterView(id, partNo, partNo, "G", null, recordingState));
+            masters.put(id, new DrawingMasterView(
+                    id, partNo, partNo, "G", null,
+                    DrawingLifecycleStage.SAMPLE, null, null, recordingState));
         }
 
         DrawingHistoryDetailView putHistory(
@@ -154,7 +159,14 @@ class DrawingReferenceServiceTest {
         }
 
         @Override
-        public String saveMaster(String partNo, String partName, String modelType, Long itemId, String actorUserId) {
+        public String saveMaster(
+                String partNo,
+                String partName,
+                String modelType,
+                Long sourcePartnerId,
+                DrawingLifecycleStage lifecycleStage,
+                String actorUserId
+        ) {
             throw new UnsupportedOperationException();
         }
 
@@ -182,8 +194,18 @@ class DrawingReferenceServiceTest {
 
         @Override
         public void updateMasterInfo(
-                String id, String partNo, String partName, String modelType, Long itemId, String actorUserId
+                String id, String partNo, String partName, String modelType, String actorUserId
         ) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void updateLifecycleStage(String id, DrawingLifecycleStage lifecycleStage, String actorUserId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void linkItem(String id, long itemId, String actorUserId) {
             throw new UnsupportedOperationException();
         }
 
@@ -212,6 +234,15 @@ class DrawingReferenceServiceTest {
         }
 
         @Override
+        public int findMaxProdMajorVersion(String masterId) {
+            return histories.values().stream()
+                    .filter(h -> h.masterId().equals(masterId) && h.drawingType() == DrawingType.PROD)
+                    .mapToInt(DrawingHistoryDetailView::majorVersion)
+                    .max()
+                    .orElse(0);
+        }
+
+        @Override
         public List<DrawingListView> findLatestActiveDrawings() {
             List<DrawingListView> list = new ArrayList<>();
             for (DrawingHistoryDetailView h : histories.values()) {
@@ -224,6 +255,7 @@ class DrawingReferenceServiceTest {
                 }
                 list.add(new DrawingListView(
                         m.id(), m.partNo(), m.partName(), m.modelType(), m.itemId(), null,
+                        m.lifecycleStage(), m.sourcePartnerId(), null, m.itemLinkedAt(),
                         h.majorVersion(), h.minorVersion(), h.createdAt(), h.drawingType()
                 ));
             }
@@ -233,6 +265,11 @@ class DrawingReferenceServiceTest {
         @Override
         public List<DrawingListView> findLatestDeletedDrawings() {
             return List.of();
+        }
+
+        @Override
+        public Set<String> findActiveMasterIdsMatchingHistoryQuery(String query) {
+            return Set.of();
         }
 
         @Override

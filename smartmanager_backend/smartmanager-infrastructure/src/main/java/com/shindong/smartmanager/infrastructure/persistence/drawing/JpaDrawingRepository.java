@@ -6,12 +6,16 @@ import com.shindong.smartmanager.application.drawing.DrawingHistoryView;
 import com.shindong.smartmanager.application.drawing.DrawingListView;
 import com.shindong.smartmanager.application.drawing.DrawingMasterView;
 import com.shindong.smartmanager.application.drawing.DrawingRepository;
+import com.shindong.smartmanager.domain.drawing.DrawingLifecycleStage;
 import com.shindong.smartmanager.domain.drawing.DrawingType;
+import com.shindong.smartmanager.infrastructure.persistence.company.CompanyJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.item.ItemJpaEntity;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
@@ -44,14 +48,22 @@ public class JpaDrawingRepository implements DrawingRepository {
 
     @Override
     @Transactional
-    public String saveMaster(String partNo, String partName, String modelType, Long itemId, String actorUserId) {
+    public String saveMaster(
+            String partNo,
+            String partName,
+            String modelType,
+            Long sourcePartnerId,
+            DrawingLifecycleStage lifecycleStage,
+            String actorUserId
+    ) {
         Instant now = Instant.now();
         DrawingMasterJpaEntity entity = new DrawingMasterJpaEntity();
         entity.setId(UUID.randomUUID().toString());
         entity.setPartNo(partNo);
         entity.setPartName(partName);
         entity.setModelType(modelType);
-        entity.setItem(resolveItemReference(itemId));
+        entity.setLifecycleStage(lifecycleStage != null ? lifecycleStage : DrawingLifecycleStage.RECEIVED);
+        entity.setSourcePartner(resolveCompanyReference(sourcePartnerId));
         entity.setRecordingState(ACTIVE);
         entity.setCreatedBy(actorUserId);
         entity.setCreatedById(actorUserId);
@@ -111,7 +123,6 @@ public class JpaDrawingRepository implements DrawingRepository {
             String partNo,
             String partName,
             String modelType,
-            Long itemId,
             String actorUserId
     ) {
         DrawingMasterJpaEntity entity = masterRepository.findById(id)
@@ -120,7 +131,6 @@ public class JpaDrawingRepository implements DrawingRepository {
         entity.setPartNo(partNo);
         entity.setPartName(partName);
         entity.setModelType(modelType);
-        entity.setItem(resolveItemReference(itemId));
         entity.setUpdatedBy(actorUserId);
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
@@ -129,6 +139,34 @@ public class JpaDrawingRepository implements DrawingRepository {
         } catch (DataIntegrityViolationException ex) {
             throw new IllegalStateException("이미 사용 중인 품번입니다.");
         }
+    }
+
+    @Override
+    @Transactional
+    public void updateLifecycleStage(String id, DrawingLifecycleStage lifecycleStage, String actorUserId) {
+        DrawingMasterJpaEntity entity = masterRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 도면을 찾을 수 없습니다: " + id));
+        Instant now = Instant.now();
+        entity.setLifecycleStage(lifecycleStage);
+        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedAt(now);
+        masterRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void linkItem(String id, long itemId, String actorUserId) {
+        DrawingMasterJpaEntity entity = masterRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 도면을 찾을 수 없습니다: " + id));
+        Instant now = Instant.now();
+        entity.setItem(resolveItemReference(itemId));
+        entity.setItemLinkedAt(now);
+        entity.setLifecycleStage(DrawingLifecycleStage.ITEM_LINKED);
+        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedAt(now);
+        masterRepository.save(entity);
     }
 
     @Override
@@ -178,6 +216,12 @@ public class JpaDrawingRepository implements DrawingRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public int findMaxProdMajorVersion(String masterId) {
+        return historyRepository.findMaxProdMajorByMasterId(masterId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<DrawingListView> findLatestActiveDrawings() {
         return historyRepository.findLatestActiveHistories().stream()
                 .map(this::toListView)
@@ -190,6 +234,15 @@ public class JpaDrawingRepository implements DrawingRepository {
         return historyRepository.findLatestDeletedHistories().stream()
                 .map(this::toListView)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<String> findActiveMasterIdsMatchingHistoryQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return Set.of();
+        }
+        return new HashSet<>(historyRepository.findActiveMasterIdsMatchingHistoryQuery(query.trim()));
     }
 
     @Override
@@ -228,12 +281,16 @@ public class JpaDrawingRepository implements DrawingRepository {
 
     private DrawingMasterView toMasterView(DrawingMasterJpaEntity entity) {
         ItemJpaEntity item = entity.getItem();
+        CompanyJpaEntity partner = entity.getSourcePartner();
         return new DrawingMasterView(
                 entity.getId(),
                 entity.getPartNo(),
                 entity.getPartName(),
                 entity.getModelType(),
                 item != null ? item.getId() : null,
+                entity.getLifecycleStage(),
+                partner != null ? partner.getId() : null,
+                entity.getItemLinkedAt(),
                 entity.getRecordingState()
         );
     }
@@ -241,6 +298,7 @@ public class JpaDrawingRepository implements DrawingRepository {
     private DrawingListView toListView(DrawingHistoryJpaEntity history) {
         DrawingMasterJpaEntity master = history.getDrawingMaster();
         ItemJpaEntity item = master.getItem();
+        CompanyJpaEntity partner = master.getSourcePartner();
         return new DrawingListView(
                 master.getId(),
                 master.getPartNo(),
@@ -248,11 +306,22 @@ public class JpaDrawingRepository implements DrawingRepository {
                 master.getModelType(),
                 item != null ? item.getId() : null,
                 item != null ? item.getItemNo() : null,
+                master.getLifecycleStage(),
+                partner != null ? partner.getId() : null,
+                partner != null ? partner.getCompanyName() : null,
+                master.getItemLinkedAt(),
                 history.getMajorVersion(),
                 history.getMinorVersion(),
                 history.getCreatedAt(),
                 history.getDrawingType()
         );
+    }
+
+    private CompanyJpaEntity resolveCompanyReference(Long companyId) {
+        if (companyId == null) {
+            return null;
+        }
+        return entityManager.getReference(CompanyJpaEntity.class, companyId);
     }
 
     private ItemJpaEntity resolveItemReference(Long itemId) {

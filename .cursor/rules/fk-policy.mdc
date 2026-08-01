@@ -1,0 +1,29 @@
+---
+description: 관계형 FK는 부모 PK만 — 내용키로 FK 금지
+globs: smartmanager_backend/**/*.{java,sql,kts},docs/step0/**/*.md
+alwaysApply: false
+---
+
+# FK 정책 (SmartManager 확정)
+
+SSOT: `docs/step0/domain-event-projector-matrix.md` §10
+
+## 원칙
+
+```
+자식.*_id  →  부모.id  (PK만)
+내용키      →  마스터 테이블에만 (UNIQUE, FK 아님)
+```
+
+| 구분 | 역할 | 예 |
+|------|------|----|
+| PK | 행 식별·**FK 대상** | `item.id` |
+| 내용키 | 화면·검색·중복 방지 | `item.item_no` — **FK 금지** |
+
+## 규칙
+
+- 자식 컬럼: `*_id` (PK FK). JPA `@ManyToOne` → 부모 PK.
+- **금지**: 자식에 `item_no`, `process_code`, 사업자번호 등을 FK 대용 저장.
+- API: 화면은 내용키 입력 가능 → 서비스에서 **PK 해석 후** 저장.
+- `domain_event.payload`: FK 없음. 품번·코드 **스냅샷 JSON** 허용.
+- 소프트 삭제 행: PK FK는 유지하되, 앱·DB는 **활성 행만** 신규 참조.

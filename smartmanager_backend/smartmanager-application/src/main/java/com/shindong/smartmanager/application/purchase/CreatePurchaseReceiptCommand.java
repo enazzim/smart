@@ -1,6 +1,5 @@
 package com.shindong.smartmanager.application.purchase;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -8,7 +7,8 @@ public record CreatePurchaseReceiptCommand(
         LocalDate receiptDate,
         Integer fiscalYear,
         Integer fiscalMonth,
-        List<CreatePurchaseReceiptLineCommand> lines
+        List<CreatePurchaseReceiptLineCommand> lines,
+        boolean allowOverQty
 ) {
     public CreatePurchaseReceiptCommand {
         if (receiptDate == null) {
@@ -17,5 +17,14 @@ public record CreatePurchaseReceiptCommand(
         if (lines == null || lines.isEmpty()) {
             throw new IllegalArgumentException("입고 라인은 1건 이상 필요합니다.");
         }
+    }
+
+    public CreatePurchaseReceiptCommand(
+            LocalDate receiptDate,
+            Integer fiscalYear,
+            Integer fiscalMonth,
+            List<CreatePurchaseReceiptLineCommand> lines
+    ) {
+        this(receiptDate, fiscalYear, fiscalMonth, lines, false);
     }
 }

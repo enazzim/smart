@@ -48,6 +48,7 @@ public class JpaOutsourceHistoryRepository implements OutsourceHistoryRepository
                 .map(entity -> new OutsourceHistoryRecord(
                         entity.getId(),
                         entity.getCompanyId(),
+                        entity.getItemId(),
                         entity.getAmount(),
                         entity.getHistoryDate(),
                         entity.getFiscalYear(),

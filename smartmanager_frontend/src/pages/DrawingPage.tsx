@@ -10,13 +10,24 @@ import {
   restoreDrawing,
   type DrawingListItem,
   type DrawingReferenceIntegrityIssue,
-  type DrawingType,
 } from '../api/drawing';
 import DrawingUploadModal from '../components/drawing/DrawingUploadModal';
 import DrawingReviseModal from '../components/drawing/DrawingReviseModal';
 import DrawingViewerModal from '../components/drawing/DrawingViewerModal';
 import DrawingInfoEditModal from '../components/drawing/DrawingInfoEditModal';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import VirtualMasterTable from '../components/VirtualMasterTable';
+import {
+  canReviseDrawing,
+  isArchivedLifecycle,
+  lifecycleBadgeClass,
+  lifecycleStageLabel,
+  type DrawingLifecycleStage,
+} from '../utils/drawingLifecycle';
+import {
+  getDrawingDefaultTab,
+  isProductionDrawingViewer,
+} from '../layout/menuAccess';
 import { listCachedDrawingPartNos, syncDailyDrawings } from '../services/drawingOfflineCacheService';
 import { useBannerMessages } from '../hooks/useBannerMessages';
 import { useConfirm } from '../context/ConfirmContext';
@@ -27,26 +38,42 @@ const drawingQueryClient = new QueryClient({
   },
 });
 
+const EMPTY_DRAWINGS: DrawingListItem[] = [];
+const EMPTY_PART_NOS: string[] = [];
+
 type DrawingTab = 'dev' | 'prod' | 'deleted';
 
 interface DrawingPageProps {
   readOnly?: boolean;
   canHardDelete?: boolean;
   actorUserId?: string;
+  roleCodes?: string[];
 }
 
-function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId }: DrawingPageProps) {
+const LIFECYCLE_FILTER_OPTIONS: { value: '' | DrawingLifecycleStage; label: string }[] = [
+  { value: '', label: '전체 단계' },
+  { value: 'RECEIVED', label: '선수신' },
+  { value: 'SAMPLE', label: '샘플' },
+  { value: 'PARTNER_REVIEW', label: '거래처 검토' },
+  { value: 'MASS_PROD_READY', label: '양산 준비' },
+  { value: 'ITEM_LINKED', label: '품목 연결' },
+  { value: 'ARCHIVED', label: '보관 (사용 종료)' },
+];
+
+function DrawingDashboard({
+  readOnly = false,
+  canHardDelete = false,
+  actorUserId,
+  roleCodes = [],
+}: DrawingPageProps) {
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const { message, error, showSuccess, showError } = useBannerMessages();
+  const productionViewer = isProductionDrawingViewer(roleCodes, !readOnly);
 
-  const [tab, setTab] = useState<DrawingTab>('dev');
+  const [tab, setTab] = useState<DrawingTab>(() => getDrawingDefaultTab(roleCodes));
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [viewingDrawing, setViewingDrawing] = useState<{
-    id: string;
-    partNo: string;
-    type: DrawingType;
-  } | null>(null);
+  const [viewingDrawing, setViewingDrawing] = useState<DrawingListItem | null>(null);
   const [revisingDrawing, setRevisingDrawing] = useState<{
     partNo: string;
     majorVersion: number;
@@ -57,14 +84,23 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
     partNo: string;
     partName: string;
     modelType: string;
-    itemId?: number | null;
-    itemNo?: string | null;
   } | null>(null);
 
   const [searchPartNo, setSearchPartNo] = useState('');
   const [searchModelType, setSearchModelType] = useState('');
   const [searchDate, setSearchDate] = useState('');
   const [searchItem, setSearchItem] = useState<ItemSearchSelection | null>(null);
+  const [searchLifecycleStage, setSearchLifecycleStage] = useState<'' | DrawingLifecycleStage>('');
+  const [searchHistoryQuery, setSearchHistoryQuery] = useState('');
+  const [includeHistorySearch, setIncludeHistorySearch] = useState(false);
+  const [appliedPartNo, setAppliedPartNo] = useState('');
+  const [appliedModelType, setAppliedModelType] = useState('');
+  const [appliedDate, setAppliedDate] = useState('');
+  const [appliedItem, setAppliedItem] = useState<ItemSearchSelection | null>(null);
+  const [appliedLifecycleStage, setAppliedLifecycleStage] = useState<'' | DrawingLifecycleStage>('');
+  const [appliedHistoryQuery, setAppliedHistoryQuery] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
+  const [itemClearToken, setItemClearToken] = useState(0);
   const [isSyncingOffline, setIsSyncingOffline] = useState(false);
   const [cachedPartNos, setCachedPartNos] = useState<string[]>([]);
   const [offlineMessage, setOfflineMessage] = useState<string | null>(null);
@@ -72,19 +108,43 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   const [integrityLoading, setIntegrityLoading] = useState(false);
   const [integrityIssues, setIntegrityIssues] = useState<DrawingReferenceIntegrityIssue[]>([]);
 
-  const { data: drawings = [], isLoading, isError } = useQuery({
-    queryKey: ['drawings'],
-    queryFn: fetchDrawings,
+  const listQuery = useMemo(
+    () => ({
+      lifecycleStage: appliedLifecycleStage || null,
+      historyQuery: appliedHistoryQuery || null,
+    }),
+    [appliedLifecycleStage, appliedHistoryQuery],
+  );
+
+  const { data: drawings = EMPTY_DRAWINGS, isLoading, isError, isFetching } = useQuery({
+    queryKey: ['drawings', listQuery],
+    queryFn: () => fetchDrawings(listQuery),
+    enabled: hasSearched,
   });
 
-  const { data: deletedDrawings = [] } = useQuery({
+  const { data: deletedDrawings = EMPTY_DRAWINGS, isFetching: isFetchingDeleted } = useQuery({
     queryKey: ['deletedDrawings'],
     queryFn: fetchDeletedDrawings,
+    enabled: hasSearched,
   });
 
   useEffect(() => {
-    void listCachedDrawingPartNos().then(setCachedPartNos).catch(() => setCachedPartNos([]));
-  }, [drawings, deletedDrawings]);
+    if (!hasSearched) {
+      setCachedPartNos((prev) => (prev.length === 0 ? prev : EMPTY_PART_NOS));
+      return;
+    }
+    let cancelled = false;
+    void listCachedDrawingPartNos()
+      .then((partNos) => {
+        if (!cancelled) setCachedPartNos(partNos);
+      })
+      .catch(() => {
+        if (!cancelled) setCachedPartNos(EMPTY_PART_NOS);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasSearched, drawings, deletedDrawings]);
 
   const refreshLists = async () => {
     await Promise.all([
@@ -93,29 +153,59 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
     ]);
   };
 
+  const patchDrawingInLists = (rowId: string, patch: Partial<DrawingListItem>) => {
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['drawings'] },
+      (prev) => {
+        if (!Array.isArray(prev)) {
+          return prev;
+        }
+        return prev.map((item) => (item.id === rowId ? { ...item, ...patch } : item));
+      },
+    );
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['deletedDrawings'] },
+      (prev) => {
+        if (!Array.isArray(prev)) {
+          return prev;
+        }
+        return prev.map((item) => (item.id === rowId ? { ...item, ...patch } : item));
+      },
+    );
+  };
+
   const moveDrawingToActive = (row: DrawingListItem) => {
-    queryClient.setQueryData<DrawingListItem[]>(['drawings'], (prev) => {
-      const base = prev ?? [];
-      return base.some((item) => item.id === row.id) ? base : [...base, row];
-    });
-    queryClient.setQueryData<DrawingListItem[]>(['deletedDrawings'], (prev) =>
-      (prev ?? []).filter((item) => item.id !== row.id),
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['drawings'] },
+      (prev) => {
+        const base = Array.isArray(prev) ? prev : [];
+        return base.some((item) => item.id === row.id) ? base : [...base, row];
+      },
+    );
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['deletedDrawings'] },
+      (prev) => (Array.isArray(prev) ? prev.filter((item) => item.id !== row.id) : prev),
     );
   };
 
   const moveDrawingToDeleted = (row: DrawingListItem) => {
-    queryClient.setQueryData<DrawingListItem[]>(['drawings'], (prev) =>
-      (prev ?? []).filter((item) => item.partNo !== row.partNo),
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['drawings'] },
+      (prev) => (Array.isArray(prev) ? prev.filter((item) => item.partNo !== row.partNo) : prev),
     );
-    queryClient.setQueryData<DrawingListItem[]>(['deletedDrawings'], (prev) => {
-      const base = prev ?? [];
-      return base.some((item) => item.id === row.id) ? base : [...base, row];
-    });
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['deletedDrawings'] },
+      (prev) => {
+        const base = Array.isArray(prev) ? prev : [];
+        return base.some((item) => item.id === row.id) ? base : [...base, row];
+      },
+    );
   };
 
   const removeDeletedDrawing = (id: string) => {
-    queryClient.setQueryData<DrawingListItem[]>(['deletedDrawings'], (prev) =>
-      (prev ?? []).filter((item) => item.id !== id),
+    queryClient.setQueriesData<DrawingListItem[]>(
+      { queryKey: ['deletedDrawings'] },
+      (prev) => (Array.isArray(prev) ? prev.filter((item) => item.id !== id) : prev),
     );
   };
 
@@ -173,21 +263,73 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   };
 
   const currentData = tab === 'deleted' ? deletedDrawings : drawings;
-  const filteredDrawings = useMemo(
-    () =>
-      currentData.filter((row: DrawingListItem) => {
-        const matchType =
-          tab === 'dev' ? row.drawingType === 'DEV' : tab === 'prod' ? row.drawingType === 'PROD' : true;
-        const matchPartNo = row.partNo.toLowerCase().includes(searchPartNo.toLowerCase());
-        const matchModelType = row.modelType.toLowerCase().includes(searchModelType.toLowerCase());
-        const matchDate = searchDate ? row.updatedAt.startsWith(searchDate) : true;
-        const matchItem = searchItem
-          ? row.itemNo?.toLowerCase() === searchItem.itemNo.toLowerCase() || row.itemId === searchItem.id
-          : true;
-        return matchType && matchPartNo && matchModelType && matchDate && matchItem;
-      }),
-    [currentData, tab, searchPartNo, searchModelType, searchDate, searchItem],
-  );
+  const filteredDrawings = useMemo(() => {
+    if (!hasSearched) {
+      return [];
+    }
+    return currentData.filter((row: DrawingListItem) => {
+      const matchType =
+        tab === 'dev' ? row.drawingType === 'DEV' : tab === 'prod' ? row.drawingType === 'PROD' : true;
+      const matchPartNo = row.partNo.toLowerCase().includes(appliedPartNo.toLowerCase());
+      const matchModelType = row.modelType.toLowerCase().includes(appliedModelType.toLowerCase());
+      const matchDate = appliedDate ? row.updatedAt.startsWith(appliedDate) : true;
+      const matchItem = appliedItem
+        ? row.itemNo?.toLowerCase() === appliedItem.itemNo.toLowerCase() || row.itemId === appliedItem.id
+        : true;
+      return matchType && matchPartNo && matchModelType && matchDate && matchItem;
+    });
+  }, [hasSearched, currentData, tab, appliedPartNo, appliedModelType, appliedDate, appliedItem]);
+
+  const applySearch = (next: {
+    partNo?: string;
+    modelType?: string;
+    date?: string;
+    item?: ItemSearchSelection | null;
+    lifecycleStage?: '' | DrawingLifecycleStage;
+    historyQuery?: string;
+    includeHistory?: boolean;
+  }) => {
+    setAppliedPartNo(next.partNo ?? searchPartNo);
+    setAppliedModelType(next.modelType ?? searchModelType);
+    setAppliedDate(next.date ?? searchDate);
+    setAppliedItem(next.item !== undefined ? next.item : searchItem);
+    const stage = next.lifecycleStage !== undefined ? next.lifecycleStage : searchLifecycleStage;
+    const includeHistory = next.includeHistory !== undefined ? next.includeHistory : includeHistorySearch;
+    const historyQ = next.historyQuery !== undefined ? next.historyQuery : searchHistoryQuery;
+    setAppliedLifecycleStage(stage);
+    setAppliedHistoryQuery(includeHistory && historyQ.trim() ? historyQ.trim() : '');
+    setHasSearched(true);
+  };
+
+  const handleSearch = () => {
+    applySearch({});
+  };
+
+  const handleReset = () => {
+    setSearchPartNo('');
+    setSearchModelType('');
+    setSearchDate('');
+    setSearchItem(null);
+    setSearchLifecycleStage('');
+    setSearchHistoryQuery('');
+    setIncludeHistorySearch(false);
+    setAppliedPartNo('');
+    setAppliedModelType('');
+    setAppliedDate('');
+    setAppliedItem(null);
+    setAppliedLifecycleStage('');
+    setAppliedHistoryQuery('');
+    setHasSearched(false);
+    setItemClearToken((token) => token + 1);
+    setOfflineMessage(null);
+  };
+
+  const handleItemSelect = (item: ItemSearchSelection | null) => {
+    setSearchItem(item);
+    if (item) {
+      applySearch({ item });
+    }
+  };
 
   const handleIntegrityScan = async () => {
     setIntegrityLoading(true);
@@ -230,28 +372,12 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="page drawing-page">
-        <p>불러오는 중…</p>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="page drawing-page">
-        <p className="error-banner">데이터를 불러오지 못했습니다.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="page drawing-page">
       <header className="page-header">
         <div>
           <h1>도면 관리 현황</h1>
-          <p>개발·양산 도면 등록, 개정, PDF 열람 및 품목 연동을 관리합니다.</p>
+          <p>거래처 선수신 → 개발 개정 → 양산 이관 → 품목 연결 업무 흐름을 관리합니다.</p>
         </div>
         <div className="inline-actions">
           <button
@@ -285,6 +411,12 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
 
       {message && <p className="success-banner">{message}</p>}
       {error && <p className="error-banner">{error}</p>}
+      <p className="hint drawing-workflow-hint">
+        {productionViewer
+          ? '생산 열람 모드: 양산품(PROD) 탭에서 최신 도면을 확인합니다. 과거 이력은 상세 화면 사이드바에서 열람할 수 있습니다.'
+          : '개발품(DEV)은 품질·관리 담당, 양산품(PROD)은 생산 열람용입니다. 버전 V1.1은 메이저 1·마이너 1(구 표기 V1-1)을 의미합니다.'}
+      </p>
+      {hasSearched && isError && <p className="error-banner">데이터를 불러오지 못했습니다.</p>}
       {offlineMessage && (
         <p className="hint">
           {offlineMessage}
@@ -296,24 +428,101 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
         <div className="drawing-filter-grid">
           <div>
             <ItemSearchField
-              label="품목 검색"
+              label="품목"
               selectedItem={searchItem}
-              onSelect={setSearchItem}
-              placeholder="연결 품목으로 필터"
+              onSelect={handleItemSelect}
+              clearToken={itemClearToken}
+              placeholder="연결 품목"
             />
           </div>
           <label>
-            <span>품번 검색</span>
-            <input placeholder="예: A-1" value={searchPartNo} onChange={(e) => setSearchPartNo(e.target.value)} />
+            <span>품번</span>
+            <input
+              placeholder="예: A-1"
+              value={searchPartNo}
+              onChange={(e) => setSearchPartNo(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
+            />
           </label>
           <label>
-            <span>기종 검색</span>
-            <input placeholder="예: 로더" value={searchModelType} onChange={(e) => setSearchModelType(e.target.value)} />
+            <span>기종</span>
+            <input
+              placeholder="예: 로더"
+              value={searchModelType}
+              onChange={(e) => setSearchModelType(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
+            />
           </label>
           <label>
-            <span>등록일 검색</span>
-            <input type="date" value={searchDate} onChange={(e) => setSearchDate(e.target.value)} />
+            <span>등록일</span>
+            <input
+              type="date"
+              value={searchDate}
+              onChange={(e) => setSearchDate(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
+            />
           </label>
+          <label>
+            <span>업무 단계</span>
+            <select
+              value={searchLifecycleStage}
+              onChange={(e) => setSearchLifecycleStage(e.target.value as '' | DrawingLifecycleStage)}
+            >
+              {LIFECYCLE_FILTER_OPTIONS.map((option) => (
+                <option key={option.value || 'all'} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="drawing-filter-history">
+            <span>AS 이력 검색</span>
+            <div className="drawing-filter-history__row">
+              <input
+                value={searchHistoryQuery}
+                placeholder="개정 사유·버전 (예: 1.1)"
+                disabled={!includeHistorySearch}
+                onChange={(e) => setSearchHistoryQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSearch();
+                  }
+                }}
+              />
+              <label className="drawing-filter-checkbox">
+                <input
+                  type="checkbox"
+                  checked={includeHistorySearch}
+                  onChange={(e) => setIncludeHistorySearch(e.target.checked)}
+                />
+                전체 이력 포함
+              </label>
+            </div>
+          </div>
+          <div className="drawing-filter-actions">
+            <button type="button" onClick={handleSearch}>
+              검색
+            </button>
+            <button type="button" className="secondary" onClick={handleReset}>
+              초기화
+            </button>
+          </div>
         </div>
       </section>
 
@@ -395,8 +604,6 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
           initialPartNo={editingDrawing.partNo}
           initialPartName={editingDrawing.partName}
           initialModelType={editingDrawing.modelType}
-          initialItemId={editingDrawing.itemId}
-          initialItemNo={editingDrawing.itemNo}
           actorUserId={actorUserId}
           onSuccess={showSuccess}
           onError={showError}
@@ -409,18 +616,33 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
           onClose={() => setViewingDrawing(null)}
           masterId={viewingDrawing.id}
           partNo={viewingDrawing.partNo}
-          drawingType={viewingDrawing.type}
+          drawingType={viewingDrawing.drawingType}
+          lifecycleStage={viewingDrawing.lifecycleStage}
+          sourcePartnerName={viewingDrawing.sourcePartnerName}
+          itemId={viewingDrawing.itemId}
+          itemNo={viewingDrawing.itemNo}
+          itemLinkedAt={viewingDrawing.itemLinkedAt}
+          historyHighlightQuery={appliedHistoryQuery || undefined}
           isDeleted={tab === 'deleted'}
           readOnly={readOnly}
           canManage={!readOnly}
           actorUserId={actorUserId}
           onSuccess={showSuccess}
           onError={showError}
+          onDrawingMetaChange={(patch) => {
+            const rowId = patch.id ?? viewingDrawing.id;
+            patchDrawingInLists(rowId, patch);
+            setViewingDrawing((prev) => (prev && prev.id === rowId ? { ...prev, ...patch } : prev));
+          }}
         />
       )}
 
       <section className="panel">
-        {filteredDrawings.length === 0 ? (
+        {!hasSearched ? (
+          <p className="hint">검색 조건을 입력한 뒤 검색하거나, 품목을 선택해 주세요.</p>
+        ) : isLoading || isFetching || isFetchingDeleted ? (
+          <p className="hint">불러오는 중…</p>
+        ) : filteredDrawings.length === 0 ? (
           <p className="hint">표시할 도면이 없습니다.</p>
         ) : (
           <>
@@ -429,12 +651,18 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
                 <article key={row.id} className="drawing-card">
                   <div className="drawing-card__header">
                     <h3 className="drawing-card__title">{row.partNo}</h3>
-                    <span className="drawing-version-badge">
-                      V{row.majorVersion}.{row.minorVersion}
-                    </span>
+                    <div className="drawing-card__badges">
+                      <span className={lifecycleBadgeClass(row.lifecycleStage)}>
+                        {lifecycleStageLabel(row.lifecycleStage)}
+                      </span>
+                      <span className="drawing-version-badge">
+                        V{row.majorVersion}.{row.minorVersion}
+                      </span>
+                    </div>
                   </div>
                   <p className="drawing-card__meta">
                     {row.partName} | {row.modelType}
+                    {row.sourcePartnerName ? ` | 선수신 ${row.sourcePartnerName}` : ''}
                     {row.itemNo ? ` | 품목 ${row.itemNo}` : ''}
                   </p>
                   <p className="hint">최근 등록일: {row.updatedAt}</p>
@@ -443,40 +671,48 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
               ))}
             </div>
 
-            <div className="table-wrap drawing-table-desktop">
-              <table>
-                <thead>
-                  <tr>
-                    <th>품번</th>
-                    <th>연결 품목</th>
-                    <th>품명</th>
-                    <th>기종</th>
-                    <th>버전</th>
-                    <th>최근 등록일</th>
-                    <th>관리</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredDrawings.map((row) => (
-                    <tr key={row.id}>
-                      <td>
-                        <strong>{row.partNo}</strong>
-                      </td>
-                      <td>{row.itemNo ?? '—'}</td>
-                      <td>{row.partName}</td>
-                      <td>{row.modelType}</td>
-                      <td>
-                        <span className="drawing-version-badge">
-                          V{row.majorVersion}.{row.minorVersion}
-                        </span>
-                      </td>
-                      <td>{row.updatedAt}</td>
-                      <td className="row-actions">{renderRowActions(row)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <VirtualMasterTable
+              className="drawing-table-desktop"
+              rows={filteredDrawings}
+              columnCount={9}
+              getRowKey={(row) => row.id}
+              renderHeader={() => (
+                <tr>
+                  <th>품번</th>
+                  <th>업무 단계</th>
+                  <th>선수신 거래처</th>
+                  <th>연결 품목</th>
+                  <th>품명</th>
+                  <th>기종</th>
+                  <th>버전</th>
+                  <th>최근 등록일</th>
+                  <th>관리</th>
+                </tr>
+              )}
+              renderRow={(row) => (
+                <tr>
+                  <td>
+                    <strong>{row.partNo}</strong>
+                  </td>
+                  <td>
+                    <span className={lifecycleBadgeClass(row.lifecycleStage)}>
+                      {lifecycleStageLabel(row.lifecycleStage)}
+                    </span>
+                  </td>
+                  <td>{row.sourcePartnerName ?? '—'}</td>
+                  <td>{row.itemNo ?? '—'}</td>
+                  <td>{row.partName}</td>
+                  <td>{row.modelType}</td>
+                  <td>
+                    <span className="drawing-version-badge">
+                      V{row.majorVersion}.{row.minorVersion}
+                    </span>
+                  </td>
+                  <td>{row.updatedAt}</td>
+                  <td className="row-actions">{renderRowActions(row)}</td>
+                </tr>
+              )}
+            />
           </>
         )}
       </section>
@@ -484,9 +720,10 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   );
 
   function renderRowActions(row: DrawingListItem) {
+    const archived = isArchivedLifecycle(row.lifecycleStage);
     return (
       <div className="drawing-row-actions">
-        {!readOnly && tab !== 'deleted' && (
+        {!readOnly && tab !== 'deleted' && !archived && (
           <button
             type="button"
             className="drawing-icon-btn drawing-icon-btn--warn"
@@ -497,15 +734,13 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
                 partNo: row.partNo,
                 partName: row.partName,
                 modelType: row.modelType,
-                itemId: row.itemId,
-                itemNo: row.itemNo,
               })
             }
           >
             <Edit size={16} />
           </button>
         )}
-        {!readOnly && tab !== 'deleted' && (
+        {!readOnly && tab !== 'deleted' && canReviseDrawing(row.drawingType, row.lifecycleStage) && (
           <button
             type="button"
             className="drawing-icon-btn"
@@ -525,7 +760,7 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
           type="button"
           className="drawing-icon-btn drawing-icon-btn--info"
           title="도면 열람"
-          onClick={() => setViewingDrawing({ id: row.id, partNo: row.partNo, type: row.drawingType })}
+          onClick={() => setViewingDrawing(row)}
         >
           <Eye size={16} />
         </button>
@@ -564,10 +799,20 @@ function DrawingDashboard({ readOnly = false, canHardDelete = false, actorUserId
   }
 }
 
-export default function DrawingPage({ readOnly = false, canHardDelete = false, actorUserId }: DrawingPageProps) {
+export default function DrawingPage({
+  readOnly = false,
+  canHardDelete = false,
+  actorUserId,
+  roleCodes = [],
+}: DrawingPageProps) {
   return (
     <QueryClientProvider client={drawingQueryClient}>
-      <DrawingDashboard readOnly={readOnly} canHardDelete={canHardDelete} actorUserId={actorUserId} />
+      <DrawingDashboard
+        readOnly={readOnly}
+        canHardDelete={canHardDelete}
+        actorUserId={actorUserId}
+        roleCodes={roleCodes}
+      />
     </QueryClientProvider>
   );
 }

@@ -6,7 +6,6 @@ import com.shindong.smartmanager.domain.item.PropertyClassification;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -18,7 +17,7 @@ public record ItemImportBulkRequest(@Valid @NotEmpty List<ItemImportRowRequest> 
     public record ItemImportRowRequest(
             @NotBlank String itemNo,
             @NotBlank String itemName,
-            @NotNull PropertyClassification propertyClassification,
+            @NotBlank String propertyClassification,
             @NotBlank(message = "기종은 필수입니다.") String modelType,
             @NotBlank String unit,
             String standard,
@@ -34,7 +33,7 @@ public record ItemImportBulkRequest(@Valid @NotEmpty List<ItemImportRowRequest> 
             return new ItemImportRow(
                     itemNo,
                     itemName,
-                    propertyClassification,
+                    PropertyClassification.fromImportLabel(propertyClassification),
                     modelType,
                     unit,
                     standard,

@@ -331,7 +331,6 @@ export default function PublicCodePage() {
                   <tr>
                     <th>코드</th>
                     <th>명칭</th>
-                    <th>용도</th>
                     <th>작업</th>
                   </tr>
                 </thead>
@@ -350,7 +349,6 @@ export default function PublicCodePage() {
                     >
                       <td>{row.largeCode}</td>
                       <td>{row.largeName}</td>
-                      <td>{row.usageType}</td>
                       <td className="actions" onClick={(e) => e.stopPropagation()}>
                         <button type="button" className="btn-action" onClick={() => startEditLarge(row)}>
                           수정

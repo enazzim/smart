@@ -11,7 +11,7 @@ public record CreateProcessRequest(
         @NotNull Long processCodeId,
         @NotNull WorkDistinction workDistinction,
         Long workCenterId,
-        @Min(0) @Max(99) Integer outsideOrderRate,
+        @Min(0) @Max(100) Integer outsideOrderRate,
         @NotNull @Min(0) @Max(100) Short progressRate
 ) {
 }

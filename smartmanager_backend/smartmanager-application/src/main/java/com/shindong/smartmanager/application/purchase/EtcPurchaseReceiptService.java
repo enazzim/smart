@@ -5,6 +5,7 @@ import com.shindong.smartmanager.application.closing.FiscalPeriod;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.ledger.PartnerLedgerService;
 import com.shindong.smartmanager.domain.purchase.EtcPurchaseOrderStatus;
+import com.shindong.smartmanager.domain.purchase.PartnerPrepaidOffsetLedgerKind;
 import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
 import com.shindong.smartmanager.domain.purchase.PurchaseHistorySourceType;
 import java.math.BigDecimal;
@@ -20,6 +21,7 @@ public class EtcPurchaseReceiptService {
     private final EtcPurchaseReceiptRepository receiptRepository;
     private final PurchaseHistoryRepository purchaseHistoryRepository;
     private final PartnerLedgerService partnerLedgerService;
+    private final PartnerPaymentRepository partnerPaymentRepository;
     private final MonthClosingService monthClosingService;
     private final FiscalCalendarService fiscalCalendarService;
 
@@ -28,6 +30,7 @@ public class EtcPurchaseReceiptService {
             EtcPurchaseReceiptRepository receiptRepository,
             PurchaseHistoryRepository purchaseHistoryRepository,
             PartnerLedgerService partnerLedgerService,
+            PartnerPaymentRepository partnerPaymentRepository,
             MonthClosingService monthClosingService,
             FiscalCalendarService fiscalCalendarService
     ) {
@@ -35,6 +38,7 @@ public class EtcPurchaseReceiptService {
         this.receiptRepository = receiptRepository;
         this.purchaseHistoryRepository = purchaseHistoryRepository;
         this.partnerLedgerService = partnerLedgerService;
+        this.partnerPaymentRepository = partnerPaymentRepository;
         this.monthClosingService = monthClosingService;
         this.fiscalCalendarService = fiscalCalendarService;
     }
@@ -194,6 +198,10 @@ public class EtcPurchaseReceiptService {
     private void reversePayable(EtcPurchaseReceiptView receipt, String actorUserId) {
         List<PurchaseHistoryRecord> histories = purchaseHistoryRepository.findActiveBySource(
                 PurchaseHistorySourceType.ETC_PURCHASE_RECEIPT, receipt.id());
+        for (PurchaseHistoryRecord history : histories) {
+            partnerPaymentRepository.deactivateOffsetsByHistory(
+                    PartnerPrepaidOffsetLedgerKind.PURCHASE_HISTORY, history.id(), actorUserId);
+        }
         purchaseHistoryRepository.deactivateBySource(
                 PurchaseHistorySourceType.ETC_PURCHASE_RECEIPT,
                 receipt.id(),

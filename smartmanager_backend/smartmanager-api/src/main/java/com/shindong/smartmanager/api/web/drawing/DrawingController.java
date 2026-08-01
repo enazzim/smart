@@ -3,8 +3,13 @@ package com.shindong.smartmanager.api.web.drawing;
 import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.application.drawing.DrawingHistoryDetailView;
 import com.shindong.smartmanager.application.drawing.DrawingInfoUpdateCommand;
+import com.shindong.smartmanager.application.drawing.DrawingLifecycleUpdateCommand;
+import com.shindong.smartmanager.application.drawing.DrawingLinkItemCommand;
+import com.shindong.smartmanager.application.drawing.DrawingListFilter;
 import com.shindong.smartmanager.application.drawing.DrawingRegisterCommand;
+import com.shindong.smartmanager.application.drawing.DrawingReopenDevCommand;
 import com.shindong.smartmanager.application.drawing.DrawingReviseCommand;
+import com.shindong.smartmanager.domain.drawing.DrawingLifecycleStage;
 import com.shindong.smartmanager.infrastructure.application.DrawingApplicationService;
 import com.shindong.smartmanager.infrastructure.drawing.pdf.DrawingPdfStorageService;
 import com.shindong.smartmanager.infrastructure.drawing.pdf.DrawingPdfUploadSupport;
@@ -63,8 +68,13 @@ public class DrawingController {
     }
 
     @GetMapping
-    public List<DrawingListResponse> list() {
-        return drawingApplicationService.listActive().stream()
+    public List<DrawingListResponse> list(
+            @RequestParam(value = "lifecycleStage", required = false) DrawingLifecycleStage lifecycleStage,
+            @RequestParam(value = "historyQuery", required = false) String historyQuery
+    ) {
+        return drawingApplicationService.listActive(
+                new DrawingListFilter(lifecycleStage, historyQuery)
+        ).stream()
                 .map(DrawingListResponse::from)
                 .toList();
     }
@@ -188,7 +198,7 @@ public class DrawingController {
                 request.partNo(),
                 request.partName(),
                 request.modelType(),
-                request.itemId(),
+                request.sourcePartnerId(),
                 request.drawingType(),
                 filePath,
                 file.getSize()
@@ -244,6 +254,52 @@ public class DrawingController {
         return ResponseEntity.ok(Map.of("message", "성공적으로 양산품으로 이관되었습니다."));
     }
 
+    @PostMapping("/{id}/link-item")
+    @BasisAuthorize.DrawingWrite
+    public ResponseEntity<Map<String, String>> linkItem(
+            @PathVariable("id") String id,
+            @Valid @RequestBody DrawingLinkItemRequest request,
+            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+    ) {
+        drawingApplicationService.linkItem(
+                id,
+                new DrawingLinkItemCommand(request.itemId()),
+                resolveActor(actorUserId)
+        );
+        return ResponseEntity.ok(Map.of("message", "품목이 연결되었습니다."));
+    }
+
+    @PutMapping("/{id}/lifecycle")
+    @BasisAuthorize.DrawingWrite
+    public ResponseEntity<Map<String, String>> updateLifecycle(
+            @PathVariable("id") String id,
+            @Valid @RequestBody DrawingLifecycleUpdateRequest request,
+            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+    ) {
+        drawingApplicationService.updateLifecycle(
+                id,
+                new DrawingLifecycleUpdateCommand(request.lifecycleStage()),
+                resolveActor(actorUserId)
+        );
+        return ResponseEntity.ok(Map.of("message", "도면 lifecycle이 변경되었습니다."));
+    }
+
+    @PostMapping("/{partNo}/reopen-dev")
+    @BasisAuthorize.DrawingWrite
+    public ResponseEntity<Map<String, String>> reopenDev(
+            @PathVariable("partNo") String partNo,
+            @RequestBody(required = false) DrawingReopenDevRequest request,
+            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+    ) {
+        String reason = request != null ? request.reason() : null;
+        drawingApplicationService.reopenDev(
+                partNo,
+                new DrawingReopenDevCommand(reason),
+                resolveActor(actorUserId)
+        );
+        return ResponseEntity.ok(Map.of("message", "양산 도면이 개발 단계로 재개되었습니다."));
+    }
+
     @PostMapping("/{id}/restore")
     @BasisAuthorize.DrawingWrite
     public ResponseEntity<Map<String, String>> restore(
@@ -264,8 +320,7 @@ public class DrawingController {
         DrawingInfoUpdateCommand command = new DrawingInfoUpdateCommand(
                 request.partNo(),
                 request.partName(),
-                request.modelType(),
-                request.itemId()
+                request.modelType()
         );
         drawingApplicationService.updateInfo(id, command, resolveActor(actorUserId));
         return ResponseEntity.ok(Map.of("message", "도면 정보가 성공적으로 수정되었습니다."));

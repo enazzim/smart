@@ -5,6 +5,7 @@ import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.inventory.InventoryBalanceService;
 import com.shindong.smartmanager.application.inventory.LotService;
 import com.shindong.smartmanager.application.ledger.PartnerLedgerService;
+import com.shindong.smartmanager.application.purchase.PartnerPaymentRepository;
 import com.shindong.smartmanager.application.purchase.PurchaseHistoryRepository;
 import com.shindong.smartmanager.application.purchase.PurchaseReceiptRepository;
 import com.shindong.smartmanager.application.purchase.PurchaseReceiptService;
@@ -23,6 +24,7 @@ public class PurchaseReceiptApplicationConfig {
             InventoryBalanceService inventoryBalanceService,
             LotService lotService,
             PartnerLedgerService partnerLedgerService,
+            PartnerPaymentRepository partnerPaymentRepository,
             MonthClosingService monthClosingService,
             FiscalCalendarService fiscalCalendarService
     ) {
@@ -33,6 +35,7 @@ public class PurchaseReceiptApplicationConfig {
                 inventoryBalanceService,
                 lotService,
                 partnerLedgerService,
+                partnerPaymentRepository,
                 monthClosingService,
                 fiscalCalendarService
         );

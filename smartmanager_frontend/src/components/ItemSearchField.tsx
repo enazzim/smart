@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { fetchItems } from '../api/item';
 import type { PropertyClassification } from '../api/item';
+import { sortByKoreanField } from '../utils/koreanSort';
 
-const DEFAULT_ALLOWED_CLASSES: PropertyClassification[] = ['제품', '공정품'];
+const DEFAULT_ALLOWED_CLASSES: PropertyClassification[] = ['제품', '상품', '공정품'];
 const SEARCH_DEBOUNCE_MS = 300;
 
 function toAllowedClassesKey(classes?: PropertyClassification[]): string {
@@ -18,7 +19,15 @@ export type ItemSearchSelection = {
   lotTracked?: boolean;
 };
 
-function formatItemLabel(item: ItemSearchSelection) {
+export type ItemSearchDisplayMode = 'full' | 'itemNo' | 'itemName';
+
+function formatItemLabel(item: ItemSearchSelection, displayMode: ItemSearchDisplayMode = 'full') {
+  if (displayMode === 'itemNo') {
+    return item.itemNo;
+  }
+  if (displayMode === 'itemName') {
+    return item.itemName;
+  }
   const base = `${item.itemNo} — ${item.itemName}`;
   return item.propertyClassification ? `${base} (${item.propertyClassification})` : base;
 }
@@ -40,27 +49,24 @@ async function loadProductItems(
   query: string,
   allowedClasses: Set<PropertyClassification>,
 ): Promise<ItemSearchSelection[]> {
+  // 전체 바인딩 후 입력값으로 클라이언트 필터 (포커스·타이핑 시)
+  const results = await fetchItems();
   const trimmed = query.trim();
 
-  let results = trimmed
-    ? await fetchItems(trimmed, undefined)
-    : await fetchItems();
-
-  if (trimmed && results.length === 0) {
-    results = await fetchItems(undefined, trimmed);
-  }
-
-  return results
-    .filter((item) => allowedClasses.has(item.propertyClassification))
-    .filter((item) => matchesQuery(item, trimmed))
-    .map((item) => ({
-      id: item.id,
-      itemNo: item.itemNo,
-      itemName: item.itemName,
-      propertyClassification: item.propertyClassification,
-      modelType: item.modelType,
-      lotTracked: item.lotTracked,
-    }));
+  return sortByKoreanField(
+    results
+      .filter((item) => allowedClasses.has(item.propertyClassification))
+      .filter((item) => matchesQuery(item, trimmed))
+      .map((item) => ({
+        id: item.id,
+        itemNo: item.itemNo,
+        itemName: item.itemName,
+        propertyClassification: item.propertyClassification,
+        modelType: item.modelType,
+        lotTracked: item.lotTracked,
+      })),
+    (item) => item.itemName,
+  );
 }
 
 export interface ItemSearchFieldProps {
@@ -77,6 +83,8 @@ export interface ItemSearchFieldProps {
   items?: ItemSearchSelection[];
   disabled?: boolean;
   emptyMessage?: string;
+  /** 선택값·입력란 표시 형식 (기본: 품번 — 품명) */
+  displayMode?: ItemSearchDisplayMode;
 }
 
 export default function ItemSearchField({
@@ -90,6 +98,7 @@ export default function ItemSearchField({
   items,
   disabled = false,
   emptyMessage,
+  displayMode = 'full',
 }: ItemSearchFieldProps) {
   const isLocalMode = items !== undefined;
   const allowedClassesKey = toAllowedClassesKey(allowedClassifications);
@@ -107,7 +116,11 @@ export default function ItemSearchField({
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const loadLocalOptions = useCallback(
-    (searchQuery: string) => items!.filter((item) => matchesQuery(item, searchQuery)),
+    (searchQuery: string) =>
+      sortByKoreanField(
+        items!.filter((item) => matchesQuery(item, searchQuery)),
+        (item) => item.itemName,
+      ),
     [items],
   );
 
@@ -138,12 +151,12 @@ export default function ItemSearchField({
 
   useEffect(() => {
     if (selectedItem) {
-      const labelText = formatItemLabel(selectedItem);
+      const labelText = formatItemLabel(selectedItem, displayMode);
       setQuery(labelText);
       onQueryTextChange?.(labelText);
     } else if (prevSelectedRef.current) {
       // 입력으로 선택만 해제한 경우는 유지. 선택 라벨이 그대로면 외부 초기화로 비움.
-      const prevLabel = formatItemLabel(prevSelectedRef.current);
+      const prevLabel = formatItemLabel(prevSelectedRef.current, displayMode);
       setQuery((current) => {
         if (current === prevLabel) {
           onQueryTextChange?.('');
@@ -153,7 +166,7 @@ export default function ItemSearchField({
       });
     }
     prevSelectedRef.current = selectedItem;
-  }, [selectedItem?.id, selectedItem?.itemNo, selectedItem?.itemName]);
+  }, [selectedItem?.id, selectedItem?.itemNo, selectedItem?.itemName, displayMode]);
 
   useEffect(() => {
     if (!open || disabled) {
@@ -161,7 +174,7 @@ export default function ItemSearchField({
     }
 
     const searchQuery =
-      query.trim() && (!selectedItem || query !== formatItemLabel(selectedItem))
+      query.trim() && (!selectedItem || query !== formatItemLabel(selectedItem, displayMode))
         ? query
         : '';
 
@@ -175,7 +188,7 @@ export default function ItemSearchField({
     }, searchQuery ? SEARCH_DEBOUNCE_MS : 0);
 
     return () => clearTimeout(timer);
-  }, [query, open, selectedItem, fetchOptions, isLocalMode, loadLocalOptions, disabled]);
+  }, [query, open, selectedItem, fetchOptions, isLocalMode, loadLocalOptions, disabled, displayMode]);
 
   useEffect(() => {
     if (disabled) {
@@ -187,21 +200,25 @@ export default function ItemSearchField({
     setQuery(value);
     onQueryTextChange?.(value);
     setOpen(true);
-    if (selectedItem && value !== formatItemLabel(selectedItem)) {
+    if (selectedItem && value !== formatItemLabel(selectedItem, displayMode)) {
       onSelect(null);
     }
   };
 
   const pickItem = (item: ItemSearchSelection) => {
     onSelect(item);
-    setQuery(formatItemLabel(item));
+    setQuery(formatItemLabel(item, displayMode));
     setOpen(false);
   };
 
   const onBlur = () => {
     blurTimer.current = setTimeout(() => {
       setOpen(false);
-      const match = options.find((item) => formatItemLabel(item) === query.trim());
+      const match = options.find(
+        (item) =>
+          formatItemLabel(item, displayMode) === query.trim() ||
+          formatItemLabel(item, 'full') === query.trim(),
+      );
       if (match) {
         pickItem(match);
       }

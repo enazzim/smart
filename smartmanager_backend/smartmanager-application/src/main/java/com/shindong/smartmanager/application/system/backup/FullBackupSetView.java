@@ -7,6 +7,7 @@ public record FullBackupSetView(
         String sqlFileName,
         long totalSizeBytes,
         long drawingPdfFileCount,
-        Instant createdAt
+        Instant createdAt,
+        String reason
 ) {
 }

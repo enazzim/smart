@@ -10,6 +10,7 @@ public record CreatePurchaseReceiptRequest(
         @NotNull LocalDate receiptDate,
         Integer fiscalYear,
         Integer fiscalMonth,
-        @NotEmpty List<@Valid CreatePurchaseReceiptLineRequest> lines
+        @NotEmpty List<@Valid CreatePurchaseReceiptLineRequest> lines,
+        Boolean allowOverQty
 ) {
 }

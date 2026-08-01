@@ -7,6 +7,7 @@ import java.time.LocalDate;
 public record PurchaseHistoryRecord(
         long id,
         long companyId,
+        Long itemId,
         BigDecimal amount,
         LocalDate historyDate,
         int fiscalYear,

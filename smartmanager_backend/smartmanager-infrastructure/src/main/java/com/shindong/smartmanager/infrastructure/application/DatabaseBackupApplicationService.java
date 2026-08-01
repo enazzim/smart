@@ -45,8 +45,8 @@ public class DatabaseBackupApplicationService {
         return fullBackupService.listFullBackups();
     }
 
-    public FullBackupSetView createFullBackup() {
-        return fullBackupService.createFullBackup();
+    public FullBackupSetView createFullBackup(String reason) {
+        return fullBackupService.createFullBackup(reason);
     }
 
     public void restoreFullBackup(String setName) {

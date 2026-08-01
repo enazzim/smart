@@ -20,6 +20,7 @@ public record BoardPostDetailResponse(
         Instant updatedAt,
         List<BoardAttachmentResponse> attachments,
         List<BoardPostDetailResponse> replies,
+        List<BoardPostReaderResponse> readers,
         boolean canEdit,
         boolean canDelete
 ) {
@@ -40,6 +41,7 @@ public record BoardPostDetailResponse(
                 view.updatedAt(),
                 view.attachments().stream().map(BoardAttachmentResponse::from).toList(),
                 view.replies().stream().map(BoardPostDetailResponse::from).toList(),
+                view.readers().stream().map(BoardPostReaderResponse::from).toList(),
                 view.canEdit(),
                 view.canDelete()
         );

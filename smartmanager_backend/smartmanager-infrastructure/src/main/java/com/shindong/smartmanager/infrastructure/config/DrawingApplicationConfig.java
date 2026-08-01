@@ -7,6 +7,7 @@ import com.shindong.smartmanager.application.drawing.DrawingRepository;
 import com.shindong.smartmanager.application.drawing.DrawingRevisionNotifier;
 import com.shindong.smartmanager.application.drawing.DrawingService;
 import com.shindong.smartmanager.application.event.DomainEventStore;
+import com.shindong.smartmanager.application.company.CompanyRepository;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -37,6 +38,7 @@ public class DrawingApplicationConfig {
             DrawingReferenceService drawingReferenceService,
             DomainEventStore domainEventStore,
             ItemRepository itemRepository,
+            CompanyRepository companyRepository,
             DrawingRevisionNotifier drawingRevisionNotifier
     ) {
         return new DrawingService(
@@ -44,6 +46,7 @@ public class DrawingApplicationConfig {
                 drawingReferenceService,
                 domainEventStore,
                 itemRepository,
+                companyRepository,
                 drawingRevisionNotifier
         );
     }

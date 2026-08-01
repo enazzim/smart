@@ -1,11 +1,12 @@
 # SmartManager — 도면 참조(drawing_reference) 설계서
 
-> **문서 버전:** 1.1  
+> **문서 버전:** 1.3  
 > **작성일:** 2026-07-12  
-> **상태:** TO-BE — **DR-1~3 구현 반영** (BOM 조회 §10·DR-5는 미구현)  
+> **상태:** TO-BE — **DR-1~4 + lifecycle Phase 1~3 반영** · DR-5·후속 §10 확장  
 > **접근:** **(A) PDF 기준 경량 참조** — Native CAD Vault(B)는 범위 외  
 > **관련:**  
-> - Flyway 적용분: `V072__drawing.sql` · `V074__drawing_item_link.sql`  
+> - Flyway 적용분: `V008__drawing_lot.sql`(구 V072·V074) · `V009__stats_claims_extensions.sql`(구 V092) — [`flyway-migration-catalog-V001-V009.md`](../flyway-migration-catalog-V001-V009.md)  
+> - 업무 절차·lifecycle: [`drawing-lifecycle-design.md`](./drawing-lifecycle-design.md)  
 > - 품목구성 BOM: [`d4-bom-line.md`](./d4-bom-line.md) · `ItemCompositionService.explode`  
 > - 감사 컬럼: [master-audit-fields](../../.cursor/rules/master-audit-fields.mdc)  
 > - 스키마 초안: [`schema-drafts/V076__drawing_reference.sql`](./schema-drafts/V076__drawing_reference.sql)
@@ -42,7 +43,8 @@ SmartManager는 현재 **PDF + `drawing_history` 버전**만 있으므로,
 | 항목 | 내용 |
 |------|------|
 | `drawing_master` / `drawing_history` | part_no UK, DEV/PROD, major/minor, PDF 경로 |
-| `drawing_master.item_id` | 품목 1건 선택 연동 (V074, nullable, UK 없음 → 품목당 도면 복수 가능) |
+| `drawing_master.item_id` | 품목 1건 선택 연동 (V074, nullable) — **link-item API 전용** (V092 가드) |
+| `drawing_master.lifecycle_stage` | 업무 단계 (V092) — [`drawing-lifecycle-design.md`](./drawing-lifecycle-design.md) |
 | 개정·승격·휴지통·WebSocket | `DrawingService` |
 | 전체 백업 | DB + 도면 PDF |
 
@@ -137,7 +139,18 @@ SQL 초안: [`schema-drafts/V076__drawing_reference.sql`](./schema-drafts/V076__
 ### 5.4 양산 승격(promote)
 
 부모를 PROD로 올릴 때: 새(또는 대상) PROD history의 모든 자식 pin이 **PROD**인지 검증.  
-실패 시 승격 거부.
+실패 시 승격 거부. 성공 시 `lifecycle_stage` → `MASS_PROD_READY` ([`drawing-lifecycle-design.md`](./drawing-lifecycle-design.md)).
+
+### 5.5 개발 재개(reopen-dev)
+
+PROD latest에서 양산 변경이 필요할 때 `revise` 대신 **`reopen-dev`** 사용.
+
+1. PROD latest history를 `is_latest=N` 처리  
+2. DEV history 신규 생성 (major = max(PROD major)+1, minor=0)  
+3. 직전 PROD의 `drawing_reference`를 새 DEV history로 **스냅샷 복사**  
+4. `lifecycle_stage` → `SAMPLE`
+
+이후 DEV 개정·재승격 시 PROD major가 증가한다 (예: PROD 1.0 → reopen → DEV 2.0 → promote → PROD 2.0).
 
 ---
 
@@ -225,29 +238,96 @@ type DrawingReferenceView = {
 | **DR-2** | revise 시 참조 복사 + PUT(latest만) | 개정 후 구 Rev 구성 불변 |
 | **DR-3** | UI 구성·역참조 탭 | 화면에서 PDF 열람 |
 | **DR-4** | PROD pin 강제, 순환 검사, 리포트 | PROD+DEV 자식 승격 거부 |
-| **DR-5** (선택) | BOM 폭발 화면과 “문서 구성 vs 품목 BOM” 비교 | §10과 연동 |
+| **DR-5** (후속) | BOM 폭발 도면 조회 + (선택) reference diff | §10 — F-3 |
 
 ---
 
-## 10. 관련 후속 — BOM 정전개 도면 조회 (비본문)
+## 10. 후속 — BOM 정전개 도면 조회 (DR-5 / F-3)
 
-문서 참조(A)와 **별개**로, 생산 BOM 기준 열람 UX를 둘 수 있다.
+> **상태:** 미구현 · **별도 Wave 착수용**  
+> **연계:** [`drawing-lifecycle-design.md` §10.3](./drawing-lifecycle-design.md)  
+> **선행:** 품목 `item_id`↔도면 `link-item` (V092), `ItemCompositionService.explode` (기존)
+
+문서 참조(A)·`drawing_reference`와 **별개**로, 생산 BOM 기준 **현장 열람** UX.
 
 ```text
-모품목 → ItemCompositionService.explode → 각 item_id의 latest 도면
+모품목 item_no
+  → ItemCompositionService.explode(itemId, asOfDate?)
+  → 각 구성 item_id
+  → drawing_master (item_id, recording_state=1) + latest drawing_history
+  → PDF URL / MISSING 표시
 ```
 
-| | `drawing_reference` (본 문서) | BOM → 도면 |
-|--|------------------------------|------------|
+### 10.1 `drawing_reference` vs BOM → 도면
+
+| | `drawing_reference` (본문 A) | BOM → 도면 (DR-5) |
+|--|------------------------------|-------------------|
 | 기준 | **도면 history pin** | **품목 BOM** |
-| 버전 | 출도 스냅샷 | 보통 latest (또는 MISSING) |
+| 버전 | 출도 스냅샷 (Rev 고정) | 보통 **latest** (또는 `MISSING`) |
 | 용도 | 출도·감사·구성 재현 | 현장 “하위 PDF 모아보기” |
-| 스키마 | `drawing_reference` | 신규 테이블 불필요 (집계 API) |
+| 스키마 | `drawing_reference` | **신규 테이블 불필요** (집계 API) |
+| SSOT | 출도 정합 | 보조 — 불일치 시 reference 우선 |
 
-제안 API: `GET /api/v1/basis/drawings/bom-explosion/{itemNo}`  
-출도 정합의 SSOT는 **항상 본 문서(A)**. BOM 조회는 보조.
+### 10.2 API (제안)
 
-상세 구현은 별도 짧은 설계 또는 DR-5에서 확정한다.
+Base: `/api/v1/basis/drawings`
+
+| Method | Endpoint | 권한 | 설명 |
+|--------|----------|------|------|
+| `GET` | `/bom-explosion/{itemNo}` | DrawingRead | BOM 레벨별 하위 품목 + 연결 도면(latest) |
+| `GET` | `/bom-explosion/{itemNo}/compare` | DrawingRead | (선택 F-3-b) BOM item vs `drawing_reference` pin diff |
+
+**쿼리**
+
+| 파라미터 | 설명 |
+|----------|------|
+| `drawingType` | `DEV` \| `PROD` (기본 `PROD`) |
+| `asOfDate` | BOM 유효일 (기존 explode 정책 따름) |
+| `maxLevel` | 전개 깊이 상한 (기본 무제한 또는 10) |
+
+**응답 (요약)**
+
+```typescript
+type BomDrawingExplosionNode = {
+  bomLevel: number;
+  itemId: number;
+  itemNo: string;
+  itemName: string;
+  quantity: number;
+  drawing: {
+    masterId?: string | null;
+    partNo?: string | null;
+    historyId?: string | null;
+    drawingType?: 'DEV' | 'PROD';
+    majorVersion?: number;
+    minorVersion?: number;
+    status: 'LINKED' | 'MISSING' | 'MULTIPLE'; // item당 도면 0/1/N
+  };
+  children?: BomDrawingExplosionNode[];
+};
+```
+
+- `MULTIPLE`: 동일 `item_id`에 활성 도면 복수 — UI에서 목록 선택 (V074 UK 없음 정책).
+- 기존 `GET /{masterId}/reference-candidates`는 **단일 모 도면** BOM 하위만; 본 API는 **품목 번호 진입**.
+
+### 10.3 UI (제안)
+
+| 위치 | 내용 |
+|------|------|
+| 기준정보 > **품목** 상세/목록 | 「BOM 하위 도면」버튼 → 트리 + PDF 열람 |
+| 도면 뷰어 | (선택) 연결 품목 있을 때 동일 모달 링크 |
+| diff (F-3-b) | reference 탭과 나란히 “BOM-only / Reference-only” 배지 |
+
+### 10.4 구현 Wave · 완료 기준
+
+| 단계 | 내용 | 완료 기준 |
+|------|------|-----------|
+| **DR-5a** | `bom-explosion` API + 품목 화면 모달 | 모품목 1건, 3레벨 이하 전개·PDF 1클릭 |
+| **DR-5b** | compare API + UI diff | reference와 BOM 불일치 1건 시각화 |
+| **DR-5c** | 오프라인 캐시 연동 (선택) | explode 결과 partNo 일괄 `syncDailyDrawings` |
+
+**재사용 코드**  
+`DrawingReferenceService.listBomCandidates` · `ItemCompositionService.explode` · `drawingPdfUrl`.
 
 ---
 
@@ -265,13 +345,16 @@ type DrawingReferenceView = {
 
 ## 12. 체크리스트 (구현 시)
 
-- [x] Flyway `drawing_reference` (V076)
+- [x] Flyway `drawing_reference` (V008 내 구 V076)
 - [x] Contains / Where-used / PUT
 - [x] `revise` 스냅샷 복사
 - [x] PROD→PROD pin, 순환·자기참조 검증 · promote 전 PROD 자식 검사
 - [x] UI 구성·역참조 탭
+- [x] lifecycle·reopen-dev·link-item ([`drawing-lifecycle-design.md`](./drawing-lifecycle-design.md))
 - [ ] 통합 테스트: 개정 전후 구 history 참조 불변
-- [ ] DR-5 BOM 폭발 연동 (§10)  
+- [ ] **DR-5** BOM 폭발 연동 — §10 (F-3, 별도 착수)
+- [ ] **F-1** `drawing_work_log` — [`drawing-lifecycle-design.md` §10.1](./drawing-lifecycle-design.md)
+- [ ] **F-2** 세분 권한 Flyway — [`drawing-lifecycle-design.md` §10.2](./drawing-lifecycle-design.md)
 
 ---
 
@@ -281,6 +364,8 @@ type DrawingReferenceView = {
 |------|------|------|
 | 1.0 | 2026-07-12 | (A) PDF 경량 참조 초안 확정 · BOM 조회는 §10 후속 |
 | 1.1 | 2026-07-12 | DR-1~3 구현 착수: V076 Flyway, API, revise/promote 스냅샷, 뷰어 구성·역참조 UI |
+| 1.2 | 2026-07-16 | V092 lifecycle, reopen-dev·link-item, promote stage 연계 §5.4~5.5 |
+| 1.3 | 2026-07-16 | §10 DR-5/F-3 착수용 상세 — API·응답·UI·Wave, 후속 체크리스트 |
 
 ---
 

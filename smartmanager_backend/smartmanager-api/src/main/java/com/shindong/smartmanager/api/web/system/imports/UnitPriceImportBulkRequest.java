@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.api.web.system.imports;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.shindong.smartmanager.application.system.imports.UnitPriceImportRow;
 import com.shindong.smartmanager.domain.pricing.CostType;
 import jakarta.validation.Valid;
@@ -16,7 +17,7 @@ public record UnitPriceImportBulkRequest(@Valid @NotEmpty List<UnitPriceImportRo
     }
 
     public record UnitPriceImportRowRequest(
-            @NotNull CostType costType,
+            @NotNull @JsonDeserialize(using = CostTypeImportDeserializer.class) CostType costType,
             @NotBlank String itemNum,
             @NotBlank String businessRegNo,
             String beginProcessSmallCode,

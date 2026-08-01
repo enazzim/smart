@@ -167,6 +167,7 @@ public class OutsourcingOrderService {
                 orderNos,
                 orderDate,
                 first.partnerName(),
+                first.partnerBusinessRegNo(),
                 partner.telephone(),
                 partner.fax(),
                 DEFAULT_ISSUER_COMPANY_NAME,
@@ -447,7 +448,7 @@ public class OutsourcingOrderService {
     }
 
     private BigDecimal resolveUnitPriceAmount(UnitPriceView price) {
-        if (price.discountUnitCost() != null) {
+        if (price.discountUnitCost() != null && price.discountUnitCost().signum() > 0) {
             return price.discountUnitCost();
         }
         return price.standardUnitCost() != null ? price.standardUnitCost() : BigDecimal.ZERO;

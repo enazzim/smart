@@ -10,6 +10,7 @@ import {
   renderPurchasePage,
   renderQualityPage,
   renderSalesPage,
+  renderStatsPage,
   renderSystemPage,
 } from './menuConfig';
 import { useAuth } from '../context/AuthContext';
@@ -306,6 +307,9 @@ function renderContent(selection: AppSelection, ctx: RenderContext) {
   }
   if (selection.category === 'outsource') {
     return renderOutsourcePage(selection.page);
+  }
+  if (selection.category === 'stats') {
+    return renderStatsPage(selection.page);
   }
   return null;
 }

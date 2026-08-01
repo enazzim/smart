@@ -12,6 +12,7 @@ import {
   type PurchaseOrder,
   type PurchaseOrderListParams,
 } from '../api/purchaseOrder';
+import type { PropertyClassification } from '../api/item';
 import { fetchUnitPrices } from '../api/unitPrice';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
@@ -23,6 +24,12 @@ import {
 } from '../utils/unitPriceHelpers';
 import { formatAmount, formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
+
+type OrderPageTab = 'general' | 'subMaterial';
+type GeneralOrderMode = 'mrp' | 'manual';
+
+const GENERAL_ITEM_CLASSES: PropertyClassification[] = ['원자재', '상품'];
+const SUB_MATERIAL_ITEM_CLASSES: PropertyClassification[] = ['부자재'];
 
 type ManualPurchaseLine = {
   key: string;
@@ -36,6 +43,7 @@ function toItemSearchSelection(item: PartnerPriceItem): ItemSearchSelection {
     id: item.itemId,
     itemNo: item.itemNo,
     itemName: item.itemName,
+    propertyClassification: item.propertyClassification as PropertyClassification | undefined,
   };
 }
 
@@ -66,13 +74,17 @@ function addDaysIso(iso: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-function defaultListFilters(today = todayIso()): PurchaseOrderListParams {
+function defaultListFilters(
+  scope: 'GENERAL' | 'SUB_MATERIAL' = 'GENERAL',
+  today = todayIso(),
+): PurchaseOrderListParams {
   return {
     orderDateFrom: addDaysIso(today, -7),
     orderDateTo: today,
     partnerName: '',
     orderNo: '',
     excludeCancelled: true,
+    itemPropertyScope: scope,
   };
 }
 
@@ -100,13 +112,17 @@ function collectAllSelectableVendorKeys(candidates: MrpPurchaseCandidate[]): Set
 
 export default function PurchaseOrderPage() {
   const confirm = useConfirm();
+  const [pageTab, setPageTab] = useState<OrderPageTab>('general');
+  const [generalOrderMode, setGeneralOrderMode] = useState<GeneralOrderMode>('mrp');
+  const itemPropertyScope = pageTab === 'subMaterial' ? 'SUB_MATERIAL' : 'GENERAL';
+  const allowedManualClasses = pageTab === 'subMaterial' ? SUB_MATERIAL_ITEM_CLASSES : GENERAL_ITEM_CLASSES;
   const [candidates, setCandidates] = useState<MrpPurchaseCandidate[]>([]);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [expandedRequirementIds, setExpandedRequirementIds] = useState<Set<number>>(new Set());
   const [selectedVendorKeys, setSelectedVendorKeys] = useState<Set<string>>(new Set());
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<number>>(new Set());
   const [orderDate, setOrderDate] = useState(todayIso());
-  const [listFilters, setListFilters] = useState<PurchaseOrderListParams>(() => defaultListFilters());
+  const [listFilters, setListFilters] = useState<PurchaseOrderListParams>(() => defaultListFilters('GENERAL'));
   const [lastCreatedOrders, setLastCreatedOrders] = useState<PurchaseOrder[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -116,10 +132,12 @@ export default function PurchaseOrderPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [manualPartner, setManualPartner] = useState<CompanySearchSelection | null>(null);
   const [partnerPriceItems, setPartnerPriceItems] = useState<PartnerPriceItem[]>([]);
-  const partnerItemOptions = useMemo(
-    () => partnerPriceItems.map(toItemSearchSelection),
-    [partnerPriceItems],
-  );
+  const partnerItemOptions = useMemo(() => {
+    const allowed = new Set<string>(allowedManualClasses);
+    return partnerPriceItems
+      .filter((item) => !!item.propertyClassification && allowed.has(item.propertyClassification))
+      .map(toItemSearchSelection);
+  }, [partnerPriceItems, allowedManualClasses]);
   const [manualLines, setManualLines] = useState<ManualPurchaseLine[]>(() => [newManualLine()]);
   const [manualError, setManualError] = useState<string | null>(null);
 
@@ -140,7 +158,13 @@ export default function PurchaseOrderPage() {
     setLoadingOrders(true);
     setOrderError(null);
     try {
-      setOrders(await fetchPurchaseOrders(listFilters));
+      // 탭 전환 시 listFilters 반영 전 조회가 끼어들지 않도록 scope는 탭 값을 강제한다.
+      setOrders(
+        await fetchPurchaseOrders({
+          ...listFilters,
+          itemPropertyScope,
+        }),
+      );
       setSelectedOrderIds(new Set());
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : '구매발주 목록 조회 실패');
@@ -148,17 +172,35 @@ export default function PurchaseOrderPage() {
     } finally {
       setLoadingOrders(false);
     }
-  }, [listFilters]);
+  }, [listFilters, itemPropertyScope]);
 
   const refreshAll = useCallback(async () => {
     setSelectedVendorKeys(new Set());
-    await loadCandidates();
+    if (pageTab === 'general') {
+      await loadCandidates();
+    }
     await loadOrders();
-  }, [loadCandidates, loadOrders]);
+  }, [loadCandidates, loadOrders, pageTab]);
 
   useEffect(() => {
-    void loadCandidates();
-  }, [loadCandidates]);
+    setListFilters(defaultListFilters(itemPropertyScope));
+    setOrders([]);
+    setSelectedVendorKeys(new Set());
+    setSelectedOrderIds(new Set());
+    setLastCreatedOrders([]);
+    setManualPartner(null);
+    setManualLines([newManualLine()]);
+    setManualError(null);
+    setMessage(null);
+    setOrderError(null);
+    setCandidateError(null);
+  }, [itemPropertyScope]);
+
+  useEffect(() => {
+    if (pageTab === 'general') {
+      void loadCandidates();
+    }
+  }, [pageTab, loadCandidates]);
 
   useEffect(() => {
     void loadOrders();
@@ -475,14 +517,63 @@ export default function PurchaseOrderPage() {
       <header className="page-header">
         <div>
           <h1>구매발주</h1>
-          <p>MRP·수주 연동 발주와 직접 발주를 등록·확정합니다.</p>
+          <p>
+            {pageTab === 'subMaterial'
+              ? '부자재는 창고 재고 없이 구매단가 기준으로 직접 발주합니다. MRP 발주는 제공하지 않습니다.'
+              : 'MRP·수주 연동 발주와 직접 발주를 등록·확정합니다.'}
+          </p>
         </div>
       </header>
 
+      <div className="tab-row">
+        <button
+          type="button"
+          className={pageTab === 'general' ? 'tab-active' : undefined}
+          onClick={() => setPageTab('general')}
+        >
+          구매발주
+        </button>
+        <button
+          type="button"
+          className={pageTab === 'subMaterial' ? 'tab-active' : undefined}
+          onClick={() => setPageTab('subMaterial')}
+        >
+          부자재발주
+        </button>
+      </div>
+
+      {pageTab === 'general' && (
+        <div className="tab-row tab-row-secondary" aria-label="구매발주 등록 방식">
+          <button
+            type="button"
+            className={generalOrderMode === 'mrp' ? 'tab-active' : undefined}
+            onClick={() => {
+              setGeneralOrderMode('mrp');
+              setManualError(null);
+            }}
+          >
+            MRP 발주 대상
+          </button>
+          <button
+            type="button"
+            className={generalOrderMode === 'manual' ? 'tab-active' : undefined}
+            onClick={() => {
+              setGeneralOrderMode('manual');
+              setCandidateError(null);
+            }}
+          >
+            직접 발주
+          </button>
+        </div>
+      )}
+
+      {(pageTab === 'subMaterial' || generalOrderMode === 'manual') && (
       <section className="panel">
-        <h2>직접 발주</h2>
+        <h2>{pageTab === 'subMaterial' ? '부자재 발주' : '직접 발주'}</h2>
         <p className="hint-text">
-          MRP·수주 없이 거래처 구매단가에 등록된 품목을 직접 발주합니다. 등록 시 자동으로 확정됩니다.
+          {pageTab === 'subMaterial'
+            ? '거래처 구매단가에 등록된 부자재 품목을 직접 발주합니다. 등록 시 자동으로 확정됩니다.'
+            : 'MRP·수주 없이 거래처 구매단가에 등록된 품목을 직접 발주합니다. 등록 시 자동으로 확정됩니다.'}
         </p>
         {manualError && <div className="error">{manualError}</div>}
         <div className="form-grid-wide">
@@ -500,8 +591,12 @@ export default function PurchaseOrderPage() {
         {!manualPartner && (
           <p className="hint-text">구매 거래처를 먼저 선택하면 구매단가 품목이 표시됩니다.</p>
         )}
-        {manualPartner && partnerPriceItems.length === 0 && (
-          <p className="hint-text">선택한 거래처·발주일에 유효한 구매단가 품목이 없습니다.</p>
+        {manualPartner && partnerItemOptions.length === 0 && (
+          <p className="hint-text">
+            {pageTab === 'subMaterial'
+              ? '선택한 거래처·발주일에 유효한 부자재 구매단가가 없습니다.'
+              : '선택한 거래처·발주일에 유효한 구매단가 품목이 없습니다.'}
+          </p>
         )}
         <table>
           <thead>
@@ -571,11 +666,13 @@ export default function PurchaseOrderPage() {
             라인 추가
           </button>
           <button type="button" disabled={submitting} onClick={() => void onCreateManual()}>
-            {submitting ? '처리 중…' : '직접 발주 등록'}
+            {submitting ? '처리 중…' : pageTab === 'subMaterial' ? '부자재 발주 등록' : '직접 발주 등록'}
           </button>
         </div>
       </section>
+      )}
 
+      {pageTab === 'general' && generalOrderMode === 'mrp' && (
       <section className="panel">
         <h2>MRP 발주 대상</h2>
         <p className="hint-text">
@@ -758,6 +855,7 @@ export default function PurchaseOrderPage() {
           </div>
         )}
       </section>
+      )}
 
       {lastCreatedOrders.length > 0 && (
         <section className="panel sub-panel">
@@ -812,7 +910,7 @@ export default function PurchaseOrderPage() {
 
       <section className="panel">
         <div className="panel-header-row">
-          <h2>발주 목록</h2>
+          <h2>{pageTab === 'subMaterial' ? '부자재 발주 목록' : '발주 목록'}</h2>
         </div>
         {message && <p>{message}</p>}
         {orderError && <div className="error">{orderError}</div>}
@@ -859,7 +957,7 @@ export default function PurchaseOrderPage() {
           <button
             type="button"
             className="secondary"
-            onClick={() => setListFilters(defaultListFilters())}
+            onClick={() => setListFilters(defaultListFilters(itemPropertyScope))}
           >
             초기화
           </button>

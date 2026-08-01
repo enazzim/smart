@@ -168,7 +168,7 @@ export default function MasterImportPage() {
   const stageFile = useCallback(async (domain: ImportDomain, file: File) => {
     try {
       const buffer = await file.arrayBuffer();
-      const rows = await parseImportExcel(domain, buffer);
+      const rows = await parseImportExcel(domain, buffer, file.name);
       const parseErrors = validateImportRows(domain, rows);
       setStagedByDomain((prev) => ({
         ...prev,
@@ -303,9 +303,19 @@ export default function MasterImportPage() {
         <h2>업로드 주의사항</h2>
         <ul>
           <li>각 항목별 <strong>양식 다운로드</strong> 후 데이터를 입력해 주세요.</li>
+          <li>
+            거래처: <strong>판매/구매/외주/비용거래처</strong> 컬럼에 해당하면 <code>Y</code>, 아니면 빈칸
+            (최소 1개).
+          </li>
           <li>엑셀 파일의 <strong>첫 번째 행(헤더)</strong>은 수정하지 마세요.</li>
           <li>실제 데이터는 <strong>두 번째 행(샘플) 다음</strong>부터 입력하거나, 샘플 행을 삭제 후 입력하세요.</li>
+          <li>품목 자산분류: <code>원자재</code>/<code>제품</code>/<code>상품</code>/<code>공정품</code>/<code>부자재</code>/<code>팬텀</code> (<code>팬텀</code>은 일괄등록만).</li>
+          <li>품목구성: 자품수량은 <strong>0 이상</strong> (0이면 하위 전개·소요에서 제외).</li>
           <li>FK가 필요한 항목은 앞 단계 데이터가 먼저 등록되어 있어야 합니다.</li>
+          <li>
+            단가구분: <code>SALE</code>/<code>PURCHASE</code>/<code>OUTSOURCE</code> 또는{' '}
+            <code>판매단가</code>/<code>구매단가</code>/<code>외주단가</code> (대량 건은 자동 분할 업로드).
+          </li>
         </ul>
       </aside>
 

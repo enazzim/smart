@@ -64,6 +64,9 @@ public final class EventTypes {
     public static final String DRAWING_INFO_UPDATED = "DrawingInfoUpdated";
     public static final String DRAWING_PROMOTED = "DrawingPromoted";
     public static final String DRAWING_HARD_DELETED = "DrawingHardDeleted";
+    public static final String DRAWING_ITEM_LINKED = "DrawingItemLinked";
+    public static final String DRAWING_LIFECYCLE_UPDATED = "DrawingLifecycleUpdated";
+    public static final String DRAWING_REOPENED_DEV = "DrawingReopenedDev";
 
     public static final String SALES_ORDER_REGISTERED = "SalesOrderRegistered";
     public static final String SALES_ORDER_UPDATED = "SalesOrderUpdated";

@@ -45,7 +45,7 @@
 | 1 | 모품목 | parentItemId | parent_item_id | `parentItemNum` → resolve | Y | FK → `item.id` |
 | 2 | 자품목 | childItemId | child_item_id | `childItemNum` → resolve | Y | FK → `item.id` |
 | 3 | 모품수량 | parentQuantity | need_quantity_denominator | `parentQuantity` | Y | > 0 |
-| 4 | 자품수량 | childQuantity | need_quantity_numerator | `childQuantity` | Y | > 0 |
+| 4 | 자품수량 | childQuantity | need_quantity_numerator | `childQuantity` | Y | ≥ 0 (0이면 전개·소요에서 제외) |
 
 **실소요량:** `childQuantity ÷ parentQuantity` (= 분자 ÷ 분모)
 
@@ -74,7 +74,7 @@
 **공통 검증 (레거시 `ItemOrganizationInfoValidateField` 동일 의도)**
 
 - 모품목 ≠ 자품목
-- 모·자품수량 NOT NULL, > 0
+- 모품수량 NOT NULL, > 0 / 자품수량 NOT NULL, ≥ 0 (0: 하위 전개 제외)
 - 활성 UK `(parent_item_id, child_item_id)` 중복 불가
 - **순환 참조** 금지 — 등록·수정 시 DFS/재귀 검증 (`BusinessException`)
 

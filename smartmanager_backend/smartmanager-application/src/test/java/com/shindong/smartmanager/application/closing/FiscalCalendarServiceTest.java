@@ -66,4 +66,19 @@ class FiscalCalendarServiceTest {
         assertEquals(-1, service.compare(earlier, later));
         assertEquals(1, service.compare(later, earlier));
     }
+
+    @Test
+    void toCalendarDateRangeWithDefaultCutover() {
+        FiscalPeriodDateRange range = service.toCalendarDateRange(new FiscalPeriod(2024, 7));
+        assertEquals(LocalDate.of(2024, 6, 26), range.startInclusive());
+        assertEquals(LocalDate.of(2024, 7, 25), range.endInclusive());
+    }
+
+    @Test
+    void toCalendarDateRangeWithEndOfMonthSetting() {
+        FiscalCalendarService lastDayService = new FiscalCalendarService(FiscalCutoverPolicy.VALUE_LAST);
+        FiscalPeriodDateRange range = lastDayService.toCalendarDateRange(new FiscalPeriod(2024, 7));
+        assertEquals(LocalDate.of(2024, 7, 1), range.startInclusive());
+        assertEquals(LocalDate.of(2024, 7, 31), range.endInclusive());
+    }
 }

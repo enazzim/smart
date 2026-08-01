@@ -1,6 +1,19 @@
 import { translateInventoryLocationInText } from '../utils/inventoryLocation';
+import {
+  clearSessionActivity,
+  isSessionIdleExpired,
+  setSessionNotice,
+  touchSessionActivity,
+} from '../utils/sessionIdle';
 
 const TOKEN_KEY = 'smartmanager.accessToken';
+
+// 이전 localStorage 영구 토큰 제거 → 브라우저 재시작 시 로그인 강제
+try {
+  localStorage.removeItem(TOKEN_KEY);
+} catch {
+  // ignore
+}
 
 let sessionExpiredNotified = false;
 let onSessionExpired: (() => void) | null = null;
@@ -18,21 +31,38 @@ function notifySessionExpired(): void {
     return;
   }
   sessionExpiredNotified = true;
+  setSessionNotice('expired');
   clearAccessToken();
   onSessionExpired?.();
 }
 
 export function getAccessToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    return null;
+  }
+  if (isSessionIdleExpired()) {
+    setSessionNotice('idle');
+    clearAccessToken();
+    return null;
+  }
+  return token;
 }
 
 export function setAccessToken(token: string): void {
   resetSessionExpiredGuard();
-  localStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(TOKEN_KEY, token);
+  touchSessionActivity();
 }
 
 export function clearAccessToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  clearSessionActivity();
+}
+
+/** idle 검사 없이 저장 토큰 존재 여부 (401 처리용) */
+export function hasStoredAccessToken(): boolean {
+  return sessionStorage.getItem(TOKEN_KEY) !== null;
 }
 
 export function isAuthenticated(): boolean {
@@ -57,7 +87,7 @@ export async function handleResponse<T>(response: Response): Promise<T> {
   if (response.status === 401) {
     const body = await response.clone().json().catch(() => ({ message: '' }));
     const message = typeof body.message === 'string' ? body.message : '';
-    const hadToken = getAccessToken() !== null;
+    const hadToken = hasStoredAccessToken();
     // 토큰이 있는데 401이면 세션 무효 → 토큰 제거 후 로그인 화면으로 이동
     if (hadToken) {
       notifySessionExpired();
