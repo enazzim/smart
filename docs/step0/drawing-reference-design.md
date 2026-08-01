@@ -5,7 +5,7 @@
 > **상태:** TO-BE — **DR-1~4 + lifecycle Phase 1~3 반영** · DR-5·후속 §10 확장  
 > **접근:** **(A) PDF 기준 경량 참조** — Native CAD Vault(B)는 범위 외  
 > **관련:**  
-> - Flyway 적용분: `V072__drawing.sql` · `V074__drawing_item_link.sql` · `V092__drawing_lifecycle.sql`  
+> - Flyway 적용분: `V008__drawing_lot.sql`(구 V072·V074) · `V009__stats_claims_extensions.sql`(구 V092) — [`flyway-migration-catalog-V001-V009.md`](../flyway-migration-catalog-V001-V009.md)  
 > - 업무 절차·lifecycle: [`drawing-lifecycle-design.md`](./drawing-lifecycle-design.md)  
 > - 품목구성 BOM: [`d4-bom-line.md`](./d4-bom-line.md) · `ItemCompositionService.explode`  
 > - 감사 컬럼: [master-audit-fields](../../.cursor/rules/master-audit-fields.mdc)  
@@ -345,7 +345,7 @@ type BomDrawingExplosionNode = {
 
 ## 12. 체크리스트 (구현 시)
 
-- [x] Flyway `drawing_reference` (V076)
+- [x] Flyway `drawing_reference` (V008 내 구 V076)
 - [x] Contains / Where-used / PUT
 - [x] `revise` 스냅샷 복사
 - [x] PROD→PROD pin, 순환·자기참조 검증 · promote 전 PROD 자식 검사

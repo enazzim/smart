@@ -4,7 +4,7 @@
 > **작성일:** 2026-07-16  
 > **상태:** TO-BE — **Phase 1~3 구현 반영** · 보관·보관 해제(롤백) · 후속 과제 §10 정의  
 > **관련:**  
-> - Flyway: `V072__drawing.sql` · `V074__drawing_item_link.sql` · `V092__drawing_lifecycle.sql`  
+> - Flyway: `V008__drawing_lot.sql`(구 V072·V074) · `V009__stats_claims_extensions.sql`(구 V092) — [`flyway-migration-catalog-V001-V009.md`](../flyway-migration-catalog-V001-V009.md)  
 > - 참조 그래프: [`drawing-reference-design.md`](./drawing-reference-design.md)  
 > - 감사 컬럼: [master-audit-fields](../../.cursor/rules/master-audit-fields.mdc)
 
@@ -174,7 +174,7 @@ Base: `/api/v1/basis/drawings`
 
 ## 8. 구현 체크리스트
 
-- [x] Flyway V092 `lifecycle_stage` · `source_partner_id` · `item_linked_at`
+- [x] Flyway V009(구 V092) `lifecycle_stage` · `source_partner_id` · `item_linked_at`
 - [x] `reopen-dev` · `link-item` · `lifecycle` API
 - [x] 서비스 가드·단위 테스트 (`DrawingServiceTest`)
 - [x] 프론트 워크플로 UI (등록·목록·뷰어·품목 연결)

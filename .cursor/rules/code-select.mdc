@@ -1,0 +1,23 @@
+---
+description: 공용코드 콤보는 CodeSelect(codeGroup)만 사용
+globs: smartmanager_frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# 공용코드 UI
+
+SSOT: `docs/step0/공용코드-콤보박스-매핑-초안-code-group-field-binding.md`
+
+## 규칙
+
+- React 공용코드 콤보: **`<CodeSelect codeGroup="..." />`만** 사용.
+- LargeClassificationCode/Name을 소스에 하드코딩해 PUC를 직접 조회하지 않는다.
+- 저장 값은 **`public_code.id` FK** (`*_id`). `small_code`는 마스터·조회 DTO에서만.
+- 코드 그룹 키·필드 바인딩은 메타데이터(`code_group` / `field_binding`)를 따른다.
+
+```tsx
+// ✅
+<CodeSelect codeGroup="EQUIPMENT_CLASS" excludeReserved valueField="id" />
+
+// ❌ large_code / PUC 직접 fetch·select options 하드코딩
+```

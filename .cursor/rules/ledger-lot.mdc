@@ -1,0 +1,25 @@
+---
+description: 원장 직접 UPDATE 금지 · Lot는 TX와 동일 트랜잭션
+globs: smartmanager_backend/**/*.java
+alwaysApply: false
+---
+
+# 원장 · Lot
+
+SSOT: `docs/step0/domain-event-projector-matrix.md` §2·§11 · `docs/step0/lot-integration-design.md`
+
+## partner_ledger
+
+- `partner_ledger_monthly` 금액은 TX Listener 경로로만 갱신.
+- **금지**: `basis` 패키지에서 `partner_ledger_monthly` 금액 **직접 UPDATE**.
+- 참조: `results/sample/inventory-ledger-spec.md` §7
+
+## Lot
+
+| 계층 | Lot |
+|------|-----|
+| Projector (기준정보 이벤트 → 슬롯 ensure) | Lot **생성하지 않음** |
+| TX `*InventoryService` → `recordMovement` | `lot_tracked`면 `lotId` 필수 · `LotInventoryService` 동기 갱신 |
+
+- D5 초안 `InventoryOn*Listener` **채택하지 않음**.
+- Lot 검증·반영은 기존 TX와 **동일 `@Transactional`** 안에서 수행.

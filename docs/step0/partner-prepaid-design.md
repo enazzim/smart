@@ -5,7 +5,7 @@
 > **상태:** 구현  
 > **대상:** 구매 지급 · 외주 지급 · 승인처리 · **매입일보 · 월별 실지급액**  
 > **관련 문서:** [입고 지급 승인처리 설계서](./payable-approval-design.md)  
-> **변경:** v1.0(거래처+비용구분 FIFO) 폐기 → **거래처+품목+비용구분** 선급 버킷 및 FIFO 상계 · v2.1 UI 와이어프레임·컴포넌트 분리 추가 · 구현 반영 (V093) · **v2.2 매입일보 선급상계·월별 실지급액 리포트**
+> **변경:** v1.0(거래처+비용구분 FIFO) 폐기 → **거래처+품목+비용구분** 선급 버킷 및 FIFO 상계 · v2.1 UI 와이어프레임·컴포넌트 분리 추가 · 구현 반영 (구 V093→V009) · **v2.2 매입일보 선급상계·월별 실지급액 리포트**
 
 ---
 
@@ -124,7 +124,7 @@ unpaidPartner = max(0, approvedPayable − claims − paidTotal + sum(all prepai
 
 ## 5. 데이터 모델
 
-현행 [`V060__partner_payment.sql`](../../smartmanager_backend/smartmanager-infrastructure/src/main/resources/db/migration/V060__partner_payment.sql) 확장.
+현행 [`V007__community_payment_system.sql`](../flyway-migration-catalog-V001-V009.md) (구 V060) 확장.
 
 ### 5.1 `partner_payment`
 
@@ -685,6 +685,6 @@ API: `GET /api/v1/stats/partner-monthly-payable?fiscalYear=&fiscalMonth=&company
 | 지급 FE 컴포넌트 | `smartmanager_frontend/src/components/payment/*` |
 | 승인 FE | `smartmanager_frontend/src/pages/PayableApprovalPage.tsx` |
 | 승인 FE 컴포넌트 | `smartmanager_frontend/src/components/payableApproval/*` |
-| 스키마 | `V060__partner_payment.sql` · `V093__partner_prepaid.sql` |
+| 스키마 | `V007__community_payment_system.sql (구 V060)` · `V009__stats_claims_extensions.sql (구 V093)` |
 | 매입일보 | `JpaStatsReportRepository` · `PurchaseDailyReportPage` |
 | 월별 실지급액 | `GET /api/v1/stats/partner-monthly-payable` · `PartnerMonthlyPayablePage` · `V094` |
