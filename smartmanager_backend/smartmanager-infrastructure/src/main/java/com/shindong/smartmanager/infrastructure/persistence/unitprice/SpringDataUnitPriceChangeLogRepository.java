@@ -20,8 +20,14 @@ public interface SpringDataUnitPriceChangeLogRepository extends JpaRepository<Un
               AND (:changedToExclusiveInstant IS NULL OR l.changedAt < :changedToExclusiveInstant)
               AND (
                 :changedBy IS NULL OR :changedBy = '' OR
-                LOWER(COALESCE(l.changedBy, '')) LIKE LOWER(CONCAT('%', :changedBy, '%')) OR
-                LOWER(COALESCE(l.changedById, '')) LIKE LOWER(CONCAT('%', :changedBy, '%'))
+                EXISTS (
+                  SELECT 1 FROM UserJpaEntity u
+                  WHERE u.id = l.changedById
+                    AND (
+                      LOWER(u.name) LIKE LOWER(CONCAT('%', :changedBy, '%'))
+                      OR LOWER(u.loginId) LIKE LOWER(CONCAT('%', :changedBy, '%'))
+                    )
+                )
               )
             ORDER BY l.changedAt DESC, l.id DESC
             """)

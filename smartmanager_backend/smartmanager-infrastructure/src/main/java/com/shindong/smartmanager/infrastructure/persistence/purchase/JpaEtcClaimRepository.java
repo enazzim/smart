@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.purchase;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.purchase.EtcClaimCommand;
 import com.shindong.smartmanager.application.purchase.EtcClaimListCriteria;
 import com.shindong.smartmanager.application.purchase.EtcClaimRepository;
@@ -21,13 +23,16 @@ public class JpaEtcClaimRepository implements EtcClaimRepository {
 
     private final SpringDataEtcClaimRepository etcClaimRepository;
     private final SpringDataCompanyRepository companyRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaEtcClaimRepository(
             SpringDataEtcClaimRepository etcClaimRepository,
-            SpringDataCompanyRepository companyRepository
+            SpringDataCompanyRepository companyRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.etcClaimRepository = etcClaimRepository;
         this.companyRepository = companyRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -43,11 +48,9 @@ public class JpaEtcClaimRepository implements EtcClaimRepository {
         entity.setFiscalMonth((byte) fiscalMonth);
         entity.setRecognition(EtcClaimRecognition.PENDING);
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return etcClaimRepository.save(entity).getId();
     }
@@ -64,8 +67,7 @@ public class JpaEtcClaimRepository implements EtcClaimRepository {
         entity.setAmount(command.amount());
         entity.setFiscalYear((short) fiscalYear);
         entity.setFiscalMonth((byte) fiscalMonth);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         etcClaimRepository.save(entity);
     }
@@ -77,8 +79,7 @@ public class JpaEtcClaimRepository implements EtcClaimRepository {
                 .orElseThrow(() -> new IllegalArgumentException("기타공제를 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         etcClaimRepository.save(entity);
     }
@@ -135,7 +136,7 @@ public class JpaEtcClaimRepository implements EtcClaimRepository {
                 entity.getFiscalYear(),
                 entity.getFiscalMonth(),
                 entity.getRecognition(),
-                entity.getCreatedBy(),
+                masterAuditActorLookup.nameOf(entity.getCreatedById()),
                 entity.getCreatedAt(),
                 entity.getRecognition() == EtcClaimRecognition.PENDING
         );

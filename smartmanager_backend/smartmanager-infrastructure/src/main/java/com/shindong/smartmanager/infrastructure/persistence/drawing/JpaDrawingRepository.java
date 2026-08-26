@@ -69,11 +69,9 @@ public class JpaDrawingRepository implements DrawingRepository {
         entity.setLifecycleStage(lifecycleStage != null ? lifecycleStage : DrawingLifecycleStage.RECEIVED);
         entity.setSourcePartner(resolveCompanyReference(sourcePartnerId));
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         try {
             return masterRepository.save(entity).getId();
@@ -101,8 +99,7 @@ public class JpaDrawingRepository implements DrawingRepository {
                 .orElseThrow(() -> new IllegalArgumentException("해당 품번의 도면을 찾을 수 없습니다: " + partNo));
         Instant now = Instant.now();
         entity.setRecordingState(DELETED);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         masterRepository.save(entity);
     }
@@ -114,8 +111,7 @@ public class JpaDrawingRepository implements DrawingRepository {
                 .orElseThrow(() -> new IllegalArgumentException("해당 도면을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(ACTIVE);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         masterRepository.save(entity);
     }
@@ -135,8 +131,7 @@ public class JpaDrawingRepository implements DrawingRepository {
         entity.setPartNo(partNo);
         entity.setPartName(partName);
         entity.setModelType(modelType);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         try {
             masterRepository.save(entity);
@@ -152,8 +147,7 @@ public class JpaDrawingRepository implements DrawingRepository {
                 .orElseThrow(() -> new IllegalArgumentException("해당 도면을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setLifecycleStage(lifecycleStage);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         masterRepository.save(entity);
     }
@@ -167,8 +161,7 @@ public class JpaDrawingRepository implements DrawingRepository {
         entity.setItem(resolveItemReference(itemId));
         entity.setItemLinkedAt(now);
         entity.setLifecycleStage(DrawingLifecycleStage.ITEM_LINKED);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         masterRepository.save(entity);
     }

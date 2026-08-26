@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.inventory;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.inventory.LotBalanceView;
 import com.shindong.smartmanager.application.inventory.LotGenealogyLinkView;
 import com.shindong.smartmanager.application.inventory.LotListCriteria;
@@ -86,19 +88,22 @@ public class JpaLotRepository implements LotRepository {
     private final SpringDataLotNumberSequenceRepository sequenceRepository;
     private final SpringDataLotGenealogyRepository genealogyRepository;
     private final SpringDataItemRepository itemRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaLotRepository(
             SpringDataInventoryLotRepository lotRepository,
             SpringDataInventoryLotBalanceRepository lotBalanceRepository,
             SpringDataLotNumberSequenceRepository sequenceRepository,
             SpringDataLotGenealogyRepository genealogyRepository,
-            SpringDataItemRepository itemRepository
+            SpringDataItemRepository itemRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.lotRepository = lotRepository;
         this.lotBalanceRepository = lotBalanceRepository;
         this.sequenceRepository = sequenceRepository;
         this.genealogyRepository = genealogyRepository;
         this.itemRepository = itemRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -334,8 +339,7 @@ public class JpaLotRepository implements LotRepository {
         entity.setCertificateRef(certificateRef);
         entity.setRemark(remark);
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
         lotRepository.save(entity);
         return findActiveById(entity.getId())
@@ -362,8 +366,7 @@ public class JpaLotRepository implements LotRepository {
         entity.setExpiryDate(expiryDate);
         entity.setCertificateRef(certificateRef);
         entity.setRemark(remark);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         lotRepository.save(entity);
         return findActiveById(id)
@@ -376,8 +379,7 @@ public class JpaLotRepository implements LotRepository {
         InventoryLotJpaEntity entity = lotRepository.findByIdAndRecordingState(id, ACTIVE)
                 .orElseThrow(() -> new IllegalArgumentException("Lot를 찾을 수 없습니다: " + id));
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         lotRepository.save(entity);
     }
@@ -439,15 +441,13 @@ public class JpaLotRepository implements LotRepository {
                     created.setInventoryBalanceId(inventoryBalanceId);
                     created.setQtyOnHand(BigDecimal.ZERO);
                     created.setRecordingState(ACTIVE);
-                    created.setCreatedBy(actorUserId);
-                    created.setCreatedById(actorUserId);
+                    created.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
                     created.setCreatedAt(now);
                     return created;
                 });
         BigDecimal nextQty = balance.getQtyOnHand().add(signedQty);
         balance.setQtyOnHand(nextQty);
-        balance.setUpdatedBy(actorUserId);
-        balance.setUpdatedById(actorUserId);
+        balance.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         balance.setUpdatedAt(now);
         lotBalanceRepository.save(balance);
     }
@@ -468,8 +468,7 @@ public class JpaLotRepository implements LotRepository {
         LotStatus next = (!balances.isEmpty() && !hasQty) ? LotStatus.DEPLETED : LotStatus.ACTIVE;
         if (lot.getStatus() != next) {
             lot.setStatus(next);
-            lot.setUpdatedBy(actorUserId);
-            lot.setUpdatedById(actorUserId);
+            lot.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             lot.setUpdatedAt(Instant.now());
             lotRepository.save(lot);
         }
@@ -558,8 +557,7 @@ public class JpaLotRepository implements LotRepository {
         entity.setSourceDocType(sourceDocType);
         entity.setSourceDocId(sourceDocId);
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(Instant.now());
         genealogyRepository.save(entity);
     }

@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.closing;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.closing.MonthClosingRepository;
 import com.shindong.smartmanager.application.closing.MonthClosingView;
 import java.time.Instant;
@@ -13,9 +15,14 @@ public class JpaMonthClosingRepository implements MonthClosingRepository {
     private static final int ACTIVE = 1;
 
     private final SpringDataMonthClosingRepository springDataMonthClosingRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
-    public JpaMonthClosingRepository(SpringDataMonthClosingRepository springDataMonthClosingRepository) {
+    public JpaMonthClosingRepository(
+            SpringDataMonthClosingRepository springDataMonthClosingRepository,
+            MasterAuditActorLookup masterAuditActorLookup
+    ) {
         this.springDataMonthClosingRepository = springDataMonthClosingRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -54,8 +61,7 @@ public class JpaMonthClosingRepository implements MonthClosingRepository {
                     MonthClosingJpaEntity entity = MonthClosingJpaEntity.create(
                             fiscalYear,
                             fiscalMonth,
-                            closedBy,
-                            closedById,
+                            masterAuditActorLookup.idOf(closedById),
                             Instant.now()
                     );
                     return toView(springDataMonthClosingRepository.save(entity));
@@ -86,8 +92,8 @@ public class JpaMonthClosingRepository implements MonthClosingRepository {
                 entity.getFiscalYear(),
                 entity.getFiscalMonth(),
                 entity.getClosedAt(),
-                entity.getClosedBy(),
-                entity.getClosedById()
+                masterAuditActorLookup.nameOf(entity.getClosedById()),
+                masterAuditActorLookup.loginIdOf(entity.getClosedById())
         );
     }
 }

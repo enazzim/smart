@@ -45,11 +45,9 @@ public class JpaWorkCenterRepository implements WorkCenterRepository {
         entity.setMainProcessCodeId(command.mainProcessCodeId());
         entity.setOperationTime(command.operationTime());
         entity.setRecordingState(1);
-        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return workCenterRepository.save(entity).getId();
     }
@@ -63,8 +61,7 @@ public class JpaWorkCenterRepository implements WorkCenterRepository {
         entity.setWcName(command.wcName().trim());
         entity.setMainProcessCodeId(command.mainProcessCodeId());
         entity.setOperationTime(command.operationTime());
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         workCenterRepository.save(entity);
     }
@@ -76,8 +73,7 @@ public class JpaWorkCenterRepository implements WorkCenterRepository {
                 .orElseThrow(() -> new IllegalArgumentException("작업장을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         workCenterRepository.save(entity);
     }

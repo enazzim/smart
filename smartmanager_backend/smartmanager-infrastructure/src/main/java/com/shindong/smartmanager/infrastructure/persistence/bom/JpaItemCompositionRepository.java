@@ -51,11 +51,9 @@ public class JpaItemCompositionRepository implements ItemCompositionRepository {
         entity.setBeginDate(LocalDate.now());
         entity.setEndDate(null);
         entity.setRecordingState(1);
-        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return compositionRepository.save(entity).getId();
     }
@@ -68,8 +66,7 @@ public class JpaItemCompositionRepository implements ItemCompositionRepository {
         Instant now = Instant.now();
         entity.setNeedQuantityDenominator(command.parentQuantity());
         entity.setNeedQuantityNumerator(command.childQuantity());
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         compositionRepository.save(entity);
     }
@@ -81,8 +78,7 @@ public class JpaItemCompositionRepository implements ItemCompositionRepository {
                 .orElseThrow(() -> new IllegalArgumentException("BOM을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         compositionRepository.save(entity);
     }
@@ -146,8 +142,7 @@ public class JpaItemCompositionRepository implements ItemCompositionRepository {
         log.setNeedQuantityDenominator(entity.getNeedQuantityDenominator());
         log.setNeedQuantityNumerator(entity.getNeedQuantityNumerator());
         log.setChangeReason(changeReason);
-        log.setChangedBy(masterAuditActorLookup.nameOf(actorUserId));
-        log.setChangedById(actorUserId);
+        log.setChangedById(masterAuditActorLookup.idOf(actorUserId));
         log.setChangedAt(Instant.now());
         changeLogRepository.save(log);
     }

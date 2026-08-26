@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.quality;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.quality.QualityInspectionListCriteria;
 import com.shindong.smartmanager.application.quality.QualityInspectionRepository;
 import com.shindong.smartmanager.application.quality.QualityInspectionView;
@@ -55,6 +57,7 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
     private final SpringDataOutsourcingOrderLineRepository outsourcingOrderLineRepository;
     private final SpringDataOutsourcingOrderRepository outsourcingOrderRepository;
     private final EntityManager entityManager;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaQualityInspectionRepository(
             SpringDataQualityInspectionRepository inspectionRepository,
@@ -68,7 +71,8 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
             SpringDataOutsourcingReceiptRepository outsourcingReceiptRepository,
             SpringDataOutsourcingOrderLineRepository outsourcingOrderLineRepository,
             SpringDataOutsourcingOrderRepository outsourcingOrderRepository,
-            EntityManager entityManager
+            EntityManager entityManager,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.inspectionRepository = inspectionRepository;
         this.itemRepository = itemRepository;
@@ -82,6 +86,7 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
         this.outsourcingOrderLineRepository = outsourcingOrderLineRepository;
         this.outsourcingOrderRepository = outsourcingOrderRepository;
         this.entityManager = entityManager;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -103,11 +108,9 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
         entity.setRequestQty(requestQty);
         entity.setStatus(QualityInspectionStatus.PENDING);
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return inspectionRepository.save(entity).getId();
     }
@@ -216,8 +219,7 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
         entity.setFailureReason(failureReason);
         entity.setStatus(QualityInspectionStatus.COMPLETED);
         entity.setCompletedAt(completedAt);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         inspectionRepository.save(entity);
     }
@@ -247,8 +249,7 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
             throw new IllegalArgumentException("완료된 검사만 취소할 수 있습니다.");
         }
         entity.setStatus(QualityInspectionStatus.CANCELLED);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         inspectionRepository.save(entity);
     }
@@ -269,8 +270,7 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
         entity.setUnsuitabilityStatusCodeId(null);
         entity.setFailureReason(null);
         entity.setCompletedAt(null);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         inspectionRepository.save(entity);
     }
@@ -283,8 +283,7 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
                     if (entity.getStatus() == QualityInspectionStatus.PENDING
                             || entity.getStatus() == QualityInspectionStatus.COMPLETED) {
                         entity.setStatus(QualityInspectionStatus.CANCELLED);
-                        entity.setUpdatedBy(actorUserId);
-                        entity.setUpdatedById(actorUserId);
+                        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
                         entity.setUpdatedAt(Instant.now());
                         inspectionRepository.save(entity);
                     }

@@ -50,11 +50,9 @@ public class JpaProcessRepository implements ProcessRepository {
         applyCommand(entity, command);
         entity.setVariant(variant);
         entity.setRecordingState(1);
-        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return processRepository.save(entity).getId();
     }
@@ -66,8 +64,7 @@ public class JpaProcessRepository implements ProcessRepository {
                 .orElseThrow(() -> new IllegalArgumentException("공정을 찾을 수 없습니다: " + id));
         applyUpdate(entity, command);
         Instant now = Instant.now();
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         processRepository.save(entity);
     }
@@ -79,8 +76,7 @@ public class JpaProcessRepository implements ProcessRepository {
                 .orElseThrow(() -> new IllegalArgumentException("공정을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         processRepository.save(entity);
     }
@@ -159,11 +155,9 @@ public class JpaProcessRepository implements ProcessRepository {
         entity.setProgressRate((short) 100);
         entity.setVariant(ProcessVariant.plan);
         entity.setRecordingState(1);
-        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return processRepository.save(entity).getId();
     }

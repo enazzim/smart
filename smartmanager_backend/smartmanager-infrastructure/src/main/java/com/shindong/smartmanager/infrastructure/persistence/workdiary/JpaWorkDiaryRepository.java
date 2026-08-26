@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.workdiary;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryListCriteria;
@@ -21,15 +23,18 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
     private final SpringDataWorkDiaryTemplateRepository templateRepository;
     private final SpringDataWorkDiaryEntryRepository entryRepository;
     private final ObjectMapper objectMapper;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaWorkDiaryRepository(
             SpringDataWorkDiaryTemplateRepository templateRepository,
             SpringDataWorkDiaryEntryRepository entryRepository,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.templateRepository = templateRepository;
         this.entryRepository = entryRepository;
         this.objectMapper = objectMapper;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -58,6 +63,7 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
                         "업무일지 템플릿을 찾을 수 없습니다. groupId=" + workDiaryGroupId));
         entity.setTemplateName(templateName);
         entity.setFieldSchema(writeJson(fieldSchema));
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserIdText));
         entity.setUpdatedAt(Instant.now());
         templateRepository.save(entity);
     }
@@ -128,11 +134,9 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
         entity.setClosingNote(closingNote);
         entity.setStatus(status);
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorLoginId);
-        entity.setCreatedById(actorUserIdText);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserIdText));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorLoginId);
-        entity.setUpdatedById(actorUserIdText);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserIdText));
         entity.setUpdatedAt(now);
         return entryRepository.save(entity).getId();
     }
@@ -152,8 +156,7 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
         entity.setFieldValues(writeJson(fieldValues));
         entity.setListed(listed);
         entity.setClosingNote(closingNote);
-        entity.setUpdatedBy(actorLoginId);
-        entity.setUpdatedById(actorUserIdText);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserIdText));
         entity.setUpdatedAt(Instant.now());
         entryRepository.save(entity);
     }
@@ -173,8 +176,7 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
                 .orElseThrow(() -> new IllegalArgumentException("업무일지를 찾을 수 없습니다: " + id));
         entity.setStatus(status);
         entity.setSubmittedAt(submittedAt);
-        entity.setUpdatedBy(actorLoginId);
-        entity.setUpdatedById(actorUserIdText);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserIdText));
         entity.setUpdatedAt(submittedAt);
         entryRepository.save(entity);
     }
@@ -196,8 +198,7 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
         entity.setStatus(status);
         entity.setApprovedAt(approvedAt);
         entity.setApprovedByUserId(approvedByUserId);
-        entity.setUpdatedBy(actorLoginId);
-        entity.setUpdatedById(actorUserIdText);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserIdText));
         entity.setUpdatedAt(approvedAt);
         entryRepository.save(entity);
     }
@@ -217,8 +218,7 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
         entity.setStatus(status);
         entity.setApprovalCanceledAt(canceledAt);
         entity.setApprovalCanceledByUserId(canceledByUserId);
-        entity.setUpdatedBy(actorLoginId);
-        entity.setUpdatedById(actorUserIdText);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserIdText));
         entity.setUpdatedAt(canceledAt);
         entryRepository.save(entity);
     }

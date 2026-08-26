@@ -31,8 +31,14 @@ public class WorkDiaryTemplateJpaEntity {
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
 
+    @Column(name = "created_by_id")
+    private Long createdById;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    @Column(name = "updated_by_id")
+    private Long updatedById;
 
     @Column(name = "updated_at")
     private Instant updatedAt;
@@ -92,12 +98,28 @@ public class WorkDiaryTemplateJpaEntity {
         this.createdAt = createdAt;
     }
 
+    public Long getCreatedById() {
+        return createdById;
+    }
+
+    public void setCreatedById(Long createdById) {
+        this.createdById = createdById;
+    }
+
     public Instant getUpdatedAt() {
         return updatedAt;
     }
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Long getUpdatedById() {
+        return updatedById;
+    }
+
+    public void setUpdatedById(Long updatedById) {
+        this.updatedById = updatedById;
     }
 }
 

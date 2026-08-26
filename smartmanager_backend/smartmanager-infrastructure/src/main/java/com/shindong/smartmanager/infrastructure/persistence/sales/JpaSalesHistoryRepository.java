@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.sales;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.sales.SalesHistoryCommand;
 import com.shindong.smartmanager.application.sales.SalesHistoryRepository;
 import com.shindong.smartmanager.domain.sales.SalesHistorySourceType;
@@ -15,9 +17,14 @@ public class JpaSalesHistoryRepository implements SalesHistoryRepository {
     private static final int INACTIVE = 0;
 
     private final SpringDataSalesHistoryRepository repository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
-    public JpaSalesHistoryRepository(SpringDataSalesHistoryRepository repository) {
+    public JpaSalesHistoryRepository(
+            SpringDataSalesHistoryRepository repository,
+            MasterAuditActorLookup masterAuditActorLookup
+    ) {
         this.repository = repository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -36,8 +43,7 @@ public class JpaSalesHistoryRepository implements SalesHistoryRepository {
         entity.setFiscalYear((short) command.fiscalYear());
         entity.setFiscalMonth((byte) command.fiscalMonth());
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(command.actorUserId());
-        entity.setCreatedById(command.actorUserId());
+        entity.setCreatedById(masterAuditActorLookup.idOf(command.actorUserId()));
         entity.setCreatedAt(now);
         return repository.save(entity).getId();
     }

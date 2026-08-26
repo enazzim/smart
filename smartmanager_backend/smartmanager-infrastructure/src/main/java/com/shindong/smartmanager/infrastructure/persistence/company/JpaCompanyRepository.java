@@ -56,11 +56,9 @@ public class JpaCompanyRepository implements CompanyRepository {
         entity.setContactName(command.contactName());
         entity.setContactEmail(command.contactEmail());
         entity.setRecordingState(1);
-        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return companyRepository.save(entity).getId();
     }
@@ -145,8 +143,7 @@ public class JpaCompanyRepository implements CompanyRepository {
         entity.setFixCollectDay1(command.fixCollectDay1());
         entity.setContactName(command.contactName());
         entity.setContactEmail(command.contactEmail());
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         companyRepository.save(entity);
     }
@@ -158,8 +155,7 @@ public class JpaCompanyRepository implements CompanyRepository {
                 .orElseThrow(() -> new IllegalArgumentException("거래처를 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         companyRepository.save(entity);
     }

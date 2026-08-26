@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.sales;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.sales.SalesCollectionCandidateCriteria;
 import com.shindong.smartmanager.application.sales.SalesCollectionCandidateView;
 import com.shindong.smartmanager.application.sales.SalesCollectionListCriteria;
@@ -29,15 +31,18 @@ public class JpaSalesCollectionRepository implements SalesCollectionRepository {
     private final EntityManager entityManager;
     private final SpringDataSalesCollectionRepository collectionRepository;
     private final SpringDataCompanyRepository companyRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaSalesCollectionRepository(
             EntityManager entityManager,
             SpringDataSalesCollectionRepository collectionRepository,
-            SpringDataCompanyRepository companyRepository
+            SpringDataCompanyRepository companyRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.entityManager = entityManager;
         this.collectionRepository = collectionRepository;
         this.companyRepository = companyRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -129,11 +134,9 @@ public class JpaSalesCollectionRepository implements SalesCollectionRepository {
         entity.setRemark(command.remark());
         entity.setStatus(SalesCollectionStatus.ISSUED);
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         SalesCollectionJpaEntity saved = collectionRepository.save(entity);
         return toView(saved);
@@ -178,8 +181,7 @@ public class JpaSalesCollectionRepository implements SalesCollectionRepository {
                 .orElseThrow(() -> new IllegalArgumentException("수금을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setStatus(SalesCollectionStatus.CANCELLED);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         collectionRepository.save(entity);
     }
@@ -213,7 +215,7 @@ public class JpaSalesCollectionRepository implements SalesCollectionRepository {
                 entity.getRemark(),
                 entity.getStatus(),
                 entity.getCreatedAt(),
-                entity.getCreatedBy(),
+                masterAuditActorLookup.nameOf(entity.getCreatedById()),
                 entity.getStatus() == SalesCollectionStatus.ISSUED
         );
     }

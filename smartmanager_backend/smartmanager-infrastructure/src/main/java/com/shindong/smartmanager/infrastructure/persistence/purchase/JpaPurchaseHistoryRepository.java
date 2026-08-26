@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.purchase;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.purchase.PurchaseHistoryCommand;
 import com.shindong.smartmanager.application.purchase.PurchaseHistoryRecord;
 import com.shindong.smartmanager.application.purchase.PurchaseHistoryRepository;
@@ -14,9 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class JpaPurchaseHistoryRepository implements PurchaseHistoryRepository {
 
     private final SpringDataPurchaseHistoryRepository repository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
-    public JpaPurchaseHistoryRepository(SpringDataPurchaseHistoryRepository repository) {
+    public JpaPurchaseHistoryRepository(
+            SpringDataPurchaseHistoryRepository repository,
+            MasterAuditActorLookup masterAuditActorLookup
+    ) {
         this.repository = repository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -36,8 +43,7 @@ public class JpaPurchaseHistoryRepository implements PurchaseHistoryRepository {
         entity.setFiscalMonth((byte) command.fiscalMonth());
         entity.setApprovalStatus(PayableApprovalStatus.PENDING);
         entity.setRecordingState(1);
-        entity.setCreatedBy(command.actorUserId());
-        entity.setCreatedById(command.actorUserId());
+        entity.setCreatedById(masterAuditActorLookup.idOf(command.actorUserId()));
         entity.setCreatedAt(Instant.now());
         return repository.save(entity).getId();
     }

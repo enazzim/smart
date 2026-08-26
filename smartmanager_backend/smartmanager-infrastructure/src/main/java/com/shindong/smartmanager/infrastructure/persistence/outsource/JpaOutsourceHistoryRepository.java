@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.outsource;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.outsource.OutsourceHistoryCommand;
 import com.shindong.smartmanager.application.outsource.OutsourceHistoryRecord;
 import com.shindong.smartmanager.application.outsource.OutsourceHistoryRepository;
@@ -14,9 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class JpaOutsourceHistoryRepository implements OutsourceHistoryRepository {
 
     private final SpringDataOutsourceHistoryRepository repository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
-    public JpaOutsourceHistoryRepository(SpringDataOutsourceHistoryRepository repository) {
+    public JpaOutsourceHistoryRepository(
+            SpringDataOutsourceHistoryRepository repository,
+            MasterAuditActorLookup masterAuditActorLookup
+    ) {
         this.repository = repository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -35,8 +42,7 @@ public class JpaOutsourceHistoryRepository implements OutsourceHistoryRepository
         entity.setFiscalMonth((byte) command.fiscalMonth());
         entity.setApprovalStatus(PayableApprovalStatus.PENDING);
         entity.setRecordingState(1);
-        entity.setCreatedBy(command.actorUserId());
-        entity.setCreatedById(command.actorUserId());
+        entity.setCreatedById(masterAuditActorLookup.idOf(command.actorUserId()));
         entity.setCreatedAt(Instant.now());
         return repository.save(entity).getId();
     }

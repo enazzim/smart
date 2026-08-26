@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.production;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.production.MaterialIssueLineRecordView;
 import com.shindong.smartmanager.application.production.MaterialIssueLineSaveCommand;
 import com.shindong.smartmanager.application.production.MaterialIssueListCriteria;
@@ -45,6 +47,7 @@ public class JpaMaterialIssueRepository implements MaterialIssueRepository {
     private final SpringDataProcessSequenceRepository processRepository;
     private final SpringDataItemRepository itemRepository;
     private final SpringDataPublicCodeRepository publicCodeRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaMaterialIssueRepository(
             SpringDataMaterialIssueRepository issueRepository,
@@ -55,7 +58,8 @@ public class JpaMaterialIssueRepository implements MaterialIssueRepository {
             SpringDataProductionPlanRepository productionPlanRepository,
             SpringDataProcessSequenceRepository processRepository,
             SpringDataItemRepository itemRepository,
-            SpringDataPublicCodeRepository publicCodeRepository
+            SpringDataPublicCodeRepository publicCodeRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.issueRepository = issueRepository;
         this.lineRepository = lineRepository;
@@ -66,6 +70,7 @@ public class JpaMaterialIssueRepository implements MaterialIssueRepository {
         this.processRepository = processRepository;
         this.itemRepository = itemRepository;
         this.publicCodeRepository = publicCodeRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -104,11 +109,9 @@ public class JpaMaterialIssueRepository implements MaterialIssueRepository {
         entity.setIssueDate(command.issueDate());
         entity.setStatus(command.status());
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return toView(issueRepository.save(entity));
     }
@@ -215,8 +218,7 @@ public class JpaMaterialIssueRepository implements MaterialIssueRepository {
                 .orElseThrow(() -> new IllegalArgumentException("자재투입을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setStatus(MaterialIssueStatus.CANCELLED);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         issueRepository.save(entity);
 
@@ -307,7 +309,7 @@ public class JpaMaterialIssueRepository implements MaterialIssueRepository {
                 entity.getStatus() == MaterialIssueStatus.ISSUED ? "등록" : "취소",
                 entity.getStatus() == MaterialIssueStatus.ISSUED,
                 entity.getCreatedAt(),
-                entity.getCreatedBy()
+                masterAuditActorLookup.nameOf(entity.getCreatedById())
         );
     }
 }

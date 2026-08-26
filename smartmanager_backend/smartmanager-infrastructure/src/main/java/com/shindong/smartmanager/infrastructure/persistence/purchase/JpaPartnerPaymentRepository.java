@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.purchase;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.purchase.FifoPrepaidLineView;
 import com.shindong.smartmanager.application.purchase.PartnerPaymentCandidateCriteria;
 import com.shindong.smartmanager.application.purchase.PartnerPaymentCandidateView;
@@ -45,6 +47,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
     private final SpringDataPartnerPrepaidOffsetRepository prepaidOffsetRepository;
     private final SpringDataCompanyRepository companyRepository;
     private final SpringDataItemRepository itemRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaPartnerPaymentRepository(
             EntityManager entityManager,
@@ -52,7 +55,8 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
             SpringDataPartnerPaymentLineRepository paymentLineRepository,
             SpringDataPartnerPrepaidOffsetRepository prepaidOffsetRepository,
             SpringDataCompanyRepository companyRepository,
-            SpringDataItemRepository itemRepository
+            SpringDataItemRepository itemRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.entityManager = entityManager;
         this.paymentRepository = paymentRepository;
@@ -60,6 +64,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
         this.prepaidOffsetRepository = prepaidOffsetRepository;
         this.companyRepository = companyRepository;
         this.itemRepository = itemRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -397,11 +402,9 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
             entity.setHistoryId(command.historyId());
             entity.setAmount(command.amount());
             entity.setRecordingState(ACTIVE);
-            entity.setCreatedBy(actorUserId);
-            entity.setCreatedById(actorUserId);
+            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setCreatedAt(now);
-            entity.setUpdatedBy(actorUserId);
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             prepaidOffsetRepository.save(entity);
         }
@@ -419,8 +422,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                 .findByLedgerKindAndHistoryIdAndRecordingState(ledgerKind, historyId, ACTIVE);
         for (PartnerPrepaidOffsetJpaEntity row : rows) {
             row.setRecordingState(0);
-            row.setUpdatedBy(actorUserId);
-            row.setUpdatedById(actorUserId);
+            row.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             row.setUpdatedAt(now);
             prepaidOffsetRepository.save(row);
         }
@@ -443,11 +445,9 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
         entity.setRemark(command.remark());
         entity.setStatus(PartnerPaymentStatus.ISSUED);
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         PartnerPaymentJpaEntity saved = paymentRepository.save(entity);
 
@@ -464,11 +464,9 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                 lineEntity.setVatAmount(vat);
                 lineEntity.setTotalAmount(supply.add(vat));
                 lineEntity.setRecordingState(ACTIVE);
-                lineEntity.setCreatedBy(actorUserId);
-                lineEntity.setCreatedById(actorUserId);
+                lineEntity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
                 lineEntity.setCreatedAt(now);
-                lineEntity.setUpdatedBy(actorUserId);
-                lineEntity.setUpdatedById(actorUserId);
+                lineEntity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
                 lineEntity.setUpdatedAt(now);
                 paymentLineRepository.save(lineEntity);
             }
@@ -515,8 +513,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                 .orElseThrow(() -> new IllegalArgumentException("지급을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setStatus(PartnerPaymentStatus.CANCELLED);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         paymentRepository.save(entity);
     }
@@ -762,7 +759,7 @@ public class JpaPartnerPaymentRepository implements PartnerPaymentRepository {
                 entity.getRemark(),
                 entity.getStatus(),
                 entity.getCreatedAt(),
-                entity.getCreatedBy(),
+                masterAuditActorLookup.nameOf(entity.getCreatedById()),
                 cancelable,
                 lines,
                 lineSummary.isBlank() ? null : lineSummary

@@ -84,11 +84,9 @@ public class JpaDrawingReferenceRepository implements DrawingReferenceRepository
         entity.setSortOrder(sortOrder);
         entity.setRemark(remark);
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         referenceRepository.save(entity);
     }
@@ -109,11 +107,9 @@ public class JpaDrawingReferenceRepository implements DrawingReferenceRepository
             copy.setSortOrder(row.getSortOrder());
             copy.setRemark(row.getRemark());
             copy.setRecordingState(ACTIVE);
-            copy.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-            copy.setCreatedById(actorUserId);
+            copy.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             copy.setCreatedAt(now);
-            copy.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-            copy.setUpdatedById(actorUserId);
+            copy.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             copy.setUpdatedAt(now);
             referenceRepository.save(copy);
         }

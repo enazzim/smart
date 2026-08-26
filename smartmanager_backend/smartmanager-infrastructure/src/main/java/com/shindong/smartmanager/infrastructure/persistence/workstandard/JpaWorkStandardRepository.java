@@ -62,11 +62,9 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
         WorkStandardJpaEntity entity = new WorkStandardJpaEntity();
         applyCommand(entity, command);
         entity.setRecordingState(1);
-        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return workStandardRepository.save(entity).getId();
     }
@@ -84,8 +82,7 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
         entity.setToolName(normalizeToolName(command.toolName()));
         entity.setSetupTime(command.setupTime());
         entity.setStandardTime(command.standardTime());
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         workStandardRepository.save(entity);
     }
@@ -106,8 +103,7 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
         for (WorkStandardJpaEntity entity : workStandardRepository.findByProcessSequenceIdAndRecordingState(
                 processSequenceId, 1)) {
             entity.setRecordingState(0);
-            entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             workStandardRepository.save(entity);
         }
@@ -155,8 +151,7 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
     private void markDeleted(WorkStandardJpaEntity entity, String actorUserId) {
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
     }
 

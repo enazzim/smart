@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.outsource;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderRepository;
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderLineReceiptContext;
 import com.shindong.smartmanager.application.outsource.OutsourcingReceiptCandidateCriteria;
@@ -44,6 +46,7 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
     private final SpringDataCompanyRepository companyRepository;
     private final SpringDataItemRepository itemRepository;
     private final OutsourcingOrderRepository outsourcingOrderRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaOutsourcingReceiptRepository(
             EntityManager entityManager,
@@ -53,7 +56,8 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
             SpringDataOutsourcingOrderRepository orderRepository,
             SpringDataCompanyRepository companyRepository,
             SpringDataItemRepository itemRepository,
-            OutsourcingOrderRepository outsourcingOrderRepository
+            OutsourcingOrderRepository outsourcingOrderRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.entityManager = entityManager;
         this.receiptRepository = receiptRepository;
@@ -63,6 +67,7 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
         this.companyRepository = companyRepository;
         this.itemRepository = itemRepository;
         this.outsourcingOrderRepository = outsourcingOrderRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -166,11 +171,9 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
         header.setReceiptDate(command.receiptDate());
         header.setOutsourcingOrderId(command.outsourcingOrderId());
         header.setStatus(command.status());
-        header.setCreatedBy(actorUserId);
-        header.setCreatedById(actorUserId);
+        header.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         header.setCreatedAt(now);
-        header.setUpdatedBy(actorUserId);
-        header.setUpdatedById(actorUserId);
+        header.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         header.setUpdatedAt(now);
         OutsourcingReceiptJpaEntity saved = receiptRepository.save(header);
 
@@ -187,11 +190,9 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
             entity.setAmount(line.amount());
             entity.setLotId(line.lotId());
             entity.setRecordingState(ACTIVE);
-            entity.setCreatedBy(actorUserId);
-            entity.setCreatedById(actorUserId);
+            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setCreatedAt(now);
-            entity.setUpdatedBy(actorUserId);
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             receiptLineRepository.save(entity);
         }
@@ -279,8 +280,7 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
                 .orElseThrow(() -> new IllegalArgumentException("외주입고를 찾을 수 없습니다: " + receiptId));
         Instant now = Instant.now();
         entity.setStatus(OutsourcingReceiptStatus.CANCELLED);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         receiptRepository.save(entity);
     }
@@ -340,8 +340,7 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
         OutsourcingReceiptLineJpaEntity line = receiptLineRepository.findByIdAndRecordingState(receiptLineId, ACTIVE)
                 .orElseThrow(() -> new IllegalArgumentException("입고 라인을 찾을 수 없습니다: " + receiptLineId));
         line.setPostedQty(line.getPostedQty().add(postedQty));
-        line.setUpdatedBy(actorUserId);
-        line.setUpdatedById(actorUserId);
+        line.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         line.setUpdatedAt(Instant.now());
         receiptLineRepository.save(line);
     }
@@ -352,8 +351,7 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
         OutsourcingReceiptLineJpaEntity line = receiptLineRepository.findByIdAndRecordingState(receiptLineId, ACTIVE)
                 .orElseThrow(() -> new IllegalArgumentException("입고 라인을 찾을 수 없습니다: " + receiptLineId));
         line.setLotId(lotId);
-        line.setUpdatedBy(actorUserId);
-        line.setUpdatedById(actorUserId);
+        line.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         line.setUpdatedAt(Instant.now());
         receiptLineRepository.save(line);
     }
@@ -382,8 +380,7 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
             status = OutsourcingReceiptStatus.PARTIALLY_POSTED;
         }
         receipt.setStatus(status);
-        receipt.setUpdatedBy(actorUserId);
-        receipt.setUpdatedById(actorUserId);
+        receipt.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         receipt.setUpdatedAt(Instant.now());
         receiptRepository.save(receipt);
     }
@@ -427,7 +424,7 @@ public class JpaOutsourcingReceiptRepository implements OutsourcingReceiptReposi
                 entity.getOutsourcingOrderId(),
                 entity.getStatus(),
                 entity.getCreatedAt(),
-                entity.getCreatedBy(),
+                masterAuditActorLookup.nameOf(entity.getCreatedById()),
                 lines
         );
     }

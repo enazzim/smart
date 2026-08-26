@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.system;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.system.SystemSettingRepository;
 import com.shindong.smartmanager.application.system.SystemSettingView;
 import java.util.List;
@@ -12,9 +14,14 @@ public class JpaSystemSettingRepository implements SystemSettingRepository {
     private static final int ACTIVE = 1;
 
     private final SpringDataSystemSettingRepository repository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
-    public JpaSystemSettingRepository(SpringDataSystemSettingRepository repository) {
+    public JpaSystemSettingRepository(
+            SpringDataSystemSettingRepository repository,
+            MasterAuditActorLookup masterAuditActorLookup
+    ) {
         this.repository = repository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -35,10 +42,14 @@ public class JpaSystemSettingRepository implements SystemSettingRepository {
         SystemSettingJpaEntity entity = repository.findBySettingKeyAndRecordingState(settingKey, ACTIVE)
                 .orElse(null);
         if (entity == null) {
-            repository.save(SystemSettingJpaEntity.create(settingKey, valueJson, actorUserId));
+            repository.save(SystemSettingJpaEntity.create(
+                    settingKey,
+                    valueJson,
+                    masterAuditActorLookup.idOf(actorUserId)
+            ));
             return;
         }
-        entity.updateValue(valueJson, actorUserId);
+        entity.updateValue(valueJson, masterAuditActorLookup.idOf(actorUserId));
         repository.save(entity);
     }
 
@@ -47,7 +58,7 @@ public class JpaSystemSettingRepository implements SystemSettingRepository {
                 entity.getSettingKey(),
                 entity.getValueJson(),
                 entity.getUpdatedAt(),
-                entity.getUpdatedBy()
+                masterAuditActorLookup.nameOf(entity.getUpdatedById())
         );
     }
 }

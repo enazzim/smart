@@ -57,11 +57,9 @@ public class JpaEquipmentRepository implements EquipmentRepository {
         entity.setWorkShot(0);
         entity.setAccumulatedShot(command.initialShot());
         entity.setRecordingState(1);
-        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return equipmentRepository.save(entity).getId();
     }
@@ -78,8 +76,7 @@ public class JpaEquipmentRepository implements EquipmentRepository {
         entity.setDesignShot(command.designShot());
         entity.setInitialShot(command.initialShot());
         entity.setAccumulatedShot(entity.getWorkShot() + command.initialShot());
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         equipmentRepository.save(entity);
     }
@@ -91,8 +88,7 @@ public class JpaEquipmentRepository implements EquipmentRepository {
                 .orElseThrow(() -> new IllegalArgumentException("설비를 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         equipmentRepository.save(entity);
     }

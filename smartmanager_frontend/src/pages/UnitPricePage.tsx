@@ -203,6 +203,7 @@ export default function UnitPricePage() {
   const [historyTitle, setHistoryTitle] = useState('');
   const [allHistoryFilters, setAllHistoryFilters] = useState<AllHistoryFilters>(() => emptyAllHistoryFilters());
   const [historyFilterClearToken, setHistoryFilterClearToken] = useState(0);
+  const [hasAllHistorySearched, setHasAllHistorySearched] = useState(false);
 
   const isEditing = editingId !== null;
 
@@ -384,6 +385,7 @@ export default function UnitPricePage() {
   };
 
   const searchAllHistory = async (filters: AllHistoryFilters) => {
+    setHasAllHistorySearched(true);
     setHistoryLoading(true);
     setHistoryError(null);
     try {
@@ -396,15 +398,17 @@ export default function UnitPricePage() {
     }
   };
 
-  const openAllHistory = async () => {
+  const openAllHistory = () => {
     const initial = emptyAllHistoryFilters(activeTab);
     setHistoryMode('all');
     setAllHistoryFilters(initial);
     setHistoryFilterClearToken((token) => token + 1);
     setHistoryOpen(true);
     setHistoryRows([]);
+    setHistoryError(null);
+    setHistoryLoading(false);
+    setHasAllHistorySearched(false);
     setHistoryTitle('전체');
-    await searchAllHistory(initial);
   };
 
   const onAllHistorySearch = (e: React.FormEvent) => {
@@ -424,6 +428,7 @@ export default function UnitPricePage() {
     setHistoryError(null);
     setHistoryRows([]);
     setHistoryTitle('');
+    setHasAllHistorySearched(false);
     setAllHistoryFilters(emptyAllHistoryFilters());
   };
 
@@ -678,7 +683,7 @@ export default function UnitPricePage() {
         <div className="panel-header-row">
           <h2>{tabConfig.label} 목록</h2>
           <div className="form-actions" style={{ margin: 0 }}>
-            <button type="button" className="secondary" disabled={loading} onClick={() => void openAllHistory()}>
+            <button type="button" className="secondary" disabled={loading} onClick={openAllHistory}>
               전체 이력
             </button>
             <GridExcelExportButton
@@ -895,6 +900,8 @@ export default function UnitPricePage() {
             </div>
             {historyLoading ? (
               <p>불러오는 중…</p>
+            ) : historyMode === 'all' && !hasAllHistorySearched ? (
+              <p className="hint">검색 버튼을 누르면 이력이 표시됩니다.</p>
             ) : historyRows.length === 0 && !historyError ? (
               <p className="hint">변경 이력이 없습니다.</p>
             ) : (

@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.purchase;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.purchase.DefectClaimCommand;
 import com.shindong.smartmanager.application.purchase.DefectClaimListCriteria;
 import com.shindong.smartmanager.application.purchase.DefectClaimRepository;
@@ -21,15 +23,18 @@ public class JpaDefectClaimRepository implements DefectClaimRepository {
     private final SpringDataDefectClaimRepository defectClaimRepository;
     private final SpringDataCompanyRepository companyRepository;
     private final SpringDataItemRepository itemRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaDefectClaimRepository(
             SpringDataDefectClaimRepository defectClaimRepository,
             SpringDataCompanyRepository companyRepository,
-            SpringDataItemRepository itemRepository
+            SpringDataItemRepository itemRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.defectClaimRepository = defectClaimRepository;
         this.companyRepository = companyRepository;
         this.itemRepository = itemRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -47,11 +52,9 @@ public class JpaDefectClaimRepository implements DefectClaimRepository {
         entity.setFiscalMonth((byte) fiscalMonth);
         entity.setRecognition(EtcClaimRecognition.PENDING);
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return defectClaimRepository.save(entity).getId();
     }
@@ -70,8 +73,7 @@ public class JpaDefectClaimRepository implements DefectClaimRepository {
         entity.setReason(command.reason());
         entity.setFiscalYear((short) fiscalYear);
         entity.setFiscalMonth((byte) fiscalMonth);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         defectClaimRepository.save(entity);
     }
@@ -83,8 +85,7 @@ public class JpaDefectClaimRepository implements DefectClaimRepository {
                 .orElseThrow(() -> new IllegalArgumentException("불량변상을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         defectClaimRepository.save(entity);
     }
@@ -149,7 +150,7 @@ public class JpaDefectClaimRepository implements DefectClaimRepository {
                 entity.getFiscalYear(),
                 entity.getFiscalMonth(),
                 entity.getRecognition(),
-                entity.getCreatedBy(),
+                masterAuditActorLookup.nameOf(entity.getCreatedById()),
                 entity.getCreatedAt(),
                 entity.getRecognition() == EtcClaimRecognition.PENDING
         );

@@ -46,15 +46,13 @@ public class JpaWorkCenterCalendarRepository implements WorkCenterCalendarReposi
             entity.setWorkCenterId(command.workCenterId());
             entity.setCalendarDate(command.calendarDate());
             entity.setRecordingState(1);
-            entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-            entity.setCreatedById(actorUserId);
+            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setCreatedAt(now);
         }
 
         entity.setWorkTime(command.workTime());
         entity.setContent(normalizeContent(command.content()));
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return toView(calendarRepository.save(entity));
     }
@@ -67,8 +65,7 @@ public class JpaWorkCenterCalendarRepository implements WorkCenterCalendarReposi
                 .orElseThrow(() -> new IllegalArgumentException("작업장 달력 Override를 찾을 수 없습니다."));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         calendarRepository.save(entity);
     }

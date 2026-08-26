@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.board;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.board.BoardAttachmentInput;
 import com.shindong.smartmanager.application.board.BoardPostListCriteria;
 import com.shindong.smartmanager.application.board.BoardPostRepository;
@@ -18,15 +20,18 @@ public class JpaBoardPostRepository implements BoardPostRepository {
     private final SpringDataBoardPostRepository boardPostRepository;
     private final SpringDataBoardAttachmentRepository boardAttachmentRepository;
     private final SpringDataBoardPostReadRepository boardPostReadRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaBoardPostRepository(
             SpringDataBoardPostRepository boardPostRepository,
             SpringDataBoardAttachmentRepository boardAttachmentRepository,
-            SpringDataBoardPostReadRepository boardPostReadRepository
+            SpringDataBoardPostReadRepository boardPostReadRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.boardPostRepository = boardPostRepository;
         this.boardAttachmentRepository = boardAttachmentRepository;
         this.boardPostReadRepository = boardPostReadRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -312,17 +317,14 @@ public class JpaBoardPostRepository implements BoardPostRepository {
     }
 
     private void applyAuditOnCreate(BoardPostJpaEntity entity, String actorLoginId, String actorUserId, Instant now) {
-        entity.setCreatedBy(actorLoginId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorLoginId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
     }
 
     private void applyAuditOnUpdate(BoardPostJpaEntity entity, String actorLoginId, String actorUserId, Instant now) {
-        entity.setUpdatedBy(actorLoginId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
     }
 }

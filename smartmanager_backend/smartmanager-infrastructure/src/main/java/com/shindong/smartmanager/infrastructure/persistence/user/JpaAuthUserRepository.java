@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.user;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.auth.AuthUserRepository;
 import java.time.Instant;
 import java.util.List;
@@ -14,17 +16,20 @@ public class JpaAuthUserRepository implements AuthUserRepository {
     private final SpringDataAuthRepository authRepository;
     private final SpringDataRoleRepository roleRepository;
     private final SpringDataUserRoleRepository userRoleRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaAuthUserRepository(
             SpringDataUserRepository userRepository,
             SpringDataAuthRepository authRepository,
             SpringDataRoleRepository roleRepository,
-            SpringDataUserRoleRepository userRoleRepository
+            SpringDataUserRoleRepository userRoleRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.userRepository = userRepository;
         this.authRepository = authRepository;
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -54,8 +59,7 @@ public class JpaAuthUserRepository implements AuthUserRepository {
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
         Instant now = Instant.now();
         entity.setPasswordHash(passwordHash);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         userRepository.save(entity);
     }
@@ -69,11 +73,9 @@ public class JpaAuthUserRepository implements AuthUserRepository {
         entity.setPasswordHash(passwordHash);
         entity.setName(name);
         entity.setRecordingState(1);
-        entity.setCreatedBy("seed");
-        entity.setCreatedById("seed");
+        entity.setCreatedById(masterAuditActorLookup.idOf("seed"));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy("seed");
-        entity.setUpdatedById("seed");
+        entity.setUpdatedById(masterAuditActorLookup.idOf("seed"));
         entity.setUpdatedAt(now);
         long userId = userRepository.save(entity).getId();
 

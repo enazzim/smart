@@ -50,16 +50,14 @@ public class JpaProductionCalendarRepository implements ProductionCalendarReposi
 
         if (entity.getId() == null) {
             entity.setCalendarDate(calendarDate);
-            entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-            entity.setCreatedById(actorUserId);
+            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setCreatedAt(now);
         }
 
         entity.setRecordingState(1);
         entity.setWorkTime(command.workTime());
         entity.setContent(normalizeContent(command.content()));
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return toView(calendarRepository.save(entity));
     }
@@ -77,8 +75,7 @@ public class JpaProductionCalendarRepository implements ProductionCalendarReposi
                 });
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         calendarRepository.save(entity);
     }

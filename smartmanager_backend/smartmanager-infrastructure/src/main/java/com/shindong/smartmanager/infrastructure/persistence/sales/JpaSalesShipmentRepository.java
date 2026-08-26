@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.sales;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.inventory.InventoryBalanceService;
 import com.shindong.smartmanager.application.sales.SalesOrderLineShipmentContext;
 import com.shindong.smartmanager.application.sales.SalesShipmentCandidateCriteria;
@@ -48,6 +50,7 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
     private final SpringDataItemRepository itemRepository;
     private final InventoryBalanceService inventoryBalanceService;
     private final SalesShipmentInventoryService salesShipmentInventoryService;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaSalesShipmentRepository(
             EntityManager entityManager,
@@ -58,7 +61,8 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
             SpringDataCompanyRepository companyRepository,
             SpringDataItemRepository itemRepository,
             InventoryBalanceService inventoryBalanceService,
-            SalesShipmentInventoryService salesShipmentInventoryService
+            SalesShipmentInventoryService salesShipmentInventoryService,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.entityManager = entityManager;
         this.shipmentRepository = shipmentRepository;
@@ -69,6 +73,7 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
         this.itemRepository = itemRepository;
         this.inventoryBalanceService = inventoryBalanceService;
         this.salesShipmentInventoryService = salesShipmentInventoryService;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -218,11 +223,9 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
         header.setSalesOrderId(command.salesOrderId());
         header.setStatus(SalesShipmentStatus.ISSUED);
         header.setRecordingState(ACTIVE);
-        header.setCreatedBy(actorUserId);
-        header.setCreatedById(actorUserId);
+        header.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         header.setCreatedAt(now);
-        header.setUpdatedBy(actorUserId);
-        header.setUpdatedById(actorUserId);
+        header.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         header.setUpdatedAt(now);
         SalesShipmentJpaEntity savedHeader = shipmentRepository.save(header);
 
@@ -238,11 +241,9 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
             line.setAmount(lineCommand.amount());
             line.setLotId(lineCommand.lotId());
             line.setRecordingState(ACTIVE);
-            line.setCreatedBy(actorUserId);
-            line.setCreatedById(actorUserId);
+            line.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             line.setCreatedAt(now);
-            line.setUpdatedBy(actorUserId);
-            line.setUpdatedById(actorUserId);
+            line.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             line.setUpdatedAt(now);
             shipmentLineRepository.save(line);
         }
@@ -259,8 +260,7 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
                 .orElseThrow(() -> new IllegalArgumentException("출고·납품을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setStatus(SalesShipmentStatus.CANCELLED);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         shipmentRepository.save(entity);
     }
@@ -330,8 +330,7 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
 
         SalesOrderJpaEntity order = requireActiveOrder(line.getSalesOrderId());
         Instant now = Instant.now();
-        order.setUpdatedBy(actorUserId);
-        order.setUpdatedById(actorUserId);
+        order.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         order.setUpdatedAt(now);
         orderRepository.save(order);
     }
@@ -379,7 +378,7 @@ public class JpaSalesShipmentRepository implements SalesShipmentRepository {
                 entity.getSalesOrderId(),
                 entity.getStatus(),
                 entity.getCreatedAt(),
-                entity.getCreatedBy(),
+                masterAuditActorLookup.nameOf(entity.getCreatedById()),
                 cancelable,
                 lines
         );

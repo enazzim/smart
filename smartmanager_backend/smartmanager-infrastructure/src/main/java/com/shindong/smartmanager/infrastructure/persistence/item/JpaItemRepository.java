@@ -38,11 +38,9 @@ public class JpaItemRepository implements ItemRepository {
         applyCommand(entity, command);
         entity.setItemNo(command.itemNo());
         entity.setRecordingState(1);
-        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return itemRepository.save(entity).getId();
     }
@@ -54,8 +52,7 @@ public class JpaItemRepository implements ItemRepository {
                 .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + id));
         applyUpdate(entity, command);
         Instant now = Instant.now();
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         itemRepository.save(entity);
     }
@@ -67,8 +64,7 @@ public class JpaItemRepository implements ItemRepository {
                 .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + id));
         entity.setLotTracked(lotTracked);
         Instant now = Instant.now();
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         itemRepository.save(entity);
     }
@@ -80,8 +76,7 @@ public class JpaItemRepository implements ItemRepository {
                 .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         itemRepository.save(entity);
     }

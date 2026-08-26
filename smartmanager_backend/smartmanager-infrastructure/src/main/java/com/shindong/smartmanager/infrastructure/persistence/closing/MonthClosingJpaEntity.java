@@ -25,11 +25,8 @@ public class MonthClosingJpaEntity {
     @Column(name = "closed_at", nullable = false)
     private Instant closedAt;
 
-    @Column(name = "closed_by", nullable = false, length = 100)
-    private String closedBy;
-
-    @Column(name = "closed_by_id", length = 100)
-    private String closedById;
+    @Column(name = "closed_by_id")
+    private Long closedById;
 
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
@@ -40,14 +37,12 @@ public class MonthClosingJpaEntity {
     public static MonthClosingJpaEntity create(
             int fiscalYear,
             int fiscalMonth,
-            String closedBy,
-            String closedById,
+            Long closedById,
             Instant closedAt
     ) {
         MonthClosingJpaEntity entity = new MonthClosingJpaEntity();
         entity.fiscalYear = fiscalYear;
         entity.fiscalMonth = fiscalMonth;
-        entity.closedBy = closedBy;
         entity.closedById = closedById;
         entity.closedAt = closedAt;
         entity.recordingState = 1;
@@ -70,11 +65,7 @@ public class MonthClosingJpaEntity {
         return closedAt;
     }
 
-    public String getClosedBy() {
-        return closedBy;
-    }
-
-    public String getClosedById() {
+    public Long getClosedById() {
         return closedById;
     }
 
@@ -86,9 +77,8 @@ public class MonthClosingJpaEntity {
         this.recordingState = 0;
     }
 
-    public void reactivate(String closedBy, String closedById, Instant closedAt) {
+    public void reactivate(Long closedById, Instant closedAt) {
         this.recordingState = 1;
-        this.closedBy = closedBy;
         this.closedById = closedById;
         this.closedAt = closedAt;
     }

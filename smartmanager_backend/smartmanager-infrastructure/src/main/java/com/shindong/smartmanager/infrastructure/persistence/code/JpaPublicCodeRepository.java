@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.code;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.publiccode.CreateLargeCommand;
 import com.shindong.smartmanager.application.publiccode.CreateSmallCommand;
 import com.shindong.smartmanager.application.publiccode.PublicCodeLargeView;
@@ -17,9 +19,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class JpaPublicCodeRepository implements PublicCodeRepository {
 
     private final SpringDataPublicCodeRepository publicCodeRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
-    public JpaPublicCodeRepository(SpringDataPublicCodeRepository publicCodeRepository) {
+    public JpaPublicCodeRepository(
+            SpringDataPublicCodeRepository publicCodeRepository,
+            MasterAuditActorLookup masterAuditActorLookup
+    ) {
         this.publicCodeRepository = publicCodeRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -79,9 +86,9 @@ public class JpaPublicCodeRepository implements PublicCodeRepository {
         entity.setLargeName(command.largeName().trim());
         entity.setUsageType(command.usageType().trim());
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return publicCodeRepository.save(entity).getId();
     }
@@ -97,9 +104,9 @@ public class JpaPublicCodeRepository implements PublicCodeRepository {
         entity.setSmallName(command.smallName().trim());
         entity.setUsageType(header.usageType());
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return publicCodeRepository.save(entity).getId();
     }
@@ -114,7 +121,7 @@ public class JpaPublicCodeRepository implements PublicCodeRepository {
 
         header.setLargeName(nextLargeName);
         header.setUsageType(nextUsageType);
-        header.setUpdatedBy(actorUserId);
+        header.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         header.setUpdatedAt(now);
         publicCodeRepository.save(header);
 
@@ -124,7 +131,7 @@ public class JpaPublicCodeRepository implements PublicCodeRepository {
             }
             small.setLargeName(nextLargeName);
             small.setUsageType(nextUsageType);
-            small.setUpdatedBy(actorUserId);
+            small.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             small.setUpdatedAt(now);
             publicCodeRepository.save(small);
         }
@@ -135,7 +142,7 @@ public class JpaPublicCodeRepository implements PublicCodeRepository {
     public void updateSmall(long id, UpdateSmallCommand command, String actorUserId) {
         PublicCodeJpaEntity entity = getActiveSmallEntity(id);
         entity.setSmallName(command.smallName().trim());
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         publicCodeRepository.save(entity);
     }
@@ -146,7 +153,7 @@ public class JpaPublicCodeRepository implements PublicCodeRepository {
         Instant now = Instant.now();
         for (PublicCodeJpaEntity entity : publicCodeRepository.findByLargeCodeAndRecordingState(largeCode, 1)) {
             entity.setRecordingState(0);
-            entity.setUpdatedBy(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             publicCodeRepository.save(entity);
         }
@@ -157,7 +164,7 @@ public class JpaPublicCodeRepository implements PublicCodeRepository {
     public void softDeleteSmall(long id, String actorUserId) {
         PublicCodeJpaEntity entity = getActiveSmallEntity(id);
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         publicCodeRepository.save(entity);
     }

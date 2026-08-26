@@ -66,11 +66,9 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
         entity.setBeginDate(command.beginDate());
         entity.setEndDate(command.endDate());
         entity.setRecordingState(1);
-        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return unitPriceRepository.save(entity).getId();
     }
@@ -86,8 +84,7 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
         entity.setDiscountUnitCost(command.discountUnitCost());
         entity.setBeginDate(command.beginDate());
         entity.setEndDate(command.endDate());
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         unitPriceRepository.save(entity);
     }
@@ -99,8 +96,7 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
                 .orElseThrow(() -> new IllegalArgumentException("단가를 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         unitPriceRepository.save(entity);
     }
@@ -194,8 +190,7 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
         log.setBeginDate(entity.getBeginDate());
         log.setEndDate(entity.getEndDate());
         log.setUpdateReason(updateReason);
-        log.setChangedBy(masterAuditActorLookup.nameOf(actorUserId));
-        log.setChangedById(actorUserId);
+        log.setChangedById(masterAuditActorLookup.idOf(actorUserId));
         log.setChangedAt(now);
         changeLogRepository.save(log);
     }
@@ -255,8 +250,8 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
                 log.getBeginDate(),
                 log.getEndDate(),
                 log.getUpdateReason(),
-                log.getChangedBy(),
-                log.getChangedById(),
+                masterAuditActorLookup.nameOf(log.getChangedById()),
+                masterAuditActorLookup.loginIdOf(log.getChangedById()),
                 log.getChangedAt()
         );
     }

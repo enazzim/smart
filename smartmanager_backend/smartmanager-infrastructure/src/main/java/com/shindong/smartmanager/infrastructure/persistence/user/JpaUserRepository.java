@@ -51,11 +51,9 @@ public class JpaUserRepository implements UserRepository {
         entity.setEmail(normalizeOptional(command.email()));
         entity.setWorkDiaryGroupId(command.workDiaryGroupId());
         entity.setRecordingState(1);
-        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return userRepository.save(entity).getId();
     }
@@ -73,8 +71,7 @@ public class JpaUserRepository implements UserRepository {
         if (passwordHashOrNull != null) {
             entity.setPasswordHash(passwordHashOrNull);
         }
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         userRepository.save(entity);
     }
@@ -86,8 +83,7 @@ public class JpaUserRepository implements UserRepository {
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         userRepository.save(entity);
     }
