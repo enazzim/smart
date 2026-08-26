@@ -388,7 +388,7 @@ public class PurchaseReceiptService {
                             : historySourceId,
                     null,
                     null,
-                    null,
+                    partnerId,
                     lotId,
                     actorUserId
             ));
@@ -448,7 +448,7 @@ public class PurchaseReceiptService {
                     historySourceId,
                     null,
                     null,
-                    null,
+                    partnerId,
                     lotId,
                     actorUserId
             ));

@@ -172,7 +172,7 @@ export default function SalesOrderPage() {
         단가: row.unitPrice,
         수량: row.orderQty,
         총금액: row.amount,
-        '상태(생산·구매)': row.executionStatusLabel,
+        '이행상태': row.executionStatusLabel,
         납품상태: row.deliveryStatusLabel,
       })),
     [lineRows],
@@ -885,7 +885,7 @@ export default function SalesOrderPage() {
                   <th className="num">단가</th>
                   <th className="num">수량</th>
                   <th className="num">총금액</th>
-                  <th>상태(생산·구매)</th>
+                  <th>이행상태</th>
                   <th>납품상태</th>
                   <th>관리</th>
                 </tr>

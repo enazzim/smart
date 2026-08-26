@@ -105,6 +105,7 @@ public class SalesShipmentInventoryService {
     public void applyRegistration(
             LocalDate shipmentDate,
             long shipmentLineId,
+            long partnerId,
             long itemId,
             String itemNo,
             PropertyClassification propertyClassification,
@@ -115,18 +116,19 @@ public class SalesShipmentInventoryService {
     ) {
         if (propertyClassification != null && propertyClassification.shipmentFromWipFinalProcess()) {
             applyProcessItemRegistration(
-                    shipmentDate, shipmentLineId, itemId, itemNo, qty, amount, lotId, actorUserId);
+                    shipmentDate, shipmentLineId, partnerId, itemId, itemNo, qty, amount, lotId, actorUserId);
             return;
         }
         inventoryBalanceService.assertSufficientStockForOutbound(
                 itemId, itemNo, LOCATION_SALES, shipmentDate, qty, null, null);
-        recordSalesOut(shipmentDate, shipmentLineId, itemId, qty, amount, lotId, actorUserId);
-        recordDeliveryIn(shipmentDate, shipmentLineId, itemId, qty, amount, lotId, actorUserId);
+        recordSalesOut(shipmentDate, shipmentLineId, partnerId, itemId, qty, amount, lotId, actorUserId);
+        recordDeliveryIn(shipmentDate, shipmentLineId, partnerId, itemId, qty, amount, lotId, actorUserId);
     }
 
     public void applyCancellation(
             LocalDate shipmentDate,
             long shipmentLineId,
+            long partnerId,
             long itemId,
             String itemNo,
             PropertyClassification propertyClassification,
@@ -138,11 +140,11 @@ public class SalesShipmentInventoryService {
         Long resolvedLotId = resolveCancelLotId(shipmentLineId, lotId);
         if (propertyClassification != null && propertyClassification.shipmentFromWipFinalProcess()) {
             applyProcessItemCancellation(
-                    shipmentDate, shipmentLineId, itemId, itemNo, qty, amount, resolvedLotId, actorUserId);
+                    shipmentDate, shipmentLineId, partnerId, itemId, itemNo, qty, amount, resolvedLotId, actorUserId);
             return;
         }
-        recordDeliveryOut(shipmentDate, shipmentLineId, itemId, qty, amount, resolvedLotId, actorUserId);
-        recordSalesIn(shipmentDate, shipmentLineId, itemId, qty, amount, resolvedLotId, actorUserId);
+        recordDeliveryOut(shipmentDate, shipmentLineId, partnerId, itemId, qty, amount, resolvedLotId, actorUserId);
+        recordSalesIn(shipmentDate, shipmentLineId, partnerId, itemId, qty, amount, resolvedLotId, actorUserId);
     }
 
     private Long resolveCancelLotId(long shipmentLineId, Long preferredLotId) {
@@ -156,6 +158,7 @@ public class SalesShipmentInventoryService {
     private void applyProcessItemRegistration(
             LocalDate shipmentDate,
             long shipmentLineId,
+            long partnerId,
             long itemId,
             String itemNo,
             BigDecimal qty,
@@ -168,13 +171,14 @@ public class SalesShipmentInventoryService {
         wipBalanceProjector.ensure(itemId, finalProcessId, actorUserId);
         inventoryBalanceService.assertSufficientStockForOutbound(
                 itemId, itemNo, LOCATION_WIP, shipmentDate, qty, finalProcessId, null);
-        recordWipOut(shipmentDate, shipmentLineId, itemId, qty, finalProcessId, lotId, actorUserId);
-        recordDeliveryIn(shipmentDate, shipmentLineId, itemId, qty, amount, lotId, actorUserId);
+        recordWipOut(shipmentDate, shipmentLineId, partnerId, itemId, qty, finalProcessId, lotId, actorUserId);
+        recordDeliveryIn(shipmentDate, shipmentLineId, partnerId, itemId, qty, amount, lotId, actorUserId);
     }
 
     private void applyProcessItemCancellation(
             LocalDate shipmentDate,
             long shipmentLineId,
+            long partnerId,
             long itemId,
             String itemNo,
             BigDecimal qty,
@@ -185,13 +189,14 @@ public class SalesShipmentInventoryService {
         long finalProcessId = ProcessItemInventorySupport.requireFinalProcessId(
                 processRepository, itemId, itemNo);
         wipBalanceProjector.ensure(itemId, finalProcessId, actorUserId);
-        recordDeliveryOut(shipmentDate, shipmentLineId, itemId, qty, amount, lotId, actorUserId);
-        recordWipIn(shipmentDate, shipmentLineId, itemId, qty, finalProcessId, lotId, actorUserId);
+        recordDeliveryOut(shipmentDate, shipmentLineId, partnerId, itemId, qty, amount, lotId, actorUserId);
+        recordWipIn(shipmentDate, shipmentLineId, partnerId, itemId, qty, finalProcessId, lotId, actorUserId);
     }
 
     private void recordWipOut(
             LocalDate shipmentDate,
             long shipmentLineId,
+            long partnerId,
             long itemId,
             BigDecimal qty,
             long outputProcessId,
@@ -209,7 +214,7 @@ public class SalesShipmentInventoryService {
                 shipmentLineId,
                 outputProcessId,
                 null,
-                null,
+                partnerId,
                 lotId,
                 actorUserId
         ));
@@ -218,6 +223,7 @@ public class SalesShipmentInventoryService {
     private void recordWipIn(
             LocalDate shipmentDate,
             long shipmentLineId,
+            long partnerId,
             long itemId,
             BigDecimal qty,
             long outputProcessId,
@@ -235,7 +241,7 @@ public class SalesShipmentInventoryService {
                 shipmentLineId,
                 outputProcessId,
                 null,
-                null,
+                partnerId,
                 lotId,
                 actorUserId
         ));
@@ -244,6 +250,7 @@ public class SalesShipmentInventoryService {
     private void recordSalesOut(
             LocalDate shipmentDate,
             long shipmentLineId,
+            long partnerId,
             long itemId,
             BigDecimal qty,
             BigDecimal amount,
@@ -261,7 +268,7 @@ public class SalesShipmentInventoryService {
                 shipmentLineId,
                 null,
                 null,
-                null,
+                partnerId,
                 lotId,
                 actorUserId
         ));
@@ -270,6 +277,7 @@ public class SalesShipmentInventoryService {
     private void recordSalesIn(
             LocalDate shipmentDate,
             long shipmentLineId,
+            long partnerId,
             long itemId,
             BigDecimal qty,
             BigDecimal amount,
@@ -287,7 +295,7 @@ public class SalesShipmentInventoryService {
                 shipmentLineId,
                 null,
                 null,
-                null,
+                partnerId,
                 lotId,
                 actorUserId
         ));
@@ -296,6 +304,7 @@ public class SalesShipmentInventoryService {
     private void recordDeliveryIn(
             LocalDate shipmentDate,
             long shipmentLineId,
+            long partnerId,
             long itemId,
             BigDecimal qty,
             BigDecimal amount,
@@ -313,7 +322,7 @@ public class SalesShipmentInventoryService {
                 shipmentLineId,
                 null,
                 null,
-                null,
+                partnerId,
                 lotId,
                 actorUserId
         ));
@@ -322,6 +331,7 @@ public class SalesShipmentInventoryService {
     private void recordDeliveryOut(
             LocalDate shipmentDate,
             long shipmentLineId,
+            long partnerId,
             long itemId,
             BigDecimal qty,
             BigDecimal amount,
@@ -339,7 +349,7 @@ public class SalesShipmentInventoryService {
                 shipmentLineId,
                 null,
                 null,
-                null,
+                partnerId,
                 lotId,
                 actorUserId
         ));

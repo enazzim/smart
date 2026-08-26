@@ -166,6 +166,13 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public BigDecimal sumActiveReportedQtyByWorkPlanId(long workPlanId) {
+        BigDecimal sum = workOrderRepository.sumReportedQtyByWorkPlanId(workPlanId, ACTIVE);
+        return sum != null ? sum : BigDecimal.ZERO;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public long countByOrderNumPrefix(String prefix) {
         return workOrderRepository.countByOrderNumStartingWithAndRecordingState(prefix, ACTIVE);
     }

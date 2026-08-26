@@ -160,6 +160,77 @@ class InventoryBalanceServiceTest {
         assertEquals(new BigDecimal("-5"), balance.stockQty());
     }
 
+    @Test
+    void nonOutsourceIgnoresPartnerIdOnBalanceSlot() {
+        locationRepository.register("DELIVERY", 2L);
+        locationRepository.register("OUTSOURCE", 3L);
+
+        service.recordMovement(new RecordStockMovementCommand(
+                100L,
+                "DELIVERY",
+                LocalDate.of(2026, 9, 1),
+                StockMovementType.IN,
+                new BigDecimal("100"),
+                BigDecimal.ZERO,
+                "SALES_SHIPMENT",
+                1L,
+                null,
+                null,
+                11L,
+                "admin"
+        ));
+        service.recordMovement(new RecordStockMovementCommand(
+                100L,
+                "DELIVERY",
+                LocalDate.of(2026, 9, 2),
+                StockMovementType.OUT,
+                new BigDecimal("100"),
+                BigDecimal.ZERO,
+                "SALES_REVENUE",
+                2L,
+                null,
+                null,
+                99L,
+                "admin"
+        ));
+
+        assertEquals(1, balanceRepository.storeSize());
+        assertEquals(0, balanceRepository.findFirst().orElseThrow().stockQty().compareTo(BigDecimal.ZERO));
+        assertEquals(null, balanceRepository.findFirst().orElseThrow().partnerId());
+        assertEquals(11L, movementRepository.lastPartnerId());
+
+        service.recordMovement(new RecordStockMovementCommand(
+                200L,
+                "OUTSOURCE",
+                LocalDate.of(2026, 9, 1),
+                StockMovementType.IN,
+                new BigDecimal("50"),
+                BigDecimal.ZERO,
+                "OUTSOURCING_SHIPMENT",
+                3L,
+                null,
+                7L,
+                11L,
+                "admin"
+        ));
+        service.recordMovement(new RecordStockMovementCommand(
+                200L,
+                "OUTSOURCE",
+                LocalDate.of(2026, 9, 2),
+                StockMovementType.IN,
+                new BigDecimal("30"),
+                BigDecimal.ZERO,
+                "OUTSOURCING_SHIPMENT",
+                4L,
+                null,
+                7L,
+                22L,
+                "admin"
+        ));
+
+        assertEquals(2L, balanceRepository.countByItemId(200L));
+    }
+
     private void setNegativeStockAllowed(boolean allowed) {
         systemSettingRepository.upsert(
                 SystemSettingService.KEY_INVENTORY_ALLOW_NEGATIVE_STOCK,
@@ -283,6 +354,14 @@ class InventoryBalanceServiceTest {
             return store.values().stream().findFirst();
         }
 
+        int storeSize() {
+            return store.size();
+        }
+
+        long countByItemId(long itemId) {
+            return store.values().stream().filter(b -> b.itemId() == itemId).count();
+        }
+
         private static boolean matches(InventoryBalanceSlotView balance, InventoryBalanceKey key) {
             return balance.itemId() == key.itemId()
                     && balance.locationId() == key.locationId()
@@ -303,9 +382,11 @@ class InventoryBalanceServiceTest {
     private static final class InMemoryMovementRepository implements StockMovementRepository {
 
         private long nextId = 1;
+        private Long lastPartnerId;
 
         @Override
         public StockMovementView save(StockMovementView movement) {
+            lastPartnerId = movement.partnerId();
             return new StockMovementView(
                     nextId++,
                     movement.inventoryBalanceId(),
@@ -319,8 +400,15 @@ class InventoryBalanceServiceTest {
                     movement.referenceType(),
                     movement.referenceId(),
                     movement.movementDate(),
-                    movement.lotId()
+                    movement.lotId(),
+                    movement.outputProcessId(),
+                    movement.inputProcessId(),
+                    movement.partnerId()
             );
+        }
+
+        Long lastPartnerId() {
+            return lastPartnerId;
         }
 
         @Override

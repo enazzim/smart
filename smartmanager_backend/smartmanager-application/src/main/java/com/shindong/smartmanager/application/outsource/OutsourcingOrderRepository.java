@@ -26,6 +26,8 @@ public interface OutsourcingOrderRepository {
 
     Map<Long, BigDecimal> sumOrderedQtyByWorkPlanIds(Collection<Long> workPlanIds);
 
+    Map<Long, BigDecimal> sumReceivedQtyByWorkPlanIds(Collection<Long> workPlanIds);
+
     Optional<OutsourcingOrderLineView> findActiveLineById(long orderLineId);
 
     Optional<OutsourcingOrderView> findActiveByOrderLineId(long orderLineId);

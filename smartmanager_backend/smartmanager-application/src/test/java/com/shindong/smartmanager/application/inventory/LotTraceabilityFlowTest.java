@@ -238,6 +238,11 @@ class LotTraceabilityFlowTest {
         public Optional<ItemView> findActiveByItemNo(String itemNo) {
             return byId.values().stream().filter(i -> i.itemNo().equals(itemNo)).findFirst();
         }
+
+        @Override
+        public void updateLotTracked(long id, boolean lotTracked, String actorUserId) {
+            throw new UnsupportedOperationException();
+        }
     }
 
     private static final class InMemoryLotRepository implements LotRepository {
@@ -278,6 +283,11 @@ class LotTraceabilityFlowTest {
                         balanceId, lotId, balanceId, "X", "X", null, null, null, e.getValue()));
             }
             return result;
+        }
+
+        @Override
+        public List<StockMovementListItemView> findMovementsByLotId(long lotId) {
+            return List.of();
         }
 
         @Override

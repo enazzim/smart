@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.application.production;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,6 +15,8 @@ public interface WorkOrderRepository {
     Optional<WorkOrderView> findActiveIssuedById(long id);
 
     Optional<WorkOrderView> findActiveById(long id);
+
+    BigDecimal sumActiveReportedQtyByWorkPlanId(long workPlanId);
 
     long countByOrderNumPrefix(String prefix);
 

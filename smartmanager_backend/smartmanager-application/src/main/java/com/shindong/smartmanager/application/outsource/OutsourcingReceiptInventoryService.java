@@ -188,6 +188,7 @@ public class OutsourcingReceiptInventoryService {
             applyInbound(
                     receiptDate,
                     receiptId,
+                    partnerId,
                     orderLine,
                     inboundQty,
                     amount,
@@ -258,6 +259,7 @@ public class OutsourcingReceiptInventoryService {
     private void applyInbound(
             LocalDate receiptDate,
             long receiptId,
+            long partnerId,
             OutsourcingOrderLineView orderLine,
             BigDecimal inboundQty,
             BigDecimal amount,
@@ -289,7 +291,7 @@ public class OutsourcingReceiptInventoryService {
                     receiptId,
                     null,
                     null,
-                    null,
+                    partnerId,
                     inboundLotId,
                     actorUserId
             ));
@@ -308,7 +310,7 @@ public class OutsourcingReceiptInventoryService {
                 receiptId,
                 endProcessId,
                 null,
-                null,
+                partnerId,
                 inboundLotId,
                 actorUserId
         ));

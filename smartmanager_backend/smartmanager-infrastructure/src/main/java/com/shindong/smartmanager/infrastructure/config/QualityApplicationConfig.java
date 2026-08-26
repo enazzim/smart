@@ -9,6 +9,7 @@ import com.shindong.smartmanager.application.purchase.PurchaseReceiptRepository;
 import com.shindong.smartmanager.application.purchase.PurchaseReceiptService;
 import com.shindong.smartmanager.application.quality.QualityInspectionRepository;
 import com.shindong.smartmanager.application.quality.QualityInspectionService;
+import com.shindong.smartmanager.application.sales.SalesOrderFulfillmentSyncService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -24,7 +25,8 @@ public class QualityApplicationConfig {
             OutsourcingReceiptService outsourcingReceiptService,
             OutsourcingOrderRepository outsourcingOrderRepository,
             MonthClosingService monthClosingService,
-            FiscalCalendarService fiscalCalendarService
+            FiscalCalendarService fiscalCalendarService,
+            SalesOrderFulfillmentSyncService salesOrderFulfillmentSyncService
     ) {
         return new QualityInspectionService(
                 inspectionRepository,
@@ -34,7 +36,8 @@ public class QualityApplicationConfig {
                 outsourcingReceiptService,
                 outsourcingOrderRepository,
                 monthClosingService,
-                fiscalCalendarService
+                fiscalCalendarService,
+                salesOrderFulfillmentSyncService
         );
     }
 }

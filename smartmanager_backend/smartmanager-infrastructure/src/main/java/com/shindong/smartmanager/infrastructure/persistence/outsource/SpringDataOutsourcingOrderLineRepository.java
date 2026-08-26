@@ -30,5 +30,21 @@ public interface SpringDataOutsourcingOrderLineRepository extends JpaRepository<
             @Param("cancelled") OutsourcingOrderStatus cancelled
     );
 
+    @Query("""
+            SELECT l.workPlanId, COALESCE(SUM(l.receivedQty), 0)
+            FROM OutsourcingOrderLineJpaEntity l
+            JOIN OutsourcingOrderJpaEntity o ON o.id = l.outsourcingOrderId
+            WHERE l.recordingState = :active
+              AND o.recordingState = :active
+              AND o.status <> :cancelled
+              AND l.workPlanId IN :workPlanIds
+            GROUP BY l.workPlanId
+            """)
+    List<Object[]> sumReceivedQtyGroupedByWorkPlanId(
+            @Param("workPlanIds") Collection<Long> workPlanIds,
+            @Param("active") int active,
+            @Param("cancelled") OutsourcingOrderStatus cancelled
+    );
+
     java.util.Optional<OutsourcingOrderLineJpaEntity> findByIdAndRecordingState(long id, int recordingState);
 }

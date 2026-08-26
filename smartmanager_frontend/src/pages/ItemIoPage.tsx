@@ -7,6 +7,7 @@ import {
   formatInventoryLocation,
   INVENTORY_LOCATION_FILTER_OPTIONS,
 } from '../utils/inventoryLocation';
+import { ALL_ITEM_CLASSES } from '../utils/itemClassFilters';
 import { formatInteger, formatQty } from '../utils/numberFormat';
 
 function referenceTypeLabel(type: string) {
@@ -130,6 +131,7 @@ export default function ItemIoPage() {
           onSelect={setSelectedItem}
           onQueryTextChange={setItemQueryText}
           clearToken={itemClearToken}
+          allowedClassifications={ALL_ITEM_CLASSES}
         />
         <CompanySearchField
           label="수불처"

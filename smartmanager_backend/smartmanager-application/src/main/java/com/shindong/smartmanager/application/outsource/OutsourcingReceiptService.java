@@ -11,6 +11,7 @@ import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.ledger.PartnerLedgerService;
 import com.shindong.smartmanager.application.purchase.PartnerPaymentRepository;
 import com.shindong.smartmanager.application.quality.QualityInspectionRepository;
+import com.shindong.smartmanager.application.sales.SalesOrderFulfillmentSyncService;
 import com.shindong.smartmanager.domain.event.AggregateTypes;
 import com.shindong.smartmanager.domain.event.DomainEvent;
 import com.shindong.smartmanager.domain.event.EventTypes;
@@ -34,6 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class OutsourcingReceiptService {
 
@@ -49,6 +51,7 @@ public class OutsourcingReceiptService {
     private final MonthClosingService monthClosingService;
     private final FiscalCalendarService fiscalCalendarService;
     private final DomainEventStore domainEventStore;
+    private final SalesOrderFulfillmentSyncService salesOrderFulfillmentSyncService;
 
     public OutsourcingReceiptService(
             OutsourcingReceiptRepository receiptRepository,
@@ -62,7 +65,8 @@ public class OutsourcingReceiptService {
             PartnerPaymentRepository partnerPaymentRepository,
             MonthClosingService monthClosingService,
             FiscalCalendarService fiscalCalendarService,
-            DomainEventStore domainEventStore
+            DomainEventStore domainEventStore,
+            SalesOrderFulfillmentSyncService salesOrderFulfillmentSyncService
     ) {
         this.receiptRepository = receiptRepository;
         this.outsourcingOrderRepository = outsourcingOrderRepository;
@@ -76,6 +80,7 @@ public class OutsourcingReceiptService {
         this.monthClosingService = monthClosingService;
         this.fiscalCalendarService = fiscalCalendarService;
         this.domainEventStore = domainEventStore;
+        this.salesOrderFulfillmentSyncService = salesOrderFulfillmentSyncService;
     }
 
     public List<OutsourcingReceiptCandidateView> listCandidates(OutsourcingReceiptCandidateCriteria criteria) {
@@ -131,6 +136,7 @@ public class OutsourcingReceiptService {
         for (long orderId : affectedOrderIds) {
             outsourcingOrderRepository.refreshOrderStatus(orderId, actorUserId);
         }
+        syncFulfillmentForOrderLines(contextByLineId.keySet(), actorUserId);
         return lastReceipt;
     }
 
@@ -194,6 +200,10 @@ public class OutsourcingReceiptService {
         for (long orderId : affectedOrderIds) {
             outsourcingOrderRepository.refreshOrderStatus(orderId, actorUserId);
         }
+        Set<Long> orderLineIds = receipt.lines().stream()
+                .map(OutsourcingReceiptLineView::outsourcingOrderLineId)
+                .collect(Collectors.toSet());
+        syncFulfillmentForOrderLines(orderLineIds, actorUserId);
     }
 
     public void applyStockAndLedger(
@@ -657,6 +667,25 @@ public class OutsourcingReceiptService {
     static BigDecimal lineAmount(BigDecimal qty, BigDecimal unitPrice) {
         BigDecimal price = unitPrice != null ? unitPrice : BigDecimal.ZERO;
         return qty.multiply(price).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void syncFulfillmentForOrderLines(Set<Long> orderLineIds, String actorUserId) {
+        if (orderLineIds == null || orderLineIds.isEmpty()) {
+            return;
+        }
+        Set<Long> workPlanIds = new HashSet<>();
+        for (Long orderLineId : orderLineIds) {
+            if (orderLineId == null) {
+                continue;
+            }
+            outsourcingOrderRepository.findActiveLineById(orderLineId)
+                    .map(OutsourcingOrderLineView::workPlanId)
+                    .filter(id -> id != null)
+                    .ifPresent(workPlanIds::add);
+        }
+        for (Long workPlanId : workPlanIds) {
+            salesOrderFulfillmentSyncService.syncByWorkPlanId(workPlanId, actorUserId);
+        }
     }
 
     private String nextReceiptNo(LocalDate receiptDate) {

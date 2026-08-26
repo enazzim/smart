@@ -150,6 +150,13 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
     }
 
     @Override
+    public Optional<ProductionPlanView> findActiveBySalesOrderLineId(long salesOrderLineId) {
+        return planRepository.findBySalesOrderLineIdAndRecordingState(salesOrderLineId, ACTIVE).stream()
+                .findFirst()
+                .flatMap(plan -> findActiveById(plan.getId()));
+    }
+
+    @Override
     public Set<Long> findActiveSalesOrderLineIds() {
         return planRepository.findByRecordingStateOrderByIdDesc(ACTIVE).stream()
                 .map(ProductionPlanJpaEntity::getSalesOrderLineId)

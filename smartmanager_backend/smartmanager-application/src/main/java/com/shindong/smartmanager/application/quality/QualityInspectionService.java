@@ -16,6 +16,7 @@ import com.shindong.smartmanager.application.purchase.PurchaseReceiptLineView;
 import com.shindong.smartmanager.application.purchase.PurchaseReceiptRepository;
 import com.shindong.smartmanager.application.purchase.PurchaseReceiptService;
 import com.shindong.smartmanager.application.purchase.PurchaseReceiptView;
+import com.shindong.smartmanager.application.sales.SalesOrderFulfillmentSyncService;
 import com.shindong.smartmanager.domain.outsource.OutsourceHistorySourceType;
 import com.shindong.smartmanager.domain.purchase.PurchaseHistorySourceType;
 import com.shindong.smartmanager.domain.quality.QualityInspectionSourceType;
@@ -37,6 +38,7 @@ public class QualityInspectionService {
     private final OutsourcingOrderRepository outsourcingOrderRepository;
     private final MonthClosingService monthClosingService;
     private final FiscalCalendarService fiscalCalendarService;
+    private final SalesOrderFulfillmentSyncService salesOrderFulfillmentSyncService;
 
     public QualityInspectionService(
             QualityInspectionRepository inspectionRepository,
@@ -46,7 +48,8 @@ public class QualityInspectionService {
             OutsourcingReceiptService outsourcingReceiptService,
             OutsourcingOrderRepository outsourcingOrderRepository,
             MonthClosingService monthClosingService,
-            FiscalCalendarService fiscalCalendarService
+            FiscalCalendarService fiscalCalendarService,
+            SalesOrderFulfillmentSyncService salesOrderFulfillmentSyncService
     ) {
         this.inspectionRepository = inspectionRepository;
         this.purchaseReceiptRepository = purchaseReceiptRepository;
@@ -56,6 +59,7 @@ public class QualityInspectionService {
         this.outsourcingOrderRepository = outsourcingOrderRepository;
         this.monthClosingService = monthClosingService;
         this.fiscalCalendarService = fiscalCalendarService;
+        this.salesOrderFulfillmentSyncService = salesOrderFulfillmentSyncService;
     }
 
     public List<QualityInspectionView> list(QualityInspectionListCriteria criteria) {
@@ -226,6 +230,7 @@ public class QualityInspectionService {
                 orderLine.outsourcingOrderLineId(), inspection.requestQty(), actorUserId);
         outsourcingReceiptRepository.updateReceiptStatus(receipt.id(), actorUserId);
         outsourcingOrderRepository.refreshOrderStatus(orderLine.outsourcingOrderId(), actorUserId);
+        syncFulfillmentForWorkPlan(orderLineView.workPlanId(), actorUserId);
     }
 
     private void completePurchaseInspection(
@@ -324,6 +329,7 @@ public class QualityInspectionService {
 
         outsourcingReceiptRepository.updateReceiptStatus(receipt.id(), actorUserId);
         outsourcingOrderRepository.refreshOrderStatus(orderLine.outsourcingOrderId(), actorUserId);
+        syncFulfillmentForWorkPlan(orderLineView.workPlanId(), actorUserId);
     }
 
     private PurchaseReceiptView findPurchaseReceiptByLineId(long receiptLineId) {
@@ -345,5 +351,12 @@ public class QualityInspectionService {
             return null;
         }
         return value.trim();
+    }
+
+    private void syncFulfillmentForWorkPlan(Long workPlanId, String actorUserId) {
+        if (workPlanId == null) {
+            return;
+        }
+        salesOrderFulfillmentSyncService.syncByWorkPlanId(workPlanId, actorUserId);
     }
 }

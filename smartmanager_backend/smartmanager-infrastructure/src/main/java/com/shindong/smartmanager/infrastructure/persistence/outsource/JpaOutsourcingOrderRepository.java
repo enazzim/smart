@@ -95,6 +95,22 @@ public class JpaOutsourcingOrderRepository implements OutsourcingOrderRepository
     }
 
     @Override
+    public Map<Long, BigDecimal> sumReceivedQtyByWorkPlanIds(Collection<Long> workPlanIds) {
+        if (workPlanIds == null || workPlanIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, BigDecimal> totals = new HashMap<>();
+        for (Object[] row : lineRepository.sumReceivedQtyGroupedByWorkPlanId(
+                workPlanIds,
+                ACTIVE,
+                OutsourcingOrderStatus.CANCELLED
+        )) {
+            totals.put((Long) row[0], (BigDecimal) row[1]);
+        }
+        return totals;
+    }
+
+    @Override
     public long countByOrderNoPrefix(String prefix) {
         return orderRepository.countByOrderNoStartingWithAndRecordingState(prefix, ACTIVE);
     }
