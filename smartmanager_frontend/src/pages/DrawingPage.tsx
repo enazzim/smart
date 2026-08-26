@@ -46,7 +46,6 @@ type DrawingTab = 'dev' | 'prod' | 'deleted';
 interface DrawingPageProps {
   readOnly?: boolean;
   canHardDelete?: boolean;
-  actorUserId?: string;
   roleCodes?: string[];
 }
 
@@ -63,7 +62,6 @@ const LIFECYCLE_FILTER_OPTIONS: { value: '' | DrawingLifecycleStage; label: stri
 function DrawingDashboard({
   readOnly = false,
   canHardDelete = false,
-  actorUserId,
   roleCodes = [],
 }: DrawingPageProps) {
   const confirm = useConfirm();
@@ -214,7 +212,7 @@ function DrawingDashboard({
       return;
     }
     try {
-      await deleteDrawing(partNo, actorUserId);
+      await deleteDrawing(partNo);
       const deleted = drawings.find((row) => row.partNo === partNo);
       if (deleted) {
         moveDrawingToDeleted(deleted);
@@ -231,7 +229,7 @@ function DrawingDashboard({
       return;
     }
     try {
-      await restoreDrawing(id, actorUserId);
+      await restoreDrawing(id);
       const restored = deletedDrawings.find((row) => row.id === id);
       if (restored) {
         moveDrawingToActive(restored);
@@ -253,7 +251,7 @@ function DrawingDashboard({
       return;
     }
     try {
-      await hardDeleteDrawing(id, actorUserId);
+      await hardDeleteDrawing(id);
       removeDeletedDrawing(id);
       showSuccess('도면이 영구 삭제되었습니다.');
       await refreshLists();
@@ -577,7 +575,6 @@ function DrawingDashboard({
         <DrawingUploadModal
           open={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          actorUserId={actorUserId}
           onSuccess={showSuccess}
           onError={showError}
         />
@@ -590,7 +587,6 @@ function DrawingDashboard({
           partNo={revisingDrawing.partNo}
           currentMajor={revisingDrawing.majorVersion}
           currentMinor={revisingDrawing.minorVersion}
-          actorUserId={actorUserId}
           onSuccess={showSuccess}
           onError={showError}
         />
@@ -604,7 +600,6 @@ function DrawingDashboard({
           initialPartNo={editingDrawing.partNo}
           initialPartName={editingDrawing.partName}
           initialModelType={editingDrawing.modelType}
-          actorUserId={actorUserId}
           onSuccess={showSuccess}
           onError={showError}
         />
@@ -626,7 +621,6 @@ function DrawingDashboard({
           isDeleted={tab === 'deleted'}
           readOnly={readOnly}
           canManage={!readOnly}
-          actorUserId={actorUserId}
           onSuccess={showSuccess}
           onError={showError}
           onDrawingMetaChange={(patch) => {
@@ -802,7 +796,6 @@ function DrawingDashboard({
 export default function DrawingPage({
   readOnly = false,
   canHardDelete = false,
-  actorUserId,
   roleCodes = [],
 }: DrawingPageProps) {
   return (
@@ -810,7 +803,6 @@ export default function DrawingPage({
       <DrawingDashboard
         readOnly={readOnly}
         canHardDelete={canHardDelete}
-        actorUserId={actorUserId}
         roleCodes={roleCodes}
       />
     </QueryClientProvider>

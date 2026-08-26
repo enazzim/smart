@@ -8,7 +8,6 @@ import { DRAWING_PDF_MAX_SIZE_LABEL, validateDrawingPdfFile } from '../../utils/
 interface DrawingUploadModalProps {
   open: boolean;
   onClose: () => void;
-  actorUserId?: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -16,7 +15,6 @@ interface DrawingUploadModalProps {
 export default function DrawingUploadModal({
   open,
   onClose,
-  actorUserId,
   onSuccess,
   onError,
 }: DrawingUploadModalProps) {
@@ -127,7 +125,6 @@ export default function DrawingUploadModal({
           drawingType: 'DEV',
         },
         selectedFile,
-        actorUserId,
       );
       await queryClient.invalidateQueries({ queryKey: ['drawings'] });
       onSuccess('도면이 성공적으로 등록되었습니다.');

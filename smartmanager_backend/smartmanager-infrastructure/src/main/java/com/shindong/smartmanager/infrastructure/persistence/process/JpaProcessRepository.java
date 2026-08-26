@@ -10,6 +10,7 @@ import com.shindong.smartmanager.infrastructure.persistence.code.PublicCodeJpaEn
 import com.shindong.smartmanager.infrastructure.persistence.code.SpringDataPublicCodeRepository;
 import com.shindong.smartmanager.infrastructure.persistence.item.ItemJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.item.SpringDataItemRepository;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import com.shindong.smartmanager.infrastructure.persistence.workcenter.SpringDataWorkCenterRepository;
 import com.shindong.smartmanager.infrastructure.persistence.workcenter.WorkCenterJpaEntity;
 import java.time.Instant;
@@ -25,17 +26,20 @@ public class JpaProcessRepository implements ProcessRepository {
     private final SpringDataItemRepository itemRepository;
     private final SpringDataPublicCodeRepository publicCodeRepository;
     private final SpringDataWorkCenterRepository workCenterRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaProcessRepository(
             SpringDataProcessSequenceRepository processRepository,
             SpringDataItemRepository itemRepository,
             SpringDataPublicCodeRepository publicCodeRepository,
-            SpringDataWorkCenterRepository workCenterRepository
+            SpringDataWorkCenterRepository workCenterRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.processRepository = processRepository;
         this.itemRepository = itemRepository;
         this.publicCodeRepository = publicCodeRepository;
         this.workCenterRepository = workCenterRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -46,10 +50,10 @@ public class JpaProcessRepository implements ProcessRepository {
         applyCommand(entity, command);
         entity.setVariant(variant);
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
+        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setCreatedById(actorUserId);
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         return processRepository.save(entity).getId();
@@ -62,7 +66,7 @@ public class JpaProcessRepository implements ProcessRepository {
                 .orElseThrow(() -> new IllegalArgumentException("공정을 찾을 수 없습니다: " + id));
         applyUpdate(entity, command);
         Instant now = Instant.now();
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         processRepository.save(entity);
@@ -75,7 +79,7 @@ public class JpaProcessRepository implements ProcessRepository {
                 .orElseThrow(() -> new IllegalArgumentException("공정을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         processRepository.save(entity);
@@ -155,10 +159,10 @@ public class JpaProcessRepository implements ProcessRepository {
         entity.setProgressRate((short) 100);
         entity.setVariant(ProcessVariant.plan);
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
+        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setCreatedById(actorUserId);
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         return processRepository.save(entity).getId();

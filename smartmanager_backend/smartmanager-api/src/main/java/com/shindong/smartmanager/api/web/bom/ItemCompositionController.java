@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.api.web.bom;
 
 import com.shindong.smartmanager.api.security.BasisAuthorize;
+import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.bom.ItemCompositionUpdateCommand;
 import com.shindong.smartmanager.infrastructure.application.ItemCompositionApplicationService;
 import jakarta.validation.Valid;
@@ -12,7 +13,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -22,8 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/basis/item-composition/plan")
 @BasisAuthorize.ItemRead
 public class ItemCompositionController {
-
-    private static final String DEFAULT_ACTOR = "local-dev";
 
     private final ItemCompositionApplicationService itemCompositionApplicationService;
 
@@ -51,10 +49,9 @@ public class ItemCompositionController {
     @PostMapping("/copy")
     @BasisAuthorize.ItemWrite
     public CopyBomResponse copy(
-            @Valid @RequestBody CopyBomRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody CopyBomRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         int copied = itemCompositionApplicationService.copyBom(
                 request.sourceItemNum(),
                 request.targetItemNum(),
@@ -87,10 +84,9 @@ public class ItemCompositionController {
     @BasisAuthorize.ItemWrite
     public LotTrackedEnableResponse enableLotTracked(
             @PathVariable String itemNum,
-            @Valid @RequestBody LotTrackedEnableRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody LotTrackedEnableRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         int updated = itemCompositionApplicationService.enableLotTracked(
                 itemNum,
                 request.itemIds(),
@@ -115,10 +111,9 @@ public class ItemCompositionController {
     @ResponseStatus(HttpStatus.CREATED)
     @BasisAuthorize.ItemWrite
     public ItemCompositionResponse create(
-            @Valid @RequestBody CreateItemCompositionRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody CreateItemCompositionRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         return ItemCompositionResponse.from(itemCompositionApplicationService.register(
                 request.parentItemNum(),
                 request.childItemNum(),
@@ -132,10 +127,9 @@ public class ItemCompositionController {
     @BasisAuthorize.ItemWrite
     public ItemCompositionResponse update(
             @PathVariable long id,
-            @Valid @RequestBody UpdateItemCompositionRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody UpdateItemCompositionRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         return ItemCompositionResponse.from(itemCompositionApplicationService.update(
                 id,
                 new ItemCompositionUpdateCommand(request.parentQuantity(), request.childQuantity()),
@@ -146,11 +140,7 @@ public class ItemCompositionController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @BasisAuthorize.ItemWrite
-    public void delete(
-            @PathVariable long id,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
-    ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
-        itemCompositionApplicationService.delete(id, actor);
+    public void delete(@PathVariable long id) {
+        itemCompositionApplicationService.delete(id, SecurityUtils.requireLoginId());
     }
 }

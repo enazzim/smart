@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.api.web.calendar;
 
 import com.shindong.smartmanager.api.security.BasisAuthorize;
+import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.calendar.EffectiveCalendarDayView;
 import com.shindong.smartmanager.application.calendar.WorkCenterCalendarOverrideCommand;
 import com.shindong.smartmanager.application.calendar.WorkCenterCalendarOverrideView;
@@ -16,7 +17,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -26,8 +26,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/basis/work-center-calendars")
 @BasisAuthorize.ProductionCalendarRead
 public class WorkCenterCalendarController {
-
-    private static final String DEFAULT_ACTOR = "local-dev";
 
     private final WorkCenterCalendarApplicationService workCenterCalendarApplicationService;
 
@@ -60,10 +58,9 @@ public class WorkCenterCalendarController {
     @PutMapping("/overrides")
     @BasisAuthorize.ProductionCalendarWrite
     public EffectiveCalendarDayResponse upsertOverride(
-            @Valid @RequestBody UpsertWorkCenterCalendarOverrideRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody UpsertWorkCenterCalendarOverrideRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         WorkCenterCalendarOverrideCommand command = new WorkCenterCalendarOverrideCommand(
                 request.workCenterId(),
                 request.calendarDate(),
@@ -80,11 +77,9 @@ public class WorkCenterCalendarController {
     @BasisAuthorize.ProductionCalendarWrite
     public void deleteOverride(
             @RequestParam long workCenterId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate calendarDate,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate calendarDate
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
-        workCenterCalendarApplicationService.deleteOverride(workCenterId, calendarDate, actor);
+        workCenterCalendarApplicationService.deleteOverride(workCenterId, calendarDate, SecurityUtils.requireLoginId());
     }
 
     public record UpsertWorkCenterCalendarOverrideRequest(

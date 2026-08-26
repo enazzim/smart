@@ -12,7 +12,6 @@ interface DrawingLinkItemModalProps {
   initialItemId?: number | null;
   initialItemNo?: string | null;
   initialItemName?: string | null;
-  actorUserId?: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -25,7 +24,6 @@ export default function DrawingLinkItemModal({
   initialItemId,
   initialItemNo,
   initialItemName,
-  actorUserId,
   onSuccess,
   onError,
 }: DrawingLinkItemModalProps) {
@@ -64,7 +62,7 @@ export default function DrawingLinkItemModal({
 
     setIsLoading(true);
     try {
-      await linkDrawingItem(drawingId, { itemId: selectedItem.id }, actorUserId);
+      await linkDrawingItem(drawingId, { itemId: selectedItem.id });
       await queryClient.invalidateQueries({ queryKey: ['drawings'] });
       onSuccess(`[${partNo}] 도면에 품목 ${selectedItem.itemNo}이(가) 연결되었습니다.`);
       onClose();

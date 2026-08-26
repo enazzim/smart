@@ -4,6 +4,7 @@ import com.shindong.smartmanager.application.item.ItemCommand;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemUpdateCommand;
 import com.shindong.smartmanager.application.item.ItemView;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -14,9 +15,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class JpaItemRepository implements ItemRepository {
 
     private final SpringDataItemRepository itemRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
-    public JpaItemRepository(SpringDataItemRepository itemRepository) {
+    public JpaItemRepository(
+            SpringDataItemRepository itemRepository,
+            MasterAuditActorLookup masterAuditActorLookup
+    ) {
         this.itemRepository = itemRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -32,10 +38,10 @@ public class JpaItemRepository implements ItemRepository {
         applyCommand(entity, command);
         entity.setItemNo(command.itemNo());
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
+        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setCreatedById(actorUserId);
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         return itemRepository.save(entity).getId();
@@ -48,7 +54,7 @@ public class JpaItemRepository implements ItemRepository {
                 .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + id));
         applyUpdate(entity, command);
         Instant now = Instant.now();
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         itemRepository.save(entity);
@@ -61,7 +67,7 @@ public class JpaItemRepository implements ItemRepository {
                 .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + id));
         entity.setLotTracked(lotTracked);
         Instant now = Instant.now();
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         itemRepository.save(entity);
@@ -74,7 +80,7 @@ public class JpaItemRepository implements ItemRepository {
                 .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         itemRepository.save(entity);

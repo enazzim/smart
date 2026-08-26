@@ -280,7 +280,6 @@ export function renderBasisPage(tab: BasisTab, ctx?: BasisPageContext) {
         <DrawingPage
           readOnly={!(ctx?.canManageDrawings ?? false)}
           canHardDelete={ctx?.canHardDeleteDrawings ?? false}
-          actorUserId={ctx?.currentUser?.loginId}
           roleCodes={ctx?.roleCodes ?? []}
         />
       </Suspense>

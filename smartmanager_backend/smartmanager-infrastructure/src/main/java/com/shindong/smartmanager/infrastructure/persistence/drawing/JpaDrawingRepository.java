@@ -10,6 +10,7 @@ import com.shindong.smartmanager.domain.drawing.DrawingLifecycleStage;
 import com.shindong.smartmanager.domain.drawing.DrawingType;
 import com.shindong.smartmanager.infrastructure.persistence.company.CompanyJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.item.ItemJpaEntity;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.HashSet;
@@ -30,15 +31,18 @@ public class JpaDrawingRepository implements DrawingRepository {
     private final SpringDataDrawingMasterRepository masterRepository;
     private final SpringDataDrawingHistoryRepository historyRepository;
     private final EntityManager entityManager;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaDrawingRepository(
             SpringDataDrawingMasterRepository masterRepository,
             SpringDataDrawingHistoryRepository historyRepository,
-            EntityManager entityManager
+            EntityManager entityManager,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.masterRepository = masterRepository;
         this.historyRepository = historyRepository;
         this.entityManager = entityManager;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -65,10 +69,10 @@ public class JpaDrawingRepository implements DrawingRepository {
         entity.setLifecycleStage(lifecycleStage != null ? lifecycleStage : DrawingLifecycleStage.RECEIVED);
         entity.setSourcePartner(resolveCompanyReference(sourcePartnerId));
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
+        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setCreatedById(actorUserId);
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         try {
@@ -97,7 +101,7 @@ public class JpaDrawingRepository implements DrawingRepository {
                 .orElseThrow(() -> new IllegalArgumentException("해당 품번의 도면을 찾을 수 없습니다: " + partNo));
         Instant now = Instant.now();
         entity.setRecordingState(DELETED);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         masterRepository.save(entity);
@@ -110,7 +114,7 @@ public class JpaDrawingRepository implements DrawingRepository {
                 .orElseThrow(() -> new IllegalArgumentException("해당 도면을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(ACTIVE);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         masterRepository.save(entity);
@@ -131,7 +135,7 @@ public class JpaDrawingRepository implements DrawingRepository {
         entity.setPartNo(partNo);
         entity.setPartName(partName);
         entity.setModelType(modelType);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         try {
@@ -148,7 +152,7 @@ public class JpaDrawingRepository implements DrawingRepository {
                 .orElseThrow(() -> new IllegalArgumentException("해당 도면을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setLifecycleStage(lifecycleStage);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         masterRepository.save(entity);
@@ -163,7 +167,7 @@ public class JpaDrawingRepository implements DrawingRepository {
         entity.setItem(resolveItemReference(itemId));
         entity.setItemLinkedAt(now);
         entity.setLifecycleStage(DrawingLifecycleStage.ITEM_LINKED);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         masterRepository.save(entity);

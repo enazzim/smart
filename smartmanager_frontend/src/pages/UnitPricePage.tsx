@@ -116,6 +116,38 @@ function formatDateTime(value: string) {
   return new Date(value).toLocaleString('ko-KR');
 }
 
+function duplicateHistoryActorNames(rows: UnitPriceHistory[]): Set<string> {
+  const idsByName = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const name = row.changedBy?.trim();
+    if (!name) {
+      continue;
+    }
+    const ids = idsByName.get(name) ?? new Set<string>();
+    ids.add(row.changedById?.trim() ?? '');
+    idsByName.set(name, ids);
+  }
+  const duplicates = new Set<string>();
+  for (const [name, ids] of idsByName) {
+    if (ids.size > 1) {
+      duplicates.add(name);
+    }
+  }
+  return duplicates;
+}
+
+function formatHistoryActor(row: UnitPriceHistory, duplicateNames: Set<string>): string {
+  const name = row.changedBy?.trim();
+  if (!name) {
+    return '—';
+  }
+  const loginId = row.changedById?.trim();
+  if (loginId && duplicateNames.has(name)) {
+    return `${name} (${loginId})`;
+  }
+  return name;
+}
+
 function emptyForm(tab: CostType): CreateUnitPriceRequest {
   return {
     type: tab,
@@ -192,6 +224,11 @@ export default function UnitPricePage() {
     return matched?.itemClasses ?? ALL_HISTORY_ITEM_CLASSES;
   }, [allHistoryFilters.costType]);
 
+  const historyActorDuplicateNames = useMemo(
+    () => duplicateHistoryActorNames(historyRows),
+    [historyRows],
+  );
+
   const historyExportRows = useMemo(
     () =>
       historyRows.map((row) => ({
@@ -204,10 +241,10 @@ export default function UnitPricePage() {
         종료공정: row.endProcessName ?? '',
         기준단가: Number(row.standardUnitCost),
         적용시작일: row.beginDate,
-        수정자: row.changedBy,
+        수정자: formatHistoryActor(row, historyActorDuplicateNames),
         수정일: formatDateTime(row.changedAt),
       })),
-    [historyRows],
+    [historyRows, historyActorDuplicateNames],
   );
 
   const displayedPrices = useMemo(() => {
@@ -861,42 +898,42 @@ export default function UnitPricePage() {
             ) : historyRows.length === 0 && !historyError ? (
               <p className="hint">변경 이력이 없습니다.</p>
             ) : (
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>품목번호</th>
-                      <th>품목명</th>
-                      <th>변경사유</th>
-                      <th>단가구분</th>
-                      <th>거래처명</th>
-                      <th>시작공정</th>
-                      <th>종료공정</th>
-                      <th className="num">기준단가</th>
-                      <th>적용시작일</th>
-                      <th>수정자</th>
-                      <th>수정일</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {historyRows.map((row) => (
-                      <tr key={row.id}>
-                        <td>{row.itemNo}</td>
-                        <td>{row.itemName}</td>
-                        <td>{row.updateReason || '—'}</td>
-                        <td>{costTypeLabel(row.type)}</td>
-                        <td>{row.companyName}</td>
-                        <td>{row.beginProcessName || '—'}</td>
-                        <td>{row.endProcessName || '—'}</td>
-                        <td className="num">{formatAmount(row.standardUnitCost)}</td>
-                        <td>{row.beginDate}</td>
-                        <td>{row.changedBy || '—'}</td>
-                        <td>{formatDateTime(row.changedAt)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <VirtualMasterTable
+                rows={historyRows}
+                columnCount={11}
+                visibleRowCount={12}
+                getRowKey={(row) => row.id}
+                renderHeader={() => (
+                  <tr>
+                    <th>품목번호</th>
+                    <th>품목명</th>
+                    <th>변경사유</th>
+                    <th>단가구분</th>
+                    <th>거래처명</th>
+                    <th>시작공정</th>
+                    <th>종료공정</th>
+                    <th className="num">기준단가</th>
+                    <th>적용시작일</th>
+                    <th>수정자</th>
+                    <th>수정일</th>
+                  </tr>
+                )}
+                renderRow={(row) => (
+                  <tr>
+                    <td>{row.itemNo}</td>
+                    <td>{row.itemName}</td>
+                    <td>{row.updateReason || '—'}</td>
+                    <td>{costTypeLabel(row.type)}</td>
+                    <td>{row.companyName}</td>
+                    <td>{row.beginProcessName || '—'}</td>
+                    <td>{row.endProcessName || '—'}</td>
+                    <td className="num">{formatAmount(row.standardUnitCost)}</td>
+                    <td>{row.beginDate}</td>
+                    <td>{formatHistoryActor(row, historyActorDuplicateNames)}</td>
+                    <td>{formatDateTime(row.changedAt)}</td>
+                  </tr>
+                )}
+              />
             )}
             <div className="modal-actions">
               <button type="button" className="secondary" onClick={closeHistory}>

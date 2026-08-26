@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.api.web.workstandard;
 
 import com.shindong.smartmanager.api.security.BasisAuthorize;
+import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.workstandard.WorkStandardUpdateCommand;
 import com.shindong.smartmanager.infrastructure.application.WorkStandardApplicationService;
 import jakarta.validation.Valid;
@@ -12,7 +13,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -22,8 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/basis/work-standards/plan")
 @BasisAuthorize.WorkStandardRead
 public class WorkStandardController {
-
-    private static final String DEFAULT_ACTOR = "local-dev";
 
     private final WorkStandardApplicationService workStandardApplicationService;
 
@@ -47,10 +45,9 @@ public class WorkStandardController {
     @ResponseStatus(HttpStatus.CREATED)
     @BasisAuthorize.WorkStandardWrite
     public WorkStandardResponse create(
-            @Valid @RequestBody CreateWorkStandardRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody CreateWorkStandardRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         return WorkStandardResponse.from(workStandardApplicationService.register(
                 request.itemNum(),
                 request.processSequenceId(),
@@ -69,10 +66,9 @@ public class WorkStandardController {
     @BasisAuthorize.WorkStandardWrite
     public WorkStandardResponse update(
             @PathVariable long id,
-            @Valid @RequestBody UpdateWorkStandardRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody UpdateWorkStandardRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         WorkStandardUpdateCommand command = new WorkStandardUpdateCommand(
                 request.workCenterId(),
                 request.equipmentId(),
@@ -88,21 +84,16 @@ public class WorkStandardController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @BasisAuthorize.WorkStandardWrite
-    public void delete(
-            @PathVariable long id,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
-    ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
-        workStandardApplicationService.delete(id, actor);
+    public void delete(@PathVariable long id) {
+        workStandardApplicationService.delete(id, SecurityUtils.requireLoginId());
     }
 
     @PostMapping("/copy")
     @BasisAuthorize.WorkStandardWrite
     public CopyWorkStandardResponse copy(
-            @Valid @RequestBody CopyWorkStandardRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody CopyWorkStandardRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         int copied = workStandardApplicationService.copyStandards(
                 request.sourceItemNum(),
                 request.targetItemNum(),

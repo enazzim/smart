@@ -4,6 +4,7 @@ import com.shindong.smartmanager.application.calendar.WorkCenterCalendarOverride
 import com.shindong.smartmanager.application.calendar.WorkCenterCalendarOverrideView;
 import com.shindong.smartmanager.application.calendar.WorkCenterCalendarRepository;
 import com.shindong.smartmanager.application.process.WorkCenterLookup;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -17,13 +18,16 @@ public class JpaWorkCenterCalendarRepository implements WorkCenterCalendarReposi
 
     private final SpringDataWorkCenterCalendarRepository calendarRepository;
     private final WorkCenterLookup workCenterLookup;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaWorkCenterCalendarRepository(
             SpringDataWorkCenterCalendarRepository calendarRepository,
-            WorkCenterLookup workCenterLookup
+            WorkCenterLookup workCenterLookup,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.calendarRepository = calendarRepository;
         this.workCenterLookup = workCenterLookup;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -42,14 +46,14 @@ public class JpaWorkCenterCalendarRepository implements WorkCenterCalendarReposi
             entity.setWorkCenterId(command.workCenterId());
             entity.setCalendarDate(command.calendarDate());
             entity.setRecordingState(1);
-            entity.setCreatedBy(actorUserId);
+            entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
             entity.setCreatedById(actorUserId);
             entity.setCreatedAt(now);
         }
 
         entity.setWorkTime(command.workTime());
         entity.setContent(normalizeContent(command.content()));
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         return toView(calendarRepository.save(entity));
@@ -63,7 +67,7 @@ public class JpaWorkCenterCalendarRepository implements WorkCenterCalendarReposi
                 .orElseThrow(() -> new IllegalArgumentException("작업장 달력 Override를 찾을 수 없습니다."));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         calendarRepository.save(entity);

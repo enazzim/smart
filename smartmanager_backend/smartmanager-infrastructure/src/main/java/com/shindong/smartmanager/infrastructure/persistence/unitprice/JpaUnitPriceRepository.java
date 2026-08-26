@@ -13,6 +13,7 @@ import com.shindong.smartmanager.infrastructure.persistence.company.CompanyJpaEn
 import com.shindong.smartmanager.infrastructure.persistence.company.SpringDataCompanyRepository;
 import com.shindong.smartmanager.infrastructure.persistence.item.ItemJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.item.SpringDataItemRepository;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -31,19 +32,22 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
     private final SpringDataItemRepository itemRepository;
     private final SpringDataCompanyRepository companyRepository;
     private final SpringDataPublicCodeRepository publicCodeRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaUnitPriceRepository(
             SpringDataUnitPriceRepository unitPriceRepository,
             SpringDataUnitPriceChangeLogRepository changeLogRepository,
             SpringDataItemRepository itemRepository,
             SpringDataCompanyRepository companyRepository,
-            SpringDataPublicCodeRepository publicCodeRepository
+            SpringDataPublicCodeRepository publicCodeRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.unitPriceRepository = unitPriceRepository;
         this.changeLogRepository = changeLogRepository;
         this.itemRepository = itemRepository;
         this.companyRepository = companyRepository;
         this.publicCodeRepository = publicCodeRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -62,10 +66,10 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
         entity.setBeginDate(command.beginDate());
         entity.setEndDate(command.endDate());
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
+        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setCreatedById(actorUserId);
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         return unitPriceRepository.save(entity).getId();
@@ -82,7 +86,7 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
         entity.setDiscountUnitCost(command.discountUnitCost());
         entity.setBeginDate(command.beginDate());
         entity.setEndDate(command.endDate());
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         unitPriceRepository.save(entity);
@@ -95,7 +99,7 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
                 .orElseThrow(() -> new IllegalArgumentException("단가를 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         unitPriceRepository.save(entity);
@@ -190,7 +194,7 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
         log.setBeginDate(entity.getBeginDate());
         log.setEndDate(entity.getEndDate());
         log.setUpdateReason(updateReason);
-        log.setChangedBy(actorUserId);
+        log.setChangedBy(masterAuditActorLookup.nameOf(actorUserId));
         log.setChangedById(actorUserId);
         log.setChangedAt(now);
         changeLogRepository.save(log);
@@ -252,6 +256,7 @@ public class JpaUnitPriceRepository implements UnitPriceRepository {
                 log.getEndDate(),
                 log.getUpdateReason(),
                 log.getChangedBy(),
+                log.getChangedById(),
                 log.getChangedAt()
         );
     }

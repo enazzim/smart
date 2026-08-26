@@ -132,6 +132,7 @@ export interface UnitPriceHistory {
   endDate?: string | null;
   updateReason: string;
   changedBy: string;
+  changedById?: string | null;
   changedAt: string;
 }
 

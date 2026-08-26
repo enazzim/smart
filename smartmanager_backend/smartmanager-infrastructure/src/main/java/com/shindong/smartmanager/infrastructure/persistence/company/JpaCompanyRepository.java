@@ -6,6 +6,7 @@ import com.shindong.smartmanager.application.company.CompanyUpdateCommand;
 import com.shindong.smartmanager.application.company.CompanyView;
 import com.shindong.smartmanager.domain.company.BusinessRegNos;
 import com.shindong.smartmanager.domain.company.CompanyRoleType;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -17,13 +18,16 @@ public class JpaCompanyRepository implements CompanyRepository {
 
     private final SpringDataCompanyRepository companyRepository;
     private final SpringDataCompanyRoleRepository companyRoleRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaCompanyRepository(
             SpringDataCompanyRepository companyRepository,
-            SpringDataCompanyRoleRepository companyRoleRepository
+            SpringDataCompanyRoleRepository companyRoleRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.companyRepository = companyRepository;
         this.companyRoleRepository = companyRoleRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -52,10 +56,10 @@ public class JpaCompanyRepository implements CompanyRepository {
         entity.setContactName(command.contactName());
         entity.setContactEmail(command.contactEmail());
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
+        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setCreatedById(actorUserId);
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         return companyRepository.save(entity).getId();
@@ -141,7 +145,7 @@ public class JpaCompanyRepository implements CompanyRepository {
         entity.setFixCollectDay1(command.fixCollectDay1());
         entity.setContactName(command.contactName());
         entity.setContactEmail(command.contactEmail());
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         companyRepository.save(entity);
@@ -154,7 +158,7 @@ public class JpaCompanyRepository implements CompanyRepository {
                 .orElseThrow(() -> new IllegalArgumentException("거래처를 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         companyRepository.save(entity);

@@ -1753,6 +1753,29 @@ td.num .fiscal-period-field-editing {
 
 .modal.modal-wide.unit-price-history-modal {
   max-width: min(1100px, 96vw);
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal.modal-wide.unit-price-history-modal .table-wrap.table-wrap--virtual {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.modal.modal-wide.unit-price-history-modal .table-wrap.table-wrap--virtual > table {
+  min-width: 68rem;
+}
+
+.modal.modal-wide.unit-price-history-modal .table-wrap.table-wrap--virtual > table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sm-blue-50);
+  box-shadow: inset 0 -1px 0 #e2e8f0;
 }
 
 .unit-price-history-filters {

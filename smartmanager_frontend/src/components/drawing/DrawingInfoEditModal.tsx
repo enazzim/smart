@@ -10,7 +10,6 @@ interface DrawingInfoEditModalProps {
   initialPartNo: string;
   initialPartName: string;
   initialModelType: string;
-  actorUserId?: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -22,7 +21,6 @@ export default function DrawingInfoEditModal({
   initialPartNo,
   initialPartName,
   initialModelType,
-  actorUserId,
   onSuccess,
   onError,
 }: DrawingInfoEditModalProps) {
@@ -64,7 +62,6 @@ export default function DrawingInfoEditModal({
           partName,
           modelType,
         },
-        actorUserId,
       );
       await queryClient.invalidateQueries({ queryKey: ['drawings'] });
       onSuccess('도면 정보가 성공적으로 수정되었습니다.');

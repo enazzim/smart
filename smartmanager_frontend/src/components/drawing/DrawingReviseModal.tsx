@@ -10,7 +10,6 @@ interface DrawingReviseModalProps {
   partNo: string;
   currentMajor: number;
   currentMinor: number;
-  actorUserId?: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -21,7 +20,6 @@ export default function DrawingReviseModal({
   partNo,
   currentMajor,
   currentMinor,
-  actorUserId,
   onSuccess,
   onError,
 }: DrawingReviseModalProps) {
@@ -84,7 +82,7 @@ export default function DrawingReviseModal({
     }
     setIsUploading(true);
     try {
-      await reviseDrawing(partNo, { changeType, changeReason }, selectedFile, actorUserId);
+      await reviseDrawing(partNo, { changeType, changeReason }, selectedFile);
       await queryClient.invalidateQueries({ queryKey: ['drawings'] });
       onSuccess('도면이 개정되었습니다.');
       handleClose();

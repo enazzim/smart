@@ -43,7 +43,7 @@ public class SalesShipmentInventoryService {
             return;
         }
         if (propertyClassification != null && propertyClassification.shipmentFromWipFinalProcess()) {
-            long finalProcessId = ProcessItemInventorySupport.requireFinalInhouseProcessId(
+            long finalProcessId = ProcessItemInventorySupport.requireFinalProcessId(
                     processRepository, itemId, itemNo);
             wipBalanceProjector.ensure(itemId, finalProcessId, "system");
             inventoryBalanceService.assertSufficientStockForOutbound(
@@ -81,7 +81,7 @@ public class SalesShipmentInventoryService {
     }
 
     public BigDecimal resolveWipFinalOnHandQty(LocalDate shipmentDate, long itemId) {
-        return ProcessItemInventorySupport.resolveFinalInhouseProcessId(processRepository, itemId)
+        return ProcessItemInventorySupport.resolveFinalProcessId(processRepository, itemId)
                 .map(processId -> inventoryBalanceService.currentStockQty(
                         itemId, LOCATION_WIP, shipmentDate, processId, null, null))
                 .orElse(BigDecimal.ZERO);
@@ -91,7 +91,7 @@ public class SalesShipmentInventoryService {
         if (propertyClassification == null || !propertyClassification.shipmentFromWipFinalProcess()) {
             return null;
         }
-        return ProcessItemInventorySupport.resolveFinalInhouseProcessId(processRepository, itemId)
+        return ProcessItemInventorySupport.resolveFinalProcessId(processRepository, itemId)
                 .orElse(null);
     }
 
@@ -163,7 +163,7 @@ public class SalesShipmentInventoryService {
             Long lotId,
             String actorUserId
     ) {
-        long finalProcessId = ProcessItemInventorySupport.requireFinalInhouseProcessId(
+        long finalProcessId = ProcessItemInventorySupport.requireFinalProcessId(
                 processRepository, itemId, itemNo);
         wipBalanceProjector.ensure(itemId, finalProcessId, actorUserId);
         inventoryBalanceService.assertSufficientStockForOutbound(
@@ -182,7 +182,7 @@ public class SalesShipmentInventoryService {
             Long lotId,
             String actorUserId
     ) {
-        long finalProcessId = ProcessItemInventorySupport.requireFinalInhouseProcessId(
+        long finalProcessId = ProcessItemInventorySupport.requireFinalProcessId(
                 processRepository, itemId, itemNo);
         wipBalanceProjector.ensure(itemId, finalProcessId, actorUserId);
         recordDeliveryOut(shipmentDate, shipmentLineId, itemId, qty, amount, lotId, actorUserId);

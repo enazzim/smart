@@ -11,13 +11,9 @@ import com.shindong.smartmanager.application.process.ProcessSequenceNavigator;
 import com.shindong.smartmanager.application.process.ProcessView;
 import com.shindong.smartmanager.application.process.WipBalanceProjector;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
-import com.shindong.smartmanager.domain.process.ProcessVariant;
-import com.shindong.smartmanager.domain.process.WorkDistinction;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 
 public class WorkReportInventoryService {
 
@@ -47,7 +43,7 @@ public class WorkReportInventoryService {
     }
 
     /**
-     * @param preferredInputLotId 비첫 공정에서 UI가 선택한 현재 공정 WIP Lot (없으면 가용 Lot 자동 선택)
+     * @param preferredInputLotId 비첫 공정에서 UI가 선택한 직전 공정 WIP Lot (없으면 가용 Lot 자동 선택)
      * @return 산출 Lot id (lot_tracked 품목), 아니면 null
      */
     public Long applyRegistration(
@@ -102,7 +98,12 @@ public class WorkReportInventoryService {
 
         wipBalanceProjector.ensure(context.itemId(), context.processSequenceId(), actorUserId);
 
-        boolean firstInhouseProcess = isFirstInhouseProcess(context.itemId(), context.processSequenceNum());
+        boolean firstProcess = ProcessSequenceNavigator.isFirstProcess(
+                processRepository, context.itemId(), context.processSequenceNum());
+        Long inputProcessId = firstProcess ? null : requirePriorProcessId(context);
+        if (inputProcessId != null) {
+            wipBalanceProjector.ensure(context.itemId(), inputProcessId, actorUserId);
+        }
         BigDecimal outQty = goodQty.add(scrapQty);
 
         Long lotId;
@@ -111,8 +112,8 @@ public class WorkReportInventoryService {
         } else {
             lotId = resolveOutputLotId(
                     item,
-                    context,
-                    firstInhouseProcess,
+                    firstProcess,
+                    inputProcessId,
                     outQty,
                     goodQty,
                     preferredInputLotId,
@@ -123,27 +124,17 @@ public class WorkReportInventoryService {
             );
         }
 
-        if (outQty.compareTo(BigDecimal.ZERO) > 0 && !firstInhouseProcess) {
+        if (outQty.compareTo(BigDecimal.ZERO) > 0 && inputProcessId != null) {
             record(reverse, context.itemId(), LOCATION_WIP, context.reportDate(),
                     StockMovementType.OUT,
-                    outQty, context.processSequenceId(), null,
+                    outQty, inputProcessId, null,
                     reverse ? REFERENCE_TYPE_CANCEL : REFERENCE_TYPE, reportId, lotId, actorUserId);
         }
 
         if (goodQty.compareTo(BigDecimal.ZERO) > 0) {
-            Optional<ProcessView> nextProcess = ProcessSequenceNavigator.findNextProcess(
-                    processRepository,
-                    context.itemId(),
-                    context.processSequenceNum()
-            );
-            if (nextProcess.isPresent()) {
-                long nextId = nextProcess.get().id();
-                wipBalanceProjector.ensure(context.itemId(), nextId, actorUserId);
-                record(reverse, context.itemId(), LOCATION_WIP, context.reportDate(),
-                        StockMovementType.IN,
-                        goodQty, nextId, null,
-                        reverse ? REFERENCE_TYPE_CANCEL : REFERENCE_TYPE, reportId, lotId, actorUserId);
-            } else if (item.propertyClassification().salesWarehouseAtProductionComplete()) {
+            boolean lastProcess = ProcessSequenceNavigator.isFinalProcess(
+                    processRepository, context.itemId(), context.processSequenceNum());
+            if (lastProcess && item.propertyClassification().salesWarehouseAtProductionComplete()) {
                 record(reverse, context.itemId(), LOCATION_SALES, context.reportDate(),
                         StockMovementType.IN,
                         goodQty, null, null,
@@ -160,8 +151,8 @@ public class WorkReportInventoryService {
 
     private Long resolveOutputLotId(
             ItemView item,
-            WorkReportRegistrationContext context,
-            boolean firstInhouseProcess,
+            boolean firstProcess,
+            Long inputProcessId,
             BigDecimal outQty,
             BigDecimal goodQty,
             Long preferredInputLotId,
@@ -173,13 +164,13 @@ public class WorkReportInventoryService {
         if (!item.lotTracked()) {
             return null;
         }
-        if (!firstInhouseProcess && outQty.compareTo(BigDecimal.ZERO) > 0) {
+        if (!firstProcess && inputProcessId != null && outQty.compareTo(BigDecimal.ZERO) > 0) {
             if (preferredInputLotId != null) {
-                assertPreferredLotAvailable(item, context, preferredInputLotId, outQty);
+                assertPreferredLotAvailable(item, inputProcessId, preferredInputLotId, outQty);
                 return preferredInputLotId;
             }
             List<LotView> available = lotService.findAvailableLots(
-                    item.id(), LOCATION_WIP, context.processSequenceId());
+                    item.id(), LOCATION_WIP, inputProcessId);
             LotView matched = available.stream()
                     .filter(lot -> lot.balances().stream()
                             .anyMatch(b -> b.qtyOnHand() != null && b.qtyOnHand().compareTo(outQty) >= 0))
@@ -206,17 +197,17 @@ public class WorkReportInventoryService {
 
     private void assertPreferredLotAvailable(
             ItemView item,
-            WorkReportRegistrationContext context,
+            long inputProcessId,
             long preferredInputLotId,
             BigDecimal outQty
     ) {
         List<LotView> available = lotService.findAvailableLots(
-                item.id(), LOCATION_WIP, context.processSequenceId());
+                item.id(), LOCATION_WIP, inputProcessId);
         LotView matched = available.stream()
                 .filter(lot -> lot.id() == preferredInputLotId)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException(
-                        "선택한 Lot가 현재 공정 창고에 없습니다: " + item.itemNo()));
+                        "선택한 Lot가 직전 공정 창고에 없습니다: " + item.itemNo()));
         boolean enough = matched.balances().stream()
                 .anyMatch(b -> b.qtyOnHand() != null && b.qtyOnHand().compareTo(outQty) >= 0);
         if (!enough) {
@@ -265,12 +256,13 @@ public class WorkReportInventoryService {
         };
     }
 
-    private boolean isFirstInhouseProcess(long itemId, short currentSequenceNum) {
-        Optional<Short> minSequence = processRepository.findAllActiveByItemId(itemId, ProcessVariant.plan).stream()
-                .filter(process -> process.workDistinction() == WorkDistinction.INHOUSE
-                        || process.workDistinction() == WorkDistinction.SPLIT)
-                .map(ProcessView::processSequenceNum)
-                .min(Short::compare);
-        return minSequence.map(min -> min.equals(currentSequenceNum)).orElse(true);
+    private long requirePriorProcessId(WorkReportRegistrationContext context) {
+        return ProcessSequenceNavigator.findImmediatePriorProcess(
+                processRepository,
+                context.itemId(),
+                context.processSequenceNum()
+        ).map(ProcessView::id)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "직전 공정을 찾을 수 없습니다. 공정 계획을 확인해 주세요."));
     }
 }

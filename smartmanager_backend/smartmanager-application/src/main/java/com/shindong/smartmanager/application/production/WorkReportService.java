@@ -338,7 +338,7 @@ public class WorkReportService {
             if (line.issueQty() == null || line.issueQty().compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
-            // 모품목 직전공정 투입은 WorkReportInventoryService가 현재 공정 WIP에서 처리한다.
+            // 모품목 직전공정 투입은 WorkReportInventoryService가 직전 공정 WIP에서 처리한다.
             if (line.itemCompositionId() == null && line.itemId() == context.itemId()) {
                 continue;
             }

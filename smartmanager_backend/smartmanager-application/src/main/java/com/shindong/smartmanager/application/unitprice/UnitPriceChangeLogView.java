@@ -27,6 +27,7 @@ public record UnitPriceChangeLogView(
         LocalDate endDate,
         String updateReason,
         String changedBy,
+        String changedById,
         Instant changedAt
 ) {
 }

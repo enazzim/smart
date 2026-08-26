@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.api.web.unitprice;
 
 import com.shindong.smartmanager.api.security.BasisAuthorize;
+import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.unitprice.UnitPriceHistorySearchQuery;
 import com.shindong.smartmanager.application.unitprice.UnitPriceUpdateCommand;
 import com.shindong.smartmanager.domain.pricing.CostType;
@@ -16,7 +17,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -26,8 +26,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/basis/unit-prices")
 @BasisAuthorize.UnitPriceRead
 public class UnitPriceController {
-
-    private static final String DEFAULT_ACTOR = "local-dev";
 
     private final UnitPriceApplicationService unitPriceApplicationService;
 
@@ -91,10 +89,9 @@ public class UnitPriceController {
     @ResponseStatus(HttpStatus.CREATED)
     @BasisAuthorize.UnitPriceWrite
     public UnitPriceResponse create(
-            @Valid @RequestBody CreateUnitPriceRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody CreateUnitPriceRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         return UnitPriceResponse.from(unitPriceApplicationService.register(
                 request.type(),
                 request.itemNum(),
@@ -114,10 +111,9 @@ public class UnitPriceController {
     @BasisAuthorize.UnitPriceWrite
     public UnitPriceResponse update(
             @PathVariable long id,
-            @Valid @RequestBody UpdateUnitPriceRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody UpdateUnitPriceRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         UnitPriceUpdateCommand command = new UnitPriceUpdateCommand(
                 request.orderRate(),
                 request.standardUnitCost(),
@@ -132,11 +128,7 @@ public class UnitPriceController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @BasisAuthorize.UnitPriceWrite
-    public void delete(
-            @PathVariable long id,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
-    ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
-        unitPriceApplicationService.delete(id, actor);
+    public void delete(@PathVariable long id) {
+        unitPriceApplicationService.delete(id, SecurityUtils.requireLoginId());
     }
 }

@@ -3,6 +3,7 @@ package com.shindong.smartmanager.infrastructure.persistence.calendar;
 import com.shindong.smartmanager.application.calendar.ProductionCalendarRepository;
 import com.shindong.smartmanager.application.calendar.ProductionCalendarUpsertCommand;
 import com.shindong.smartmanager.application.calendar.ProductionCalendarView;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -15,9 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class JpaProductionCalendarRepository implements ProductionCalendarRepository {
 
     private final SpringDataProductionCalendarRepository calendarRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
-    public JpaProductionCalendarRepository(SpringDataProductionCalendarRepository calendarRepository) {
+    public JpaProductionCalendarRepository(
+            SpringDataProductionCalendarRepository calendarRepository,
+            MasterAuditActorLookup masterAuditActorLookup
+    ) {
         this.calendarRepository = calendarRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -44,7 +50,7 @@ public class JpaProductionCalendarRepository implements ProductionCalendarReposi
 
         if (entity.getId() == null) {
             entity.setCalendarDate(calendarDate);
-            entity.setCreatedBy(actorUserId);
+            entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
             entity.setCreatedById(actorUserId);
             entity.setCreatedAt(now);
         }
@@ -52,7 +58,7 @@ public class JpaProductionCalendarRepository implements ProductionCalendarReposi
         entity.setRecordingState(1);
         entity.setWorkTime(command.workTime());
         entity.setContent(normalizeContent(command.content()));
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         return toView(calendarRepository.save(entity));
@@ -71,7 +77,7 @@ public class JpaProductionCalendarRepository implements ProductionCalendarReposi
                 });
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         calendarRepository.save(entity);

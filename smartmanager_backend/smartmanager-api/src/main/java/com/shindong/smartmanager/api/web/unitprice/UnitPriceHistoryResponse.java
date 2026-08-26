@@ -28,6 +28,7 @@ public record UnitPriceHistoryResponse(
         LocalDate endDate,
         String updateReason,
         String changedBy,
+        String changedById,
         Instant changedAt
 ) {
 
@@ -54,6 +55,7 @@ public record UnitPriceHistoryResponse(
                 view.endDate(),
                 view.updateReason(),
                 view.changedBy(),
+                view.changedById(),
                 view.changedAt()
         );
     }

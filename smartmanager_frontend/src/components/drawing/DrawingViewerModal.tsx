@@ -85,7 +85,6 @@ interface DrawingViewerModalProps {
   isDeleted?: boolean;
   readOnly?: boolean;
   canManage?: boolean;
-  actorUserId?: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
   /** 목록·상세 props 동기화 (lifecycle·품목 연결 등) */
@@ -107,7 +106,6 @@ export default function DrawingViewerModal({
   isDeleted,
   readOnly,
   canManage,
-  actorUserId,
   onSuccess,
   onError,
   onDrawingMetaChange,
@@ -336,7 +334,7 @@ export default function DrawingViewerModal({
       return;
     }
     try {
-      await promoteDrawing(partNo, actorUserId);
+      await promoteDrawing(partNo);
       await syncDrawingListMeta({
         drawingType: 'PROD',
         lifecycleStage: 'MASS_PROD_READY',
@@ -362,7 +360,7 @@ export default function DrawingViewerModal({
       return;
     }
     try {
-      await reopenDrawingDev(partNo, { reason: reason.trim() || null }, actorUserId);
+      await reopenDrawingDev(partNo, { reason: reason.trim() || null });
       await syncDrawingListMeta({
         drawingType: 'DEV',
         lifecycleStage: 'SAMPLE',
@@ -380,7 +378,7 @@ export default function DrawingViewerModal({
     }
     setLifecycleBusy(true);
     try {
-      await updateDrawingLifecycle(masterId, { lifecycleStage: nextStage }, actorUserId);
+      await updateDrawingLifecycle(masterId, { lifecycleStage: nextStage });
       setCurrentLifecycleStage(nextStage);
       await syncDrawingListMeta({ lifecycleStage: nextStage });
       onSuccess(`업무 단계가 「${lifecycleStageLabel(nextStage)}」로 변경되었습니다.`);
@@ -411,7 +409,7 @@ export default function DrawingViewerModal({
     }
     setLifecycleBusy(true);
     try {
-      await updateDrawingLifecycle(masterId, { lifecycleStage: 'ARCHIVED' }, actorUserId);
+      await updateDrawingLifecycle(masterId, { lifecycleStage: 'ARCHIVED' });
       setCurrentLifecycleStage('ARCHIVED');
       await syncDrawingListMeta({ lifecycleStage: 'ARCHIVED' });
       onSuccess(
@@ -446,7 +444,7 @@ export default function DrawingViewerModal({
     }
     setLifecycleBusy(true);
     try {
-      await updateDrawingLifecycle(masterId, { lifecycleStage: restoreStage }, actorUserId);
+      await updateDrawingLifecycle(masterId, { lifecycleStage: restoreStage });
       setCurrentLifecycleStage(restoreStage);
       await syncDrawingListMeta({ lifecycleStage: restoreStage });
       onSuccess(`보관을 해제했습니다. 업무 단계: 「${restoreLabel}」`);
@@ -472,7 +470,6 @@ export default function DrawingViewerModal({
           sortOrder: index + 1,
           remark: ref.remark ?? null,
         })),
-        actorUserId,
       );
       const refreshed = await fetchDrawingReferences(masterId, selectedHistory.id);
       setReferences(refreshed);
@@ -1120,7 +1117,6 @@ export default function DrawingViewerModal({
           partNo={partNo}
           initialItemId={itemId}
           initialItemNo={itemNo}
-          actorUserId={actorUserId}
           onSuccess={(message) => {
             setLinkItemOpen(false);
             onSuccess(message);

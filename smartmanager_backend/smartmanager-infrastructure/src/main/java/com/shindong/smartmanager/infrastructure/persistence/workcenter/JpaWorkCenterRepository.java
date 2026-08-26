@@ -6,6 +6,7 @@ import com.shindong.smartmanager.application.workcenter.WorkCenterRepository;
 import com.shindong.smartmanager.application.workcenter.WorkCenterView;
 import com.shindong.smartmanager.infrastructure.persistence.equipment.SpringDataEquipmentRepository;
 import com.shindong.smartmanager.infrastructure.persistence.process.SpringDataProcessSequenceRepository;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -19,17 +20,20 @@ public class JpaWorkCenterRepository implements WorkCenterRepository {
     private final SpringDataProcessSequenceRepository processSequenceRepository;
     private final SpringDataEquipmentRepository equipmentRepository;
     private final ProcessCodeLookup processCodeLookup;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaWorkCenterRepository(
             SpringDataWorkCenterRepository workCenterRepository,
             SpringDataProcessSequenceRepository processSequenceRepository,
             SpringDataEquipmentRepository equipmentRepository,
-            ProcessCodeLookup processCodeLookup
+            ProcessCodeLookup processCodeLookup,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.workCenterRepository = workCenterRepository;
         this.processSequenceRepository = processSequenceRepository;
         this.equipmentRepository = equipmentRepository;
         this.processCodeLookup = processCodeLookup;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -41,10 +45,10 @@ public class JpaWorkCenterRepository implements WorkCenterRepository {
         entity.setMainProcessCodeId(command.mainProcessCodeId());
         entity.setOperationTime(command.operationTime());
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
+        entity.setCreatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setCreatedById(actorUserId);
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         return workCenterRepository.save(entity).getId();
@@ -59,7 +63,7 @@ public class JpaWorkCenterRepository implements WorkCenterRepository {
         entity.setWcName(command.wcName().trim());
         entity.setMainProcessCodeId(command.mainProcessCodeId());
         entity.setOperationTime(command.operationTime());
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         workCenterRepository.save(entity);
@@ -72,7 +76,7 @@ public class JpaWorkCenterRepository implements WorkCenterRepository {
                 .orElseThrow(() -> new IllegalArgumentException("작업장을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
+        entity.setUpdatedBy(masterAuditActorLookup.nameOf(actorUserId));
         entity.setUpdatedById(actorUserId);
         entity.setUpdatedAt(now);
         workCenterRepository.save(entity);
