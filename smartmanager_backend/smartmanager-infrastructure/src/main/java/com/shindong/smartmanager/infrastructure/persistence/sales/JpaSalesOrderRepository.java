@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.sales;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.sales.SalesOrderCommand;
@@ -38,19 +40,22 @@ public class JpaSalesOrderRepository implements SalesOrderRepository {
     private final SpringDataCompanyRepository companyRepository;
     private final SpringDataItemRepository itemRepository;
     private final ItemRepository itemLookup;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaSalesOrderRepository(
             SpringDataSalesOrderRepository orderRepository,
             SpringDataSalesOrderLineRepository lineRepository,
             SpringDataCompanyRepository companyRepository,
             SpringDataItemRepository itemRepository,
-            ItemRepository itemLookup
+            ItemRepository itemLookup,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.orderRepository = orderRepository;
         this.lineRepository = lineRepository;
         this.companyRepository = companyRepository;
         this.itemRepository = itemRepository;
         this.itemLookup = itemLookup;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -75,11 +80,9 @@ public class JpaSalesOrderRepository implements SalesOrderRepository {
         entity.setStatus(SalesOrderStatus.DRAFT);
         entity.setRemark(command.remark());
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         SalesOrderJpaEntity saved = orderRepository.save(entity);
         insertLines(saved.getId(), command, actorUserId);
@@ -103,8 +106,7 @@ public class JpaSalesOrderRepository implements SalesOrderRepository {
         entity.setOrderDate(command.orderDate());
         entity.setRequestedDeliveryDate(command.requestedDeliveryDate());
         entity.setRemark(command.remark());
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         orderRepository.save(entity);
     }
@@ -115,8 +117,7 @@ public class JpaSalesOrderRepository implements SalesOrderRepository {
         SalesOrderJpaEntity entity = requireActiveOrder(salesOrderId);
         Instant now = Instant.now();
         entity.setStatus(status);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         orderRepository.save(entity);
     }
@@ -131,10 +132,8 @@ public class JpaSalesOrderRepository implements SalesOrderRepository {
         Instant now = Instant.now();
         entity.setStatus(SalesOrderStatus.CONFIRMED);
         entity.setConfirmedAt(now);
-        entity.setConfirmedBy(actorUserId);
-        entity.setConfirmedById(actorUserId);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setConfirmedById(masterAuditActorLookup.idOf(actorUserId));
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         orderRepository.save(entity);
     }
@@ -149,10 +148,8 @@ public class JpaSalesOrderRepository implements SalesOrderRepository {
         Instant now = Instant.now();
         entity.setStatus(SalesOrderStatus.DRAFT);
         entity.setConfirmedAt(null);
-        entity.setConfirmedBy(null);
         entity.setConfirmedById(null);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         orderRepository.save(entity);
     }
@@ -232,8 +229,7 @@ public class JpaSalesOrderRepository implements SalesOrderRepository {
 
         SalesOrderJpaEntity order = requireActiveOrder(line.getSalesOrderId());
         Instant now = Instant.now();
-        order.setUpdatedBy(actorUserId);
-        order.setUpdatedById(actorUserId);
+        order.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         order.setUpdatedAt(now);
         orderRepository.save(order);
     }
@@ -334,7 +330,7 @@ public class JpaSalesOrderRepository implements SalesOrderRepository {
                 order.getStatus(),
                 order.getRemark(),
                 order.getConfirmedAt(),
-                order.getConfirmedBy(),
+                masterAuditActorLookup.nameOf(order.getConfirmedById()),
                 lineViews
         );
     }

@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.outsource;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderCommand;
@@ -50,6 +52,7 @@ public class JpaOutsourcingOrderRepository implements OutsourcingOrderRepository
     private final SpringDataProductionPlanRepository productionPlanRepository;
     private final SpringDataWorkPlanRepository workPlanRepository;
     private final ItemRepository itemLookup;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaOutsourcingOrderRepository(
             SpringDataOutsourcingOrderRepository orderRepository,
@@ -60,7 +63,8 @@ public class JpaOutsourcingOrderRepository implements OutsourcingOrderRepository
             SpringDataPublicCodeRepository publicCodeRepository,
             SpringDataProductionPlanRepository productionPlanRepository,
             SpringDataWorkPlanRepository workPlanRepository,
-            ItemRepository itemLookup
+            ItemRepository itemLookup,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.orderRepository = orderRepository;
         this.lineRepository = lineRepository;
@@ -71,6 +75,7 @@ public class JpaOutsourcingOrderRepository implements OutsourcingOrderRepository
         this.productionPlanRepository = productionPlanRepository;
         this.workPlanRepository = workPlanRepository;
         this.itemLookup = itemLookup;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -80,6 +85,22 @@ public class JpaOutsourcingOrderRepository implements OutsourcingOrderRepository
         }
         Map<Long, BigDecimal> totals = new HashMap<>();
         for (Object[] row : lineRepository.sumOrderedQtyGroupedByWorkPlanId(
+                workPlanIds,
+                ACTIVE,
+                OutsourcingOrderStatus.CANCELLED
+        )) {
+            totals.put((Long) row[0], (BigDecimal) row[1]);
+        }
+        return totals;
+    }
+
+    @Override
+    public Map<Long, BigDecimal> sumReceivedQtyByWorkPlanIds(Collection<Long> workPlanIds) {
+        if (workPlanIds == null || workPlanIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, BigDecimal> totals = new HashMap<>();
+        for (Object[] row : lineRepository.sumReceivedQtyGroupedByWorkPlanId(
                 workPlanIds,
                 ACTIVE,
                 OutsourcingOrderStatus.CANCELLED
@@ -109,11 +130,9 @@ public class JpaOutsourcingOrderRepository implements OutsourcingOrderRepository
         entity.setOrderDate(command.orderDate());
         entity.setSourceType(command.sourceType());
         entity.setStatus(OutsourcingOrderStatus.CONFIRMED);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         OutsourcingOrderJpaEntity saved = orderRepository.save(entity);
         insertLines(saved.getId(), command, actorUserId, now);
@@ -126,8 +145,7 @@ public class JpaOutsourcingOrderRepository implements OutsourcingOrderRepository
         OutsourcingOrderJpaEntity entity = requireActiveOrder(outsourcingOrderId);
         Instant now = Instant.now();
         entity.setStatus(status);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         orderRepository.save(entity);
     }
@@ -239,8 +257,7 @@ public class JpaOutsourcingOrderRepository implements OutsourcingOrderRepository
         if (order.getStatus() != next && order.getStatus() != OutsourcingOrderStatus.CANCELLED) {
             order.setStatus(next);
             Instant now = Instant.now();
-            order.setUpdatedBy(actorUserId);
-            order.setUpdatedById(actorUserId);
+            order.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             order.setUpdatedAt(now);
             orderRepository.save(order);
         }
@@ -267,8 +284,7 @@ public class JpaOutsourcingOrderRepository implements OutsourcingOrderRepository
 
     private void touchLine(OutsourcingOrderLineJpaEntity line, String actorUserId) {
         Instant now = Instant.now();
-        line.setUpdatedBy(actorUserId);
-        line.setUpdatedById(actorUserId);
+        line.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         line.setUpdatedAt(now);
         lineRepository.save(line);
     }
@@ -391,11 +407,9 @@ public class JpaOutsourcingOrderRepository implements OutsourcingOrderRepository
             entity.setAmount(OutsourcingOrderService.lineAmount(line.orderQty(), line.unitPrice()));
             entity.setRequestedDeliveryDate(line.requestedDeliveryDate());
             entity.setRecordingState(ACTIVE);
-            entity.setCreatedBy(actorUserId);
-            entity.setCreatedById(actorUserId);
+            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setCreatedAt(now);
-            entity.setUpdatedBy(actorUserId);
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             lineRepository.save(entity);
         }
@@ -477,7 +491,7 @@ public class JpaOutsourcingOrderRepository implements OutsourcingOrderRepository
                 order.getSourceType(),
                 order.getStatus(),
                 order.getCreatedAt(),
-                order.getCreatedBy(),
+                masterAuditActorLookup.nameOf(order.getCreatedById()),
                 lineViews
         );
     }

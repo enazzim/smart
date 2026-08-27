@@ -25,3 +25,10 @@ Thumbs.db
 
 # E2E generated request payloads
 scripts/e2e-payloads/
+
+# Secrets / local deploy artifacts
+*.pem
+deploy/env/api.env
+deploy/env/*.local.txt
+_deploy-www.tgz
+

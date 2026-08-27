@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.production;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.production.ProductionPlanListCriteria;
 import com.shindong.smartmanager.application.production.ProductionPlanRepository;
 import com.shindong.smartmanager.application.production.ProductionPlanSaveCommand;
@@ -34,17 +36,20 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
     private final SpringDataSalesOrderRepository orderRepository;
     private final SpringDataCompanyRepository companyRepository;
     private final SpringDataItemRepository itemRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaProductionPlanRepository(
             SpringDataProductionPlanRepository planRepository,
             SpringDataSalesOrderRepository orderRepository,
             SpringDataCompanyRepository companyRepository,
-            SpringDataItemRepository itemRepository
+            SpringDataItemRepository itemRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.planRepository = planRepository;
         this.orderRepository = orderRepository;
         this.companyRepository = companyRepository;
         this.itemRepository = itemRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -93,11 +98,9 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
         entity.setMrpStatus(ProductionPlanMrpStatus.NOT_CALCULATED);
         entity.setWorkPlanStatus(ProductionPlanWorkPlanStatus.NOT_PLANNED);
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return planRepository.save(entity).getId();
     }
@@ -144,6 +147,13 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
                             .collect(Collectors.toMap(ItemJpaEntity::getId, Function.identity()));
                     return toView(plan, orders, companies, items);
                 });
+    }
+
+    @Override
+    public Optional<ProductionPlanView> findActiveBySalesOrderLineId(long salesOrderLineId) {
+        return planRepository.findBySalesOrderLineIdAndRecordingState(salesOrderLineId, ACTIVE).stream()
+                .findFirst()
+                .flatMap(plan -> findActiveById(plan.getId()));
     }
 
     @Override
@@ -252,8 +262,7 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
         ProductionPlanJpaEntity entity = planRepository.findByIdAndRecordingState(id, ACTIVE)
                 .orElseThrow(() -> new IllegalArgumentException("생산계획을 찾을 수 없습니다: " + id));
         entity.setMrpStatus(mrpStatus);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         planRepository.save(entity);
     }
@@ -264,8 +273,7 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
         ProductionPlanJpaEntity entity = planRepository.findByIdAndRecordingState(id, ACTIVE)
                 .orElseThrow(() -> new IllegalArgumentException("생산계획을 찾을 수 없습니다: " + id));
         entity.setWorkPlanStatus(workPlanStatus);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         planRepository.save(entity);
     }
@@ -290,8 +298,7 @@ public class JpaProductionPlanRepository implements ProductionPlanRepository {
             throw new IllegalStateException("생산 실적 수량이 음수가 됩니다.");
         }
         entity.setProducedQty(next);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         planRepository.save(entity);
     }

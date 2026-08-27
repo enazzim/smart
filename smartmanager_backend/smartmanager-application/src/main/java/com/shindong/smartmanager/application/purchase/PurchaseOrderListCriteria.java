@@ -9,6 +9,8 @@ public record PurchaseOrderListCriteria(
         String partnerName,
         String orderNo,
         PurchaseOrderStatus status,
-        boolean excludeCancelled
+        boolean excludeCancelled,
+        /** GENERAL: 원자재·상품 / SUB_MATERIAL: 부자재 / null·빈값: 전체 */
+        String itemPropertyScope
 ) {
 }

@@ -1,6 +1,7 @@
 import type { BoardPostSummary } from '../../api/board';
 import { formatBoardDate } from '../../api/board';
 import NewPostBadge from './NewPostBadge';
+import RequiredUnreadBadge from './RequiredUnreadBadge';
 
 interface BoardWidgetProps {
   title: string;
@@ -45,6 +46,7 @@ export default function BoardWidget({
                     {item.hasAttachment ? '📎 ' : ''}
                     {item.title || '(제목 없음)'}
                   </span>
+                  <RequiredUnreadBadge show={item.myRequiredUnread} />
                   <NewPostBadge createdAt={item.createdAt} />
                 </span>
                 <span className="board-widget-date">{formatBoardDate(item.createdAt)}</span>

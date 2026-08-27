@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.api.web.workcenter;
 
 import com.shindong.smartmanager.api.security.BasisAuthorize;
+import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.workcenter.WorkCenterCommand;
 import com.shindong.smartmanager.infrastructure.application.WorkCenterApplicationService;
 import jakarta.validation.Valid;
@@ -12,7 +13,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -22,8 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/basis/work-centers")
 @BasisAuthorize.WorkCenterRead
 public class WorkCenterController {
-
-    private static final String DEFAULT_ACTOR = "local-dev";
 
     private final WorkCenterApplicationService workCenterApplicationService;
 
@@ -47,10 +45,9 @@ public class WorkCenterController {
     @ResponseStatus(HttpStatus.CREATED)
     @BasisAuthorize.WorkCenterWrite
     public WorkCenterResponse create(
-            @Valid @RequestBody CreateWorkCenterRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody CreateWorkCenterRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         WorkCenterCommand command = toCommand(request);
         return WorkCenterResponse.from(workCenterApplicationService.register(command, actor));
     }
@@ -59,10 +56,9 @@ public class WorkCenterController {
     @BasisAuthorize.WorkCenterWrite
     public WorkCenterResponse update(
             @PathVariable long id,
-            @Valid @RequestBody CreateWorkCenterRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody CreateWorkCenterRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         WorkCenterCommand command = toCommand(request);
         return WorkCenterResponse.from(workCenterApplicationService.update(id, command, actor));
     }
@@ -70,12 +66,8 @@ public class WorkCenterController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @BasisAuthorize.WorkCenterWrite
-    public void delete(
-            @PathVariable long id,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
-    ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
-        workCenterApplicationService.delete(id, actor);
+    public void delete(@PathVariable long id) {
+        workCenterApplicationService.delete(id, SecurityUtils.requireLoginId());
     }
 
     private static WorkCenterCommand toCommand(CreateWorkCenterRequest request) {

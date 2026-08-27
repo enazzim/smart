@@ -55,11 +55,8 @@ public class SalesHistoryJpaEntity {
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
 
-    @Column(name = "created_by", length = 100)
-    private String createdBy;
-
-    @Column(name = "created_by_id", length = 100)
-    private String createdById;
+    @Column(name = "created_by_id")
+    private Long createdById;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -159,19 +156,11 @@ public class SalesHistoryJpaEntity {
         this.recordingState = recordingState;
     }
 
-    public String getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
-
-    public String getCreatedById() {
+    public Long getCreatedById() {
         return createdById;
     }
 
-    public void setCreatedById(String createdById) {
+    public void setCreatedById(Long createdById) {
         this.createdById = createdById;
     }
 

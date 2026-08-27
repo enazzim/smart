@@ -20,6 +20,8 @@ import com.shindong.smartmanager.application.process.ProcessService;
 import com.shindong.smartmanager.application.process.ProcessView;
 import com.shindong.smartmanager.application.publiccode.PublicCodeRepository;
 import com.shindong.smartmanager.application.publiccode.PublicCodeSmallView;
+import com.shindong.smartmanager.application.unitprice.UnitPriceCommand;
+import com.shindong.smartmanager.application.unitprice.UnitPriceHistoryProjector;
 import com.shindong.smartmanager.application.unitprice.UnitPriceService;
 import com.shindong.smartmanager.application.workcenter.WorkCenterCommand;
 import com.shindong.smartmanager.application.workcenter.WorkCenterRepository;
@@ -27,6 +29,8 @@ import com.shindong.smartmanager.application.workcenter.WorkCenterService;
 import com.shindong.smartmanager.application.workcenter.WorkCenterView;
 import com.shindong.smartmanager.application.workstandard.WorkStandardService;
 import com.shindong.smartmanager.domain.item.CheckDistinction;
+import com.shindong.smartmanager.domain.company.BusinessRegNos;
+import com.shindong.smartmanager.domain.pricing.CostType;
 import com.shindong.smartmanager.domain.process.ProcessVariant;
 import com.shindong.smartmanager.domain.process.WorkDistinction;
 import java.util.ArrayList;
@@ -129,7 +133,8 @@ public class MasterDataImportService {
                             row.minOrderQuantity(),
                             row.lotTracked()
                     ),
-                    actorUserId
+                    actorUserId,
+                    true
             );
         }, row -> row.itemNo());
     }
@@ -175,6 +180,11 @@ public class MasterDataImportService {
                 workCenterId = resolveWorkCenterId(row.workCenterName());
             }
             int outsideOrderRate = row.outsideOrderRate() != null ? row.outsideOrderRate() : 0;
+            // OUTSOURCE·INHOUSE는 ProcessService에서 0으로 정규화. SPLIT은 0~100 허용.
+            if (row.workDistinction() == WorkDistinction.OUTSOURCE
+                    || row.workDistinction() == WorkDistinction.INHOUSE) {
+                outsideOrderRate = 0;
+            }
             short progressRate = row.progressRate() != null ? row.progressRate() : 100;
             processService.register(
                     new ProcessCommand(
@@ -230,10 +240,15 @@ public class MasterDataImportService {
                     .orElseThrow(() -> new IllegalArgumentException("거래처를 찾을 수 없습니다: " + row.businessRegNo()));
             ItemView item = itemRepository.findActiveByItemNo(row.itemNum().trim())
                     .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + row.itemNum()));
-            Long beginProcessCodeId = resolveOptionalProcessCodeId(row.beginProcessSmallCode());
-            Long endProcessCodeId = resolveOptionalProcessCodeId(row.endProcessSmallCode());
+            // 판매·구매단가는 공정 미사용 — 엑셀 값이 있어도 무시하고 NULL
+            Long beginProcessCodeId = null;
+            Long endProcessCodeId = null;
+            if (row.costType() == CostType.OUTSOURCE) {
+                beginProcessCodeId = resolveOptionalProcessCodeId(row.beginProcessSmallCode());
+                endProcessCodeId = resolveOptionalProcessCodeId(row.endProcessSmallCode());
+            }
             unitPriceService.register(
-                    new com.shindong.smartmanager.application.unitprice.UnitPriceCommand(
+                    new UnitPriceCommand(
                             row.costType(),
                             item.id(),
                             company.id(),
@@ -245,7 +260,8 @@ public class MasterDataImportService {
                             row.beginDate(),
                             row.endDate()
                     ),
-                    actorUserId
+                    actorUserId,
+                    UnitPriceHistoryProjector.REASON_MASTER_IMPORT_REGISTER
             );
         }, row -> row.itemNum() + ":" + row.businessRegNo());
     }
@@ -291,7 +307,7 @@ public class MasterDataImportService {
     }
 
     private static String normalizeBusinessRegNo(String value) {
-        return value.replaceAll("\\D", "");
+        return BusinessRegNos.canonicalize(value);
     }
 
     private static String blankToNull(String value) {
@@ -311,6 +327,9 @@ public class MasterDataImportService {
         String key(T row);
     }
 
+    /** 응답 본문 비대화·프록시 타임아웃 방지 — failureCount는 전체, failures는 샘플만. */
+    private static final int MAX_FAILURE_DETAILS = 100;
+
     private <T> BulkImportResult bulk(
             List<T> rows,
             String actorUserId,
@@ -322,19 +341,23 @@ public class MasterDataImportService {
         }
         List<BulkFailure> failures = new ArrayList<>();
         int success = 0;
+        int failureCount = 0;
         for (int i = 0; i < rows.size(); i++) {
             T row = rows.get(i);
             try {
                 action.apply(row);
                 success++;
             } catch (RuntimeException ex) {
-                failures.add(new BulkFailure(
-                        i,
-                        keyExtractor.key(row),
-                        ex.getMessage() != null ? ex.getMessage() : "등록 실패"
-                ));
+                failureCount++;
+                if (failures.size() < MAX_FAILURE_DETAILS) {
+                    failures.add(new BulkFailure(
+                            i,
+                            keyExtractor.key(row),
+                            ex.getMessage() != null ? ex.getMessage() : "등록 실패"
+                    ));
+                }
             }
         }
-        return new BulkImportResult(success, failures.size(), failures);
+        return new BulkImportResult(success, failureCount, failures);
     }
 }

@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.purchase;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.purchase.PurchaseOrderLineReceiptContext;
 import com.shindong.smartmanager.application.purchase.PurchaseReceiptCandidateCriteria;
 import com.shindong.smartmanager.application.purchase.PurchaseReceiptListCriteria;
@@ -42,6 +44,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
     private final SpringDataPurchaseOrderRepository orderRepository;
     private final SpringDataCompanyRepository companyRepository;
     private final SpringDataItemRepository itemRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaPurchaseReceiptRepository(
             EntityManager entityManager,
@@ -50,7 +53,8 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
             SpringDataPurchaseOrderLineRepository orderLineRepository,
             SpringDataPurchaseOrderRepository orderRepository,
             SpringDataCompanyRepository companyRepository,
-            SpringDataItemRepository itemRepository
+            SpringDataItemRepository itemRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.entityManager = entityManager;
         this.receiptRepository = receiptRepository;
@@ -59,6 +63,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
         this.orderRepository = orderRepository;
         this.companyRepository = companyRepository;
         this.itemRepository = itemRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -103,6 +108,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
                 sql.append(" AND i.item_name LIKE :itemName");
                 params.put("itemName", "%" + criteria.itemName().trim() + "%");
             }
+            appendItemPropertyScopeFilter(sql, params, criteria.itemPropertyScope());
         }
         sql.append(" ORDER BY po.order_date DESC, po.order_no, pol.line_no");
 
@@ -160,11 +166,9 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
         header.setPurchaseOrderId(command.purchaseOrderId());
         header.setStatus(command.status());
         header.setRecordingState(ACTIVE);
-        header.setCreatedBy(actorUserId);
-        header.setCreatedById(actorUserId);
+        header.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         header.setCreatedAt(now);
-        header.setUpdatedBy(actorUserId);
-        header.setUpdatedById(actorUserId);
+        header.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         header.setUpdatedAt(now);
         PurchaseReceiptJpaEntity savedHeader = receiptRepository.save(header);
 
@@ -180,11 +184,9 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
             entity.setUnitPrice(line.unitPrice());
             entity.setAmount(line.amount());
             entity.setRecordingState(ACTIVE);
-            entity.setCreatedBy(actorUserId);
-            entity.setCreatedById(actorUserId);
+            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setCreatedAt(now);
-            entity.setUpdatedBy(actorUserId);
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             receiptLineRepository.save(entity);
         }
@@ -257,6 +259,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
             }
             sql.append(")");
         }
+        appendReceiptItemPropertyScopeFilter(sql, params, criteria.itemPropertyScope());
         sql.append(" ORDER BY pr.receipt_date DESC, pr.receipt_no DESC");
 
         Query query = entityManager.createNativeQuery(sql.toString());
@@ -276,7 +279,65 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
                 && criteria.receiptDateFrom() == null
                 && criteria.receiptDateTo() == null
                 && (criteria.itemNum() == null || criteria.itemNum().isBlank())
-                && (criteria.itemName() == null || criteria.itemName().isBlank());
+                && (criteria.itemName() == null || criteria.itemName().isBlank())
+                && (criteria.itemPropertyScope() == null || criteria.itemPropertyScope().isBlank());
+    }
+
+    private static void appendItemPropertyScopeFilter(
+            StringBuilder sql,
+            Map<String, Object> params,
+            String itemPropertyScope
+    ) {
+        if (itemPropertyScope == null || itemPropertyScope.isBlank()) {
+            return;
+        }
+        String scope = itemPropertyScope.trim();
+        if ("SUB_MATERIAL".equals(scope)) {
+            sql.append(" AND i.property_classification = :itemPropertyClassification");
+            params.put("itemPropertyClassification", "부자재");
+        } else if ("GENERAL".equals(scope)) {
+            sql.append(" AND i.property_classification IN (:generalPropertyClassifications)");
+            params.put("generalPropertyClassifications", List.of("원자재", "상품"));
+        }
+    }
+
+    private static void appendReceiptItemPropertyScopeFilter(
+            StringBuilder sql,
+            Map<String, Object> params,
+            String itemPropertyScope
+    ) {
+        if (itemPropertyScope == null || itemPropertyScope.isBlank()) {
+            return;
+        }
+        String scope = itemPropertyScope.trim();
+        if ("SUB_MATERIAL".equals(scope)) {
+            sql.append("""
+                     AND EXISTS (
+                        SELECT 1 FROM purchase_receipt_line prl
+                        JOIN item i ON i.id = prl.item_id
+                        WHERE prl.purchase_receipt_id = pr.id AND prl.recording_state = 1
+                          AND i.property_classification = :scopePropertyClassification
+                    )
+                    """);
+            params.put("scopePropertyClassification", "부자재");
+        } else if ("GENERAL".equals(scope)) {
+            sql.append("""
+                     AND EXISTS (
+                        SELECT 1 FROM purchase_receipt_line prl
+                        JOIN item i ON i.id = prl.item_id
+                        WHERE prl.purchase_receipt_id = pr.id AND prl.recording_state = 1
+                          AND i.property_classification IN (:scopeGeneralPropertyClassifications)
+                    )
+                     AND NOT EXISTS (
+                        SELECT 1 FROM purchase_receipt_line prl
+                        JOIN item i ON i.id = prl.item_id
+                        WHERE prl.purchase_receipt_id = pr.id AND prl.recording_state = 1
+                          AND i.property_classification = :scopeSubMaterialClassification
+                    )
+                    """);
+            params.put("scopeGeneralPropertyClassifications", List.of("원자재", "상품"));
+            params.put("scopeSubMaterialClassification", "부자재");
+        }
     }
 
     @Override
@@ -286,8 +347,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
                 .orElseThrow(() -> new IllegalArgumentException("구매입고를 찾을 수 없습니다: " + receiptId));
         Instant now = Instant.now();
         entity.setStatus(PurchaseReceiptStatus.CANCELLED);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         receiptRepository.save(entity);
     }
@@ -350,8 +410,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
         PurchaseReceiptLineJpaEntity line = receiptLineRepository.findByIdAndRecordingState(receiptLineId, ACTIVE)
                 .orElseThrow(() -> new IllegalArgumentException("입고 라인을 찾을 수 없습니다: " + receiptLineId));
         line.setPostedQty(line.getPostedQty().add(postedQty));
-        line.setUpdatedBy(actorUserId);
-        line.setUpdatedById(actorUserId);
+        line.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         line.setUpdatedAt(Instant.now());
         receiptLineRepository.save(line);
     }
@@ -380,8 +439,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
             status = PurchaseReceiptStatus.PARTIALLY_POSTED;
         }
         receipt.setStatus(status);
-        receipt.setUpdatedBy(actorUserId);
-        receipt.setUpdatedById(actorUserId);
+        receipt.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         receipt.setUpdatedAt(Instant.now());
         receiptRepository.save(receipt);
     }
@@ -430,8 +488,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
         if (order.getStatus() != newStatus) {
             Instant now = Instant.now();
             order.setStatus(newStatus);
-            order.setUpdatedBy(actorUserId);
-            order.setUpdatedById(actorUserId);
+            order.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             order.setUpdatedAt(now);
             orderRepository.save(order);
         }
@@ -452,8 +509,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
         if (waiting) {
             line.setWaitingInspectionQty(line.getWaitingInspectionQty().add(qty));
         }
-        line.setUpdatedBy(actorUserId);
-        line.setUpdatedById(actorUserId);
+        line.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         line.setUpdatedAt(Instant.now());
         orderLineRepository.save(line);
     }
@@ -491,7 +547,7 @@ public class JpaPurchaseReceiptRepository implements PurchaseReceiptRepository {
                 entity.getPurchaseOrderId(),
                 entity.getStatus(),
                 entity.getCreatedAt(),
-                entity.getCreatedBy(),
+                masterAuditActorLookup.nameOf(entity.getCreatedById()),
                 lineViews
         );
     }

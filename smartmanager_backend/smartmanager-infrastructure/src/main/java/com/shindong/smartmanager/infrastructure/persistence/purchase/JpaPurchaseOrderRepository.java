@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.purchase;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.purchase.PurchaseOrderCommand;
@@ -48,6 +50,7 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
     private final SpringDataProductionPlanRepository productionPlanRepository;
     private final SpringDataMrpRunRepository mrpRunRepository;
     private final ItemRepository itemLookup;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaPurchaseOrderRepository(
             SpringDataPurchaseOrderRepository orderRepository,
@@ -57,7 +60,8 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
             SpringDataMaterialRequirementLineRepository requirementLineRepository,
             SpringDataProductionPlanRepository productionPlanRepository,
             SpringDataMrpRunRepository mrpRunRepository,
-            ItemRepository itemLookup
+            ItemRepository itemLookup,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.orderRepository = orderRepository;
         this.lineRepository = lineRepository;
@@ -67,6 +71,7 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
         this.productionPlanRepository = productionPlanRepository;
         this.mrpRunRepository = mrpRunRepository;
         this.itemLookup = itemLookup;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -153,11 +158,9 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
         entity.setOrderDate(command.orderDate());
         entity.setSourceType(command.sourceType());
         entity.setStatus(PurchaseOrderStatus.DRAFT);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         PurchaseOrderJpaEntity saved = orderRepository.save(entity);
         insertLines(saved.getId(), command, actorUserId, now);
@@ -172,8 +175,7 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
         entity.setPartnerId(command.partnerId());
         entity.setOrderDate(command.orderDate());
         entity.setSourceType(command.sourceType());
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         orderRepository.save(entity);
     }
@@ -192,8 +194,7 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
         PurchaseOrderJpaEntity entity = requireActiveOrder(purchaseOrderId);
         Instant now = Instant.now();
         entity.setStatus(status);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         orderRepository.save(entity);
     }
@@ -207,8 +208,7 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
                 ACTIVE
         )) {
             line.setRequirementLineId(null);
-            line.setUpdatedBy(actorUserId);
-            line.setUpdatedById(actorUserId);
+            line.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             line.setUpdatedAt(now);
             lineRepository.save(line);
         }
@@ -220,8 +220,7 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
         PurchaseOrderJpaEntity entity = requireActiveOrder(purchaseOrderId);
         Instant now = Instant.now();
         entity.setStatus(PurchaseOrderStatus.CONFIRMED);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         orderRepository.save(entity);
     }
@@ -240,6 +239,7 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
         }
         String partnerName = normalizeQuery(criteria.partnerName());
         String orderNo = normalizeQuery(criteria.orderNo());
+        String itemPropertyScope = normalizeScope(criteria.itemPropertyScope());
         return orderRepository.searchActive(
                 ACTIVE,
                 criteria.orderDateFrom(),
@@ -248,10 +248,39 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
                 orderNo,
                 criteria.status(),
                 criteria.excludeCancelled(),
-                PurchaseOrderStatus.CANCELLED
+                PurchaseOrderStatus.CANCELLED,
+                itemPropertyScope
         ).stream()
                 .map(order -> toView(order, loadLines(order.getId())))
+                .filter(view -> matchesItemPropertyScope(view, itemPropertyScope))
                 .toList();
+    }
+
+    private static String normalizeScope(String itemPropertyScope) {
+        if (itemPropertyScope == null || itemPropertyScope.isBlank()) {
+            return null;
+        }
+        return itemPropertyScope.trim();
+    }
+
+    private static boolean matchesItemPropertyScope(PurchaseOrderView view, String itemPropertyScope) {
+        if (itemPropertyScope == null || itemPropertyScope.isBlank()) {
+            return true;
+        }
+        boolean hasSubMaterial = view.lines().stream()
+                .anyMatch(line -> "부자재".equals(line.propertyClassification()));
+        boolean hasNonSubMaterial = view.lines().stream()
+                .anyMatch(line -> line.propertyClassification() != null
+                        && !line.propertyClassification().isBlank()
+                        && !"부자재".equals(line.propertyClassification()));
+        boolean hasGeneral = view.lines().stream()
+                .anyMatch(line -> "원자재".equals(line.propertyClassification())
+                        || "상품".equals(line.propertyClassification()));
+        return switch (itemPropertyScope) {
+            case "SUB_MATERIAL" -> hasSubMaterial && !hasNonSubMaterial;
+            case "GENERAL" -> hasGeneral && !hasSubMaterial;
+            default -> true;
+        };
     }
 
     private String normalizeQuery(String value) {
@@ -309,11 +338,9 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
             entity.setRequirementLineId(line.requirementLineId());
             entity.setRequestedDeliveryDate(line.requestedDeliveryDate());
             entity.setRecordingState(ACTIVE);
-            entity.setCreatedBy(actorUserId);
-            entity.setCreatedById(actorUserId);
+            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setCreatedAt(now);
-            entity.setUpdatedBy(actorUserId);
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             lineRepository.save(entity);
         }
@@ -370,7 +397,7 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
                 order.getSourceType(),
                 order.getStatus(),
                 order.getCreatedAt(),
-                order.getCreatedBy(),
+                masterAuditActorLookup.nameOf(order.getCreatedById()),
                 lineViews
         );
     }

@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.outsource;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.outsource.OutsourcingOrderLineView;
@@ -36,6 +38,7 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
     private final OutsourcingOrderRepository outsourcingOrderRepository;
     private final ItemRepository itemRepository;
     private final SpringDataCompanyRepository companyRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaOutsourcingShipmentRepository(
             SpringDataOutsourcingShipmentRepository shipmentRepository,
@@ -43,7 +46,8 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
             SpringDataOutsourcingShipmentInputLineRepository inputLineRepository,
             OutsourcingOrderRepository outsourcingOrderRepository,
             ItemRepository itemRepository,
-            SpringDataCompanyRepository companyRepository
+            SpringDataCompanyRepository companyRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.shipmentRepository = shipmentRepository;
         this.shipmentLineRepository = shipmentLineRepository;
@@ -51,6 +55,7 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
         this.outsourcingOrderRepository = outsourcingOrderRepository;
         this.itemRepository = itemRepository;
         this.companyRepository = companyRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -69,11 +74,9 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
         header.setPartnerId(command.partnerId());
         header.setStatus(OutsourcingShipmentStatus.ISSUED);
         header.setRecordingState(ACTIVE);
-        header.setCreatedBy(actorUserId);
-        header.setCreatedById(actorUserId);
+        header.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         header.setCreatedAt(now);
-        header.setUpdatedBy(actorUserId);
-        header.setUpdatedById(actorUserId);
+        header.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         header.setUpdatedAt(now);
         OutsourcingShipmentJpaEntity savedHeader = shipmentRepository.save(header);
 
@@ -88,11 +91,9 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
             line.setEndProcessCodeId(lineCommand.endProcessCodeId());
             line.setShipmentQty(lineCommand.shipmentQty());
             line.setRecordingState(ACTIVE);
-            line.setCreatedBy(actorUserId);
-            line.setCreatedById(actorUserId);
+            line.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             line.setCreatedAt(now);
-            line.setUpdatedBy(actorUserId);
-            line.setUpdatedById(actorUserId);
+            line.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             line.setUpdatedAt(now);
             OutsourcingShipmentLineJpaEntity savedLine = shipmentLineRepository.save(line);
 
@@ -125,8 +126,7 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
                 .orElseThrow(() -> new IllegalArgumentException("외주출고를 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setStatus(OutsourcingShipmentStatus.CANCELLED);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         shipmentRepository.save(entity);
     }
@@ -257,7 +257,7 @@ public class JpaOutsourcingShipmentRepository implements OutsourcingShipmentRepo
                 headerPartnerName,
                 entity.getStatus(),
                 entity.getCreatedAt(),
-                entity.getCreatedBy(),
+                masterAuditActorLookup.nameOf(entity.getCreatedById()),
                 cancelable,
                 lines
         );

@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.purchase;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.purchase.EtcPurchaseReceiptListCriteria;
 import com.shindong.smartmanager.application.purchase.EtcPurchaseReceiptRepository;
 import com.shindong.smartmanager.application.purchase.EtcPurchaseReceiptSaveCommand;
@@ -23,13 +25,16 @@ public class JpaEtcPurchaseReceiptRepository implements EtcPurchaseReceiptReposi
 
     private final EntityManager entityManager;
     private final SpringDataEtcPurchaseReceiptRepository receiptRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaEtcPurchaseReceiptRepository(
             EntityManager entityManager,
-            SpringDataEtcPurchaseReceiptRepository receiptRepository
+            SpringDataEtcPurchaseReceiptRepository receiptRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.entityManager = entityManager;
         this.receiptRepository = receiptRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -127,8 +132,7 @@ public class JpaEtcPurchaseReceiptRepository implements EtcPurchaseReceiptReposi
         entity.setFiscalYear((short) command.fiscalYear());
         entity.setFiscalMonth((byte) command.fiscalMonth());
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
         return receiptRepository.save(entity).getId();
     }
@@ -142,8 +146,7 @@ public class JpaEtcPurchaseReceiptRepository implements EtcPurchaseReceiptReposi
         entity.setReceiptDate(command.receiptDate());
         entity.setFiscalYear((short) command.fiscalYear());
         entity.setFiscalMonth((byte) command.fiscalMonth());
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         receiptRepository.save(entity);
     }

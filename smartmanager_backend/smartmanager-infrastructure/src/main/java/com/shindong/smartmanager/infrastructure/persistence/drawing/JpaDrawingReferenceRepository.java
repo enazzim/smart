@@ -5,6 +5,7 @@ import com.shindong.smartmanager.application.drawing.DrawingReferenceRepository;
 import com.shindong.smartmanager.application.drawing.DrawingReferenceView;
 import com.shindong.smartmanager.application.drawing.DrawingWhereUsedView;
 import com.shindong.smartmanager.infrastructure.persistence.item.ItemJpaEntity;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -19,13 +20,16 @@ public class JpaDrawingReferenceRepository implements DrawingReferenceRepository
 
     private final SpringDataDrawingReferenceRepository referenceRepository;
     private final SpringDataDrawingHistoryRepository historyRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaDrawingReferenceRepository(
             SpringDataDrawingReferenceRepository referenceRepository,
-            SpringDataDrawingHistoryRepository historyRepository
+            SpringDataDrawingHistoryRepository historyRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.referenceRepository = referenceRepository;
         this.historyRepository = historyRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -80,11 +84,9 @@ public class JpaDrawingReferenceRepository implements DrawingReferenceRepository
         entity.setSortOrder(sortOrder);
         entity.setRemark(remark);
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         referenceRepository.save(entity);
     }
@@ -105,11 +107,9 @@ public class JpaDrawingReferenceRepository implements DrawingReferenceRepository
             copy.setSortOrder(row.getSortOrder());
             copy.setRemark(row.getRemark());
             copy.setRecordingState(ACTIVE);
-            copy.setCreatedBy(actorUserId);
-            copy.setCreatedById(actorUserId);
+            copy.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             copy.setCreatedAt(now);
-            copy.setUpdatedBy(actorUserId);
-            copy.setUpdatedById(actorUserId);
+            copy.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             copy.setUpdatedAt(now);
             referenceRepository.save(copy);
         }

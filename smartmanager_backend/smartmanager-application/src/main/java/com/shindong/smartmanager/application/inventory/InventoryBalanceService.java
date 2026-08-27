@@ -88,7 +88,7 @@ public class InventoryBalanceService {
                 period.fiscalYear(),
                 outputProcessId,
                 inputProcessId,
-                partnerId
+                balancePartnerId(locationCode, partnerId)
         );
         return balanceRepository.ensureBalance(key).stockQty();
     }
@@ -129,13 +129,16 @@ public class InventoryBalanceService {
         int fiscalYear = period.fiscalYear();
         int fiscalMonth = period.fiscalMonth();
 
+        // 잔고 슬롯의 partner_id는 외주창고(OUTSOURCE)만 사용한다.
+        // RAW/WIP/SALES/DELIVERY에 partner를 넣으면 구매처·외주처·고객처마다 행이 갈라져
+        // 동일 창고가 중복·마이너스로 보인다. stock_movement.partner_id는 수불처 추적용으로 유지.
         InventoryBalanceKey key = new InventoryBalanceKey(
                 command.itemId(),
                 locationId,
                 fiscalYear,
                 command.outputProcessId(),
                 command.inputProcessId(),
-                command.partnerId()
+                balancePartnerId(command.locationCode(), command.partnerId())
         );
 
         InventoryBalanceSlotView balance = balanceRepository.ensureBalance(key);
@@ -187,7 +190,10 @@ public class InventoryBalanceService {
                 command.referenceType(),
                 command.referenceId(),
                 command.movementDate(),
-                command.lotId()
+                command.lotId(),
+                command.outputProcessId(),
+                command.inputProcessId(),
+                command.partnerId()
         ));
 
         applyMonthly(updated.id(), fiscalMonth, command.movementType(), command.qty(), command.amount(), signedQty);
@@ -241,5 +247,15 @@ public class InventoryBalanceService {
             case OUT -> qty.negate();
             case ADJUST -> qty;
         };
+    }
+
+    /**
+     * 외주창고만 거래처별 잔고를 분리한다. 그 외 창고는 사내 공통 슬롯(partner_id = null).
+     */
+    static Long balancePartnerId(String locationCode, Long partnerId) {
+        if (locationCode != null && "OUTSOURCE".equalsIgnoreCase(locationCode.trim())) {
+            return partnerId;
+        }
+        return null;
     }
 }

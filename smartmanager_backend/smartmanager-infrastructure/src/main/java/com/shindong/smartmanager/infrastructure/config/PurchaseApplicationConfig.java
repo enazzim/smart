@@ -43,6 +43,7 @@ public class PurchaseApplicationConfig {
     public PartnerPaymentService partnerPaymentService(
             PartnerPaymentRepository partnerPaymentRepository,
             CompanyRepository companyRepository,
+            ItemRepository itemRepository,
             PartnerLedgerService partnerLedgerService,
             MonthClosingService monthClosingService,
             DomainEventStore domainEventStore
@@ -50,6 +51,7 @@ public class PurchaseApplicationConfig {
         return new PartnerPaymentService(
                 partnerPaymentRepository,
                 companyRepository,
+                itemRepository,
                 partnerLedgerService,
                 monthClosingService,
                 domainEventStore
@@ -62,14 +64,18 @@ public class PurchaseApplicationConfig {
             PartnerPaymentRepository partnerPaymentRepository,
             PartnerLedgerService partnerLedgerService,
             MonthClosingService monthClosingService,
-            FiscalCalendarService fiscalCalendarService
+            FiscalCalendarService fiscalCalendarService,
+            CompanyRepository companyRepository,
+            ItemRepository itemRepository
     ) {
         return new PayableApprovalService(
                 payableApprovalRepository,
                 partnerPaymentRepository,
                 partnerLedgerService,
                 monthClosingService,
-                fiscalCalendarService
+                fiscalCalendarService,
+                companyRepository,
+                itemRepository
         );
     }
 }

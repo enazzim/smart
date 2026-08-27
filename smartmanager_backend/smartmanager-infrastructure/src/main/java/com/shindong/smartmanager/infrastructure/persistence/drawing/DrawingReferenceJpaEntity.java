@@ -37,20 +37,14 @@ public class DrawingReferenceJpaEntity {
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
 
-    @Column(name = "created_by", length = 100)
-    private String createdBy;
-
-    @Column(name = "created_by_id", length = 100)
-    private String createdById;
+    @Column(name = "created_by_id")
+    private Long createdById;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_by", length = 100)
-    private String updatedBy;
-
-    @Column(name = "updated_by_id", length = 100)
-    private String updatedById;
+    @Column(name = "updated_by_id")
+    private Long updatedById;
 
     @Column(name = "updated_at")
     private Instant updatedAt;
@@ -111,19 +105,11 @@ public class DrawingReferenceJpaEntity {
         this.recordingState = recordingState;
     }
 
-    public String getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
-
-    public String getCreatedById() {
+    public Long getCreatedById() {
         return createdById;
     }
 
-    public void setCreatedById(String createdById) {
+    public void setCreatedById(Long createdById) {
         this.createdById = createdById;
     }
 
@@ -135,19 +121,11 @@ public class DrawingReferenceJpaEntity {
         this.createdAt = createdAt;
     }
 
-    public String getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(String updatedBy) {
-        this.updatedBy = updatedBy;
-    }
-
-    public String getUpdatedById() {
+    public Long getUpdatedById() {
         return updatedById;
     }
 
-    public void setUpdatedById(String updatedById) {
+    public void setUpdatedById(Long updatedById) {
         this.updatedById = updatedById;
     }
 

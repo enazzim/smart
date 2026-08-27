@@ -35,11 +35,8 @@ public class BomChangeLogJpaEntity {
     @Column(name = "change_reason", nullable = false, length = 50)
     private String changeReason;
 
-    @Column(name = "changed_by")
-    private String changedBy;
-
     @Column(name = "changed_by_id")
-    private String changedById;
+    private Long changedById;
 
     @Column(name = "changed_at", nullable = false)
     private Instant changedAt;
@@ -96,19 +93,11 @@ public class BomChangeLogJpaEntity {
         this.changeReason = changeReason;
     }
 
-    public String getChangedBy() {
-        return changedBy;
-    }
-
-    public void setChangedBy(String changedBy) {
-        this.changedBy = changedBy;
-    }
-
-    public String getChangedById() {
+    public Long getChangedById() {
         return changedById;
     }
 
-    public void setChangedById(String changedById) {
+    public void setChangedById(Long changedById) {
         this.changedById = changedById;
     }
 

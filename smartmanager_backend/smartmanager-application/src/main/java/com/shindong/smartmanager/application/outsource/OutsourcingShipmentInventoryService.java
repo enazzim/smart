@@ -116,7 +116,7 @@ public class OutsourcingShipmentInventoryService {
                     shipmentId,
                     line.sourceProcessId(),
                     null,
-                    null,
+                    partnerId,
                     lotId,
                     actorUserId
             ));

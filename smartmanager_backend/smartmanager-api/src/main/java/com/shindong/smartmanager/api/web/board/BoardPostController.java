@@ -53,7 +53,8 @@ public class BoardPostController {
     ) {
         BoardType type = BoardPostApplicationService.parseBoardType(boardType);
         return BoardPostPageResponse.from(boardPostApplicationService.list(
-                new BoardPostListCriteria(type, keyword, page, size)
+                new BoardPostListCriteria(type, keyword, page, size),
+                resolveActorUserId()
         ));
     }
 
@@ -77,12 +78,13 @@ public class BoardPostController {
             @PathVariable String boardType,
             @RequestPart("title") String title,
             @RequestPart(value = "content", required = false) String content,
-            @RequestPart(value = "files", required = false) List<MultipartFile> files
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @RequestParam(value = "requiredReaderUserIds", required = false) List<Long> requiredReaderUserIds
     ) {
         JwtUserPrincipal principal = SecurityUtils.requirePrincipal();
         BoardType type = BoardPostApplicationService.parseBoardType(boardType);
         return BoardPostDetailResponse.from(boardPostApplicationService.createTopPost(
-                new BoardPostCommand(type, title, content, List.of()),
+                new BoardPostCommand(type, title, content, List.of(), requiredReaderUserIds),
                 BoardMultipartSupport.toUploadFiles(files),
                 principal.userId(),
                 principal.loginId(),
@@ -117,14 +119,20 @@ public class BoardPostController {
             @PathVariable String boardType,
             @PathVariable long postId,
             @RequestPart(value = "title", required = false) String title,
-            @RequestPart(value = "content", required = false) String content
+            @RequestPart(value = "content", required = false) String content,
+            @RequestParam(value = "requiredReaderUserIds", required = false) List<Long> requiredReaderUserIds,
+            @RequestParam(value = "updateRequiredReaders", required = false, defaultValue = "false") boolean updateRequiredReaders
     ) {
         JwtUserPrincipal principal = SecurityUtils.requirePrincipal();
         BoardPostApplicationService.parseBoardType(boardType);
+        List<Long> requiredIds = updateRequiredReaders
+                ? (requiredReaderUserIds != null ? requiredReaderUserIds : List.of())
+                : null;
         return BoardPostDetailResponse.from(boardPostApplicationService.updatePost(
                 postId,
                 title,
                 content,
+                requiredIds,
                 principal.userId(),
                 hasModerateAuthority(principal),
                 principal.loginId(),
@@ -225,5 +233,15 @@ public class BoardPostController {
 
     private boolean hasModerateAuthority(JwtUserPrincipal principal) {
         return principal.authorities().contains("community:board:moderate");
+    }
+
+    private long resolveActorUserId() {
+        var authentication = org.springframework.security.core.context.SecurityContextHolder
+                .getContext()
+                .getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof JwtUserPrincipal principal) {
+            return principal.userId();
+        }
+        return 0L;
     }
 }

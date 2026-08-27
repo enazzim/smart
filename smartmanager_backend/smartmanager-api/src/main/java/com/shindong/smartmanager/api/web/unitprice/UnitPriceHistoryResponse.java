@@ -11,9 +11,16 @@ public record UnitPriceHistoryResponse(
         long unitPriceId,
         CostType type,
         long itemId,
+        String itemNo,
+        String itemName,
         long companyId,
+        String companyName,
         Long beginProcessCodeId,
+        String beginProcessCode,
+        String beginProcessName,
         Long endProcessCodeId,
+        String endProcessCode,
+        String endProcessName,
         BigDecimal orderRate,
         BigDecimal standardUnitCost,
         BigDecimal discountUnitCost,
@@ -21,6 +28,7 @@ public record UnitPriceHistoryResponse(
         LocalDate endDate,
         String updateReason,
         String changedBy,
+        String changedById,
         Instant changedAt
 ) {
 
@@ -30,9 +38,16 @@ public record UnitPriceHistoryResponse(
                 view.unitPriceId(),
                 view.costType(),
                 view.itemId(),
+                view.itemNo(),
+                view.itemName(),
                 view.companyId(),
+                view.companyName(),
                 view.beginProcessCodeId(),
+                view.beginProcessCode(),
+                view.beginProcessName(),
                 view.endProcessCodeId(),
+                view.endProcessCode(),
+                view.endProcessName(),
                 view.orderRate(),
                 view.standardUnitCost(),
                 view.discountUnitCost(),
@@ -40,6 +55,7 @@ public record UnitPriceHistoryResponse(
                 view.endDate(),
                 view.updateReason(),
                 view.changedBy(),
+                view.changedById(),
                 view.changedAt()
         );
     }

@@ -10,7 +10,9 @@ import com.shindong.smartmanager.application.outsource.OutsourceHistoryRepositor
 import com.shindong.smartmanager.application.outsource.OutsourcingReceiptInventoryService;
 import com.shindong.smartmanager.application.outsource.OutsourcingReceiptRepository;
 import com.shindong.smartmanager.application.outsource.OutsourcingReceiptService;
+import com.shindong.smartmanager.application.purchase.PartnerPaymentRepository;
 import com.shindong.smartmanager.application.quality.QualityInspectionRepository;
+import com.shindong.smartmanager.application.sales.SalesOrderFulfillmentSyncService;
 import com.shindong.smartmanager.application.system.SystemSettingService;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 
@@ -239,9 +241,11 @@ public class OutsourceApplicationConfig {
             ItemRepository itemRepository,
             LotService lotService,
             PartnerLedgerService partnerLedgerService,
+            PartnerPaymentRepository partnerPaymentRepository,
             MonthClosingService monthClosingService,
             FiscalCalendarService fiscalCalendarService,
-            DomainEventStore domainEventStore
+            DomainEventStore domainEventStore,
+            SalesOrderFulfillmentSyncService salesOrderFulfillmentSyncService
     ) {
         return new OutsourcingReceiptService(
                 outsourcingReceiptRepository,
@@ -252,9 +256,11 @@ public class OutsourceApplicationConfig {
                 itemRepository,
                 lotService,
                 partnerLedgerService,
+                partnerPaymentRepository,
                 monthClosingService,
                 fiscalCalendarService,
-                domainEventStore
+                domainEventStore,
+                salesOrderFulfillmentSyncService
         );
     }
 

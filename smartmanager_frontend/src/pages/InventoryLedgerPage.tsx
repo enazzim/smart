@@ -441,7 +441,7 @@ export default function InventoryLedgerPage() {
                           outputProcessName: row.outputProcessName,
                         })}
                       </td>
-                      <td className="num">{formatInteger(row.fiscalYear)}</td>
+                      <td className="num">{row.fiscalYear}</td>
                       <td className="num">{formatQty(row.stockQty)}</td>
                       <td className="num">
                         {monthSummary.map((m) => (

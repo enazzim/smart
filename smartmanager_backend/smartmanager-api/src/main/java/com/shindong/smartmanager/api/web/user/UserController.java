@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -24,8 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/basis/users")
 @BasisAuthorize.UserRead
 public class UserController {
-
-    private static final String DEFAULT_ACTOR = "local-dev";
 
     private final UserApplicationService userApplicationService;
 
@@ -63,10 +60,9 @@ public class UserController {
     @ResponseStatus(HttpStatus.CREATED)
     @BasisAuthorize.UserWrite
     public UserResponse create(
-            @Valid @RequestBody CreateUserRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody CreateUserRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         UserCommand command = new UserCommand(
                 request.loginId(),
                 request.password(),
@@ -83,10 +79,9 @@ public class UserController {
     @BasisAuthorize.UserWrite
     public UserResponse update(
             @PathVariable long id,
-            @Valid @RequestBody UpdateUserRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody UpdateUserRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         UserUpdateCommand command = new UserUpdateCommand(
                 request.name(),
                 request.password(),
@@ -101,11 +96,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @BasisAuthorize.UserWrite
-    public void delete(
-            @PathVariable long id,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
-    ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
-        userApplicationService.delete(id, actor);
+    public void delete(@PathVariable long id) {
+        userApplicationService.delete(id, SecurityUtils.requireLoginId());
     }
 }

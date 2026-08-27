@@ -1,4 +1,5 @@
 import { apiFetch, handleResponse } from './http';
+import { sortByKoreanField } from '../utils/koreanSort';
 
 export type WorkDistinction = 'INHOUSE' | 'OUTSOURCE' | 'SPLIT';
 
@@ -82,11 +83,13 @@ export async function deleteProcessPlan(id: number): Promise<void> {
 }
 
 export async function fetchProcessCodeOptions(): Promise<CodeOption[]> {
-  return handleResponse<CodeOption[]>(
+  const options = await handleResponse<CodeOption[]>(
     await apiFetch('/api/v1/basis/code-groups/PROCESS_CODE/options'),
   );
+  return sortByKoreanField(options, (opt) => opt.name);
 }
 
 export async function fetchWorkCenters(): Promise<WorkCenter[]> {
-  return handleResponse<WorkCenter[]>(await apiFetch('/api/v1/basis/work-centers'));
+  const centers = await handleResponse<WorkCenter[]>(await apiFetch('/api/v1/basis/work-centers'));
+  return sortByKoreanField(centers, (wc) => wc.wcName);
 }

@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.quality;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.quality.QualityInspectionListCriteria;
 import com.shindong.smartmanager.application.quality.QualityInspectionRepository;
 import com.shindong.smartmanager.application.quality.QualityInspectionView;
@@ -55,6 +57,7 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
     private final SpringDataOutsourcingOrderLineRepository outsourcingOrderLineRepository;
     private final SpringDataOutsourcingOrderRepository outsourcingOrderRepository;
     private final EntityManager entityManager;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaQualityInspectionRepository(
             SpringDataQualityInspectionRepository inspectionRepository,
@@ -68,7 +71,8 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
             SpringDataOutsourcingReceiptRepository outsourcingReceiptRepository,
             SpringDataOutsourcingOrderLineRepository outsourcingOrderLineRepository,
             SpringDataOutsourcingOrderRepository outsourcingOrderRepository,
-            EntityManager entityManager
+            EntityManager entityManager,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.inspectionRepository = inspectionRepository;
         this.itemRepository = itemRepository;
@@ -82,6 +86,7 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
         this.outsourcingOrderLineRepository = outsourcingOrderLineRepository;
         this.outsourcingOrderRepository = outsourcingOrderRepository;
         this.entityManager = entityManager;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -103,11 +108,9 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
         entity.setRequestQty(requestQty);
         entity.setStatus(QualityInspectionStatus.PENDING);
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return inspectionRepository.save(entity).getId();
     }
@@ -202,6 +205,7 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
             Long inspectionDecisionCodeId,
             Long unsuitabilityCauseCodeId,
             Long unsuitabilityStatusCodeId,
+            String failureReason,
             Instant completedAt,
             String actorUserId
     ) {
@@ -212,10 +216,10 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
         entity.setInspectionDecisionCodeId(inspectionDecisionCodeId);
         entity.setUnsuitabilityCauseCodeId(unsuitabilityCauseCodeId);
         entity.setUnsuitabilityStatusCodeId(unsuitabilityStatusCodeId);
+        entity.setFailureReason(failureReason);
         entity.setStatus(QualityInspectionStatus.COMPLETED);
         entity.setCompletedAt(completedAt);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         inspectionRepository.save(entity);
     }
@@ -245,8 +249,28 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
             throw new IllegalArgumentException("완료된 검사만 취소할 수 있습니다.");
         }
         entity.setStatus(QualityInspectionStatus.CANCELLED);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
+        entity.setUpdatedAt(Instant.now());
+        inspectionRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void revertCompletedToPending(long id, String actorUserId) {
+        QualityInspectionJpaEntity entity = inspectionRepository.findByIdAndRecordingState(id, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("품질검사를 찾을 수 없습니다: " + id));
+        if (entity.getStatus() != QualityInspectionStatus.COMPLETED) {
+            throw new IllegalArgumentException("완료된 검사만 검사대기로 되돌릴 수 있습니다.");
+        }
+        entity.setStatus(QualityInspectionStatus.PENDING);
+        entity.setPassedQty(BigDecimal.ZERO);
+        entity.setFailedQty(BigDecimal.ZERO);
+        entity.setInspectionDecisionCodeId(null);
+        entity.setUnsuitabilityCauseCodeId(null);
+        entity.setUnsuitabilityStatusCodeId(null);
+        entity.setFailureReason(null);
+        entity.setCompletedAt(null);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         inspectionRepository.save(entity);
     }
@@ -259,8 +283,7 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
                     if (entity.getStatus() == QualityInspectionStatus.PENDING
                             || entity.getStatus() == QualityInspectionStatus.COMPLETED) {
                         entity.setStatus(QualityInspectionStatus.CANCELLED);
-                        entity.setUpdatedBy(actorUserId);
-                        entity.setUpdatedById(actorUserId);
+                        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
                         entity.setUpdatedAt(Instant.now());
                         inspectionRepository.save(entity);
                     }
@@ -325,7 +348,8 @@ public class JpaQualityInspectionRepository implements QualityInspectionReposito
                 receiptDate,
                 entity.getCreatedAt(),
                 entity.getCompletedAt(),
-                item != null && item.isLotTracked()
+                item != null && item.isLotTracked(),
+                entity.getFailureReason()
         );
     }
 }

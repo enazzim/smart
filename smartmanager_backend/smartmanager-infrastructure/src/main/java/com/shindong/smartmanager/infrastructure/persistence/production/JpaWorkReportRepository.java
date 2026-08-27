@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.production;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.production.WorkOrderRepository;
 import com.shindong.smartmanager.application.production.WorkOrderView;
 import com.shindong.smartmanager.application.production.WorkReportConsumptionRecordView;
@@ -51,6 +53,7 @@ public class JpaWorkReportRepository implements WorkReportRepository {
     private final SpringDataWorkCenterRepository workCenterRepository;
     private final WorkOrderRepository workOrderRepository;
     private final SpringDataWorkReportConsumptionLineRepository consumptionLineRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaWorkReportRepository(
             SpringDataWorkReportRepository workReportRepository,
@@ -63,7 +66,8 @@ public class JpaWorkReportRepository implements WorkReportRepository {
             SpringDataPublicCodeRepository publicCodeRepository,
             SpringDataWorkCenterRepository workCenterRepository,
             WorkOrderRepository workOrderRepository,
-            SpringDataWorkReportConsumptionLineRepository consumptionLineRepository
+            SpringDataWorkReportConsumptionLineRepository consumptionLineRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.workReportRepository = workReportRepository;
         this.historyRepository = historyRepository;
@@ -76,6 +80,7 @@ public class JpaWorkReportRepository implements WorkReportRepository {
         this.workCenterRepository = workCenterRepository;
         this.workOrderRepository = workOrderRepository;
         this.consumptionLineRepository = consumptionLineRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -114,11 +119,9 @@ public class JpaWorkReportRepository implements WorkReportRepository {
         entity.setStatus(command.status());
         entity.setStockApplied(command.stockApplied() ? 1 : 0);
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return toView(workReportRepository.save(entity));
     }
@@ -203,8 +206,7 @@ public class JpaWorkReportRepository implements WorkReportRepository {
         Instant now = Instant.now();
         entity.setStatus(WorkReportStatus.CANCELLED);
         entity.setStockApplied(0);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         workReportRepository.save(entity);
     }
@@ -225,8 +227,7 @@ public class JpaWorkReportRepository implements WorkReportRepository {
         entity.setFiscalYear((short) command.fiscalYear());
         entity.setFiscalMonth((byte) command.fiscalMonth());
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
         historyRepository.save(entity);
     }
@@ -263,11 +264,9 @@ public class JpaWorkReportRepository implements WorkReportRepository {
             entity.setSourceProcessId(command.sourceProcessId());
             entity.setLotId(command.lotId());
             entity.setRecordingState(ACTIVE);
-            entity.setCreatedBy(actorUserId);
-            entity.setCreatedById(actorUserId);
+            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setCreatedAt(now);
-            entity.setUpdatedBy(actorUserId);
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             WorkReportConsumptionLineJpaEntity saved = consumptionLineRepository.save(entity);
             result.add(toConsumptionRecord(saved));
@@ -291,8 +290,7 @@ public class JpaWorkReportRepository implements WorkReportRepository {
         for (WorkReportConsumptionLineJpaEntity entity
                 : consumptionLineRepository.findByWorkReportIdAndRecordingStateOrderByLineNoAsc(workReportId, ACTIVE)) {
             entity.setRecordingState(0);
-            entity.setUpdatedBy(actorUserId);
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             consumptionLineRepository.save(entity);
         }
@@ -305,8 +303,7 @@ public class JpaWorkReportRepository implements WorkReportRepository {
                         workReportId, ACTIVE, WorkReportStatus.REGISTERED)
                 .orElseThrow(() -> new IllegalArgumentException("작업일보를 찾을 수 없습니다: " + workReportId));
         entity.setOutputLotId(outputLotId);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         workReportRepository.save(entity);
     }
@@ -377,7 +374,7 @@ public class JpaWorkReportRepository implements WorkReportRepository {
                 entity.getStatus(),
                 entity.getStatus() == WorkReportStatus.REGISTERED,
                 entity.getCreatedAt(),
-                entity.getCreatedBy()
+                masterAuditActorLookup.nameOf(entity.getCreatedById())
         );
     }
 }

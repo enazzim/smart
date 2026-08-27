@@ -11,6 +11,7 @@ public record UnitPriceView(
         long itemId,
         String itemNo,
         String itemName,
+        String propertyClassification,
         long companyId,
         String companyName,
         String businessRegNo,

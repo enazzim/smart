@@ -1,10 +1,16 @@
 package com.shindong.smartmanager.api.web.drawing;
 
 import com.shindong.smartmanager.api.security.BasisAuthorize;
+import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.drawing.DrawingHistoryDetailView;
 import com.shindong.smartmanager.application.drawing.DrawingInfoUpdateCommand;
+import com.shindong.smartmanager.application.drawing.DrawingLifecycleUpdateCommand;
+import com.shindong.smartmanager.application.drawing.DrawingLinkItemCommand;
+import com.shindong.smartmanager.application.drawing.DrawingListFilter;
 import com.shindong.smartmanager.application.drawing.DrawingRegisterCommand;
+import com.shindong.smartmanager.application.drawing.DrawingReopenDevCommand;
 import com.shindong.smartmanager.application.drawing.DrawingReviseCommand;
+import com.shindong.smartmanager.domain.drawing.DrawingLifecycleStage;
 import com.shindong.smartmanager.infrastructure.application.DrawingApplicationService;
 import com.shindong.smartmanager.infrastructure.drawing.pdf.DrawingPdfStorageService;
 import com.shindong.smartmanager.infrastructure.drawing.pdf.DrawingPdfUploadSupport;
@@ -26,7 +32,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -37,8 +42,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/v1/basis/drawings")
 @BasisAuthorize.DrawingRead
 public class DrawingController {
-
-    private static final String DEFAULT_ACTOR = "local-dev";
 
     private final DrawingApplicationService drawingApplicationService;
     private final DrawingPdfStorageService drawingPdfStorageService;
@@ -63,8 +66,13 @@ public class DrawingController {
     }
 
     @GetMapping
-    public List<DrawingListResponse> list() {
-        return drawingApplicationService.listActive().stream()
+    public List<DrawingListResponse> list(
+            @RequestParam(value = "lifecycleStage", required = false) DrawingLifecycleStage lifecycleStage,
+            @RequestParam(value = "historyQuery", required = false) String historyQuery
+    ) {
+        return drawingApplicationService.listActive(
+                new DrawingListFilter(lifecycleStage, historyQuery)
+        ).stream()
                 .map(DrawingListResponse::from)
                 .toList();
     }
@@ -114,14 +122,13 @@ public class DrawingController {
     public ResponseEntity<Map<String, String>> replaceReferences(
             @PathVariable("id") String id,
             @PathVariable("historyId") String historyId,
-            @RequestBody DrawingReferenceResponse.ReplaceRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @RequestBody DrawingReferenceResponse.ReplaceRequest request
     ) {
         drawingApplicationService.replaceReferences(
                 id,
                 historyId,
                 request == null ? List.of() : request.toCommands(),
-                resolveActor(actorUserId)
+                SecurityUtils.requireLoginId()
         );
         return ResponseEntity.ok(Map.of("message", "도면 구성 참조가 저장되었습니다."));
     }
@@ -178,17 +185,16 @@ public class DrawingController {
     @BasisAuthorize.DrawingWrite
     public ResponseEntity<Map<String, String>> register(
             @Valid @RequestPart("data") DrawingRegisterRequest request,
-            @RequestPart("file") MultipartFile file,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @RequestPart("file") MultipartFile file
     ) throws IOException {
         drawingPdfUploadSupport.validate(file);
-        String actor = resolveActor(actorUserId);
+        String actor = SecurityUtils.requireLoginId();
         String filePath = drawingPdfStorageService.savePdf(file.getBytes());
         DrawingRegisterCommand command = new DrawingRegisterCommand(
                 request.partNo(),
                 request.partName(),
                 request.modelType(),
-                request.itemId(),
+                request.sourcePartnerId(),
                 request.drawingType(),
                 filePath,
                 file.getSize()
@@ -205,11 +211,10 @@ public class DrawingController {
     public ResponseEntity<Map<String, String>> revise(
             @PathVariable("partNo") String partNo,
             @Valid @RequestPart("data") DrawingReviseRequest request,
-            @RequestPart("file") MultipartFile file,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @RequestPart("file") MultipartFile file
     ) throws IOException {
         drawingPdfUploadSupport.validate(file);
-        String actor = resolveActor(actorUserId);
+        String actor = SecurityUtils.requireLoginId();
         String filePath = drawingPdfStorageService.savePdf(file.getBytes());
         DrawingReviseCommand command = new DrawingReviseCommand(
                 request.changeType(),
@@ -226,31 +231,65 @@ public class DrawingController {
 
     @DeleteMapping("/{partNo}")
     @BasisAuthorize.DrawingWrite
-    public ResponseEntity<Map<String, String>> softDelete(
-            @PathVariable("partNo") String partNo,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
-    ) {
-        drawingApplicationService.softDelete(partNo, resolveActor(actorUserId));
+    public ResponseEntity<Map<String, String>> softDelete(@PathVariable("partNo") String partNo) {
+        drawingApplicationService.softDelete(partNo, SecurityUtils.requireLoginId());
         return ResponseEntity.ok(Map.of("message", "도면이 삭제 처리되었습니다."));
     }
 
     @PostMapping("/{partNo}/promote")
     @BasisAuthorize.DrawingWrite
-    public ResponseEntity<Map<String, String>> promote(
-            @PathVariable("partNo") String partNo,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
-    ) {
-        drawingApplicationService.promoteToProd(partNo, resolveActor(actorUserId));
+    public ResponseEntity<Map<String, String>> promote(@PathVariable("partNo") String partNo) {
+        drawingApplicationService.promoteToProd(partNo, SecurityUtils.requireLoginId());
         return ResponseEntity.ok(Map.of("message", "성공적으로 양산품으로 이관되었습니다."));
+    }
+
+    @PostMapping("/{id}/link-item")
+    @BasisAuthorize.DrawingWrite
+    public ResponseEntity<Map<String, String>> linkItem(
+            @PathVariable("id") String id,
+            @Valid @RequestBody DrawingLinkItemRequest request
+    ) {
+        drawingApplicationService.linkItem(
+                id,
+                new DrawingLinkItemCommand(request.itemId()),
+                SecurityUtils.requireLoginId()
+        );
+        return ResponseEntity.ok(Map.of("message", "품목이 연결되었습니다."));
+    }
+
+    @PutMapping("/{id}/lifecycle")
+    @BasisAuthorize.DrawingWrite
+    public ResponseEntity<Map<String, String>> updateLifecycle(
+            @PathVariable("id") String id,
+            @Valid @RequestBody DrawingLifecycleUpdateRequest request
+    ) {
+        drawingApplicationService.updateLifecycle(
+                id,
+                new DrawingLifecycleUpdateCommand(request.lifecycleStage()),
+                SecurityUtils.requireLoginId()
+        );
+        return ResponseEntity.ok(Map.of("message", "도면 lifecycle이 변경되었습니다."));
+    }
+
+    @PostMapping("/{partNo}/reopen-dev")
+    @BasisAuthorize.DrawingWrite
+    public ResponseEntity<Map<String, String>> reopenDev(
+            @PathVariable("partNo") String partNo,
+            @RequestBody(required = false) DrawingReopenDevRequest request
+    ) {
+        String reason = request != null ? request.reason() : null;
+        drawingApplicationService.reopenDev(
+                partNo,
+                new DrawingReopenDevCommand(reason),
+                SecurityUtils.requireLoginId()
+        );
+        return ResponseEntity.ok(Map.of("message", "양산 도면이 개발 단계로 재개되었습니다."));
     }
 
     @PostMapping("/{id}/restore")
     @BasisAuthorize.DrawingWrite
-    public ResponseEntity<Map<String, String>> restore(
-            @PathVariable("id") String id,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
-    ) {
-        drawingApplicationService.restore(id, resolveActor(actorUserId));
+    public ResponseEntity<Map<String, String>> restore(@PathVariable("id") String id) {
+        drawingApplicationService.restore(id, SecurityUtils.requireLoginId());
         return ResponseEntity.ok(Map.of("message", "도면이 복구되었습니다."));
     }
 
@@ -258,30 +297,21 @@ public class DrawingController {
     @BasisAuthorize.DrawingWrite
     public ResponseEntity<Map<String, String>> updateInfo(
             @PathVariable("id") String id,
-            @Valid @RequestBody DrawingInfoUpdateRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody DrawingInfoUpdateRequest request
     ) {
         DrawingInfoUpdateCommand command = new DrawingInfoUpdateCommand(
                 request.partNo(),
                 request.partName(),
-                request.modelType(),
-                request.itemId()
+                request.modelType()
         );
-        drawingApplicationService.updateInfo(id, command, resolveActor(actorUserId));
+        drawingApplicationService.updateInfo(id, command, SecurityUtils.requireLoginId());
         return ResponseEntity.ok(Map.of("message", "도면 정보가 성공적으로 수정되었습니다."));
     }
 
     @DeleteMapping("/{id}/hard")
     @BasisAuthorize.DrawingHardDelete
-    public ResponseEntity<Map<String, String>> hardDelete(
-            @PathVariable("id") String id,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
-    ) {
-        drawingApplicationService.hardDelete(id, resolveActor(actorUserId));
+    public ResponseEntity<Map<String, String>> hardDelete(@PathVariable("id") String id) {
+        drawingApplicationService.hardDelete(id, SecurityUtils.requireLoginId());
         return ResponseEntity.ok(Map.of("message", "도면이 물리적으로 영구 삭제되었습니다."));
-    }
-
-    private String resolveActor(String actorUserId) {
-        return actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
     }
 }

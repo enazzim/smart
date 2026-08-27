@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.api.web.calendar;
 
 import com.shindong.smartmanager.api.security.BasisAuthorize;
+import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.calendar.ProductionCalendarEffectiveDayView;
 import com.shindong.smartmanager.application.calendar.ProductionCalendarUpsertCommand;
 import com.shindong.smartmanager.application.calendar.ProductionCalendarView;
@@ -18,7 +19,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -28,8 +28,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/basis/production-calendars")
 @BasisAuthorize.ProductionCalendarRead
 public class ProductionCalendarController {
-
-    private static final String DEFAULT_ACTOR = "local-dev";
 
     private final ProductionCalendarApplicationService productionCalendarApplicationService;
     private final CalendarQueryApplicationService calendarQueryApplicationService;
@@ -71,10 +69,9 @@ public class ProductionCalendarController {
     @BasisAuthorize.ProductionCalendarWrite
     public ProductionCalendarResponse upsertByDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate calendarDate,
-            @Valid @RequestBody UpsertProductionCalendarRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody UpsertProductionCalendarRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         ProductionCalendarUpsertCommand command = new ProductionCalendarUpsertCommand(
                 request.workTime(),
                 request.content()
@@ -88,11 +85,9 @@ public class ProductionCalendarController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @BasisAuthorize.ProductionCalendarWrite
     public void deleteByDate(
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate calendarDate,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate calendarDate
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
-        productionCalendarApplicationService.deleteByDate(calendarDate, actor);
+        productionCalendarApplicationService.deleteByDate(calendarDate, SecurityUtils.requireLoginId());
     }
 
     public record UpsertProductionCalendarRequest(

@@ -1,12 +1,21 @@
 package com.shindong.smartmanager.application.outsource;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public record CreateOutsourcingReceiptCommand(
         LocalDate receiptDate,
         Integer fiscalYear,
         Integer fiscalMonth,
-        java.util.List<CreateOutsourcingReceiptLineCommand> lines
+        List<CreateOutsourcingReceiptLineCommand> lines,
+        boolean allowOverQty
 ) {
+    public CreateOutsourcingReceiptCommand(
+            LocalDate receiptDate,
+            Integer fiscalYear,
+            Integer fiscalMonth,
+            List<CreateOutsourcingReceiptLineCommand> lines
+    ) {
+        this(receiptDate, fiscalYear, fiscalMonth, lines, false);
+    }
 }

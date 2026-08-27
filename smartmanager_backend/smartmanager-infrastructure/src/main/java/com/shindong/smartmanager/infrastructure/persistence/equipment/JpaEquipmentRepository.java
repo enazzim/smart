@@ -7,6 +7,7 @@ import com.shindong.smartmanager.application.equipment.EquipmentService;
 import com.shindong.smartmanager.application.equipment.EquipmentUpdateCommand;
 import com.shindong.smartmanager.application.equipment.EquipmentView;
 import com.shindong.smartmanager.infrastructure.persistence.code.SpringDataPublicCodeRepository;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import com.shindong.smartmanager.infrastructure.persistence.workcenter.SpringDataWorkCenterRepository;
 import com.shindong.smartmanager.infrastructure.persistence.workcenter.WorkCenterJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.workstandard.SpringDataWorkStandardRepository;
@@ -24,19 +25,22 @@ public class JpaEquipmentRepository implements EquipmentRepository {
     private final SpringDataWorkCenterRepository workCenterRepository;
     private final SpringDataWorkStandardRepository workStandardRepository;
     private final EquipmentCategoryLookup equipmentCategoryLookup;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaEquipmentRepository(
             SpringDataEquipmentRepository equipmentRepository,
             SpringDataPublicCodeRepository publicCodeRepository,
             SpringDataWorkCenterRepository workCenterRepository,
             SpringDataWorkStandardRepository workStandardRepository,
-            EquipmentCategoryLookup equipmentCategoryLookup
+            EquipmentCategoryLookup equipmentCategoryLookup,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.equipmentRepository = equipmentRepository;
         this.publicCodeRepository = publicCodeRepository;
         this.workCenterRepository = workCenterRepository;
         this.workStandardRepository = workStandardRepository;
         this.equipmentCategoryLookup = equipmentCategoryLookup;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -53,11 +57,9 @@ public class JpaEquipmentRepository implements EquipmentRepository {
         entity.setWorkShot(0);
         entity.setAccumulatedShot(command.initialShot());
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return equipmentRepository.save(entity).getId();
     }
@@ -74,8 +76,7 @@ public class JpaEquipmentRepository implements EquipmentRepository {
         entity.setDesignShot(command.designShot());
         entity.setInitialShot(command.initialShot());
         entity.setAccumulatedShot(entity.getWorkShot() + command.initialShot());
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         equipmentRepository.save(entity);
     }
@@ -87,8 +88,7 @@ public class JpaEquipmentRepository implements EquipmentRepository {
                 .orElseThrow(() -> new IllegalArgumentException("설비를 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         equipmentRepository.save(entity);
     }

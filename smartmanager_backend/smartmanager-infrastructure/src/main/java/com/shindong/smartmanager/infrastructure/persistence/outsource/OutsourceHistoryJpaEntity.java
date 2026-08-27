@@ -72,11 +72,8 @@ public class OutsourceHistoryJpaEntity {
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
 
-    @Column(name = "created_by", length = 100)
-    private String createdBy;
-
-    @Column(name = "created_by_id", length = 100)
-    private String createdById;
+    @Column(name = "created_by_id")
+    private Long createdById;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -125,11 +122,7 @@ public class OutsourceHistoryJpaEntity {
         this.recordingState = recordingState;
     }
 
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
-
-    public void setCreatedById(String createdById) {
+    public void setCreatedById(Long createdById) {
         this.createdById = createdById;
     }
 
@@ -151,6 +144,10 @@ public class OutsourceHistoryJpaEntity {
 
     public Long getCompanyId() {
         return companyId;
+    }
+
+    public Long getItemId() {
+        return itemId;
     }
 
     public BigDecimal getAmount() {

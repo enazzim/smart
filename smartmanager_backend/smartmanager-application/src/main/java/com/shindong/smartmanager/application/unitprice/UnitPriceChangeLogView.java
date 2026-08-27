@@ -10,9 +10,16 @@ public record UnitPriceChangeLogView(
         long unitPriceId,
         CostType costType,
         long itemId,
+        String itemNo,
+        String itemName,
         long companyId,
+        String companyName,
         Long beginProcessCodeId,
+        String beginProcessCode,
+        String beginProcessName,
         Long endProcessCodeId,
+        String endProcessCode,
+        String endProcessName,
         BigDecimal orderRate,
         BigDecimal standardUnitCost,
         BigDecimal discountUnitCost,
@@ -20,6 +27,7 @@ public record UnitPriceChangeLogView(
         LocalDate endDate,
         String updateReason,
         String changedBy,
+        String changedById,
         Instant changedAt
 ) {
 }

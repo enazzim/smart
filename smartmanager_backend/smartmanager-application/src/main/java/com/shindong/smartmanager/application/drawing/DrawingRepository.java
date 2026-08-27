@@ -1,15 +1,23 @@
 package com.shindong.smartmanager.application.drawing;
 
+import com.shindong.smartmanager.domain.drawing.DrawingLifecycleStage;
 import com.shindong.smartmanager.domain.drawing.DrawingType;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface DrawingRepository {
 
     boolean existsActiveByPartNo(String partNo);
 
-    String saveMaster(String partNo, String partName, String modelType, Long itemId, String actorUserId);
+    String saveMaster(
+            String partNo,
+            String partName,
+            String modelType,
+            Long sourcePartnerId,
+            DrawingLifecycleStage lifecycleStage,
+            String actorUserId
+    );
 
     Optional<DrawingMasterView> findMasterById(String id);
 
@@ -24,9 +32,12 @@ public interface DrawingRepository {
             String partNo,
             String partName,
             String modelType,
-            Long itemId,
             String actorUserId
     );
+
+    void updateLifecycleStage(String id, DrawingLifecycleStage lifecycleStage, String actorUserId);
+
+    void linkItem(String id, long itemId, String actorUserId);
 
     void hardDeleteMaster(String id);
 
@@ -43,9 +54,13 @@ public interface DrawingRepository {
 
     void markHistoryAsOld(String historyId);
 
+    int findMaxProdMajorVersion(String masterId);
+
     List<DrawingListView> findLatestActiveDrawings();
 
     List<DrawingListView> findLatestDeletedDrawings();
+
+    Set<String> findActiveMasterIdsMatchingHistoryQuery(String query);
 
     List<DrawingHistoryView> findHistoriesByMasterId(String masterId);
 

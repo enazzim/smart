@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.api.web.company;
 
 import com.shindong.smartmanager.api.security.BasisAuthorize;
+import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.company.CompanyCommand;
 import com.shindong.smartmanager.application.company.CompanyUpdateCommand;
 import com.shindong.smartmanager.infrastructure.application.CompanyApplicationService;
@@ -13,7 +14,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,8 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/basis/companies")
 @BasisAuthorize.CompanyRead
 public class CompanyController {
-
-    private static final String DEFAULT_ACTOR = "local-dev";
 
     private final CompanyApplicationService companyApplicationService;
 
@@ -47,10 +45,9 @@ public class CompanyController {
     @ResponseStatus(HttpStatus.CREATED)
     @BasisAuthorize.CompanyWrite
     public CompanyResponse create(
-            @Valid @RequestBody CreateCompanyRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody CreateCompanyRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         CompanyCommand command = new CompanyCommand(
                 request.companyName(),
                 request.presidentName(),
@@ -76,10 +73,9 @@ public class CompanyController {
     @BasisAuthorize.CompanyWrite
     public CompanyResponse update(
             @PathVariable long id,
-            @Valid @RequestBody UpdateCompanyRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody UpdateCompanyRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         CompanyUpdateCommand command = new CompanyUpdateCommand(
                 request.companyName(),
                 request.presidentName(),
@@ -103,11 +99,7 @@ public class CompanyController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @BasisAuthorize.CompanyWrite
-    public void delete(
-            @PathVariable long id,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
-    ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
-        companyApplicationService.delete(id, actor);
+    public void delete(@PathVariable long id) {
+        companyApplicationService.delete(id, SecurityUtils.requireLoginId());
     }
 }

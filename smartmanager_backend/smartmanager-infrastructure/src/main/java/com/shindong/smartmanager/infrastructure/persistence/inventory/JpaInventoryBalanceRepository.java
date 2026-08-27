@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.inventory;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.process.InventoryBalanceRepository;
 import java.time.Instant;
 import java.time.Year;
@@ -15,13 +17,16 @@ public class JpaInventoryBalanceRepository implements InventoryBalanceRepository
 
     private final SpringDataInventoryBalanceRepository balanceRepository;
     private final SpringDataInventoryLocationRepository locationRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaInventoryBalanceRepository(
             SpringDataInventoryBalanceRepository balanceRepository,
-            SpringDataInventoryLocationRepository locationRepository
+            SpringDataInventoryLocationRepository locationRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.balanceRepository = balanceRepository;
         this.locationRepository = locationRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -36,8 +41,7 @@ public class JpaInventoryBalanceRepository implements InventoryBalanceRepository
                             if (existing.getRecordingState() != 1) {
                                 Instant now = Instant.now();
                                 existing.setRecordingState(1);
-                                existing.setUpdatedBy(actorUserId);
-                                existing.setUpdatedById(actorUserId);
+                                existing.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
                                 existing.setUpdatedAt(now);
                                 balanceRepository.save(existing);
                             }
@@ -51,11 +55,9 @@ public class JpaInventoryBalanceRepository implements InventoryBalanceRepository
                             entity.setOutputProcessId(outputProcessId);
                             entity.setPartnerId(null);
                             entity.setRecordingState(1);
-                            entity.setCreatedBy(actorUserId);
-                            entity.setCreatedById(actorUserId);
+                            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
                             entity.setCreatedAt(now);
-                            entity.setUpdatedBy(actorUserId);
-                            entity.setUpdatedById(actorUserId);
+                            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
                             entity.setUpdatedAt(now);
                             balanceRepository.save(entity);
                         }
@@ -70,8 +72,7 @@ public class JpaInventoryBalanceRepository implements InventoryBalanceRepository
                 balanceRepository.findByOutputProcessIdAndRecordingState(outputProcessId, 1);
         for (InventoryBalanceJpaEntity balance : balances) {
             balance.setItemId(itemId);
-            balance.setUpdatedBy(actorUserId);
-            balance.setUpdatedById(actorUserId);
+            balance.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             balance.setUpdatedAt(now);
         }
         balanceRepository.saveAll(balances);
@@ -85,8 +86,7 @@ public class JpaInventoryBalanceRepository implements InventoryBalanceRepository
                 balanceRepository.findByOutputProcessIdAndRecordingState(outputProcessId, 1);
         for (InventoryBalanceJpaEntity balance : balances) {
             balance.setRecordingState(0);
-            balance.setUpdatedBy(actorUserId);
-            balance.setUpdatedById(actorUserId);
+            balance.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             balance.setUpdatedAt(now);
         }
         balanceRepository.saveAll(balances);
@@ -110,8 +110,7 @@ public class JpaInventoryBalanceRepository implements InventoryBalanceRepository
                             if (existing.getRecordingState() != 1) {
                                 Instant now = Instant.now();
                                 existing.setRecordingState(1);
-                                existing.setUpdatedBy(actorUserId);
-                                existing.setUpdatedById(actorUserId);
+                                existing.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
                                 existing.setUpdatedAt(now);
                                 balanceRepository.save(existing);
                             }
@@ -126,11 +125,9 @@ public class JpaInventoryBalanceRepository implements InventoryBalanceRepository
                             entity.setInputProcessId(inputProcessId);
                             entity.setPartnerId(partnerId);
                             entity.setRecordingState(1);
-                            entity.setCreatedBy(actorUserId);
-                            entity.setCreatedById(actorUserId);
+                            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
                             entity.setCreatedAt(now);
-                            entity.setUpdatedBy(actorUserId);
-                            entity.setUpdatedById(actorUserId);
+                            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
                             entity.setUpdatedAt(now);
                             balanceRepository.save(entity);
                         }
@@ -153,8 +150,7 @@ public class JpaInventoryBalanceRepository implements InventoryBalanceRepository
                     if (balance.getRecordingState() == 1) {
                         Instant now = Instant.now();
                         balance.setRecordingState(0);
-                        balance.setUpdatedBy(actorUserId);
-                        balance.setUpdatedById(actorUserId);
+                        balance.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
                         balance.setUpdatedAt(now);
                         balanceRepository.save(balance);
                     }

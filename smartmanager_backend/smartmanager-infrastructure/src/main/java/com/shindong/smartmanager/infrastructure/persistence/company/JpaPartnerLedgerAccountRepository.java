@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.company;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.company.PartnerLedgerAccountRepository;
 import com.shindong.smartmanager.domain.company.PartnerLedgerType;
 import java.time.Instant;
@@ -11,9 +13,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class JpaPartnerLedgerAccountRepository implements PartnerLedgerAccountRepository {
 
     private final SpringDataPartnerLedgerAccountRepository repository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
-    public JpaPartnerLedgerAccountRepository(SpringDataPartnerLedgerAccountRepository repository) {
+    public JpaPartnerLedgerAccountRepository(
+            SpringDataPartnerLedgerAccountRepository repository,
+            MasterAuditActorLookup masterAuditActorLookup
+    ) {
         this.repository = repository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -25,8 +32,7 @@ public class JpaPartnerLedgerAccountRepository implements PartnerLedgerAccountRe
                             if (existing.getRecordingState() != 1) {
                                 Instant now = Instant.now();
                                 existing.setRecordingState(1);
-                                existing.setUpdatedBy(actorUserId);
-                                existing.setUpdatedById(actorUserId);
+                                existing.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
                                 existing.setUpdatedAt(now);
                                 repository.save(existing);
                             }
@@ -38,11 +44,9 @@ public class JpaPartnerLedgerAccountRepository implements PartnerLedgerAccountRe
                             entity.setFiscalYear((short) fiscalYear);
                             entity.setLedgerType(ledgerType);
                             entity.setRecordingState(1);
-                            entity.setCreatedBy(actorUserId);
-                            entity.setCreatedById(actorUserId);
+                            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
                             entity.setCreatedAt(now);
-                            entity.setUpdatedBy(actorUserId);
-                            entity.setUpdatedById(actorUserId);
+                            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
                             entity.setUpdatedAt(now);
                             repository.save(entity);
                         }
@@ -57,8 +61,7 @@ public class JpaPartnerLedgerAccountRepository implements PartnerLedgerAccountRe
                 repository.findByCompanyIdAndRecordingState(companyId, 1);
         for (PartnerLedgerAccountJpaEntity account : accounts) {
             account.setRecordingState(0);
-            account.setUpdatedBy(actorUserId);
-            account.setUpdatedById(actorUserId);
+            account.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             account.setUpdatedAt(now);
         }
         repository.saveAll(accounts);

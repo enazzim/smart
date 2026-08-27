@@ -6,6 +6,7 @@ import com.shindong.smartmanager.application.user.UserUpdateCommand;
 import com.shindong.smartmanager.application.user.UserView;
 import com.shindong.smartmanager.infrastructure.persistence.code.PublicCodeJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.code.SpringDataPublicCodeRepository;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,17 +23,20 @@ public class JpaUserRepository implements UserRepository {
     private final SpringDataUserRoleRepository userRoleRepository;
     private final SpringDataRoleRepository roleRepository;
     private final SpringDataPublicCodeRepository publicCodeRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaUserRepository(
             SpringDataUserRepository userRepository,
             SpringDataUserRoleRepository userRoleRepository,
             SpringDataRoleRepository roleRepository,
-            SpringDataPublicCodeRepository publicCodeRepository
+            SpringDataPublicCodeRepository publicCodeRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.roleRepository = roleRepository;
         this.publicCodeRepository = publicCodeRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -47,11 +51,9 @@ public class JpaUserRepository implements UserRepository {
         entity.setEmail(normalizeOptional(command.email()));
         entity.setWorkDiaryGroupId(command.workDiaryGroupId());
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return userRepository.save(entity).getId();
     }
@@ -69,8 +71,7 @@ public class JpaUserRepository implements UserRepository {
         if (passwordHashOrNull != null) {
             entity.setPasswordHash(passwordHashOrNull);
         }
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         userRepository.save(entity);
     }
@@ -82,8 +83,7 @@ public class JpaUserRepository implements UserRepository {
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         userRepository.save(entity);
     }

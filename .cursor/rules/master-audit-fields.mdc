@@ -14,18 +14,19 @@ alwaysApply: true
 | `id` (PK) | `*InfoIndex` | INSERT 시 DB/ORM 생성 |
 | `recording_state` | `RecodingState` | 생성=`1`(활성), 삭제=`0`(소프트 삭제) |
 | `created_at` | `RegistrationDate` | INSERT 시 서버 시각 |
-| `created_by` / `created_by_id` | `RegistrationPerson` / `RegistrationPersonID` | INSERT 시 로그인 사용자 |
+| `created_by_id` → `user.id` | `RegistrationPersonID` | INSERT 시 로그인 사용자 PK. 이름은 JOIN |
 | `updated_at` | `UpdatingDate` | INSERT·UPDATE 시 서버 시각 |
-| `updated_by` / `updated_by_id` | `UpdatingPerson` / `UpdatingPersonID` | UPDATE 시 로그인 사용자 |
+| `updated_by_id` → `user.id` | `UpdatingPersonID` | UPDATE 시 로그인 사용자 PK. 이름은 JOIN |
 
 ## 구현 규칙
 
-- **React**: 위 필드용 입력 컴포넌트 **금지**. 목록·상세에서 읽기 전용 표시만 허용(선택).
+- **React**: 위 필드용 입력 컴포넌트 **금지**. 목록·상세에서 읽기 전용 표시만 허용(선택). 화면 이름은 `user` JOIN.
 - **API Request DTO**: `id`, `recording_state`, `created_*`, `updated_*` **수신하지 않음** (내도 무시).
-- **API Response DTO**: 조회 시 노출 가능.
-- **Spring**: JPA Auditing(`@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy`) 또는 서비스 레이어에서 **동일 TX** 내 설정.
+- **API Response DTO**: 조회 시 노출 가능. `createdBy` 등은 JOIN한 이름, `*_by_id`는 `user.id`.
+- **DB**: `*_by`(이름) 컬럼 없음. `*_by_id`는 `BIGINT` + `user.id` FK. 기준정보·구매·매출·생산·외주·품질·재고·`user` 자기참조 동일.
+- **Spring**: persist 시 JWT `userId`(또는 loginId → `user.id` 조회). 서비스 레이어에서 **동일 TX** 내 설정.
 - **삭제**: HTTP DELETE → `recording_state=0` (물리 DELETE 금지, 기준정보 기본 정책).
-- **domain_event**: `actor_user_id`·`occurred_at`은 이벤트 레코드에, 마스터 감사 컬럼과 **중복 허용**(감사·리플레이 목적).
+- **domain_event**: `actor_user_id`는 이벤트 스냅샷이라 **FK 아님**. loginId(또는 별도 식별자) 유지. `occurred_at`과 마스터 감사 컬럼은 **중복 허용**.
 
 ## D4 문서 표기
 

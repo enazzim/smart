@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import RichTextEditor from '../components/board/RichTextEditor';
 import NewPostBadge from '../components/board/NewPostBadge';
+import RequiredReaderPicker, {
+  type RequiredReaderOption,
+} from '../components/board/RequiredReaderPicker';
+import RequiredUnreadBadge from '../components/board/RequiredUnreadBadge';
 import {
   BOARD_TYPE_LABELS,
   type BoardAttachment,
@@ -69,15 +73,17 @@ export default function BoardPage({
   onNavigateCompose,
 }: BoardPageProps) {
   const boardTitle = BOARD_TYPE_LABELS[boardType];
-  const { canWriteDashboard } = useAuth();
-  const canWrite = canWriteDashboard();
+  const { canWriteDashboard, currentUser } = useAuth();
+  const isSystemAdmin = currentUser?.roleCodes.includes('SYSTEM_ADMIN') ?? false;
+  const canCreate = boardType === 'NOTICE' ? isSystemAdmin : canWriteDashboard();
+  const canReply = boardType === 'NOTICE' ? isSystemAdmin : canWriteDashboard();
 
   if (screen.mode === 'list') {
     return (
       <BoardListView
         boardType={boardType}
         boardTitle={boardTitle}
-        canWrite={canWrite}
+        canWrite={canCreate}
         onNavigateHome={onNavigateHome}
         onNavigateDetail={onNavigateDetail}
         onNavigateCompose={() => onNavigateCompose({ composeMode: 'create' })}
@@ -91,7 +97,7 @@ export default function BoardPage({
         boardType={boardType}
         boardTitle={boardTitle}
         postId={screen.postId}
-        canWrite={canWrite}
+        canWrite={canReply}
         onNavigateHome={onNavigateHome}
         onNavigateList={onNavigateList}
         onNavigateDetail={onNavigateDetail}
@@ -200,43 +206,44 @@ function BoardListView({
       {error && <p className="error-banner">{error}</p>}
 
       <div className="table-wrap">
-        <table>
+        <table className="board-list-table">
           <thead>
             <tr>
-              <th>번호</th>
-              <th>제목</th>
-              <th>작성자</th>
-              <th>등록일</th>
-              <th>조회</th>
-              <th>첨부</th>
+              <th className="board-col-no">번호</th>
+              <th className="board-col-title">제목</th>
+              <th className="board-col-author">작성자</th>
+              <th className="board-col-date">등록일</th>
+              <th className="board-col-views">조회</th>
+              <th className="board-col-attach">첨부</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr>
+              <tr className="board-list-status-row">
                 <td colSpan={6}>불러오는 중…</td>
               </tr>
             ) : items.length === 0 ? (
-              <tr>
+              <tr className="board-list-status-row">
                 <td colSpan={6}>등록된 글이 없습니다.</td>
               </tr>
             ) : (
               items.map((item, index) => (
-                <tr key={item.id}>
-                  <td>{total - page * PAGE_SIZE - index}</td>
-                  <td>
+                <tr key={item.id} className="board-list-data-row">
+                  <td className="board-col-no">{total - page * PAGE_SIZE - index}</td>
+                  <td className="board-col-title">
                     <button type="button" className="link-button board-title-link" onClick={() => onNavigateDetail(item.id)}>
                       <span className="board-title-text">
                         {item.pinned ? '[고정] ' : ''}
                         {item.title}
                       </span>
+                      <RequiredUnreadBadge show={item.myRequiredUnread} />
                       <NewPostBadge createdAt={item.createdAt} />
                     </button>
                   </td>
-                  <td>{item.authorName}</td>
-                  <td>{formatBoardDate(item.createdAt)}</td>
-                  <td>{item.viewCount}</td>
-                  <td>{item.hasAttachment ? 'Y' : ''}</td>
+                  <td className="board-col-author">{item.authorName}</td>
+                  <td className="board-col-date">{formatBoardDate(item.createdAt)}</td>
+                  <td className="board-col-views">{item.viewCount}</td>
+                  <td className="board-col-attach">{item.hasAttachment ? 'Y' : ''}</td>
                 </tr>
               ))
             )}
@@ -465,6 +472,46 @@ function BoardDetailView({
             </ul>
           </section>
         )}
+
+        {boardType === 'NOTICE' && post.postKind === 'TOP' && (
+          <section className="board-readers">
+            {(post.requiredReaders?.length ?? 0) > 0 ? (
+              <>
+                <h3>
+                  필수 열람 확인 (
+                  {(post.requiredReaders ?? []).filter((reader) => reader.read).length}/
+                  {post.requiredReaders.length})
+                </h3>
+                <ul className="board-readers-list">
+                  {post.requiredReaders.map((reader) => (
+                    <li
+                      key={reader.userId}
+                      className={reader.read ? 'board-reader-read' : 'board-reader-unread'}
+                    >
+                      {reader.name || '이름 없음'}({reader.loginId || '—'})
+                      {reader.read ? ' · 읽음' : ' · 미읽음'}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <>
+                <h3>읽음 확인 ({post.readers?.length ?? 0})</h3>
+                {(post.readers?.length ?? 0) === 0 ? (
+                  <p className="board-readers-empty">아직 읽은 사람이 없습니다.</p>
+                ) : (
+                  <ul className="board-readers-list">
+                    {post.readers.map((reader) => (
+                      <li key={reader.userId}>
+                        {reader.name || '이름 없음'}({reader.loginId || '—'})
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </section>
+        )}
       </article>
 
       {post.replies.length > 0 && (
@@ -532,11 +579,19 @@ function BoardComposeView({
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  const [requiredReaders, setRequiredReaders] = useState<RequiredReaderOption[]>([]);
+  const [authorUserId, setAuthorUserId] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(composeMode !== 'create');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { currentUser } = useAuth();
+  const noticeCompose = boardType === 'NOTICE' && composeMode !== 'reply';
+  const excludeUserId =
+    composeMode === 'edit' ? authorUserId : currentUser?.id;
+  const canWriteNotice =
+    boardType !== 'NOTICE' || (currentUser?.roleCodes.includes('SYSTEM_ADMIN') ?? false);
 
   const appendFiles = (incoming: FileList | null) => {
     if (!incoming || incoming.length === 0) {
@@ -585,6 +640,8 @@ function BoardComposeView({
           setContent(template);
           setTitle('');
           setFiles([]);
+          setRequiredReaders([]);
+          setAuthorUserId(currentUser?.id);
         } else if (composeMode === 'edit' && postId != null) {
           const post = await fetchBoardPost(boardType, postId, { incrementView: false });
           if (!post.canEdit) {
@@ -594,11 +651,20 @@ function BoardComposeView({
           setTitle(post.title ?? '');
           setContent(post.content);
           setFiles([]);
+          setAuthorUserId(post.authorUserId);
+          setRequiredReaders(
+            (post.requiredReaders ?? []).map((reader) => ({
+              userId: reader.userId,
+              loginId: reader.loginId,
+              name: reader.name,
+            })),
+          );
         } else if (composeMode === 'reply') {
           const template = await fetchEditorTemplate();
           setContent(template);
           setTitle('');
           setFiles([]);
+          setRequiredReaders([]);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : '초기화 실패');
@@ -607,7 +673,7 @@ function BoardComposeView({
       }
     };
     void init();
-  }, [boardType, composeMode, postId]);
+  }, [boardType, composeMode, postId, currentUser?.id]);
 
   const heading =
     composeMode === 'create' ? '글쓰기' : composeMode === 'edit' ? '글 수정' : '답변 작성';
@@ -616,13 +682,24 @@ function BoardComposeView({
     setSubmitting(true);
     setError(null);
     try {
+      const requiredReaderUserIds = requiredReaders.map((item) => item.userId);
       if (composeMode === 'create') {
-        const created = await createBoardPost(boardType, { title, content, files });
+        const created = await createBoardPost(boardType, {
+          title,
+          content,
+          files,
+          requiredReaderUserIds: noticeCompose ? requiredReaderUserIds : undefined,
+        });
         onNavigateDetail(created.id);
         return;
       }
       if (composeMode === 'edit' && postId != null) {
-        const updated = await updateBoardPost(boardType, postId, { title, content });
+        const updated = await updateBoardPost(boardType, postId, {
+          title,
+          content,
+          updateRequiredReaders: noticeCompose,
+          requiredReaderUserIds: noticeCompose ? requiredReaderUserIds : undefined,
+        });
         if (files.length > 0) {
           await addBoardAttachments(boardType, postId, files);
         }
@@ -645,6 +722,18 @@ function BoardComposeView({
       <div className="page board-page">
         <BoardBreadcrumb boardTitle={boardTitle} onNavigateHome={onNavigateHome} onNavigateList={onNavigateList} />
         <p>불러오는 중…</p>
+      </div>
+    );
+  }
+
+  if (!canWriteNotice && (composeMode === 'create' || composeMode === 'reply')) {
+    return (
+      <div className="page board-page">
+        <BoardBreadcrumb boardTitle={boardTitle} onNavigateHome={onNavigateHome} onNavigateList={onNavigateList} />
+        <p className="error-banner">공지사항은 시스템 관리자만 작성할 수 있습니다.</p>
+        <button type="button" className="secondary" onClick={onNavigateList}>
+          목록으로
+        </button>
       </div>
     );
   }
@@ -677,6 +766,15 @@ function BoardComposeView({
           본문
           <RichTextEditor value={content} onChange={setContent} disabled={submitting} />
         </label>
+
+        {noticeCompose && (
+          <RequiredReaderPicker
+            selected={requiredReaders}
+            onChange={setRequiredReaders}
+            excludeUserId={excludeUserId}
+            disabled={submitting}
+          />
+        )}
 
         <div className="board-compose-attachments">
           <span className="board-compose-label">첨부파일 (복수 선택 가능, 파일당 100MB 이하)</span>

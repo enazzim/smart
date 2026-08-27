@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.purchase;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.purchase.CreateEtcPurchaseOrderCommand;
 import com.shindong.smartmanager.application.purchase.EtcPurchaseOrderListCriteria;
 import com.shindong.smartmanager.application.purchase.EtcPurchaseOrderRepository;
@@ -28,13 +30,16 @@ public class JpaEtcPurchaseOrderRepository implements EtcPurchaseOrderRepository
 
     private final EntityManager entityManager;
     private final SpringDataEtcPurchaseOrderRepository orderRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaEtcPurchaseOrderRepository(
             EntityManager entityManager,
-            SpringDataEtcPurchaseOrderRepository orderRepository
+            SpringDataEtcPurchaseOrderRepository orderRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.entityManager = entityManager;
         this.orderRepository = orderRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -143,8 +148,7 @@ public class JpaEtcPurchaseOrderRepository implements EtcPurchaseOrderRepository
         entity.setStatus(EtcPurchaseOrderStatus.WAITING);
         entity.setOrderDate(command.orderDate());
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
         return orderRepository.save(entity).getId();
     }
@@ -161,8 +165,7 @@ public class JpaEtcPurchaseOrderRepository implements EtcPurchaseOrderRepository
         entity.setAmount(amount);
         entity.setRequestedDeliveryDate(command.requestedDeliveryDate());
         entity.setCategoryCodeId(command.categoryCodeId());
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         orderRepository.save(entity);
     }
@@ -172,8 +175,7 @@ public class JpaEtcPurchaseOrderRepository implements EtcPurchaseOrderRepository
     public void softDelete(long id, String actorUserId) {
         EtcPurchaseOrderJpaEntity entity = requireActive(id);
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         orderRepository.save(entity);
     }
@@ -184,8 +186,7 @@ public class JpaEtcPurchaseOrderRepository implements EtcPurchaseOrderRepository
         EtcPurchaseOrderJpaEntity entity = requireActive(id);
         entity.setRemainQty(remainQty);
         entity.setStatus(EtcPurchaseOrderService.resolveStatus(entity.getOrderQty(), remainQty));
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         orderRepository.save(entity);
     }

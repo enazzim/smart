@@ -20,6 +20,8 @@ public interface ProductionPlanRepository {
 
     Optional<ProductionPlanView> findActiveById(long id);
 
+    Optional<ProductionPlanView> findActiveBySalesOrderLineId(long salesOrderLineId);
+
     Set<Long> findActiveSalesOrderLineIds();
 
     void deleteById(long id);

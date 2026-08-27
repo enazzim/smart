@@ -37,6 +37,7 @@ public class SalesRevenueInventoryService {
     public void applyRegistration(
             LocalDate revenueDate,
             long revenueLineId,
+            long partnerId,
             long itemId,
             String itemNo,
             BigDecimal qty,
@@ -56,7 +57,7 @@ public class SalesRevenueInventoryService {
                 revenueLineId,
                 null,
                 null,
-                null,
+                partnerId,
                 lotId,
                 actorUserId
         ));
@@ -65,6 +66,7 @@ public class SalesRevenueInventoryService {
     public void applyCancellation(
             LocalDate revenueDate,
             long revenueLineId,
+            long partnerId,
             long itemId,
             BigDecimal qty,
             BigDecimal amount,
@@ -85,7 +87,7 @@ public class SalesRevenueInventoryService {
                 revenueLineId,
                 null,
                 null,
-                null,
+                partnerId,
                 resolvedLotId,
                 actorUserId
         ));

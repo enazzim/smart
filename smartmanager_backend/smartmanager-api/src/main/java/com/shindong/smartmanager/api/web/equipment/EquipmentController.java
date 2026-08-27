@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.api.web.equipment;
 
 import com.shindong.smartmanager.api.security.BasisAuthorize;
+import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.equipment.EquipmentCommand;
 import com.shindong.smartmanager.application.equipment.EquipmentUpdateCommand;
 import com.shindong.smartmanager.infrastructure.application.EquipmentApplicationService;
@@ -13,7 +14,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -23,8 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/basis/equipment")
 @BasisAuthorize.EquipmentRead
 public class EquipmentController {
-
-    private static final String DEFAULT_ACTOR = "local-dev";
 
     private final EquipmentApplicationService equipmentApplicationService;
 
@@ -48,10 +46,9 @@ public class EquipmentController {
     @ResponseStatus(HttpStatus.CREATED)
     @BasisAuthorize.EquipmentWrite
     public EquipmentResponse create(
-            @Valid @RequestBody CreateEquipmentRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody CreateEquipmentRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         EquipmentCommand command = new EquipmentCommand(
                 request.equipmentNum(),
                 request.equipmentName(),
@@ -67,10 +64,9 @@ public class EquipmentController {
     @BasisAuthorize.EquipmentWrite
     public EquipmentResponse update(
             @PathVariable long id,
-            @Valid @RequestBody UpdateEquipmentRequest request,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
+            @Valid @RequestBody UpdateEquipmentRequest request
     ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
+        String actor = SecurityUtils.requireLoginId();
         EquipmentUpdateCommand command = new EquipmentUpdateCommand(
                 request.equipmentName(),
                 request.equipmentCategoryId(),
@@ -84,11 +80,7 @@ public class EquipmentController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @BasisAuthorize.EquipmentWrite
-    public void delete(
-            @PathVariable long id,
-            @RequestHeader(value = "X-Actor-User-Id", required = false) String actorUserId
-    ) {
-        String actor = actorUserId != null && !actorUserId.isBlank() ? actorUserId : DEFAULT_ACTOR;
-        equipmentApplicationService.delete(id, actor);
+    public void delete(@PathVariable long id) {
+        equipmentApplicationService.delete(id, SecurityUtils.requireLoginId());
     }
 }

@@ -1,6 +1,8 @@
 package com.shindong.smartmanager.application.item;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.shindong.smartmanager.domain.item.PropertyClassification;
@@ -20,5 +22,20 @@ class PropertyClassificationTest {
         assertTrue(PropertyClassification.공정품.shipmentFromWipFinalProcess());
         assertFalse(PropertyClassification.제품.shipmentFromWipFinalProcess());
         assertFalse(PropertyClassification.상품.shipmentFromWipFinalProcess());
+    }
+
+    @Test
+    void fromImportLabel_mapsLegacyLabels() {
+        assertEquals(PropertyClassification.부자재, PropertyClassification.fromImportLabel("소모품"));
+        assertEquals(PropertyClassification.공정품, PropertyClassification.fromImportLabel("반제품"));
+        assertEquals(PropertyClassification.원자재, PropertyClassification.fromImportLabel("원자재"));
+        assertEquals(PropertyClassification.팬텀, PropertyClassification.fromImportLabel("팬텀"));
+        assertFalse(PropertyClassification.팬텀.selectableOnItemScreen());
+        assertTrue(PropertyClassification.원자재.selectableOnItemScreen());
+    }
+
+    @Test
+    void fromImportLabel_rejectsUnknown() {
+        assertThrows(IllegalArgumentException.class, () -> PropertyClassification.fromImportLabel("기타"));
     }
 }

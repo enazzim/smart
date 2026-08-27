@@ -11,6 +11,7 @@ import {
 import type { WorkCenter } from '../api/process';
 import { fetchWorkCenters } from '../api/process';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import VirtualMasterTable from '../components/VirtualMasterTable';
 import { formatInteger } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
 
@@ -33,9 +34,11 @@ export default function EquipmentPage() {
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [form, setForm] = useState<CreateEquipmentRequest>(emptyForm);
   const [searchQuery, setSearchQuery] = useState('');
+  const [appliedQuery, setAppliedQuery] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingNum, setEditingNum] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,13 +59,15 @@ export default function EquipmentPage() {
     [equipmentList],
   );
 
-  const load = async (query = searchQuery) => {
+  const load = async (query: string) => {
     setLoading(true);
     setError(null);
     try {
       setEquipmentList(await fetchEquipment(query || undefined));
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록 조회 실패');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -83,8 +88,14 @@ export default function EquipmentPage() {
         setError(e instanceof Error ? e.message : '초기 로드 실패');
       }
     })();
-    void load();
   }, []);
+
+  const refreshListIfSearched = async () => {
+    if (!hasSearched) {
+      return;
+    }
+    await load(appliedQuery);
+  };
 
   const resetForm = () => {
     setForm({
@@ -130,7 +141,7 @@ export default function EquipmentPage() {
         await createEquipment(payload);
       }
       resetForm();
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : isEditing ? '수정 실패' : '등록 실패');
     } finally {
@@ -148,15 +159,27 @@ export default function EquipmentPage() {
       if (editingId === eq.id) {
         resetForm();
       }
-      await load();
+      await refreshListIfSearched();
     } catch (err) {
       setError(err instanceof Error ? err.message : '삭제 실패');
     }
   };
 
-  const onSearch = (e: React.FormEvent) => {
+  const onSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    void load(searchQuery);
+    const ok = await load(searchQuery);
+    if (ok) {
+      setAppliedQuery(searchQuery);
+      setHasSearched(true);
+    }
+  };
+
+  const onResetSearch = () => {
+    setSearchQuery('');
+    setAppliedQuery('');
+    setEquipmentList([]);
+    setHasSearched(false);
+    setError(null);
   };
 
   return (
@@ -294,28 +317,24 @@ export default function EquipmentPage() {
             />
           </label>
           <button type="submit" disabled={loading}>
-            검색
+            조회
           </button>
-          <button
-            type="button"
-            className="secondary"
-            disabled={loading}
-            onClick={() => {
-              setSearchQuery('');
-              void load('');
-            }}
-          >
+          <button type="button" className="secondary" disabled={loading} onClick={onResetSearch}>
             초기화
           </button>
         </form>
-        {loading ? (
+        {!hasSearched ? (
+          <p className="hint-text">조회 버튼을 누르면 목록이 표시됩니다.</p>
+        ) : loading ? (
           <p>불러오는 중…</p>
         ) : equipmentList.length === 0 ? (
-          <p>등록된 설비가 없습니다.</p>
+          <p>검색 조건에 맞는 설비가 없습니다.</p>
         ) : (
-          <div className="table-wrap">
-          <table>
-            <thead>
+          <VirtualMasterTable
+            rows={equipmentList}
+            columnCount={9}
+            getRowKey={(eq) => eq.id}
+            renderHeader={() => (
               <tr>
                 <th>번호</th>
                 <th>설비명</th>
@@ -327,31 +346,28 @@ export default function EquipmentPage() {
                 <th>교체</th>
                 <th>작업</th>
               </tr>
-            </thead>
-            <tbody>
-              {equipmentList.map((eq) => (
-                <tr key={eq.id} className={editingId === eq.id ? 'row-editing' : undefined}>
-                  <td>{eq.equipmentNum}</td>
-                  <td>{eq.equipmentName}</td>
-                  <td>{eq.equipmentCategoryName}</td>
-                  <td>{eq.wcName ?? '—'}</td>
-                  <td className="num">{formatInteger(eq.designShot)}</td>
-                  <td className="num">{formatInteger(eq.accumulatedShot)}</td>
-                  <td className="num">{formatInteger(eq.workShot)}</td>
-                  <td>{eq.replacementDue ? '필요' : '—'}</td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => startEdit(eq)}>
-                      수정
-                    </button>
-                    <button type="button" className="btn-action danger" onClick={() => void onDelete(eq)}>
-                      삭제
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+            )}
+            renderRow={(eq) => (
+              <tr className={editingId === eq.id ? 'row-editing' : undefined}>
+                <td>{eq.equipmentNum}</td>
+                <td>{eq.equipmentName}</td>
+                <td>{eq.equipmentCategoryName}</td>
+                <td>{eq.wcName ?? '—'}</td>
+                <td className="num">{formatInteger(eq.designShot)}</td>
+                <td className="num">{formatInteger(eq.accumulatedShot)}</td>
+                <td className="num">{formatInteger(eq.workShot)}</td>
+                <td>{eq.replacementDue ? '필요' : '—'}</td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => startEdit(eq)}>
+                    수정
+                  </button>
+                  <button type="button" className="btn-action danger" onClick={() => void onDelete(eq)}>
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            )}
+          />
         )}
       </section>
     </div>

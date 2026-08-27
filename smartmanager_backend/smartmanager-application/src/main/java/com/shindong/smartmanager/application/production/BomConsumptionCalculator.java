@@ -4,16 +4,14 @@ import com.shindong.smartmanager.application.bom.ItemCompositionRepository;
 import com.shindong.smartmanager.application.bom.ItemCompositionView;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
+import com.shindong.smartmanager.application.process.ProcessItemInventorySupport;
 import com.shindong.smartmanager.application.process.ProcessRepository;
 import com.shindong.smartmanager.application.process.ProcessSequenceNavigator;
 import com.shindong.smartmanager.application.process.ProcessView;
 import com.shindong.smartmanager.domain.item.PropertyClassification;
-import com.shindong.smartmanager.domain.process.ProcessVariant;
-import com.shindong.smartmanager.domain.process.WorkDistinction;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -89,12 +87,6 @@ public class BomConsumptionCalculator {
         ).orElseThrow(() -> new IllegalArgumentException(
                 "직전 공정을 찾을 수 없습니다. 공정 계획을 확인해 주세요."));
 
-        ProcessView currentProcess = processRepository.findAllActiveByItemId(parentItemId, ProcessVariant.plan).stream()
-                .filter(process -> process.processSequenceNum() == currentProcessSequenceNum)
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "현재 공정을 찾을 수 없습니다. 공정 계획을 확인해 주세요."));
-
         ItemView parent = itemRepository.findActiveById(parentItemId)
                 .orElseThrow(() -> new IllegalArgumentException("모품목을 찾을 수 없습니다: " + parentItemId));
 
@@ -103,8 +95,6 @@ public class BomConsumptionCalculator {
         BigDecimal remainingQty = requiredQty.subtract(issuedQty).max(BigDecimal.ZERO);
         boolean satisfied = goodQty.compareTo(BigDecimal.ZERO) == 0 || issuedQty.compareTo(requiredQty) >= 0;
 
-        // 직전 공정 완료분은 WorkReportInventoryService가 다음(현재) 공정 WIP에 IN 한다.
-        // 투입 슬롯은 현재 공정 WIP, 표시명은 직전 공정명(출처)을 유지한다.
         return List.of(new WorkReportConsumptionLineView(
                 null,
                 parent.id(),
@@ -118,7 +108,7 @@ public class BomConsumptionCalculator {
                 issuedQty,
                 remainingQty,
                 satisfied,
-                currentProcess.id(),
+                priorProcess.id(),
                 priorProcess.processName(),
                 requiredQty
         ));
@@ -181,31 +171,20 @@ public class BomConsumptionCalculator {
             return new SourceProcess(null, "원자재");
         }
         if (child.propertyClassification() == PropertyClassification.공정품) {
-            Optional<ProcessView> priorOnParent = resolvePriorInhouseProcess(parentItemId, currentProcessSequenceNum);
+            Optional<ProcessView> priorOnParent = ProcessSequenceNavigator.findImmediatePriorProcess(
+                    processRepository,
+                    parentItemId,
+                    currentProcessSequenceNum
+            );
             if (priorOnParent.isPresent()) {
                 ProcessView process = priorOnParent.get();
                 return new SourceProcess(process.id(), process.processName());
             }
-            return resolveFinalInhouseProcess(child.id())
+            return ProcessItemInventorySupport.resolveFinalProcess(processRepository, child.id())
                     .map(process -> new SourceProcess(process.id(), process.processName()))
                     .orElse(new SourceProcess(null, "공정 미등록"));
         }
         return new SourceProcess(null, null);
-    }
-
-    private Optional<ProcessView> resolvePriorInhouseProcess(long parentItemId, short currentProcessSequenceNum) {
-        return processRepository.findAllActiveByItemId(parentItemId, ProcessVariant.plan).stream()
-                .filter(process -> process.processSequenceNum() < currentProcessSequenceNum)
-                .filter(process -> process.workDistinction() == WorkDistinction.INHOUSE
-                        || process.workDistinction() == WorkDistinction.SPLIT)
-                .max(Comparator.comparingInt(ProcessView::processSequenceNum));
-    }
-
-    private Optional<ProcessView> resolveFinalInhouseProcess(long childItemId) {
-        return processRepository.findAllActiveByItemId(childItemId, ProcessVariant.plan).stream()
-                .filter(process -> process.workDistinction() == WorkDistinction.INHOUSE
-                        || process.workDistinction() == WorkDistinction.SPLIT)
-                .max(Comparator.comparingInt(ProcessView::processSequenceNum));
     }
 
     private static BigDecimal scaleQty(BigDecimal qty) {
@@ -233,7 +212,7 @@ public class BomConsumptionCalculator {
             if (priorOnRoute.isPresent()) {
                 return priorOnRoute.get().id();
             }
-            return resolveFinalInhouseProcess(childItemId).map(ProcessView::id).orElse(null);
+            return ProcessItemInventorySupport.resolveFinalProcessId(processRepository, childItemId).orElse(null);
         }
         return null;
     }

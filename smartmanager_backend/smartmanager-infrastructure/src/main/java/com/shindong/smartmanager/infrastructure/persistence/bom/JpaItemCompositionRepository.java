@@ -6,6 +6,7 @@ import com.shindong.smartmanager.application.bom.ItemCompositionUpdateCommand;
 import com.shindong.smartmanager.application.bom.ItemCompositionView;
 import com.shindong.smartmanager.infrastructure.persistence.item.ItemJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.item.SpringDataItemRepository;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -19,15 +20,18 @@ public class JpaItemCompositionRepository implements ItemCompositionRepository {
     private final SpringDataItemCompositionRepository compositionRepository;
     private final SpringDataBomChangeLogRepository changeLogRepository;
     private final SpringDataItemRepository itemRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaItemCompositionRepository(
             SpringDataItemCompositionRepository compositionRepository,
             SpringDataBomChangeLogRepository changeLogRepository,
-            SpringDataItemRepository itemRepository
+            SpringDataItemRepository itemRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.compositionRepository = compositionRepository;
         this.changeLogRepository = changeLogRepository;
         this.itemRepository = itemRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -47,11 +51,9 @@ public class JpaItemCompositionRepository implements ItemCompositionRepository {
         entity.setBeginDate(LocalDate.now());
         entity.setEndDate(null);
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return compositionRepository.save(entity).getId();
     }
@@ -64,8 +66,7 @@ public class JpaItemCompositionRepository implements ItemCompositionRepository {
         Instant now = Instant.now();
         entity.setNeedQuantityDenominator(command.parentQuantity());
         entity.setNeedQuantityNumerator(command.childQuantity());
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         compositionRepository.save(entity);
     }
@@ -77,8 +78,7 @@ public class JpaItemCompositionRepository implements ItemCompositionRepository {
                 .orElseThrow(() -> new IllegalArgumentException("BOM을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         compositionRepository.save(entity);
     }
@@ -142,8 +142,7 @@ public class JpaItemCompositionRepository implements ItemCompositionRepository {
         log.setNeedQuantityDenominator(entity.getNeedQuantityDenominator());
         log.setNeedQuantityNumerator(entity.getNeedQuantityNumerator());
         log.setChangeReason(changeReason);
-        log.setChangedBy(actorUserId);
-        log.setChangedById(actorUserId);
+        log.setChangedById(masterAuditActorLookup.idOf(actorUserId));
         log.setChangedAt(Instant.now());
         changeLogRepository.save(log);
     }

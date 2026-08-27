@@ -16,6 +16,7 @@ import com.shindong.smartmanager.application.purchase.PurchaseReceiptLineView;
 import com.shindong.smartmanager.application.purchase.PurchaseReceiptRepository;
 import com.shindong.smartmanager.application.purchase.PurchaseReceiptService;
 import com.shindong.smartmanager.application.purchase.PurchaseReceiptView;
+import com.shindong.smartmanager.application.sales.SalesOrderFulfillmentSyncService;
 import com.shindong.smartmanager.domain.outsource.OutsourceHistorySourceType;
 import com.shindong.smartmanager.domain.purchase.PurchaseHistorySourceType;
 import com.shindong.smartmanager.domain.quality.QualityInspectionSourceType;
@@ -37,6 +38,7 @@ public class QualityInspectionService {
     private final OutsourcingOrderRepository outsourcingOrderRepository;
     private final MonthClosingService monthClosingService;
     private final FiscalCalendarService fiscalCalendarService;
+    private final SalesOrderFulfillmentSyncService salesOrderFulfillmentSyncService;
 
     public QualityInspectionService(
             QualityInspectionRepository inspectionRepository,
@@ -46,7 +48,8 @@ public class QualityInspectionService {
             OutsourcingReceiptService outsourcingReceiptService,
             OutsourcingOrderRepository outsourcingOrderRepository,
             MonthClosingService monthClosingService,
-            FiscalCalendarService fiscalCalendarService
+            FiscalCalendarService fiscalCalendarService,
+            SalesOrderFulfillmentSyncService salesOrderFulfillmentSyncService
     ) {
         this.inspectionRepository = inspectionRepository;
         this.purchaseReceiptRepository = purchaseReceiptRepository;
@@ -56,6 +59,7 @@ public class QualityInspectionService {
         this.outsourcingOrderRepository = outsourcingOrderRepository;
         this.monthClosingService = monthClosingService;
         this.fiscalCalendarService = fiscalCalendarService;
+        this.salesOrderFulfillmentSyncService = salesOrderFulfillmentSyncService;
     }
 
     public List<QualityInspectionView> list(QualityInspectionListCriteria criteria) {
@@ -82,9 +86,16 @@ public class QualityInspectionService {
         }
 
         BigDecimal total = command.passedQty().add(command.failedQty());
-        if (total.compareTo(inspection.requestQty()) != 0) {
+        int cmp = total.compareTo(inspection.requestQty());
+        if (cmp < 0) {
             throw new IllegalArgumentException(
-                    "합격·불량 수량 합계가 의뢰수량과 일치해야 합니다. 의뢰="
+                    "합격·불량 수량 합계가 의뢰수량보다 작습니다. 의뢰="
+                            + inspection.requestQty().stripTrailingZeros().toPlainString()
+            );
+        }
+        if (cmp > 0 && !command.allowOverQty()) {
+            throw new IllegalArgumentException(
+                    "합격·불량 수량 합계가 의뢰수량을 초과합니다. 의뢰="
                             + inspection.requestQty().stripTrailingZeros().toPlainString()
             );
         }
@@ -97,6 +108,7 @@ public class QualityInspectionService {
                 command.inspectionDecisionCodeId(),
                 command.unsuitabilityCauseCodeId(),
                 command.unsuitabilityStatusCodeId(),
+                blankToNull(command.failureReason()),
                 completedAt,
                 actorUserId
         );
@@ -121,24 +133,24 @@ public class QualityInspectionService {
         LocalDate completedDate = inspection.completedAt().atZone(ZoneId.systemDefault()).toLocalDate();
         monthClosingService.assertTransactionOpen(completedDate);
 
-        if (inspection.passedQty().compareTo(BigDecimal.ZERO) > 0
-                || inspection.requestQty().compareTo(BigDecimal.ZERO) > 0) {
-            if (inspection.sourceType() == QualityInspectionSourceType.OUTSOURCE) {
-                cancelOutsourceInspectionStock(inspection, completedDate, actorUserId);
-            } else {
-                cancelPurchaseInspectionStock(inspection, completedDate, actorUserId);
-            }
+        if (inspection.sourceType() == QualityInspectionSourceType.OUTSOURCE) {
+            revertOutsourceInspectionToPending(inspection, completedDate, actorUserId);
+        } else {
+            revertPurchaseInspectionToPending(inspection, completedDate, actorUserId);
         }
 
-        inspectionRepository.cancelById(id, actorUserId);
+        inspectionRepository.revertCompletedToPending(id, actorUserId);
     }
 
-    private void cancelPurchaseInspectionStock(
+    private void revertPurchaseInspectionToPending(
             QualityInspectionView inspection,
             LocalDate movementDate,
             String actorUserId
     ) {
         PurchaseReceiptView receipt = findPurchaseReceiptByLineId(inspection.sourceReceiptLineId());
+        if (receipt.status() == com.shindong.smartmanager.domain.purchase.PurchaseReceiptStatus.CANCELLED) {
+            throw new IllegalArgumentException("취소된 입고 전표의 품질검사는 되돌릴 수 없습니다.");
+        }
         PurchaseReceiptLineView receiptLine = receipt.lines().stream()
                 .filter(line -> line.id() == inspection.sourceReceiptLineId())
                 .findFirst()
@@ -146,29 +158,38 @@ public class QualityInspectionService {
         PurchaseOrderLineReceiptContext orderLine = purchaseReceiptRepository.findOrderLineContext(
                 receiptLine.purchaseOrderLineId());
 
-        purchaseReceiptService.reverseStockAndLedger(
-                receiptLine,
-                orderLine,
-                inspection.companyId(),
-                movementDate,
-                inspection.passedQty(),
-                PurchaseHistorySourceType.QUALITY_INSPECTION,
-                inspection.id(),
-                "QUALITY_INSPECTION_CANCEL",
-                actorUserId
-        );
-        purchaseReceiptRepository.subtractReceivedQty(orderLine.purchaseOrderLineId(), inspection.passedQty(), actorUserId);
-        purchaseReceiptRepository.updateReceiptLinePostedQty(receiptLine.id(), inspection.passedQty().negate(), actorUserId);
+        BigDecimal passedQty = inspection.passedQty() != null ? inspection.passedQty() : BigDecimal.ZERO;
+        if (passedQty.compareTo(BigDecimal.ZERO) > 0) {
+            purchaseReceiptService.reverseStockAndLedger(
+                    receiptLine,
+                    orderLine,
+                    inspection.companyId(),
+                    movementDate,
+                    passedQty,
+                    PurchaseHistorySourceType.QUALITY_INSPECTION,
+                    inspection.id(),
+                    "QUALITY_INSPECTION_CANCEL",
+                    actorUserId
+            );
+            purchaseReceiptRepository.subtractReceivedQty(orderLine.purchaseOrderLineId(), passedQty, actorUserId);
+            purchaseReceiptRepository.updateReceiptLinePostedQty(receiptLine.id(), passedQty.negate(), actorUserId);
+        }
+
+        purchaseReceiptRepository.addWaitingInspectionQty(
+                orderLine.purchaseOrderLineId(), inspection.requestQty(), actorUserId);
         purchaseReceiptRepository.updateReceiptStatus(receipt.id(), actorUserId);
         purchaseReceiptRepository.refreshPurchaseOrderReceiptStatus(orderLine.purchaseOrderId(), actorUserId);
     }
 
-    private void cancelOutsourceInspectionStock(
+    private void revertOutsourceInspectionToPending(
             QualityInspectionView inspection,
             LocalDate movementDate,
             String actorUserId
     ) {
         OutsourcingReceiptView receipt = findOutsourcingReceiptByLineId(inspection.sourceReceiptLineId());
+        if (receipt.status() == com.shindong.smartmanager.domain.outsource.OutsourcingReceiptStatus.CANCELLED) {
+            throw new IllegalArgumentException("취소된 입고 전표의 품질검사는 되돌릴 수 없습니다.");
+        }
         OutsourcingReceiptLineView receiptLine = receipt.lines().stream()
                 .filter(line -> line.id() == inspection.sourceReceiptLineId())
                 .findFirst()
@@ -182,23 +203,34 @@ public class QualityInspectionService {
                 .findFirst()
                 .orElseThrow();
 
-        outsourcingReceiptService.reverseStockAndLedger(
-                receiptLine,
-                orderLine,
-                order,
-                orderLineView,
-                inspection.companyId(),
-                movementDate,
-                inspection.requestQty(),
-                inspection.passedQty(),
-                OutsourceHistorySourceType.QUALITY_INSPECTION,
-                inspection.id(),
-                actorUserId
-        );
-        outsourcingReceiptRepository.subtractReceivedQty(orderLine.outsourcingOrderLineId(), inspection.passedQty(), actorUserId);
-        outsourcingReceiptRepository.updateReceiptLinePostedQty(receiptLine.id(), inspection.passedQty().negate(), actorUserId);
+        BigDecimal passedQty = inspection.passedQty() != null ? inspection.passedQty() : BigDecimal.ZERO;
+        if (inspection.requestQty().compareTo(BigDecimal.ZERO) > 0) {
+            outsourcingReceiptService.reverseStockAndLedger(
+                    receiptLine,
+                    orderLine,
+                    order,
+                    orderLineView,
+                    inspection.companyId(),
+                    movementDate,
+                    inspection.requestQty(),
+                    passedQty,
+                    OutsourceHistorySourceType.QUALITY_INSPECTION,
+                    inspection.id(),
+                    actorUserId
+            );
+        }
+        if (passedQty.compareTo(BigDecimal.ZERO) > 0) {
+            outsourcingReceiptRepository.subtractReceivedQty(
+                    orderLine.outsourcingOrderLineId(), passedQty, actorUserId);
+            outsourcingReceiptRepository.updateReceiptLinePostedQty(
+                    receiptLine.id(), passedQty.negate(), actorUserId);
+        }
+
+        outsourcingReceiptRepository.addWaitingInspectionQty(
+                orderLine.outsourcingOrderLineId(), inspection.requestQty(), actorUserId);
         outsourcingReceiptRepository.updateReceiptStatus(receipt.id(), actorUserId);
         outsourcingOrderRepository.refreshOrderStatus(orderLine.outsourcingOrderId(), actorUserId);
+        syncFulfillmentForWorkPlan(orderLineView.workPlanId(), actorUserId);
     }
 
     private void completePurchaseInspection(
@@ -297,6 +329,7 @@ public class QualityInspectionService {
 
         outsourcingReceiptRepository.updateReceiptStatus(receipt.id(), actorUserId);
         outsourcingOrderRepository.refreshOrderStatus(orderLine.outsourcingOrderId(), actorUserId);
+        syncFulfillmentForWorkPlan(orderLineView.workPlanId(), actorUserId);
     }
 
     private PurchaseReceiptView findPurchaseReceiptByLineId(long receiptLineId) {
@@ -311,5 +344,19 @@ public class QualityInspectionService {
                 .filter(receipt -> receipt.lines().stream().anyMatch(line -> line.id() == receiptLineId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("외주입고 전표를 찾을 수 없습니다."));
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private void syncFulfillmentForWorkPlan(Long workPlanId, String actorUserId) {
+        if (workPlanId == null) {
+            return;
+        }
+        salesOrderFulfillmentSyncService.syncByWorkPlanId(workPlanId, actorUserId);
     }
 }

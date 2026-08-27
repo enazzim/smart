@@ -10,7 +10,21 @@ import { DEFAULT_CHECKLIST_OPTIONS, parseSchemaFields } from '../../api/workDiar
 export const fieldsFromSchema = parseSchemaFields;
 
 export function newChecklistItemId(): string {
-  return `chk-${crypto.randomUUID().slice(0, 8)}`;
+  return `chk-${createShortId()}`;
+}
+
+/** HTTP(비보안 컨텍스트)에서는 crypto.randomUUID 가 없어 fallback 사용 */
+function createShortId(): string {
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === 'function') {
+    return c.randomUUID().replace(/-/g, '').slice(0, 8);
+  }
+  if (c && typeof c.getRandomValues === 'function') {
+    const bytes = new Uint8Array(4);
+    c.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  return `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 6)}`.slice(-8);
 }
 
 export function nextFieldKey(existing: string[]): string {

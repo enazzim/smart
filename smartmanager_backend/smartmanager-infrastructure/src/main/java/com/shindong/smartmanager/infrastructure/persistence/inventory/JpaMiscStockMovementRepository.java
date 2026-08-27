@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.inventory;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.inventory.MiscStockMovementListCriteria;
 import com.shindong.smartmanager.application.inventory.MiscStockMovementRepository;
 import com.shindong.smartmanager.application.inventory.MiscStockMovementSaveCommand;
@@ -66,17 +68,20 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
     private final SpringDataItemRepository itemRepository;
     private final SpringDataProcessSequenceRepository processRepository;
     private final SpringDataPublicCodeRepository publicCodeRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaMiscStockMovementRepository(
             SpringDataMiscStockMovementRepository movementRepository,
             SpringDataItemRepository itemRepository,
             SpringDataProcessSequenceRepository processRepository,
-            SpringDataPublicCodeRepository publicCodeRepository
+            SpringDataPublicCodeRepository publicCodeRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.movementRepository = movementRepository;
         this.itemRepository = itemRepository;
         this.processRepository = processRepository;
         this.publicCodeRepository = publicCodeRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -113,8 +118,7 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
         entity.setNote(command.note());
         entity.setStatus(MiscStockMovementStatus.REGISTERED);
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
         movementRepository.save(entity);
 
@@ -150,8 +154,7 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
         entity.setQty(command.qty());
         entity.setReasonCodeId(command.reasonCodeId());
         entity.setNote(command.note());
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         movementRepository.save(entity);
 

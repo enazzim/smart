@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { updateDrawingInfo } from '../../api/drawing';
-import ItemSearchField, { type ItemSearchSelection } from '../ItemSearchField';
 
 interface DrawingInfoEditModalProps {
   open: boolean;
@@ -11,9 +10,6 @@ interface DrawingInfoEditModalProps {
   initialPartNo: string;
   initialPartName: string;
   initialModelType: string;
-  initialItemId?: number | null;
-  initialItemNo?: string | null;
-  actorUserId?: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -25,9 +21,6 @@ export default function DrawingInfoEditModal({
   initialPartNo,
   initialPartName,
   initialModelType,
-  initialItemId,
-  initialItemNo,
-  actorUserId,
   onSuccess,
   onError,
 }: DrawingInfoEditModalProps) {
@@ -35,7 +28,6 @@ export default function DrawingInfoEditModal({
   const [partNo, setPartNo] = useState(initialPartNo);
   const [partName, setPartName] = useState(initialPartName);
   const [modelType, setModelType] = useState(initialModelType);
-  const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -44,14 +36,9 @@ export default function DrawingInfoEditModal({
       setPartNo(initialPartNo);
       setPartName(initialPartName);
       setModelType(initialModelType);
-      setSelectedItem(
-        initialItemId && initialItemNo
-          ? { id: initialItemId, itemNo: initialItemNo, itemName: initialPartName }
-          : null,
-      );
       setLocalError(null);
     }
-  }, [open, initialPartNo, initialPartName, initialModelType, initialItemId, initialItemNo]);
+  }, [open, initialPartNo, initialPartName, initialModelType]);
 
   if (!open) {
     return null;
@@ -74,9 +61,7 @@ export default function DrawingInfoEditModal({
           partNo,
           partName,
           modelType,
-          itemId: selectedItem?.id ?? null,
         },
-        actorUserId,
       );
       await queryClient.invalidateQueries({ queryKey: ['drawings'] });
       onSuccess('도면 정보가 성공적으로 수정되었습니다.');
@@ -102,16 +87,10 @@ export default function DrawingInfoEditModal({
 
         <form onSubmit={(e) => void handleSubmit(e)}>
           {localError && <p className="error-banner">{localError}</p>}
-          <p className="hint">도면 파일(버전 이력)은 그대로 유지되며, 기본 메타 정보만 수정합니다.</p>
-
-          <div style={{ margin: '1rem 0' }}>
-            <ItemSearchField
-              label="연결 품목 (선택)"
-              selectedItem={selectedItem}
-              onSelect={setSelectedItem}
-              disabled={isLoading}
-            />
-          </div>
+          <p className="hint">
+            도면 파일(버전 이력)은 그대로 유지되며, 품번·품명·기종만 수정합니다. 품목 연결은 상세 화면의
+            「품목 연결」에서 진행해 주세요.
+          </p>
 
           <div className="form-grid form-grid-wide">
             <label>

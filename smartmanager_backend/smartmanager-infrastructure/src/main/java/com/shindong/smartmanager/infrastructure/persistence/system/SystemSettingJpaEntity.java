@@ -25,20 +25,14 @@ public class SystemSettingJpaEntity {
     @Column(name = "recording_state", nullable = false, columnDefinition = "TINYINT")
     private int recordingState = 1;
 
-    @Column(name = "created_by", length = 100)
-    private String createdBy;
-
-    @Column(name = "created_by_id", length = 100)
-    private String createdById;
+    @Column(name = "created_by_id")
+    private Long createdById;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_by", length = 100)
-    private String updatedBy;
-
-    @Column(name = "updated_by_id", length = 100)
-    private String updatedById;
+    @Column(name = "updated_by_id")
+    private Long updatedById;
 
     @Column(name = "updated_at")
     private Instant updatedAt;
@@ -46,23 +40,20 @@ public class SystemSettingJpaEntity {
     protected SystemSettingJpaEntity() {
     }
 
-    public static SystemSettingJpaEntity create(String settingKey, String valueJson, String actorUserId) {
+    public static SystemSettingJpaEntity create(String settingKey, String valueJson, Long actorUserId) {
         SystemSettingJpaEntity entity = new SystemSettingJpaEntity();
         entity.settingKey = settingKey;
         entity.valueJson = valueJson;
         entity.recordingState = 1;
-        entity.createdBy = actorUserId;
         entity.createdById = actorUserId;
         entity.createdAt = Instant.now();
-        entity.updatedBy = actorUserId;
         entity.updatedById = actorUserId;
         entity.updatedAt = entity.createdAt;
         return entity;
     }
 
-    public void updateValue(String valueJson, String actorUserId) {
+    public void updateValue(String valueJson, Long actorUserId) {
         this.valueJson = valueJson;
-        this.updatedBy = actorUserId;
         this.updatedById = actorUserId;
         this.updatedAt = Instant.now();
     }
@@ -83,7 +74,7 @@ public class SystemSettingJpaEntity {
         return updatedAt;
     }
 
-    public String getUpdatedBy() {
-        return updatedBy;
+    public Long getUpdatedById() {
+        return updatedById;
     }
 }

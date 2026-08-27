@@ -24,7 +24,7 @@ public class UnitPriceService {
 
     private static final BigDecimal MAX_ORDER_RATE = new BigDecimal("100");
     private static final Set<PropertyClassification> PURCHASE_ITEM_CLASSES =
-            EnumSet.of(PropertyClassification.원자재, PropertyClassification.상품);
+            EnumSet.of(PropertyClassification.원자재, PropertyClassification.상품, PropertyClassification.부자재);
     private static final Set<PropertyClassification> SALE_ITEM_CLASSES =
             EnumSet.of(PropertyClassification.제품, PropertyClassification.상품, PropertyClassification.공정품);
     private static final Set<PropertyClassification> OUTSOURCE_ITEM_CLASSES =
@@ -60,6 +60,10 @@ public class UnitPriceService {
     }
 
     public UnitPriceView register(UnitPriceCommand command, String actorUserId) {
+        return register(command, actorUserId, UnitPriceHistoryProjector.REASON_NORMAL_REGISTER);
+    }
+
+    public UnitPriceView register(UnitPriceCommand command, String actorUserId, String historyReason) {
         validateCommand(command, null);
         ItemView item = resolveItem(command.itemId(), command.costType());
         validateCompanyRole(command.companyId(), command.costType());
@@ -78,14 +82,21 @@ public class UnitPriceService {
         unitPriceRepository.lockActiveRowsForOrderRateValidation(command.costType(), command.itemId());
         validateOrderRate(command.costType(), command.itemId(), command.orderRate(), command, null);
 
-        long id = unitPriceRepository.save(command, actorUserId);
-
         if (command.costType() == CostType.OUTSOURCE) {
             OutsourceUnitPriceContext context = toOutsourceContext(command);
             validateOutsourceProcessRange(context);
-            outsourceInputBalanceProjector.ensure(context, actorUserId);
         }
 
+        long id = unitPriceRepository.save(command, actorUserId);
+
+        if (command.costType() == CostType.OUTSOURCE) {
+            outsourceInputBalanceProjector.ensure(toOutsourceContext(command), actorUserId);
+        }
+
+        String reason = historyReason == null || historyReason.isBlank()
+                ? UnitPriceHistoryProjector.REASON_NORMAL_REGISTER
+                : historyReason.trim();
+        unitPriceHistoryProjector.appendHistory(id, reason, actorUserId);
         appendRegisteredEvent(id, command, item, actorUserId);
 
         return getActive(id);
@@ -108,8 +119,6 @@ public class UnitPriceService {
                 id
         );
 
-        unitPriceHistoryProjector.snapshotBeforeUpdate(id, command.updateReason().trim(), actorUserId);
-
         OutsourceUnitPriceContext oldContext = existing.costType() == CostType.OUTSOURCE
                 ? toOutsourceContext(existing)
                 : null;
@@ -121,6 +130,7 @@ public class UnitPriceService {
             outsourceInputBalanceProjector.rebuild(oldContext, newContext, actorUserId);
         }
 
+        unitPriceHistoryProjector.appendHistory(id, command.updateReason().trim(), actorUserId);
         appendUpdatedEvent(id, existing, command, actorUserId);
 
         return getActive(id);
@@ -133,6 +143,7 @@ public class UnitPriceService {
             outsourceInputBalanceProjector.deactivate(toOutsourceContext(existing), actorUserId);
         }
 
+        unitPriceHistoryProjector.appendHistory(id, UnitPriceHistoryProjector.REASON_DELETE, actorUserId);
         unitPriceRepository.softDelete(id, actorUserId);
         appendDeletedEvent(id, existing, actorUserId);
     }
@@ -154,6 +165,15 @@ public class UnitPriceService {
     public List<UnitPriceChangeLogView> listHistory(long id) {
         getActive(id);
         return unitPriceRepository.findChangeLogs(id);
+    }
+
+    public List<UnitPriceChangeLogView> listAllHistory(UnitPriceHistorySearchQuery query) {
+        if (query.changedFrom() != null
+                && query.changedTo() != null
+                && query.changedTo().isBefore(query.changedFrom())) {
+            throw new IllegalArgumentException("수정일 종료일은 시작일 이후여야 합니다.");
+        }
+        return unitPriceRepository.findChangeLogs(query);
     }
 
     private void validateCommand(UnitPriceCommand command, Long excludeId) {
@@ -257,15 +277,28 @@ public class UnitPriceService {
         };
 
         if (!allowed.contains(item.propertyClassification())) {
-            throw new IllegalArgumentException("해당 단가 구분에 허용되지 않는 자산분류입니다.");
+            String allowedLabel = switch (costType) {
+                case PURCHASE -> "원자재·상품·부자재";
+                case SALE -> "제품·상품·공정품";
+                case OUTSOURCE -> "제품·공정품";
+            };
+            throw new IllegalArgumentException(
+                    "해당 단가 구분에 허용되지 않는 자산분류입니다. "
+                            + costType.name() + "은(는) " + allowedLabel + "만 가능합니다. (현재: "
+                            + item.propertyClassification().name() + ")"
+            );
         }
 
         if (costType == CostType.OUTSOURCE) {
-            boolean hasInhouseOrSplit = processRepository.findAllActiveByItemId(itemId, ProcessVariant.plan)
+            // 외주단가: 작업구분이 외주(OUTSOURCE)·혼합(SPLIT)인 공정이 1건 이상 있어야 함.
+            // 자가(INHOUSE)만 있는 품목은 외주단가 등록 불가.
+            boolean hasOutsourceOrSplit = processRepository.findAllActiveByItemId(itemId, ProcessVariant.plan)
                     .stream()
-                    .anyMatch(process -> process.workDistinction() != WorkDistinction.OUTSOURCE);
-            if (!hasInhouseOrSplit) {
-                throw new IllegalArgumentException("외주단가는 자가·혼합 공정이 1건 이상 등록된 품목만 가능합니다.");
+                    .anyMatch(process -> process.workDistinction() == WorkDistinction.OUTSOURCE
+                            || process.workDistinction() == WorkDistinction.SPLIT);
+            if (!hasOutsourceOrSplit) {
+                throw new IllegalArgumentException(
+                        "외주단가는 외주·혼합(자가/외주) 공정이 1건 이상 등록된 품목만 가능합니다.");
             }
         }
 
@@ -289,19 +322,32 @@ public class UnitPriceService {
 
     private void validateOutsourceProcessRange(OutsourceUnitPriceContext context) {
         List<ProcessView> processes = processRepository.findAllActiveByItemId(context.itemId(), ProcessVariant.plan);
-        short beginSeq = findSequence(processes, context.beginProcessCodeId());
-        short endSeq = findSequence(processes, context.endProcessCodeId());
-        if (beginSeq > endSeq) {
+        ProcessView begin = findProcess(processes, context.beginProcessCodeId(), "시작공정");
+        ProcessView end = findProcess(processes, context.endProcessCodeId(), "종료공정");
+        if (begin.processSequenceNum() > end.processSequenceNum()) {
             throw new IllegalArgumentException("시작공정 순번은 종료공정 순번 이하여야 합니다.");
+        }
+        requireOutsourceEligibleProcess(begin, "시작공정");
+        requireOutsourceEligibleProcess(end, "종료공정");
+    }
+
+    private void requireOutsourceEligibleProcess(ProcessView process, String label) {
+        WorkDistinction distinction = process.workDistinction();
+        if (distinction != WorkDistinction.OUTSOURCE && distinction != WorkDistinction.SPLIT) {
+            throw new IllegalArgumentException(
+                    label + "은(는) 외주 또는 혼합(자가/외주) 공정만 지정할 수 있습니다. (자가 공정은 외주단가 불가)");
         }
     }
 
-    private short findSequence(List<ProcessView> processes, long processCodeId) {
+    private ProcessView findProcess(List<ProcessView> processes, long processCodeId, String label) {
         return processes.stream()
                 .filter(process -> process.processCodeId() == processCodeId)
-                .map(ProcessView::processSequenceNum)
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("품목 공정 계획에 공정이 없습니다: " + processCodeId));
+                .orElseThrow(() -> new IllegalArgumentException("품목 공정 계획에 " + label + "이 없습니다: " + processCodeId));
+    }
+
+    private short findSequence(List<ProcessView> processes, long processCodeId) {
+        return findProcess(processes, processCodeId, "공정").processSequenceNum();
     }
 
     private void requireProcessCode(long processCodeId) {

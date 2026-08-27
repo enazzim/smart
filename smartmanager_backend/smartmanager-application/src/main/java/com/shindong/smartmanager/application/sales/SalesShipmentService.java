@@ -134,6 +134,7 @@ public class SalesShipmentService {
             inventoryService.applyRegistration(
                     shipmentDate,
                     line.id(),
+                    partnerId,
                     context.itemId(),
                     context.itemNo(),
                     context.propertyClassification(),
@@ -163,6 +164,7 @@ public class SalesShipmentService {
             inventoryService.applyCancellation(
                     shipment.shipmentDate(),
                     line.id(),
+                    shipment.partnerId(),
                     context.itemId(),
                     context.itemNo(),
                     context.propertyClassification(),

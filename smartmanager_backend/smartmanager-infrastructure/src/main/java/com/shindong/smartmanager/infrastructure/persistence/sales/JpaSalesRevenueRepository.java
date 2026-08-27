@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.sales;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.inventory.InventoryBalanceService;
 import com.shindong.smartmanager.application.sales.SalesRevenueCandidateCriteria;
 import com.shindong.smartmanager.application.sales.SalesRevenueCandidateView;
@@ -46,6 +48,7 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
     private final SpringDataCompanyRepository companyRepository;
     private final SpringDataItemRepository itemRepository;
     private final InventoryBalanceService inventoryBalanceService;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaSalesRevenueRepository(
             EntityManager entityManager,
@@ -57,7 +60,8 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
             SpringDataSalesOrderLineRepository orderLineRepository,
             SpringDataCompanyRepository companyRepository,
             SpringDataItemRepository itemRepository,
-            InventoryBalanceService inventoryBalanceService
+            InventoryBalanceService inventoryBalanceService,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.entityManager = entityManager;
         this.revenueRepository = revenueRepository;
@@ -69,6 +73,7 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
         this.companyRepository = companyRepository;
         this.itemRepository = itemRepository;
         this.inventoryBalanceService = inventoryBalanceService;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -122,6 +127,10 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
             if (criteria.itemName() != null && !criteria.itemName().isBlank()) {
                 sql.append(" AND i.item_name LIKE :itemName");
                 params.put("itemName", "%" + criteria.itemName().trim() + "%");
+            }
+            if (criteria.itemId() != null) {
+                sql.append(" AND shl.item_id = :itemId");
+                params.put("itemId", criteria.itemId());
             }
         }
         sql.append(" ORDER BY ss.shipment_date DESC, ss.shipment_no, shl.line_no");
@@ -219,11 +228,9 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
         header.setSalesShipmentId(command.salesShipmentId());
         header.setStatus(SalesRevenueStatus.ISSUED);
         header.setRecordingState(ACTIVE);
-        header.setCreatedBy(actorUserId);
-        header.setCreatedById(actorUserId);
+        header.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         header.setCreatedAt(now);
-        header.setUpdatedBy(actorUserId);
-        header.setUpdatedById(actorUserId);
+        header.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         header.setUpdatedAt(now);
         SalesRevenueJpaEntity savedHeader = revenueRepository.save(header);
 
@@ -239,11 +246,9 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
             line.setAmount(lineCommand.amount());
             line.setLotId(lineCommand.lotId());
             line.setRecordingState(ACTIVE);
-            line.setCreatedBy(actorUserId);
-            line.setCreatedById(actorUserId);
+            line.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             line.setCreatedAt(now);
-            line.setUpdatedBy(actorUserId);
-            line.setUpdatedById(actorUserId);
+            line.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             line.setUpdatedAt(now);
             revenueLineRepository.save(line);
         }
@@ -260,8 +265,7 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
                 .orElseThrow(() -> new IllegalArgumentException("매출을 찾을 수 없습니다: " + id));
         Instant now = Instant.now();
         entity.setStatus(SalesRevenueStatus.CANCELLED);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         revenueRepository.save(entity);
     }
@@ -284,6 +288,7 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
             );
         }
         return rows.stream()
+                .filter(entity -> matchesItemId(entity, criteria))
                 .map(this::toView)
                 .filter(view -> matchesPartnerName(view, criteria))
                 .toList();
@@ -357,7 +362,7 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
                 entity.getSalesShipmentId(),
                 entity.getStatus(),
                 entity.getCreatedAt(),
-                entity.getCreatedBy(),
+                masterAuditActorLookup.nameOf(entity.getCreatedById()),
                 entity.getStatus() == SalesRevenueStatus.ISSUED,
                 lines
         );
@@ -369,6 +374,17 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
         }
         String needle = criteria.partnerName().trim().toLowerCase();
         return view.partnerName().toLowerCase().contains(needle);
+    }
+
+    private boolean matchesItemId(SalesRevenueJpaEntity entity, SalesRevenueListCriteria criteria) {
+        if (criteria == null || criteria.itemId() == null) {
+            return true;
+        }
+        long itemId = criteria.itemId();
+        return revenueLineRepository
+                .findBySalesRevenueIdAndRecordingStateOrderByLineNoAsc(entity.getId(), ACTIVE)
+                .stream()
+                .anyMatch(line -> line.getItemId() == itemId);
     }
 
     private String normalize(String value) {

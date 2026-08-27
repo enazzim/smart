@@ -32,6 +32,9 @@ public class JpaStockMovementRepository implements StockMovementRepository {
         entity.setReferenceId(movement.referenceId());
         entity.setMovementDate(movement.movementDate());
         entity.setLotId(movement.lotId());
+        entity.setOutputProcessId(movement.outputProcessId());
+        entity.setInputProcessId(movement.inputProcessId());
+        entity.setPartnerId(movement.partnerId());
         entity.setRecordingState(1);
         entity.setCreatedAt(Instant.now());
         return toView(movementRepository.save(entity));
@@ -60,7 +63,10 @@ public class JpaStockMovementRepository implements StockMovementRepository {
                 entity.getReferenceType(),
                 entity.getReferenceId(),
                 entity.getMovementDate(),
-                entity.getLotId()
+                entity.getLotId(),
+                entity.getOutputProcessId(),
+                entity.getInputProcessId(),
+                entity.getPartnerId()
         );
     }
 }

@@ -27,6 +27,7 @@ import com.shindong.smartmanager.application.production.WorkReportConsumptionInv
 import com.shindong.smartmanager.application.production.WorkReportInventoryService;
 import com.shindong.smartmanager.application.production.WorkReportRepository;
 import com.shindong.smartmanager.application.production.WorkReportService;
+import com.shindong.smartmanager.application.sales.SalesOrderFulfillmentSyncService;
 import com.shindong.smartmanager.application.inventory.LotService;
 import com.shindong.smartmanager.application.purchase.PurchaseOrderRepository;
 import com.shindong.smartmanager.application.sales.SalesOrderRepository;
@@ -202,7 +203,8 @@ public class ProductionApplicationConfig {
             MaterialIssueRepository materialIssueRepository,
             ItemCompositionRepository itemCompositionRepository,
             SystemSettingService systemSettingService,
-            LotService lotService
+            LotService lotService,
+            SalesOrderFulfillmentSyncService salesOrderFulfillmentSyncService
     ) {
         return new WorkReportService(
                 workReportRepository,
@@ -217,7 +219,8 @@ public class ProductionApplicationConfig {
                 materialIssueRepository,
                 itemCompositionRepository,
                 systemSettingService,
-                lotService
+                lotService,
+                salesOrderFulfillmentSyncService
         );
     }
 }

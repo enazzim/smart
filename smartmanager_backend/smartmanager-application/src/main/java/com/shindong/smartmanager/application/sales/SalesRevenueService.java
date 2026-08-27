@@ -141,6 +141,7 @@ public class SalesRevenueService {
             inventoryService.applyRegistration(
                     revenueDate,
                     line.id(),
+                    partnerId,
                     context.itemId(),
                     context.itemNo(),
                     line.revenueQty(),
@@ -184,6 +185,7 @@ public class SalesRevenueService {
             inventoryService.applyCancellation(
                     revenue.revenueDate(),
                     line.id(),
+                    revenue.partnerId(),
                     context.itemId(),
                     line.revenueQty(),
                     line.amount(),

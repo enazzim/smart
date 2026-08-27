@@ -1,13 +1,19 @@
 package com.shindong.smartmanager.infrastructure.persistence.board;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.board.BoardAttachmentInput;
 import com.shindong.smartmanager.application.board.BoardPostListCriteria;
 import com.shindong.smartmanager.application.board.BoardPostRepository;
 import com.shindong.smartmanager.domain.board.BoardType;
 import com.shindong.smartmanager.domain.board.PostKind;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,13 +23,22 @@ public class JpaBoardPostRepository implements BoardPostRepository {
 
     private final SpringDataBoardPostRepository boardPostRepository;
     private final SpringDataBoardAttachmentRepository boardAttachmentRepository;
+    private final SpringDataBoardPostReadRepository boardPostReadRepository;
+    private final SpringDataBoardPostRequiredReaderRepository boardPostRequiredReaderRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaBoardPostRepository(
             SpringDataBoardPostRepository boardPostRepository,
-            SpringDataBoardAttachmentRepository boardAttachmentRepository
+            SpringDataBoardAttachmentRepository boardAttachmentRepository,
+            SpringDataBoardPostReadRepository boardPostReadRepository,
+            SpringDataBoardPostRequiredReaderRepository boardPostRequiredReaderRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.boardPostRepository = boardPostRepository;
         this.boardAttachmentRepository = boardAttachmentRepository;
+        this.boardPostReadRepository = boardPostReadRepository;
+        this.boardPostRequiredReaderRepository = boardPostRequiredReaderRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -112,6 +127,79 @@ public class JpaBoardPostRepository implements BoardPostRepository {
     @Transactional
     public void incrementViewCount(long postId) {
         boardPostRepository.incrementViewCount(postId);
+    }
+
+    @Override
+    @Transactional
+    public void recordPostRead(long postId, long readerUserId) {
+        if (boardPostReadRepository.findByPostIdAndReaderUserId(postId, readerUserId).isPresent()) {
+            return;
+        }
+        BoardPostReadJpaEntity entity = new BoardPostReadJpaEntity();
+        entity.setPostId(postId);
+        entity.setReaderUserId(readerUserId);
+        entity.setReadAt(Instant.now());
+        boardPostReadRepository.save(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BoardPostReaderRecord> findPostReadersExcludingAuthor(long postId, long authorUserId) {
+        return boardPostReadRepository.findReadersExcludingAuthor(postId, authorUserId).stream()
+                .map(row -> new BoardPostReaderRecord(
+                        ((Number) row[0]).longValue(),
+                        (String) row[1],
+                        (String) row[2],
+                        (Instant) row[3]
+                ))
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void replaceRequiredReaders(long postId, List<Long> userIds) {
+        boardPostRequiredReaderRepository.deleteByPostId(postId);
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+        Set<Long> unique = new HashSet<>(userIds);
+        for (Long userId : unique) {
+            if (userId == null) {
+                continue;
+            }
+            boardPostRequiredReaderRepository.save(new BoardPostRequiredReaderJpaEntity(postId, userId));
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BoardPostRequiredReaderRecord> findRequiredReaders(long postId) {
+        Map<Long, Instant> readAtByUser = new HashMap<>();
+        for (BoardPostReadJpaEntity read : boardPostReadRepository.findByPostId(postId)) {
+            readAtByUser.put(read.getReaderUserId(), read.getReadAt());
+        }
+        return boardPostRequiredReaderRepository.findRequiredActiveUsers(postId).stream()
+                .map(row -> {
+                    long userId = ((Number) row[0]).longValue();
+                    Instant readAt = readAtByUser.get(userId);
+                    return new BoardPostRequiredReaderRecord(
+                            userId,
+                            (String) row[1],
+                            (String) row[2],
+                            readAt,
+                            readAt != null
+                    );
+                })
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> findUnreadRequiredPostIds(long userId, List<Long> postIds) {
+        if (postIds == null || postIds.isEmpty()) {
+            return List.of();
+        }
+        return boardPostRequiredReaderRepository.findUnreadRequiredPostIds(userId, postIds);
     }
 
     @Override
@@ -283,17 +371,14 @@ public class JpaBoardPostRepository implements BoardPostRepository {
     }
 
     private void applyAuditOnCreate(BoardPostJpaEntity entity, String actorLoginId, String actorUserId, Instant now) {
-        entity.setCreatedBy(actorLoginId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorLoginId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
     }
 
     private void applyAuditOnUpdate(BoardPostJpaEntity entity, String actorLoginId, String actorUserId, Instant now) {
-        entity.setUpdatedBy(actorLoginId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
     }
 }

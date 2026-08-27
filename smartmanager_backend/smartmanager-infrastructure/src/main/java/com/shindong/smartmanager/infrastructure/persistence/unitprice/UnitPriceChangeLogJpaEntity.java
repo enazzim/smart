@@ -58,11 +58,8 @@ public class UnitPriceChangeLogJpaEntity {
     @Column(name = "update_reason", nullable = false, length = 500)
     private String updateReason;
 
-    @Column(name = "changed_by", length = 100)
-    private String changedBy;
-
-    @Column(name = "changed_by_id", length = 100)
-    private String changedById;
+    @Column(name = "changed_by_id")
+    private Long changedById;
 
     @Column(name = "changed_at", nullable = false)
     private Instant changedAt;
@@ -170,19 +167,11 @@ public class UnitPriceChangeLogJpaEntity {
         this.updateReason = updateReason;
     }
 
-    public String getChangedBy() {
-        return changedBy;
-    }
-
-    public void setChangedBy(String changedBy) {
-        this.changedBy = changedBy;
-    }
-
-    public String getChangedById() {
+    public Long getChangedById() {
         return changedById;
     }
 
-    public void setChangedById(String changedById) {
+    public void setChangedById(Long changedById) {
         this.changedById = changedById;
     }
 

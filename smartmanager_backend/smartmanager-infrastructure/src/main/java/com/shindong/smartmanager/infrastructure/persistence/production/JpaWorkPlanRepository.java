@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.production;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 
 
 import com.shindong.smartmanager.application.production.WorkPlanListCriteria;
@@ -82,6 +84,7 @@ public class JpaWorkPlanRepository implements WorkPlanRepository {
     private final SpringDataPublicCodeRepository publicCodeRepository;
 
     private final SpringDataWorkCenterRepository workCenterRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
 
 
@@ -97,8 +100,8 @@ public class JpaWorkPlanRepository implements WorkPlanRepository {
 
             SpringDataPublicCodeRepository publicCodeRepository,
 
-            SpringDataWorkCenterRepository workCenterRepository
-
+            SpringDataWorkCenterRepository workCenterRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
 
         this.workPlanRepository = workPlanRepository;
@@ -112,6 +115,7 @@ public class JpaWorkPlanRepository implements WorkPlanRepository {
         this.publicCodeRepository = publicCodeRepository;
 
         this.workCenterRepository = workCenterRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
 
     }
 
@@ -159,15 +163,11 @@ public class JpaWorkPlanRepository implements WorkPlanRepository {
 
             entity.setRecordingState(ACTIVE);
 
-            entity.setCreatedBy(actorUserId);
-
-            entity.setCreatedById(actorUserId);
+            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
 
             entity.setCreatedAt(now);
 
-            entity.setUpdatedBy(actorUserId);
-
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
 
             entity.setUpdatedAt(now);
 
@@ -477,9 +477,7 @@ public class JpaWorkPlanRepository implements WorkPlanRepository {
 
         entity.setRecordingState(0);
 
-        entity.setUpdatedBy(actorUserId);
-
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
 
         entity.setUpdatedAt(now);
 
@@ -517,9 +515,7 @@ public class JpaWorkPlanRepository implements WorkPlanRepository {
 
             entity.setRecordingState(0);
 
-            entity.setUpdatedBy(actorUserId);
-
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
 
             entity.setUpdatedAt(now);
 
@@ -630,7 +626,7 @@ public class JpaWorkPlanRepository implements WorkPlanRepository {
 
                 entity.getCreatedAt(),
 
-                entity.getCreatedBy()
+                masterAuditActorLookup.nameOf(entity.getCreatedById())
 
         );
 

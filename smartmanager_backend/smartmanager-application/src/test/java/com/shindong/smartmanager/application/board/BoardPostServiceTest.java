@@ -8,7 +8,6 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class BoardPostServiceTest {
@@ -19,8 +18,7 @@ class BoardPostServiceTest {
                 new NoopBoardPostRepository(),
                 new NoopBoardFileStorage(),
                 new NoopUserRepository(),
-                104857600L,
-                Set.of("pdf")
+                104857600L
         );
 
         BoardUploadFile oversized = new BoardUploadFile(
@@ -33,7 +31,7 @@ class BoardPostServiceTest {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
                 () -> service.createTopPost(
-                        new BoardPostCommand(BoardType.NOTICE, "제목", "<p>본문</p>", List.of()),
+                        new BoardPostCommand(BoardType.PRODUCT, "제목", "<p>본문</p>", List.of(), List.of()),
                         List.of(oversized),
                         1L,
                         "admin",
@@ -68,6 +66,29 @@ class BoardPostServiceTest {
 
         @Override
         public void incrementViewCount(long postId) {
+        }
+
+        @Override
+        public void recordPostRead(long postId, long readerUserId) {
+        }
+
+        @Override
+        public List<BoardPostReaderRecord> findPostReadersExcludingAuthor(long postId, long authorUserId) {
+            return List.of();
+        }
+
+        @Override
+        public void replaceRequiredReaders(long postId, List<Long> userIds) {
+        }
+
+        @Override
+        public List<BoardPostRequiredReaderRecord> findRequiredReaders(long postId) {
+            return List.of();
+        }
+
+        @Override
+        public List<Long> findUnreadRequiredPostIds(long userId, List<Long> postIds) {
+            return List.of();
         }
 
         @Override

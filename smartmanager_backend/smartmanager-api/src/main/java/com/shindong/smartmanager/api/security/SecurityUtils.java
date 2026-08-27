@@ -21,4 +21,8 @@ public final class SecurityUtils {
     public static long requireUserId() {
         return requirePrincipal().userId();
     }
+
+    public static String requireLoginId() {
+        return requirePrincipal().loginId();
+    }
 }

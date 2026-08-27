@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.production;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.production.WorkOrderListCriteria;
 import com.shindong.smartmanager.application.production.WorkOrderRepository;
 import com.shindong.smartmanager.application.production.WorkOrderSaveCommand;
@@ -43,6 +45,7 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
     private final SpringDataItemRepository itemRepository;
     private final SpringDataPublicCodeRepository publicCodeRepository;
     private final SpringDataWorkCenterRepository workCenterRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaWorkOrderRepository(
             SpringDataWorkOrderRepository workOrderRepository,
@@ -51,7 +54,8 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
             SpringDataProcessSequenceRepository processRepository,
             SpringDataItemRepository itemRepository,
             SpringDataPublicCodeRepository publicCodeRepository,
-            SpringDataWorkCenterRepository workCenterRepository
+            SpringDataWorkCenterRepository workCenterRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.workOrderRepository = workOrderRepository;
         this.workPlanRepository = workPlanRepository;
@@ -60,6 +64,7 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
         this.itemRepository = itemRepository;
         this.publicCodeRepository = publicCodeRepository;
         this.workCenterRepository = workCenterRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -104,11 +109,9 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
             entity.setReportedQty(BigDecimal.ZERO);
             entity.setStatus(WorkOrderStatus.ISSUED);
             entity.setRecordingState(ACTIVE);
-            entity.setCreatedBy(actorUserId);
-            entity.setCreatedById(actorUserId);
+            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setCreatedAt(now);
-            entity.setUpdatedBy(actorUserId);
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             result.add(toView(workOrderRepository.save(entity)));
         }
@@ -159,6 +162,13 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
     public Optional<WorkOrderView> findActiveById(long id) {
         return workOrderRepository.findByIdAndRecordingState(id, ACTIVE)
                 .map(this::toView);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal sumActiveReportedQtyByWorkPlanId(long workPlanId) {
+        BigDecimal sum = workOrderRepository.sumReportedQtyByWorkPlanId(workPlanId, ACTIVE);
+        return sum != null ? sum : BigDecimal.ZERO;
     }
 
     @Override
@@ -293,8 +303,7 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
             throw new IllegalStateException("작업지시 수량을 초과할 수 없습니다.");
         }
         entity.setReportedQty(next);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         workOrderRepository.save(entity);
     }
@@ -354,7 +363,7 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
                 WorkOrderStatus.ISSUED,
                 true,
                 plan.getCreatedAt(),
-                plan.getCreatedBy()
+                masterAuditActorLookup.nameOf(plan.getCreatedById())
         );
     }
 
@@ -387,7 +396,7 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
                         && entity.getReportedQty().compareTo(BigDecimal.ZERO) == 0
                         && !hasActiveDownstream(entity.getId()),
                 entity.getCreatedAt(),
-                entity.getCreatedBy()
+                masterAuditActorLookup.nameOf(entity.getCreatedById())
         );
     }
 
@@ -429,7 +438,7 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
                 order == null || (order.getStatus() == WorkOrderStatus.ISSUED
                         && order.getReportedQty().compareTo(BigDecimal.ZERO) == 0),
                 order != null ? order.getCreatedAt() : plan.getCreatedAt(),
-                order != null ? order.getCreatedBy() : plan.getCreatedBy()
+                order != null ? masterAuditActorLookup.nameOf(order.getCreatedById()) : masterAuditActorLookup.nameOf(plan.getCreatedById())
         );
     }
 }

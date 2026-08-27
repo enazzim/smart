@@ -87,15 +87,15 @@ export default function WorkDiaryChecklistField({
                     )}
                   </td>
                 ))}
-                <td>
+                <td className="work-diary-checklist-note">
                   {readOnly ? (
-                    entry.note || '—'
+                    <div className="work-diary-checklist-note-text">{entry.note?.trim() ? entry.note : '—'}</div>
                   ) : (
-                    <input
-                      type="text"
+                    <textarea
                       value={entry.note ?? ''}
                       onChange={(e) => updateEntry(item.id, { note: e.target.value })}
                       placeholder="비고"
+                      rows={3}
                     />
                   )}
                 </td>

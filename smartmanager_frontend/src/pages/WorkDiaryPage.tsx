@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AuthenticatedUser } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import {
+  WORK_DIARY_FILTERABLE_STATUSES,
   WORK_DIARY_STATUS_LABELS,
   approveWorkDiary,
   cancelWorkDiaryApproval,
@@ -214,7 +215,7 @@ function WorkDiaryListView({
             }}
           >
             <option value="">전체</option>
-            {(Object.keys(WORK_DIARY_STATUS_LABELS) as WorkDiaryStatus[]).map((value) => (
+            {WORK_DIARY_FILTERABLE_STATUSES.map((value) => (
               <option key={value} value={value}>
                 {WORK_DIARY_STATUS_LABELS[value]}
               </option>

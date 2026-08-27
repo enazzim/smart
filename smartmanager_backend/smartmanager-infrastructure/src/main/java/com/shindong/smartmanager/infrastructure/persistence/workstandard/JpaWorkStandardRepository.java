@@ -10,6 +10,7 @@ import com.shindong.smartmanager.infrastructure.persistence.item.ItemJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.item.SpringDataItemRepository;
 import com.shindong.smartmanager.infrastructure.persistence.equipment.EquipmentJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.equipment.SpringDataEquipmentRepository;
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import com.shindong.smartmanager.infrastructure.persistence.user.SpringDataUserRepository;
 import com.shindong.smartmanager.infrastructure.persistence.user.UserJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.process.ProcessSequenceJpaEntity;
@@ -32,6 +33,7 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
     private final SpringDataWorkCenterRepository workCenterRepository;
     private final SpringDataEquipmentRepository equipmentRepository;
     private final SpringDataUserRepository userRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaWorkStandardRepository(
             SpringDataWorkStandardRepository workStandardRepository,
@@ -40,7 +42,8 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
             SpringDataPublicCodeRepository publicCodeRepository,
             SpringDataWorkCenterRepository workCenterRepository,
             SpringDataEquipmentRepository equipmentRepository,
-            SpringDataUserRepository userRepository
+            SpringDataUserRepository userRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.workStandardRepository = workStandardRepository;
         this.itemRepository = itemRepository;
@@ -49,6 +52,7 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
         this.workCenterRepository = workCenterRepository;
         this.equipmentRepository = equipmentRepository;
         this.userRepository = userRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -58,11 +62,9 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
         WorkStandardJpaEntity entity = new WorkStandardJpaEntity();
         applyCommand(entity, command);
         entity.setRecordingState(1);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return workStandardRepository.save(entity).getId();
     }
@@ -80,8 +82,7 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
         entity.setToolName(normalizeToolName(command.toolName()));
         entity.setSetupTime(command.setupTime());
         entity.setStandardTime(command.standardTime());
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         workStandardRepository.save(entity);
     }
@@ -102,8 +103,7 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
         for (WorkStandardJpaEntity entity : workStandardRepository.findByProcessSequenceIdAndRecordingState(
                 processSequenceId, 1)) {
             entity.setRecordingState(0);
-            entity.setUpdatedBy(actorUserId);
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             workStandardRepository.save(entity);
         }
@@ -151,8 +151,7 @@ public class JpaWorkStandardRepository implements WorkStandardRepository {
     private void markDeleted(WorkStandardJpaEntity entity, String actorUserId) {
         Instant now = Instant.now();
         entity.setRecordingState(0);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
     }
 

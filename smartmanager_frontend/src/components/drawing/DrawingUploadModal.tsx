@@ -2,13 +2,12 @@ import { useCallback, useState } from 'react';
 import { UploadCloud, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { checkPartNoExists, registerDrawing } from '../../api/drawing';
-import ItemSearchField, { type ItemSearchSelection } from '../ItemSearchField';
+import CompanySearchField, { type CompanySearchSelection } from '../CompanySearchField';
 import { DRAWING_PDF_MAX_SIZE_LABEL, validateDrawingPdfFile } from '../../utils/drawingUpload';
 
 interface DrawingUploadModalProps {
   open: boolean;
   onClose: () => void;
-  actorUserId?: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -16,18 +15,16 @@ interface DrawingUploadModalProps {
 export default function DrawingUploadModal({
   open,
   onClose,
-  actorUserId,
   onSuccess,
   onError,
 }: DrawingUploadModalProps) {
   const queryClient = useQueryClient();
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
+  const [selectedPartner, setSelectedPartner] = useState<CompanySearchSelection | null>(null);
   const [partNo, setPartNo] = useState('');
   const [partName, setPartName] = useState('');
   const [modelType, setModelType] = useState('');
-  const [drawingType, setDrawingType] = useState<'DEV' | 'PROD'>('DEV');
   const [isUploading, setIsUploading] = useState(false);
   const [partNoError, setPartNoError] = useState<string | null>(null);
   const [isCheckingPartNo, setIsCheckingPartNo] = useState(false);
@@ -53,7 +50,6 @@ export default function DrawingUploadModal({
       setPartNo(match[1]);
       setPartName(match[2]);
       setModelType(match[3]);
-      setDrawingType(match[4].toUpperCase() as 'DEV' | 'PROD');
       setPartNoError(null);
     } else {
       setPartNo('');
@@ -106,18 +102,6 @@ export default function DrawingUploadModal({
     }
   };
 
-  const handleItemSelect = (item: ItemSearchSelection | null) => {
-    setSelectedItem(item);
-    if (item) {
-      setPartNo(item.itemNo);
-      setPartName(item.itemName);
-      if (item.modelType) {
-        setModelType(item.modelType);
-      }
-      setPartNoError(null);
-    }
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -137,11 +121,10 @@ export default function DrawingUploadModal({
           partNo,
           partName,
           modelType,
-          itemId: selectedItem?.id ?? null,
-          drawingType,
+          sourcePartnerId: selectedPartner?.id ?? null,
+          drawingType: 'DEV',
         },
         selectedFile,
-        actorUserId,
       );
       await queryClient.invalidateQueries({ queryKey: ['drawings'] });
       onSuccess('도면이 성공적으로 등록되었습니다.');
@@ -158,7 +141,7 @@ export default function DrawingUploadModal({
       return;
     }
     setSelectedFile(null);
-    setSelectedItem(null);
+    setSelectedPartner(null);
     setPartNo('');
     setPartName('');
     setModelType('');
@@ -187,7 +170,7 @@ export default function DrawingUploadModal({
           <UploadCloud className="import-upload-icon" size={48} />
           <p className="import-dropzone__title">이곳에 PDF 파일을 드래그 앤 드롭하세요</p>
           <p className="import-dropzone__hint">
-            PDF 1개, {DRAWING_PDF_MAX_SIZE_LABEL} 이하 · 파일명 규칙: [품번]_[품명]_[기종]_[DEV|PROD].pdf
+            PDF 1개, {DRAWING_PDF_MAX_SIZE_LABEL} 이하 · 파일명 규칙: [품번]_[품명]_[기종]_DEV.pdf
           </p>
           {fileError && (
             <p className="hint" style={{ color: '#b91c1c' }}>
@@ -212,14 +195,15 @@ export default function DrawingUploadModal({
         </label>
 
         <div style={{ margin: '1rem 0' }}>
-          <ItemSearchField
-            label="연결 품목 (선택)"
-            selectedItem={selectedItem}
-            onSelect={handleItemSelect}
-            placeholder="품목번호 또는 품목명으로 검색"
+          <CompanySearchField
+            label="선수신 거래처 (선택)"
+            selectedCompany={selectedPartner}
+            onSelect={setSelectedPartner}
+            placeholder="거래처명 또는 사업자번호로 검색"
           />
           <p className="hint" style={{ marginTop: '0.5rem' }}>
-            품목을 선택하면 품번·품명이 자동 채워집니다. 도면 품번은 품목번호와 독립적으로 유지됩니다.
+            거래처로부터 선수신한 도면인 경우 출처 거래처를 지정합니다. 등록 시 업무 단계는 <strong>선수신</strong>으로
+            시작하며, 품목 연결은 양산 이관 후 별도 메뉴에서 진행합니다.
           </p>
         </div>
 
@@ -248,14 +232,9 @@ export default function DrawingUploadModal({
             기종 *
             <input value={modelType} onChange={(e) => setModelType(e.target.value)} />
           </label>
-          <label>
-            구분 *
-            <select value={drawingType} onChange={(e) => setDrawingType(e.target.value as 'DEV' | 'PROD')}>
-              <option value="DEV">개발품 (DEV)</option>
-              <option value="PROD">양산품 (PROD)</option>
-            </select>
-          </label>
         </div>
+
+        <p className="hint">신규 등록은 개발품(DEV)으로만 가능합니다. 양산 이관은 개발 완료 후 상세 화면에서 진행합니다.</p>
 
         <div className="form-actions">
           <button type="button" className="secondary" onClick={handleClose} disabled={isUploading}>

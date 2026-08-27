@@ -8,6 +8,7 @@ import com.shindong.smartmanager.application.closing.FiscalPeriod;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.inventory.LotGenealogyParentQty;
 import com.shindong.smartmanager.application.inventory.LotService;
+import com.shindong.smartmanager.application.sales.SalesOrderFulfillmentSyncService;
 import com.shindong.smartmanager.application.system.SystemSettingService;
 import com.shindong.smartmanager.domain.process.WorkDistinction;
 import com.shindong.smartmanager.domain.production.WorkReportHistorySourceType;
@@ -34,6 +35,7 @@ public class WorkReportService {
     private final ItemCompositionRepository itemCompositionRepository;
     private final SystemSettingService systemSettingService;
     private final LotService lotService;
+    private final SalesOrderFulfillmentSyncService salesOrderFulfillmentSyncService;
 
     public WorkReportService(
             WorkReportRepository workReportRepository,
@@ -48,7 +50,8 @@ public class WorkReportService {
             MaterialIssueRepository materialIssueRepository,
             ItemCompositionRepository itemCompositionRepository,
             SystemSettingService systemSettingService,
-            LotService lotService
+            LotService lotService,
+            SalesOrderFulfillmentSyncService salesOrderFulfillmentSyncService
     ) {
         this.workReportRepository = workReportRepository;
         this.workOrderRepository = workOrderRepository;
@@ -63,6 +66,7 @@ public class WorkReportService {
         this.itemCompositionRepository = itemCompositionRepository;
         this.systemSettingService = systemSettingService;
         this.lotService = lotService;
+        this.salesOrderFulfillmentSyncService = salesOrderFulfillmentSyncService;
     }
 
     public List<WorkOrderView> listReportTargets() {
@@ -266,6 +270,7 @@ public class WorkReportService {
 
         workOrderRepository.addReportedQty(command.workOrderId(), command.goodQty(), actorUserId);
         productionPlanRepository.addProducedQty(context.productionPlanId(), command.goodQty(), actorUserId);
+        salesOrderFulfillmentSyncService.syncByProductionPlanId(context.productionPlanId(), actorUserId);
 
         return workReportRepository.findActiveRegisteredById(saved.id()).orElse(saved);
     }
@@ -308,6 +313,7 @@ public class WorkReportService {
         workReportRepository.cancelById(id, actorUserId);
         workOrderRepository.subtractReportedQty(report.workOrderId(), report.goodQty(), actorUserId);
         productionPlanRepository.subtractProducedQty(context.productionPlanId(), report.goodQty(), actorUserId);
+        salesOrderFulfillmentSyncService.syncByProductionPlanId(context.productionPlanId(), actorUserId);
     }
 
     private List<WorkReportConsumptionSaveCommand> resolveConsumptionCommands(
@@ -338,7 +344,7 @@ public class WorkReportService {
             if (line.issueQty() == null || line.issueQty().compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
-            // 모품목 직전공정 투입은 WorkReportInventoryService가 현재 공정 WIP에서 처리한다.
+            // 모품목 직전공정 투입은 WorkReportInventoryService가 직전 공정 WIP에서 처리한다.
             if (line.itemCompositionId() == null && line.itemId() == context.itemId()) {
                 continue;
             }

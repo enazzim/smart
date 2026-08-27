@@ -1,5 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.production;
 
+import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
+
 import com.shindong.smartmanager.application.production.MaterialRequirementLineSaveCommand;
 import com.shindong.smartmanager.application.production.MaterialRequirementLineView;
 import com.shindong.smartmanager.application.production.MrpRepository;
@@ -25,17 +27,20 @@ public class JpaMrpRepository implements MrpRepository {
     private final SpringDataMaterialRequirementLineRepository lineRepository;
     private final SpringDataProductionPlanRepository planRepository;
     private final SpringDataItemRepository itemRepository;
+    private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaMrpRepository(
             SpringDataMrpRunRepository runRepository,
             SpringDataMaterialRequirementLineRepository lineRepository,
             SpringDataProductionPlanRepository planRepository,
-            SpringDataItemRepository itemRepository
+            SpringDataItemRepository itemRepository,
+            MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.runRepository = runRepository;
         this.lineRepository = lineRepository;
         this.planRepository = planRepository;
         this.itemRepository = itemRepository;
+        this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
     @Override
@@ -64,11 +69,9 @@ public class JpaMrpRepository implements MrpRepository {
         MrpRunJpaEntity entity = new MrpRunJpaEntity();
         entity.setRunNo(runNo);
         entity.setRecordingState(ACTIVE);
-        entity.setCreatedBy(actorUserId);
-        entity.setCreatedById(actorUserId);
+        entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setCreatedAt(now);
-        entity.setUpdatedBy(actorUserId);
-        entity.setUpdatedById(actorUserId);
+        entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(now);
         return runRepository.save(entity).getId();
     }
@@ -87,11 +90,9 @@ public class JpaMrpRepository implements MrpRepository {
             entity.setPlannedQty(command.plannedQty());
             entity.setGrossQty(command.grossQty());
             entity.setRecordingState(ACTIVE);
-            entity.setCreatedBy(actorUserId);
-            entity.setCreatedById(actorUserId);
+            entity.setCreatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setCreatedAt(now);
-            entity.setUpdatedBy(actorUserId);
-            entity.setUpdatedById(actorUserId);
+            entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             lineRepository.save(entity);
         }
@@ -120,7 +121,7 @@ public class JpaMrpRepository implements MrpRepository {
                         planCounts.getOrDefault(run.getId(), 0),
                         lineCounts.getOrDefault(run.getId(), 0),
                         run.getCreatedAt(),
-                        run.getCreatedBy(),
+                        masterAuditActorLookup.nameOf(run.getCreatedById()),
                         false
                 ))
                 .toList();
@@ -142,7 +143,7 @@ public class JpaMrpRepository implements MrpRepository {
                             (int) planCount,
                             lines.size(),
                             run.getCreatedAt(),
-                            run.getCreatedBy(),
+                            masterAuditActorLookup.nameOf(run.getCreatedById()),
                             false
                     );
                 });
