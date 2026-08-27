@@ -31,8 +31,8 @@ public class BoardPostApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public BoardPostPageView list(BoardPostListCriteria criteria) {
-        return boardPostService.list(criteria);
+    public BoardPostPageView list(BoardPostListCriteria criteria, long actorUserId) {
+        return boardPostService.list(criteria, actorUserId);
     }
 
     @Transactional
@@ -68,12 +68,22 @@ public class BoardPostApplicationService {
             long postId,
             String title,
             String content,
+            List<Long> requiredReaderUserIds,
             long actorUserId,
             boolean moderator,
             String actorLoginId,
             String actorUserIdText
     ) {
-        return boardPostService.updatePost(postId, title, content, actorUserId, moderator, actorLoginId, actorUserIdText);
+        return boardPostService.updatePost(
+                postId,
+                title,
+                content,
+                requiredReaderUserIds,
+                actorUserId,
+                moderator,
+                actorLoginId,
+                actorUserIdText
+        );
     }
 
     @Transactional
@@ -114,8 +124,8 @@ public class BoardPostApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<DashboardWidgetView> dashboardWidgets(int limit) {
-        return boardPostService.dashboardWidgets(limit);
+    public List<DashboardWidgetView> dashboardWidgets(int limit, long actorUserId) {
+        return boardPostService.dashboardWidgets(limit, actorUserId);
     }
 
     public static BoardType parseBoardType(String boardType) {

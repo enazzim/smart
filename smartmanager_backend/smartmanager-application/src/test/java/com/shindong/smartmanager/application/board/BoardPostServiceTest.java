@@ -31,7 +31,7 @@ class BoardPostServiceTest {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
                 () -> service.createTopPost(
-                        new BoardPostCommand(BoardType.NOTICE, "제목", "<p>본문</p>", List.of()),
+                        new BoardPostCommand(BoardType.PRODUCT, "제목", "<p>본문</p>", List.of(), List.of()),
                         List.of(oversized),
                         1L,
                         "admin",
@@ -74,6 +74,20 @@ class BoardPostServiceTest {
 
         @Override
         public List<BoardPostReaderRecord> findPostReadersExcludingAuthor(long postId, long authorUserId) {
+            return List.of();
+        }
+
+        @Override
+        public void replaceRequiredReaders(long postId, List<Long> userIds) {
+        }
+
+        @Override
+        public List<BoardPostRequiredReaderRecord> findRequiredReaders(long postId) {
+            return List.of();
+        }
+
+        @Override
+        public List<Long> findUnreadRequiredPostIds(long userId, List<Long> postIds) {
             return List.of();
         }
 

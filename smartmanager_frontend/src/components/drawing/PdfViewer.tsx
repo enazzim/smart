@@ -8,7 +8,8 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-const BASE_PAGE_WIDTH = 800;
+const FALLBACK_PAGE_WIDTH = 800;
+const SCROLL_INNER_HORIZONTAL_PAD = 24;
 const MIN_ZOOM = 50;
 const MAX_ZOOM = 1000;
 const ZOOM_STEP = 10;
@@ -60,7 +61,9 @@ export default function PdfViewer({
   const [fromCache, setFromCache] = useState(false);
   const [resolvedBlob, setResolvedBlob] = useState<Blob | null>(null);
   const [devicePixelRatio, setDevicePixelRatio] = useState(resolveDevicePixelRatio);
+  const [fitBaseWidth, setFitBaseWidth] = useState(FALLBACK_PAGE_WIDTH);
   const viewerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const objectUrlRef = useRef<string | null>(null);
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
@@ -82,6 +85,21 @@ export default function PdfViewer({
     window.addEventListener('resize', syncDpr);
     return () => window.removeEventListener('resize', syncDpr);
   }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) {
+      return;
+    }
+    const measure = () => {
+      const width = Math.max(240, el.clientWidth - SCROLL_INNER_HORIZONTAL_PAD);
+      setFitBaseWidth(width);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadState]);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,8 +187,8 @@ export default function PdfViewer({
   }, [pdfUrl, partNo, updateOfflineCache]);
 
   const pageWidth = useMemo(
-    () => BASE_PAGE_WIDTH * (renderZoom / 100),
-    [renderZoom],
+    () => Math.round(fitBaseWidth * (renderZoom / 100)),
+    [fitBaseWidth, renderZoom],
   );
 
   const commitZoomInput = () => {
@@ -285,7 +303,7 @@ export default function PdfViewer({
         </div>
       </div>
 
-      <div className="drawing-pdf-scroll">
+      <div ref={scrollRef} className="drawing-pdf-scroll">
         {loadState === 'loading' && <p className="drawing-pdf-loading">PDF 불러오는 중…</p>}
         {loadState === 'error' && <p className="drawing-pdf-loading">PDF를 불러오지 못했습니다.</p>}
         {loadState === 'ready' && fileSource && (

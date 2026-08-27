@@ -1,11 +1,7 @@
 package com.shindong.smartmanager.api.web.board;
 
-import com.shindong.smartmanager.application.board.BoardAttachmentView;
-import com.shindong.smartmanager.application.board.BoardPostDetailView;
-import com.shindong.smartmanager.application.board.BoardPostPageView;
 import com.shindong.smartmanager.application.board.BoardPostSummaryView;
 import java.time.Instant;
-import java.util.List;
 
 public record BoardPostSummaryResponse(
         long id,
@@ -16,6 +12,7 @@ public record BoardPostSummaryResponse(
         int viewCount,
         boolean pinned,
         boolean hasAttachment,
+        boolean myRequiredUnread,
         Instant createdAt
 ) {
     public static BoardPostSummaryResponse from(BoardPostSummaryView view) {
@@ -28,6 +25,7 @@ public record BoardPostSummaryResponse(
                 view.viewCount(),
                 view.pinned(),
                 view.hasAttachment(),
+                view.myRequiredUnread(),
                 view.createdAt()
         );
     }

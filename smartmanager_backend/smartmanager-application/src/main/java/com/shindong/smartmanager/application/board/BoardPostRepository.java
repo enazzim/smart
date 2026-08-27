@@ -44,6 +44,15 @@ public interface BoardPostRepository {
     ) {
     }
 
+    record BoardPostRequiredReaderRecord(
+            long userId,
+            String loginId,
+            String name,
+            java.time.Instant readAt,
+            boolean read
+    ) {
+    }
+
     long saveTopPost(
             BoardType boardType,
             String title,
@@ -72,6 +81,12 @@ public interface BoardPostRepository {
     void recordPostRead(long postId, long readerUserId);
 
     List<BoardPostReaderRecord> findPostReadersExcludingAuthor(long postId, long authorUserId);
+
+    void replaceRequiredReaders(long postId, List<Long> userIds);
+
+    List<BoardPostRequiredReaderRecord> findRequiredReaders(long postId);
+
+    List<Long> findUnreadRequiredPostIds(long userId, List<Long> postIds);
 
     void softDeletePost(long postId, String actorLoginId, String actorUserId);
 

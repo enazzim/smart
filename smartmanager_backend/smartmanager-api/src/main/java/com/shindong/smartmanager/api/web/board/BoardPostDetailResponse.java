@@ -21,6 +21,7 @@ public record BoardPostDetailResponse(
         List<BoardAttachmentResponse> attachments,
         List<BoardPostDetailResponse> replies,
         List<BoardPostReaderResponse> readers,
+        List<BoardPostRequiredReaderResponse> requiredReaders,
         boolean canEdit,
         boolean canDelete
 ) {
@@ -42,6 +43,7 @@ public record BoardPostDetailResponse(
                 view.attachments().stream().map(BoardAttachmentResponse::from).toList(),
                 view.replies().stream().map(BoardPostDetailResponse::from).toList(),
                 view.readers().stream().map(BoardPostReaderResponse::from).toList(),
+                view.requiredReaders().stream().map(BoardPostRequiredReaderResponse::from).toList(),
                 view.canEdit(),
                 view.canDelete()
         );

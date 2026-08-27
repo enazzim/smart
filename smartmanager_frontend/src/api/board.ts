@@ -26,6 +26,7 @@ export interface BoardPostSummary {
   viewCount: number;
   pinned: boolean;
   hasAttachment: boolean;
+  myRequiredUnread?: boolean;
   createdAt: string;
 }
 
@@ -45,6 +46,14 @@ export interface BoardPostReader {
   readAt: string;
 }
 
+export interface BoardPostRequiredReader {
+  userId: number;
+  loginId: string;
+  name: string;
+  readAt: string | null;
+  read: boolean;
+}
+
 export interface BoardPostDetail {
   id: number;
   boardType: BoardType;
@@ -62,6 +71,7 @@ export interface BoardPostDetail {
   attachments: BoardAttachment[];
   replies: BoardPostDetail[];
   readers: BoardPostReader[];
+  requiredReaders: BoardPostRequiredReader[];
   canEdit: boolean;
   canDelete: boolean;
 }
@@ -121,12 +131,13 @@ export async function fetchBoardPost(
 
 export async function createBoardPost(
   boardType: BoardType,
-  payload: { title: string; content: string; files?: File[] },
+  payload: { title: string; content: string; files?: File[]; requiredReaderUserIds?: number[] },
 ): Promise<BoardPostDetail> {
   const form = new FormData();
   form.append('title', payload.title);
   form.append('content', payload.content);
   payload.files?.forEach((file) => form.append('files', file));
+  payload.requiredReaderUserIds?.forEach((id) => form.append('requiredReaderUserIds', String(id)));
   const res = await apiFetch(`/api/v1/boards/${boardType}/posts`, {
     method: 'POST',
     body: form,
@@ -152,11 +163,20 @@ export async function createBoardReply(
 export async function updateBoardPost(
   boardType: BoardType,
   postId: number,
-  payload: { title?: string; content?: string },
+  payload: {
+    title?: string;
+    content?: string;
+    requiredReaderUserIds?: number[];
+    updateRequiredReaders?: boolean;
+  },
 ): Promise<BoardPostDetail> {
   const form = new FormData();
   if (payload.title != null) form.append('title', payload.title);
   if (payload.content != null) form.append('content', payload.content);
+  if (payload.updateRequiredReaders) {
+    form.append('updateRequiredReaders', 'true');
+    payload.requiredReaderUserIds?.forEach((id) => form.append('requiredReaderUserIds', String(id)));
+  }
   const res = await apiFetch(`/api/v1/boards/${boardType}/posts/${postId}`, {
     method: 'PUT',
     body: form,

@@ -10,6 +10,8 @@ public interface SpringDataBoardPostReadRepository extends JpaRepository<BoardPo
 
     Optional<BoardPostReadJpaEntity> findByPostIdAndReaderUserId(long postId, long readerUserId);
 
+    List<BoardPostReadJpaEntity> findByPostId(long postId);
+
     @Query("""
             SELECT r.readerUserId, u.loginId, u.name, r.readAt
             FROM BoardPostReadJpaEntity r, UserJpaEntity u

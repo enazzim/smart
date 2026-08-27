@@ -5,10 +5,13 @@ import com.shindong.smartmanager.domain.board.BoardType;
 import com.shindong.smartmanager.domain.board.PostKind;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
 public class BoardPostService {
+
+    private static final String SYSTEM_ADMIN_ROLE = "SYSTEM_ADMIN";
 
     private static final List<BoardType> DASHBOARD_BOARD_TYPES = List.of(
             BoardType.NOTICE,
@@ -40,9 +43,11 @@ public class BoardPostService {
         return BoardEditorTemplates.DEFAULT_HTML_BODY;
     }
 
-    public BoardPostPageView list(BoardPostListCriteria criteria) {
-        List<BoardPostSummaryView> items = boardPostRepository.findActiveTopPosts(criteria).stream()
-                .map(post -> toSummary(post, hasAttachment(post.id())))
+    public BoardPostPageView list(BoardPostListCriteria criteria, long actorUserId) {
+        List<BoardPostRepository.BoardPostRecord> posts = boardPostRepository.findActiveTopPosts(criteria);
+        Set<Long> unreadRequiredIds = resolveUnreadRequiredPostIds(actorUserId, posts);
+        List<BoardPostSummaryView> items = posts.stream()
+                .map(post -> toSummary(post, hasAttachment(post.id()), unreadRequiredIds.contains(post.id())))
                 .toList();
         long total = boardPostRepository.countActiveTopPosts(criteria.boardType(), criteria.keyword());
         return new BoardPostPageView(items, total, criteria.page(), criteria.size());
@@ -69,6 +74,7 @@ public class BoardPostService {
             String actorUserId
     ) {
         validateTopPost(command);
+        assertNoticeWriteAllowed(command.boardType(), authorUserId);
         String content = normalizeContent(command.content());
         long postId = boardPostRepository.saveTopPost(
                 command.boardType(),
@@ -80,6 +86,12 @@ public class BoardPostService {
         );
         boardPostRepository.updateThreadRootId(postId, postId);
         saveUploadFiles(command.boardType(), postId, uploadFiles);
+        if (command.boardType() == BoardType.NOTICE) {
+            boardPostRepository.replaceRequiredReaders(
+                    postId,
+                    normalizeRequiredReaderIds(command.requiredReaderUserIds(), authorUserId)
+            );
+        }
         return getDetail(postId, authorUserId, false);
     }
 
@@ -92,6 +104,7 @@ public class BoardPostService {
             String actorUserId
     ) {
         BoardPostRepository.BoardPostRecord parent = findActivePost(parentPostId);
+        assertNoticeWriteAllowed(parent.boardType(), authorUserId);
         String content = normalizeContent(command.content());
         if (content.isBlank()) {
             throw new IllegalArgumentException("답글 내용을 입력하세요.");
@@ -111,6 +124,7 @@ public class BoardPostService {
             long postId,
             String title,
             String content,
+            List<Long> requiredReaderUserIds,
             long actorUserId,
             boolean moderator,
             String actorLoginId,
@@ -123,6 +137,12 @@ public class BoardPostService {
                 throw new IllegalArgumentException("제목을 입력하세요.");
             }
             boardPostRepository.updatePost(postId, title.trim(), normalizeContent(content), actorLoginId, actorUserIdText);
+            if (post.boardType() == BoardType.NOTICE && requiredReaderUserIds != null) {
+                boardPostRepository.replaceRequiredReaders(
+                        postId,
+                        normalizeRequiredReaderIds(requiredReaderUserIds, actorUserId)
+                );
+            }
         } else {
             boardPostRepository.updatePost(postId, post.title(), normalizeContent(content), actorLoginId, actorUserIdText);
         }
@@ -208,15 +228,24 @@ public class BoardPostService {
         );
     }
 
-    public List<DashboardWidgetView> dashboardWidgets(int limit) {
+    public List<DashboardWidgetView> dashboardWidgets(int limit, long actorUserId) {
         return DASHBOARD_BOARD_TYPES.stream()
-                .map(boardType -> new DashboardWidgetView(
-                        boardType,
-                        boardType.displayTitle(),
-                        boardPostRepository.findRecentTopPosts(boardType, limit).stream()
-                                .map(post -> toSummary(post, hasAttachment(post.id())))
-                                .toList()
-                ))
+                .map(boardType -> {
+                    List<BoardPostRepository.BoardPostRecord> posts =
+                            boardPostRepository.findRecentTopPosts(boardType, limit);
+                    Set<Long> unreadRequiredIds = resolveUnreadRequiredPostIds(actorUserId, posts);
+                    return new DashboardWidgetView(
+                            boardType,
+                            boardType.displayTitle(),
+                            posts.stream()
+                                    .map(post -> toSummary(
+                                            post,
+                                            hasAttachment(post.id()),
+                                            unreadRequiredIds.contains(post.id())
+                                    ))
+                                    .toList()
+                    );
+                })
                 .toList();
     }
 
@@ -264,7 +293,8 @@ public class BoardPostService {
                     .map(reply -> toDetail(reply, actorUserId, false))
                     .toList();
         }
-        List<BoardPostReaderView> readers = resolveReaders(post);
+        List<BoardPostRequiredReaderView> requiredReaders = resolveRequiredReaders(post);
+        List<BoardPostReaderView> readers = requiredReaders.isEmpty() ? resolveReaders(post) : List.of();
         boolean canModify = isAuthor(post, actorUserId);
         return new BoardPostDetailView(
                 post.id(),
@@ -283,6 +313,7 @@ public class BoardPostService {
                 attachments,
                 replies,
                 readers,
+                requiredReaders,
                 canModify,
                 canModify
         );
@@ -314,11 +345,73 @@ public class BoardPostService {
                 .toList();
     }
 
+    private List<BoardPostRequiredReaderView> resolveRequiredReaders(BoardPostRepository.BoardPostRecord post) {
+        if (post.boardType() != BoardType.NOTICE || post.postKind() != PostKind.TOP) {
+            return List.of();
+        }
+        return boardPostRepository.findRequiredReaders(post.id()).stream()
+                .map(reader -> new BoardPostRequiredReaderView(
+                        reader.userId(),
+                        reader.loginId() != null ? reader.loginId() : "",
+                        reader.name() != null ? reader.name() : "",
+                        reader.readAt(),
+                        reader.read()
+                ))
+                .toList();
+    }
+
+    private Set<Long> resolveUnreadRequiredPostIds(
+            long actorUserId,
+            List<BoardPostRepository.BoardPostRecord> posts
+    ) {
+        List<Long> noticeIds = posts.stream()
+                .filter(post -> post.boardType() == BoardType.NOTICE && post.postKind() == PostKind.TOP)
+                .map(BoardPostRepository.BoardPostRecord::id)
+                .toList();
+        if (noticeIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(boardPostRepository.findUnreadRequiredPostIds(actorUserId, noticeIds));
+    }
+
+    private List<Long> normalizeRequiredReaderIds(List<Long> rawIds, long authorUserId) {
+        if (rawIds == null || rawIds.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> unique = new HashSet<>();
+        for (Long userId : rawIds) {
+            if (userId == null || userId == authorUserId) {
+                continue;
+            }
+            if (userRepository.findActiveById(userId).isEmpty()) {
+                throw new IllegalArgumentException("필수 열람 대상 사용자를 찾을 수 없습니다: " + userId);
+            }
+            unique.add(userId);
+        }
+        return List.copyOf(unique);
+    }
+
+    private void assertNoticeWriteAllowed(BoardType boardType, long authorUserId) {
+        if (boardType != BoardType.NOTICE) {
+            return;
+        }
+        boolean systemAdmin = userRepository.findActiveById(authorUserId)
+                .map(user -> user.roleCodes().contains(SYSTEM_ADMIN_ROLE))
+                .orElse(false);
+        if (!systemAdmin) {
+            throw new IllegalStateException("공지사항은 시스템 관리자만 작성할 수 있습니다.");
+        }
+    }
+
     private boolean isAuthor(BoardPostRepository.BoardPostRecord post, long actorUserId) {
         return post.authorUserId() != null && post.authorUserId() == actorUserId;
     }
 
-    private BoardPostSummaryView toSummary(BoardPostRepository.BoardPostRecord post, boolean hasAttachment) {
+    private BoardPostSummaryView toSummary(
+            BoardPostRepository.BoardPostRecord post,
+            boolean hasAttachment,
+            boolean myRequiredUnread
+    ) {
         return new BoardPostSummaryView(
                 post.id(),
                 post.boardType(),
@@ -328,6 +421,7 @@ public class BoardPostService {
                 post.viewCount(),
                 post.pinned(),
                 hasAttachment,
+                myRequiredUnread,
                 post.createdAt()
         );
     }

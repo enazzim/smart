@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Archive, ArrowRightCircle, Eye, Link2, ListPlus, Plus, RefreshCw, RotateCcw, Trash2, X } from 'lucide-react';
+import { Archive, ArrowRightCircle, Eye, Link2, ListPlus, PanelLeftClose, PanelLeftOpen, Plus, RefreshCw, RotateCcw, Trash2, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   drawingPdfUrl,
@@ -115,6 +115,7 @@ export default function DrawingViewerModal({
   const [histories, setHistories] = useState<DrawingHistoryItem[]>([]);
   const [selectedHistory, setSelectedHistory] = useState<DrawingHistoryItem | null>(null);
   const [panel, setPanel] = useState<ViewerPanel>('pdf');
+  const [historySidebarCollapsed, setHistorySidebarCollapsed] = useState(true);
   const [references, setReferences] = useState<DrawingReferenceItem[]>([]);
   const [whereUsed, setWhereUsed] = useState<DrawingWhereUsedItem[]>([]);
   const [candidates, setCandidates] = useState<DrawingReferenceCandidate[]>([]);
@@ -200,6 +201,7 @@ export default function DrawingViewerModal({
       return;
     }
     setPanel('pdf');
+    setHistorySidebarCollapsed(true);
     setPeerPdf(null);
     setSelectedHistory(null);
     setReferences([]);
@@ -213,6 +215,12 @@ export default function DrawingViewerModal({
     reloadHistories();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open/masterId 전환 시에만 초기 로드
   }, [open, masterId]);
+
+  useEffect(() => {
+    if (panel !== 'pdf') {
+      setHistorySidebarCollapsed(false);
+    }
+  }, [panel]);
 
   useEffect(() => {
     if (!open || !selectedHistory) {
@@ -710,9 +718,24 @@ export default function DrawingViewerModal({
             </button>
           </div>
 
-          <div className="drawing-viewer-body">
+          <div
+            className={`drawing-viewer-body${panel === 'pdf' && historySidebarCollapsed ? ' drawing-viewer-body--history-collapsed' : ''}`}
+          >
             <aside className="drawing-history-sidebar">
-              <h3>개정 이력 (최신순)</h3>
+              <div className="drawing-history-sidebar__header">
+                <h3>개정 이력 (최신순)</h3>
+                {panel === 'pdf' && (
+                  <button
+                    type="button"
+                    className="drawing-history-sidebar__collapse"
+                    title="개정 이력 접기"
+                    aria-label="개정 이력 접기"
+                    onClick={() => setHistorySidebarCollapsed(true)}
+                  >
+                    <PanelLeftClose size={16} />
+                  </button>
+                )}
+              </div>
               {historyHighlightQuery ? (
                 <p className="hint-text">AS 검색어 「{historyHighlightQuery}」와 일치하는 이력이 강조됩니다.</p>
               ) : (
@@ -741,6 +764,19 @@ export default function DrawingViewerModal({
             </aside>
 
             <div className="drawing-viewer-main">
+              {panel === 'pdf' && historySidebarCollapsed && (
+                <button
+                  type="button"
+                  className="drawing-history-toggle"
+                  title="개정 이력 펼치기"
+                  aria-label="개정 이력 펼치기"
+                  aria-expanded={false}
+                  onClick={() => setHistorySidebarCollapsed(false)}
+                >
+                  <PanelLeftOpen size={16} />
+                  <span>이력</span>
+                </button>
+              )}
               {panel === 'pdf' &&
                 (selectedHistory ? (
                   <PdfViewer

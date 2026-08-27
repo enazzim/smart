@@ -8,8 +8,12 @@ import com.shindong.smartmanager.application.board.BoardPostRepository;
 import com.shindong.smartmanager.domain.board.BoardType;
 import com.shindong.smartmanager.domain.board.PostKind;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,17 +24,20 @@ public class JpaBoardPostRepository implements BoardPostRepository {
     private final SpringDataBoardPostRepository boardPostRepository;
     private final SpringDataBoardAttachmentRepository boardAttachmentRepository;
     private final SpringDataBoardPostReadRepository boardPostReadRepository;
+    private final SpringDataBoardPostRequiredReaderRepository boardPostRequiredReaderRepository;
     private final MasterAuditActorLookup masterAuditActorLookup;
 
     public JpaBoardPostRepository(
             SpringDataBoardPostRepository boardPostRepository,
             SpringDataBoardAttachmentRepository boardAttachmentRepository,
             SpringDataBoardPostReadRepository boardPostReadRepository,
+            SpringDataBoardPostRequiredReaderRepository boardPostRequiredReaderRepository,
             MasterAuditActorLookup masterAuditActorLookup
     ) {
         this.boardPostRepository = boardPostRepository;
         this.boardAttachmentRepository = boardAttachmentRepository;
         this.boardPostReadRepository = boardPostReadRepository;
+        this.boardPostRequiredReaderRepository = boardPostRequiredReaderRepository;
         this.masterAuditActorLookup = masterAuditActorLookup;
     }
 
@@ -146,6 +153,53 @@ public class JpaBoardPostRepository implements BoardPostRepository {
                         (Instant) row[3]
                 ))
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public void replaceRequiredReaders(long postId, List<Long> userIds) {
+        boardPostRequiredReaderRepository.deleteByPostId(postId);
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+        Set<Long> unique = new HashSet<>(userIds);
+        for (Long userId : unique) {
+            if (userId == null) {
+                continue;
+            }
+            boardPostRequiredReaderRepository.save(new BoardPostRequiredReaderJpaEntity(postId, userId));
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BoardPostRequiredReaderRecord> findRequiredReaders(long postId) {
+        Map<Long, Instant> readAtByUser = new HashMap<>();
+        for (BoardPostReadJpaEntity read : boardPostReadRepository.findByPostId(postId)) {
+            readAtByUser.put(read.getReaderUserId(), read.getReadAt());
+        }
+        return boardPostRequiredReaderRepository.findRequiredActiveUsers(postId).stream()
+                .map(row -> {
+                    long userId = ((Number) row[0]).longValue();
+                    Instant readAt = readAtByUser.get(userId);
+                    return new BoardPostRequiredReaderRecord(
+                            userId,
+                            (String) row[1],
+                            (String) row[2],
+                            readAt,
+                            readAt != null
+                    );
+                })
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> findUnreadRequiredPostIds(long userId, List<Long> postIds) {
+        if (postIds == null || postIds.isEmpty()) {
+            return List.of();
+        }
+        return boardPostRequiredReaderRepository.findUnreadRequiredPostIds(userId, postIds);
     }
 
     @Override
