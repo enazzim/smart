@@ -8,6 +8,7 @@ public record SalesRevenueListCriteria(
         LocalDate revenueDateTo,
         String revenueNo,
         String partnerName,
+        Long itemId,
         SalesRevenueStatus status,
         boolean excludeCancelled
 ) {

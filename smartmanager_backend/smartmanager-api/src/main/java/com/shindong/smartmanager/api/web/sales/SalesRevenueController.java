@@ -44,10 +44,11 @@ public class SalesRevenueController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate shipmentDateTo,
             @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) String itemNum,
-            @RequestParam(required = false) String itemName
+            @RequestParam(required = false) String itemName,
+            @RequestParam(required = false) Long itemId
     ) {
         return salesRevenueApplicationService.listCandidates(new SalesRevenueCandidateCriteria(
-                partnerName, shipmentNo, shipmentDateFrom, shipmentDateTo, orderNo, itemNum, itemName
+                partnerName, shipmentNo, shipmentDateFrom, shipmentDateTo, orderNo, itemNum, itemName, itemId
         )).stream().map(SalesRevenueCandidateResponse::from).toList();
     }
 
@@ -58,6 +59,7 @@ public class SalesRevenueController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate revenueDateTo,
             @RequestParam(required = false) String revenueNo,
             @RequestParam(required = false) String partnerName,
+            @RequestParam(required = false) Long itemId,
             @RequestParam(required = false) SalesRevenueStatus status,
             @RequestParam(defaultValue = "true") boolean excludeCancelled
     ) {
@@ -66,6 +68,7 @@ public class SalesRevenueController {
                 revenueDateTo,
                 revenueNo,
                 partnerName,
+                itemId,
                 status,
                 excludeCancelled
         )).stream().map(SalesRevenueResponse::from).toList();

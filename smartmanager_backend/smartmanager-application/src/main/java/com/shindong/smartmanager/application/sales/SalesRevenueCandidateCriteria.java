@@ -9,6 +9,7 @@ public record SalesRevenueCandidateCriteria(
         LocalDate shipmentDateTo,
         String orderNo,
         String itemNum,
-        String itemName
+        String itemName,
+        Long itemId
 ) {
 }

@@ -128,6 +128,10 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
                 sql.append(" AND i.item_name LIKE :itemName");
                 params.put("itemName", "%" + criteria.itemName().trim() + "%");
             }
+            if (criteria.itemId() != null) {
+                sql.append(" AND shl.item_id = :itemId");
+                params.put("itemId", criteria.itemId());
+            }
         }
         sql.append(" ORDER BY ss.shipment_date DESC, ss.shipment_no, shl.line_no");
 
@@ -284,6 +288,7 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
             );
         }
         return rows.stream()
+                .filter(entity -> matchesItemId(entity, criteria))
                 .map(this::toView)
                 .filter(view -> matchesPartnerName(view, criteria))
                 .toList();
@@ -369,6 +374,17 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
         }
         String needle = criteria.partnerName().trim().toLowerCase();
         return view.partnerName().toLowerCase().contains(needle);
+    }
+
+    private boolean matchesItemId(SalesRevenueJpaEntity entity, SalesRevenueListCriteria criteria) {
+        if (criteria == null || criteria.itemId() == null) {
+            return true;
+        }
+        long itemId = criteria.itemId();
+        return revenueLineRepository
+                .findBySalesRevenueIdAndRecordingStateOrderByLineNoAsc(entity.getId(), ACTIVE)
+                .stream()
+                .anyMatch(line -> line.getItemId() == itemId);
     }
 
     private String normalize(String value) {

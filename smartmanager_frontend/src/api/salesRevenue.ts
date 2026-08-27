@@ -58,12 +58,9 @@ export interface SalesRevenue {
 
 export interface SalesRevenueCandidateParams {
   partnerName?: string;
-  shipmentNo?: string;
   shipmentDateFrom?: string;
   shipmentDateTo?: string;
-  orderNo?: string;
-  itemNum?: string;
-  itemName?: string;
+  itemId?: number;
 }
 
 export interface SalesRevenueListParams {
@@ -71,6 +68,7 @@ export interface SalesRevenueListParams {
   revenueDateTo?: string;
   revenueNo?: string;
   partnerName?: string;
+  itemId?: number;
   status?: SalesRevenueStatus;
   excludeCancelled?: boolean;
 }
@@ -79,12 +77,9 @@ function buildCandidateQuery(params?: SalesRevenueCandidateParams): string {
   if (!params) return '';
   const search = new URLSearchParams();
   if (params.partnerName?.trim()) search.set('partnerName', params.partnerName.trim());
-  if (params.shipmentNo?.trim()) search.set('shipmentNo', params.shipmentNo.trim());
   if (params.shipmentDateFrom) search.set('shipmentDateFrom', params.shipmentDateFrom);
   if (params.shipmentDateTo) search.set('shipmentDateTo', params.shipmentDateTo);
-  if (params.orderNo?.trim()) search.set('orderNo', params.orderNo.trim());
-  if (params.itemNum?.trim()) search.set('itemNum', params.itemNum.trim());
-  if (params.itemName?.trim()) search.set('itemName', params.itemName.trim());
+  if (params.itemId) search.set('itemId', String(params.itemId));
   const query = search.toString();
   return query ? `?${query}` : '';
 }
@@ -96,6 +91,7 @@ function buildListQuery(params?: SalesRevenueListParams): string {
   if (params.revenueDateTo) search.set('revenueDateTo', params.revenueDateTo);
   if (params.revenueNo?.trim()) search.set('revenueNo', params.revenueNo.trim());
   if (params.partnerName?.trim()) search.set('partnerName', params.partnerName.trim());
+  if (params.itemId) search.set('itemId', String(params.itemId));
   if (params.status) search.set('status', params.status);
   if (params.excludeCancelled !== undefined) search.set('excludeCancelled', String(params.excludeCancelled));
   const query = search.toString();

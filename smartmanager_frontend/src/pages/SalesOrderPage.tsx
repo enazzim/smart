@@ -35,6 +35,9 @@ import { useConfirm } from '../context/ConfirmContext';
 
 const SALES_ITEM_CLASSES: PropertyClassification[] = ['상품', '제품', '공정품'];
 
+const DEFAULT_SEARCH_FULFILLMENT_STATUS: SalesLineFulfillmentStatus = 'WAITING';
+const DEFAULT_SEARCH_DELIVERY_STATUS: SalesLineDeliveryStatus = 'NOT_STARTED';
+
 const FULFILLMENT_STATUS_OPTIONS: { value: SalesLineFulfillmentStatus | ''; label: string }[] = [
   { value: '', label: '전체' },
   { value: 'WAITING', label: '대기' },
@@ -132,8 +135,12 @@ export default function SalesOrderPage() {
   const [searchItem, setSearchItem] = useState<ItemSearchSelection | null>(null);
   const [searchDeliveryFrom, setSearchDeliveryFrom] = useState('');
   const [searchDeliveryTo, setSearchDeliveryTo] = useState('');
-  const [searchFulfillmentStatus, setSearchFulfillmentStatus] = useState<SalesLineFulfillmentStatus | ''>('');
-  const [searchDeliveryStatus, setSearchDeliveryStatus] = useState<SalesLineDeliveryStatus | ''>('');
+  const [searchFulfillmentStatus, setSearchFulfillmentStatus] = useState<SalesLineFulfillmentStatus | ''>(
+    DEFAULT_SEARCH_FULFILLMENT_STATUS,
+  );
+  const [searchDeliveryStatus, setSearchDeliveryStatus] = useState<SalesLineDeliveryStatus | ''>(
+    DEFAULT_SEARCH_DELIVERY_STATUS,
+  );
   const [partner, setPartner] = useState<CompanySearchSelection | null>(null);
   const [partnerPriceItems, setPartnerPriceItems] = useState<PartnerPriceItem[]>([]);
   const partnerItemOptions = useMemo(
@@ -147,7 +154,8 @@ export default function SalesOrderPage() {
   const [remark, setRemark] = useState('');
   const [lines, setLines] = useState<LineForm[]>([emptyLine()]);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
@@ -201,11 +209,13 @@ export default function SalesOrderPage() {
     async (override?: SalesOrderLineSearchParams) => {
       setLoading(true);
       setListError(null);
+      setHasSearched(true);
       try {
         const params = override ?? buildSearchParams();
         setLineRows(await fetchSalesOrderLines(params));
       } catch (e) {
         setListError(e instanceof Error ? e.message : '수주 목록 조회 실패');
+        setLineRows([]);
       } finally {
         setLoading(false);
       }
@@ -222,9 +232,11 @@ export default function SalesOrderPage() {
     setSearchItem(null);
     setSearchDeliveryFrom('');
     setSearchDeliveryTo('');
-    setSearchFulfillmentStatus('');
-    setSearchDeliveryStatus('');
-    void loadLineList({});
+    setSearchFulfillmentStatus(DEFAULT_SEARCH_FULFILLMENT_STATUS);
+    setSearchDeliveryStatus(DEFAULT_SEARCH_DELIVERY_STATUS);
+    setLineRows([]);
+    setListError(null);
+    setHasSearched(false);
   };
 
   const load = loadLineList;
@@ -246,20 +258,6 @@ export default function SalesOrderPage() {
     } catch {
       setOrderNo('');
     }
-  }, []);
-
-  useEffect(() => {
-    void (async () => {
-      setLoading(true);
-      setListError(null);
-      try {
-        setLineRows(await fetchSalesOrderLines({}));
-      } catch (e) {
-        setListError(e instanceof Error ? e.message : '수주 목록 조회 실패');
-      } finally {
-        setLoading(false);
-      }
-    })();
   }, []);
 
   useEffect(() => {
@@ -871,8 +869,10 @@ export default function SalesOrderPage() {
 
         {loading ? (
           <p className="hint-text">불러오는 중…</p>
+        ) : !hasSearched ? (
+          <p className="hint-text">검색 조건을 입력한 뒤 검색을 눌러 주세요.</p>
         ) : lineRows.length === 0 ? (
-          <p className="ui-empty">등록된 수주가 없습니다.</p>
+          <p className="ui-empty">조회 결과가 없습니다.</p>
         ) : (
           <div className="ui-table-wrap">
             <table>

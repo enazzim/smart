@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   cancelSalesCollection,
   createSalesCollection,
@@ -21,10 +21,20 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function addDaysIso(iso: string, days: number): string {
-  const date = new Date(`${iso}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+type CollectionListSearchForm = {
+  collectionDateFrom: string;
+  collectionDateTo: string;
+  partnerName: string;
+  collectionNo: string;
+};
+
+function emptyCollectionListSearch(): CollectionListSearchForm {
+  return {
+    collectionDateFrom: '',
+    collectionDateTo: '',
+    partnerName: '',
+    collectionNo: '',
+  };
 }
 
 function parseAmount(value: string): number | null {
@@ -38,12 +48,10 @@ export default function SalesCollectionPage() {
   const confirm = useConfirm();
   const [candidates, setCandidates] = useState<SalesCollectionCandidate[]>([]);
   const [collections, setCollections] = useState<SalesCollection[]>([]);
-  const [filters, setFilters] = useState<SalesCollectionCandidateParams>({});
-  const [listFilters, setListFilters] = useState<SalesCollectionListParams>(() => ({
-    collectionDateFrom: addDaysIso(todayIso(), -30),
-    collectionDateTo: todayIso(),
-    excludeCancelled: true,
-  }));
+  const [candidateSearchPartnerName, setCandidateSearchPartnerName] = useState('');
+  const [hasSearchedCandidates, setHasSearchedCandidates] = useState(false);
+  const [listSearch, setListSearch] = useState<CollectionListSearchForm>(() => emptyCollectionListSearch());
+  const [hasSearchedList, setHasSearchedList] = useState(false);
   const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null);
   const [collectionDate, setCollectionDate] = useState(todayIso());
   const [supplyAmount, setSupplyAmount] = useState('');
@@ -51,46 +59,71 @@ export default function SalesCollectionPage() {
   const [totalAmountInput, setTotalAmountInput] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('계좌이체');
   const [remark, setRemark] = useState('');
-  const [loadingCandidates, setLoadingCandidates] = useState(true);
-  const [loadingCollections, setLoadingCollections] = useState(true);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [loadingCollections, setLoadingCollections] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [collectionError, setCollectionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const loadCandidates = useCallback(async () => {
+  const loadCandidates = useCallback(async (partnerName?: string) => {
     setLoadingCandidates(true);
     setCandidateError(null);
+    setHasSearchedCandidates(true);
     try {
-      setCandidates(await fetchSalesCollectionCandidates(filters));
+      const trimmed = partnerName?.trim();
+      const params: SalesCollectionCandidateParams = trimmed ? { partnerName: trimmed } : {};
+      setCandidates(await fetchSalesCollectionCandidates(params));
     } catch (e) {
       setCandidateError(e instanceof Error ? e.message : '미수 후보 조회 실패');
       setCandidates([]);
     } finally {
       setLoadingCandidates(false);
     }
-  }, [filters]);
+  }, []);
 
-  const loadCollections = useCallback(async () => {
-    setLoadingCollections(true);
+  const buildListParams = useCallback(
+    (): SalesCollectionListParams => ({
+      collectionDateFrom: listSearch.collectionDateFrom || undefined,
+      collectionDateTo: listSearch.collectionDateTo || undefined,
+      partnerName: listSearch.partnerName || undefined,
+      collectionNo: listSearch.collectionNo || undefined,
+      excludeCancelled: true,
+    }),
+    [listSearch],
+  );
+
+  const loadCollections = useCallback(
+    async (override?: SalesCollectionListParams) => {
+      setLoadingCollections(true);
+      setCollectionError(null);
+      setHasSearchedList(true);
+      try {
+        setCollections(await fetchSalesCollections(override ?? buildListParams()));
+      } catch (e) {
+        setCollectionError(e instanceof Error ? e.message : '수금 목록 조회 실패');
+        setCollections([]);
+      } finally {
+        setLoadingCollections(false);
+      }
+    },
+    [buildListParams],
+  );
+
+  const handleSearchCandidates = () => {
+    void loadCandidates(candidateSearchPartnerName);
+  };
+
+  const handleSearchList = () => {
+    void loadCollections(buildListParams());
+  };
+
+  const handleResetListSearch = () => {
+    setListSearch(emptyCollectionListSearch());
+    setCollections([]);
     setCollectionError(null);
-    try {
-      setCollections(await fetchSalesCollections(listFilters));
-    } catch (e) {
-      setCollectionError(e instanceof Error ? e.message : '수금 목록 조회 실패');
-      setCollections([]);
-    } finally {
-      setLoadingCollections(false);
-    }
-  }, [listFilters]);
-
-  useEffect(() => {
-    void loadCandidates();
-  }, [loadCandidates]);
-
-  useEffect(() => {
-    void loadCollections();
-  }, [loadCollections]);
+    setHasSearchedList(false);
+  };
 
   const selectedCandidate = useMemo(
     () => candidates.find((row) => row.partnerId === selectedPartnerId) ?? null,
@@ -206,8 +239,12 @@ export default function SalesCollectionPage() {
       setVatAmount('0');
       setTotalAmountInput('');
       setRemark('');
-      await loadCandidates();
-      await loadCollections();
+      if (hasSearchedCandidates) {
+        await loadCandidates(candidateSearchPartnerName);
+      }
+      if (hasSearchedList) {
+        await loadCollections();
+      }
     } catch (e) {
       setCollectionError(e instanceof Error ? e.message : '수금 등록 실패');
     } finally {
@@ -222,8 +259,12 @@ export default function SalesCollectionPage() {
     try {
       await cancelSalesCollection(collection.id);
       setMessage(`수금 ${collection.collectionNo}을(를) 취소했습니다.`);
-      await loadCandidates();
-      await loadCollections();
+      if (hasSearchedCandidates) {
+        await loadCandidates(candidateSearchPartnerName);
+      }
+      if (hasSearchedList) {
+        await loadCollections();
+      }
     } catch (e) {
       setCollectionError(e instanceof Error ? e.message : '수금 취소 실패');
     } finally {
@@ -248,16 +289,18 @@ export default function SalesCollectionPage() {
             거래처
             <input
               type="text"
-              value={filters.partnerName ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, partnerName: e.target.value }))}
+              value={candidateSearchPartnerName}
+              onChange={(e) => setCandidateSearchPartnerName(e.target.value)}
             />
           </label>
-          <button type="button" className="secondary" onClick={() => void loadCandidates()} disabled={loadingCandidates}>
+          <button type="button" className="secondary" onClick={handleSearchCandidates} disabled={loadingCandidates}>
             조회
           </button>
         </div>
         {loadingCandidates ? (
           <p>불러오는 중…</p>
+        ) : !hasSearchedCandidates ? (
+          <p className="hint">거래처를 입력하거나 비운 뒤 조회를 눌러 주세요.</p>
         ) : candidateError ? (
           <p className="error-banner">{candidateError}</p>
         ) : candidates.length === 0 ? (
@@ -396,42 +439,47 @@ export default function SalesCollectionPage() {
             수금일 From
             <input
               type="date"
-              value={listFilters.collectionDateFrom ?? ''}
-              onChange={(e) => setListFilters((f) => ({ ...f, collectionDateFrom: e.target.value }))}
+              value={listSearch.collectionDateFrom}
+              onChange={(e) => setListSearch((f) => ({ ...f, collectionDateFrom: e.target.value }))}
             />
           </label>
           <label>
             To
             <input
               type="date"
-              value={listFilters.collectionDateTo ?? ''}
-              onChange={(e) => setListFilters((f) => ({ ...f, collectionDateTo: e.target.value }))}
+              value={listSearch.collectionDateTo}
+              onChange={(e) => setListSearch((f) => ({ ...f, collectionDateTo: e.target.value }))}
             />
           </label>
           <label>
             거래처
             <input
               type="text"
-              value={listFilters.partnerName ?? ''}
-              onChange={(e) => setListFilters((f) => ({ ...f, partnerName: e.target.value }))}
+              value={listSearch.partnerName}
+              onChange={(e) => setListSearch((f) => ({ ...f, partnerName: e.target.value }))}
             />
           </label>
           <label>
             수금번호
             <input
               type="text"
-              value={listFilters.collectionNo ?? ''}
-              onChange={(e) => setListFilters((f) => ({ ...f, collectionNo: e.target.value }))}
+              value={listSearch.collectionNo}
+              onChange={(e) => setListSearch((f) => ({ ...f, collectionNo: e.target.value }))}
             />
           </label>
-          <button type="button" className="secondary" onClick={() => void loadCollections()}>
+          <button type="button" className="secondary" onClick={handleSearchList} disabled={loadingCollections}>
             조회
+          </button>
+          <button type="button" className="secondary" onClick={handleResetListSearch} disabled={loadingCollections}>
+            초기화
           </button>
         </div>
         {loadingCollections ? (
           <p>불러오는 중…</p>
+        ) : !hasSearchedList ? (
+          <p className="hint">검색 조건을 입력한 뒤 조회를 눌러 주세요.</p>
         ) : collections.length === 0 ? (
-          <p className="hint">수금 내역이 없습니다.</p>
+          <p className="hint">조회 결과가 없습니다.</p>
         ) : (
           <div className="table-wrap">
             <table>

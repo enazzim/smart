@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   cancelSalesRevenue,
   createSalesRevenue,
@@ -12,17 +12,45 @@ import {
 import { fetchAvailableLots, type LotRow } from '../api/lot';
 import { INVENTORY_LOCATION_LABEL, translateInventoryLocationInText } from '../utils/inventoryLocation';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import type { PropertyClassification } from '../api/item';
 import { formatAmount, formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+const REVENUE_ITEM_CLASSES: PropertyClassification[] = ['제품', '상품', '공정품', '부자재', '팬텀'];
+
+type CandidateSearchForm = {
+  partnerName: string;
+  shipmentDateFrom: string;
+  shipmentDateTo: string;
+};
+
+function emptyCandidateSearch(): CandidateSearchForm {
+  return {
+    partnerName: '',
+    shipmentDateFrom: '',
+    shipmentDateTo: '',
+  };
 }
 
-function addDaysIso(iso: string, days: number): string {
-  const date = new Date(`${iso}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+type RevenueListSearchForm = {
+  revenueDateFrom: string;
+  revenueDateTo: string;
+  partnerName: string;
+  revenueNo: string;
+};
+
+function emptyRevenueListSearch(): RevenueListSearchForm {
+  return {
+    revenueDateFrom: '',
+    revenueDateTo: '',
+    partnerName: '',
+    revenueNo: '',
+  };
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function parseQty(value: string): number | null {
@@ -39,21 +67,20 @@ export default function SalesRevenuePage() {
   const [candidates, setCandidates] = useState<SalesRevenueCandidate[]>([]);
   const [revenues, setRevenues] = useState<SalesRevenue[]>([]);
   const [revenueDate, setRevenueDate] = useState(todayIso());
-  const [filters, setFilters] = useState<SalesRevenueCandidateParams>(() => ({
-    shipmentDateFrom: addDaysIso(todayIso(), -30),
-    shipmentDateTo: todayIso(),
-  }));
-  const [listFilters, setListFilters] = useState<SalesRevenueListParams>(() => ({
-    revenueDateFrom: addDaysIso(todayIso(), -30),
-    revenueDateTo: todayIso(),
-    excludeCancelled: true,
-  }));
+  const [candidateSearch, setCandidateSearch] = useState<CandidateSearchForm>(() => emptyCandidateSearch());
+  const [candidateSearchItem, setCandidateSearchItem] = useState<ItemSearchSelection | null>(null);
+  const [candidateItemClearToken, setCandidateItemClearToken] = useState(0);
+  const [hasSearchedCandidates, setHasSearchedCandidates] = useState(false);
+  const [listSearch, setListSearch] = useState<RevenueListSearchForm>(() => emptyRevenueListSearch());
+  const [listSearchItem, setListSearchItem] = useState<ItemSearchSelection | null>(null);
+  const [listItemClearToken, setListItemClearToken] = useState(0);
+  const [hasSearchedList, setHasSearchedList] = useState(false);
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
   const [revenueQtyByLineId, setRevenueQtyByLineId] = useState<Record<number, string>>({});
   const [lotIdByLineId, setLotIdByLineId] = useState<Record<number, number | null>>({});
   const [lotsByLineId, setLotsByLineId] = useState<Record<number, LotRow[]>>({});
-  const [loadingCandidates, setLoadingCandidates] = useState(true);
-  const [loadingRevenues, setLoadingRevenues] = useState(true);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [loadingRevenues, setLoadingRevenues] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [revenueError, setRevenueError] = useState<string | null>(null);
@@ -73,49 +100,101 @@ export default function SalesRevenuePage() {
     [revenues],
   );
 
-  const loadCandidates = useCallback(async () => {
-    setLoadingCandidates(true);
-    setCandidateError(null);
-    try {
-      const rows = await fetchSalesRevenueCandidates(filters);
-      setCandidates(rows);
-      setRevenueQtyByLineId((prev) => {
-        const next = { ...prev };
-        for (const row of rows) {
-          if (next[row.shipmentLineId] === undefined) {
-            next[row.shipmentLineId] = String(row.remainingQty);
+  const buildCandidateParams = useCallback(
+    (): SalesRevenueCandidateParams => ({
+      partnerName: candidateSearch.partnerName || undefined,
+      shipmentDateFrom: candidateSearch.shipmentDateFrom || undefined,
+      shipmentDateTo: candidateSearch.shipmentDateTo || undefined,
+      itemId: candidateSearchItem?.id,
+    }),
+    [candidateSearch, candidateSearchItem],
+  );
+
+  const loadCandidates = useCallback(
+    async (override?: SalesRevenueCandidateParams) => {
+      setLoadingCandidates(true);
+      setCandidateError(null);
+      setHasSearchedCandidates(true);
+      try {
+        const rows = await fetchSalesRevenueCandidates(override ?? buildCandidateParams());
+        setCandidates(rows);
+        setSelectedLineIds(new Set());
+        setLotIdByLineId({});
+        setRevenueQtyByLineId((prev) => {
+          const next = { ...prev };
+          for (const row of rows) {
+            if (next[row.shipmentLineId] === undefined) {
+              next[row.shipmentLineId] = String(row.remainingQty);
+            }
           }
-        }
-        return next;
-      });
-    } catch (e) {
-      setCandidateError(e instanceof Error ? e.message : '매출 후보 조회 실패');
-      setCandidates([]);
-    } finally {
-      setLoadingCandidates(false);
-    }
-  }, [filters]);
+          return next;
+        });
+      } catch (e) {
+        setCandidateError(e instanceof Error ? e.message : '매출 후보 조회 실패');
+        setCandidates([]);
+      } finally {
+        setLoadingCandidates(false);
+      }
+    },
+    [buildCandidateParams],
+  );
 
-  const loadRevenues = useCallback(async () => {
-    setLoadingRevenues(true);
+  const handleSearchCandidates = () => {
+    void loadCandidates(buildCandidateParams());
+  };
+
+  const handleResetCandidateSearch = () => {
+    setCandidateSearch(emptyCandidateSearch());
+    setCandidateSearchItem(null);
+    setCandidateItemClearToken((token) => token + 1);
+    setCandidates([]);
+    setSelectedLineIds(new Set());
+    setLotIdByLineId({});
+    setCandidateError(null);
+    setHasSearchedCandidates(false);
+  };
+
+  const buildListParams = useCallback(
+    (): SalesRevenueListParams => ({
+      revenueDateFrom: listSearch.revenueDateFrom || undefined,
+      revenueDateTo: listSearch.revenueDateTo || undefined,
+      partnerName: listSearch.partnerName || undefined,
+      revenueNo: listSearch.revenueNo || undefined,
+      itemId: listSearchItem?.id,
+      excludeCancelled: true,
+    }),
+    [listSearch, listSearchItem],
+  );
+
+  const loadRevenues = useCallback(
+    async (override?: SalesRevenueListParams) => {
+      setLoadingRevenues(true);
+      setRevenueError(null);
+      setHasSearchedList(true);
+      try {
+        setRevenues(await fetchSalesRevenues(override ?? buildListParams()));
+      } catch (e) {
+        setRevenueError(e instanceof Error ? e.message : '매출 목록 조회 실패');
+        setRevenues([]);
+      } finally {
+        setLoadingRevenues(false);
+      }
+    },
+    [buildListParams],
+  );
+
+  const handleSearchList = () => {
+    void loadRevenues(buildListParams());
+  };
+
+  const handleResetListSearch = () => {
+    setListSearch(emptyRevenueListSearch());
+    setListSearchItem(null);
+    setListItemClearToken((token) => token + 1);
+    setRevenues([]);
     setRevenueError(null);
-    try {
-      setRevenues(await fetchSalesRevenues(listFilters));
-    } catch (e) {
-      setRevenueError(e instanceof Error ? e.message : '매출 목록 조회 실패');
-      setRevenues([]);
-    } finally {
-      setLoadingRevenues(false);
-    }
-  }, [listFilters]);
-
-  useEffect(() => {
-    void loadCandidates();
-  }, [loadCandidates]);
-
-  useEffect(() => {
-    void loadRevenues();
-  }, [loadRevenues]);
+    setHasSearchedList(false);
+  };
 
   const selectableLineIds = useMemo(
     () => new Set(candidates.filter((row) => row.billable).map((row) => row.shipmentLineId)),
@@ -195,8 +274,12 @@ export default function SalesRevenuePage() {
       setMessage(`매출 ${created.revenueNo}을(를) 등록했습니다. (${INVENTORY_LOCATION_LABEL.DELIVERY} 감소)`);
       setSelectedLineIds(new Set());
       setLotIdByLineId({});
-      await loadCandidates();
-      await loadRevenues();
+      if (hasSearchedCandidates) {
+        await loadCandidates(buildCandidateParams());
+      }
+      if (hasSearchedList) {
+        await loadRevenues();
+      }
     } catch (e) {
       setRevenueError(e instanceof Error ? e.message : '매출 등록 실패');
     } finally {
@@ -211,8 +294,12 @@ export default function SalesRevenuePage() {
     try {
       await cancelSalesRevenue(revenue.id);
       setMessage(`매출 ${revenue.revenueNo}을(를) 취소했습니다.`);
-      await loadCandidates();
-      await loadRevenues();
+      if (hasSearchedCandidates) {
+        await loadCandidates(buildCandidateParams());
+      }
+      if (hasSearchedList) {
+        await loadRevenues();
+      }
     } catch (e) {
       setRevenueError(e instanceof Error ? e.message : '매출 취소 실패');
     } finally {
@@ -248,60 +335,46 @@ export default function SalesRevenuePage() {
       <section className="panel">
         <h2>출고 매출 후보</h2>
         <div className="ui-filter-panel sales-revenue-filter-panel">
-          <div className="sales-revenue-search-grid">
+          <div className="sales-revenue-candidate-search-grid">
             <label>
               거래처
               <input
                 type="text"
-                value={filters.partnerName ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, partnerName: e.target.value }))}
+                value={candidateSearch.partnerName}
+                onChange={(e) => setCandidateSearch((f) => ({ ...f, partnerName: e.target.value }))}
               />
             </label>
-            <label>
-              출고번호
-              <input
-                type="text"
-                value={filters.shipmentNo ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, shipmentNo: e.target.value }))}
-              />
-            </label>
-            <label>
-              수주번호
-              <input
-                type="text"
-                value={filters.orderNo ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, orderNo: e.target.value }))}
-              />
-            </label>
-            <label>
-              품번
-              <input
-                type="text"
-                value={filters.itemNum ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, itemNum: e.target.value }))}
-              />
-            </label>
+            <ItemSearchField
+              label="품목"
+              selectedItem={candidateSearchItem}
+              onSelect={setCandidateSearchItem}
+              clearToken={candidateItemClearToken}
+              allowedClassifications={REVENUE_ITEM_CLASSES}
+            />
             <label>
               출고일(부터)
               <input
                 type="date"
-                value={filters.shipmentDateFrom ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, shipmentDateFrom: e.target.value }))}
+                value={candidateSearch.shipmentDateFrom}
+                onChange={(e) => setCandidateSearch((f) => ({ ...f, shipmentDateFrom: e.target.value }))}
               />
             </label>
             <label>
               출고일(까지)
               <input
                 type="date"
-                value={filters.shipmentDateTo ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, shipmentDateTo: e.target.value }))}
+                value={candidateSearch.shipmentDateTo}
+                onChange={(e) => setCandidateSearch((f) => ({ ...f, shipmentDateTo: e.target.value }))}
               />
             </label>
-          </div>
-          <div className="form-actions sales-revenue-search-actions">
-            <button type="button" onClick={() => void loadCandidates()} disabled={loadingCandidates}>
-              {loadingCandidates ? '조회 중…' : '조회'}
-            </button>
+            <div className="form-actions sales-revenue-candidate-search-actions">
+              <button type="button" onClick={handleSearchCandidates} disabled={loadingCandidates}>
+                {loadingCandidates ? '조회 중…' : '조회'}
+              </button>
+              <button type="button" className="secondary" onClick={handleResetCandidateSearch} disabled={loadingCandidates}>
+                초기화
+              </button>
+            </div>
           </div>
         </div>
 
@@ -317,6 +390,8 @@ export default function SalesRevenuePage() {
 
         {loadingCandidates ? (
           <p>불러오는 중…</p>
+        ) : !hasSearchedCandidates ? (
+          <p className="hint sales-revenue-empty">검색 조건을 입력한 뒤 조회를 눌러 주세요.</p>
         ) : candidateError ? (
           <p className="error-banner">{candidateError}</p>
         ) : candidates.length === 0 ? (
@@ -489,50 +564,62 @@ export default function SalesRevenuePage() {
           <GridExcelExportButton fileBaseName="매출목록" disabled={loadingRevenues} rows={revenueExportRows} />
         </div>
         <div className="ui-filter-panel sales-revenue-filter-panel">
-          <div className="sales-revenue-search-grid">
+          <div className="sales-revenue-list-search-grid">
             <label>
               매출일(부터)
               <input
                 type="date"
-                value={listFilters.revenueDateFrom ?? ''}
-                onChange={(e) => setListFilters((f) => ({ ...f, revenueDateFrom: e.target.value }))}
+                value={listSearch.revenueDateFrom}
+                onChange={(e) => setListSearch((f) => ({ ...f, revenueDateFrom: e.target.value }))}
               />
             </label>
             <label>
               매출일(까지)
               <input
                 type="date"
-                value={listFilters.revenueDateTo ?? ''}
-                onChange={(e) => setListFilters((f) => ({ ...f, revenueDateTo: e.target.value }))}
+                value={listSearch.revenueDateTo}
+                onChange={(e) => setListSearch((f) => ({ ...f, revenueDateTo: e.target.value }))}
               />
             </label>
             <label>
               거래처
               <input
                 type="text"
-                value={listFilters.partnerName ?? ''}
-                onChange={(e) => setListFilters((f) => ({ ...f, partnerName: e.target.value }))}
+                value={listSearch.partnerName}
+                onChange={(e) => setListSearch((f) => ({ ...f, partnerName: e.target.value }))}
               />
             </label>
+            <ItemSearchField
+              label="품목"
+              selectedItem={listSearchItem}
+              onSelect={setListSearchItem}
+              clearToken={listItemClearToken}
+              allowedClassifications={REVENUE_ITEM_CLASSES}
+            />
             <label>
               매출번호
               <input
                 type="text"
-                value={listFilters.revenueNo ?? ''}
-                onChange={(e) => setListFilters((f) => ({ ...f, revenueNo: e.target.value }))}
+                value={listSearch.revenueNo}
+                onChange={(e) => setListSearch((f) => ({ ...f, revenueNo: e.target.value }))}
               />
             </label>
-          </div>
-          <div className="form-actions sales-revenue-search-actions">
-            <button type="button" onClick={() => void loadRevenues()} disabled={loadingRevenues}>
-              {loadingRevenues ? '조회 중…' : '조회'}
-            </button>
+            <div className="form-actions sales-revenue-list-search-actions">
+              <button type="button" onClick={handleSearchList} disabled={loadingRevenues}>
+                {loadingRevenues ? '조회 중…' : '조회'}
+              </button>
+              <button type="button" className="secondary" onClick={handleResetListSearch} disabled={loadingRevenues}>
+                초기화
+              </button>
+            </div>
           </div>
         </div>
         {loadingRevenues ? (
           <p>불러오는 중…</p>
+        ) : !hasSearchedList ? (
+          <p className="hint sales-revenue-empty">검색 조건을 입력한 뒤 조회를 눌러 주세요.</p>
         ) : revenues.length === 0 ? (
-          <p className="hint sales-revenue-empty">매출 내역이 없습니다.</p>
+          <p className="hint sales-revenue-empty">조회 결과가 없습니다.</p>
         ) : (
           <>
             <div className="table-wrap sales-revenue-list-table">
