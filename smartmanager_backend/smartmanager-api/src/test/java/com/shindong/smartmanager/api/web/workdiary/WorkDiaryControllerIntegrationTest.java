@@ -17,6 +17,8 @@ import com.shindong.smartmanager.application.auth.JwtTokenPort;
 import com.shindong.smartmanager.application.code.CodeGroupOptionsRepository;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryRepository;
 import com.shindong.smartmanager.application.role.RoleRepository;
+import com.shindong.smartmanager.application.system.SystemSettingRepository;
+import com.shindong.smartmanager.application.system.SystemSettingService;
 import com.shindong.smartmanager.application.user.UserCommand;
 import com.shindong.smartmanager.application.user.UserView;
 import com.shindong.smartmanager.infrastructure.application.UserApplicationService;
@@ -25,6 +27,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -33,6 +37,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -64,8 +69,30 @@ class WorkDiaryControllerIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private SystemSettingRepository systemSettingRepository;
+
+    private String previousApproverValueJson;
+
+    @BeforeEach
+    void rememberApproverSetting() {
+        previousApproverValueJson = systemSettingRepository
+                .findActiveByKey(SystemSettingService.KEY_WORKDIARY_APPROVER_USER_ID)
+                .map(view -> view.valueJson())
+                .orElse("\"\"");
+    }
+
+    @AfterEach
+    void restoreApproverSetting() {
+        systemSettingRepository.upsert(
+                SystemSettingService.KEY_WORKDIARY_APPROVER_USER_ID,
+                previousApproverValueJson,
+                "admin"
+        );
+    }
+
     @Test
-    void writerSeesOnlyOwnDiaryAndAdminSeesAll() throws Exception {
+    void writerSeesOnlyOwnDiaryAndApproverSeesOnlySubmitted() throws Exception {
         String writer1Login = "wd-writer1-" + UUID.randomUUID().toString().substring(0, 8);
         String writer2Login = "wd-writer2-" + UUID.randomUUID().toString().substring(0, 8);
         String writer1Name = "작성자A-" + UUID.randomUUID().toString().substring(0, 4);
@@ -79,11 +106,12 @@ class WorkDiaryControllerIntegrationTest {
         String writer2Token = tokenWithAuthorities(writer2.id(), writer2.loginId(), List.of(
                 "community:workdiary:read", "community:workdiary:write"
         ));
-        String adminToken = adminToken();
+        String approverToken = assignApprover();
         LocalDate workDate = LocalDate.of(2099, 1, 1);
 
-        createDiary(writer1Token, workDate, Map.of("01", "writer1"));
-        createDiary(writer2Token, workDate, Map.of("01", "writer2"));
+        long submittedId = createDiary(writer1Token, workDate, Map.of("01", "writer1"));
+        submit(writer1Token, submittedId);
+        long draftId = createDiary(writer2Token, workDate, Map.of("01", "writer2"));
 
         mockMvc.perform(get(BASE)
                         .param("fromDate", workDate.toString())
@@ -96,9 +124,37 @@ class WorkDiaryControllerIntegrationTest {
         mockMvc.perform(get(BASE)
                         .param("fromDate", workDate.toString())
                         .param("toDate", workDate.toString())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + approverToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[*].authorName", hasItems(writer1Name, writer2Name)));
+                .andExpect(jsonPath("$.items[*].authorName", hasItems(writer1Name)))
+                .andExpect(jsonPath("$.items[*].authorName", not(hasItems(writer2Name))));
+
+        mockMvc.perform(get(BASE + "/{id}", draftId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + approverToken))
+                .andExpect(jsonPath("$.message").value("업무일지를 수정할 권한이 없습니다."));
+    }
+
+    @Test
+    void approverCannotApproveDraftAndSystemAdminCannotApprove() throws Exception {
+        String writerLogin = "wd-draft-" + UUID.randomUUID().toString().substring(0, 8);
+        UserView writer = registerViewer(writerLogin, "초안작성-" + UUID.randomUUID().toString().substring(0, 4));
+        String writerToken = tokenWithAuthorities(writer.id(), writer.loginId(), List.of(
+                "community:workdiary:read", "community:workdiary:write"
+        ));
+        String approverToken = assignApprover();
+        LocalDate workDate = LocalDate.of(2099, 1, 9);
+
+        long id = createDiary(writerToken, workDate, Map.of("01", "초안"));
+
+        approve(approverToken, id)
+                .andExpect(jsonPath("$.message").value("제출된 업무일지만 결재할 수 있습니다."));
+
+        submit(writerToken, id);
+
+        approve(adminToken(), id).andExpect(status().isForbidden());
+        approve(approverToken, id)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
     }
 
     @Test
@@ -109,7 +165,7 @@ class WorkDiaryControllerIntegrationTest {
         String writerToken = tokenWithAuthorities(writer.id(), writer.loginId(), List.of(
                 "community:workdiary:read", "community:workdiary:write"
         ));
-        String adminToken = adminToken();
+        String approverToken = assignApprover();
         LocalDate workDate = LocalDate.of(2099, 1, 2);
 
         long id = createDiary(writerToken, workDate, Map.of("01", "초안"));
@@ -149,14 +205,7 @@ class WorkDiaryControllerIntegrationTest {
                 .andExpect(jsonPath("$.canEdit").value(true))
                 .andExpect(jsonPath("$.canDelete").value(true));
 
-        mockMvc.perform(post(BASE + "/{id}/approve", id)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "directiveNote": "결재합니다."
-                                }
-                                """))
+        approve(approverToken, id)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APPROVED"));
 
@@ -187,24 +236,18 @@ class WorkDiaryControllerIntegrationTest {
         String writerToken = tokenWithAuthorities(writer.id(), writer.loginId(), List.of(
                 "community:workdiary:read", "community:workdiary:write"
         ));
-        String adminToken = adminToken();
+        String approverToken = assignApprover();
         LocalDate workDate = LocalDate.of(2099, 1, 3);
 
         long id = createDiary(writerToken, workDate, Map.of("01", "초안"));
+        submit(writerToken, id);
 
-        mockMvc.perform(post(BASE + "/{id}/approve", id)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "directiveNote": "결재합니다."
-                                }
-                                """))
+        approve(approverToken, id)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APPROVED"));
 
         mockMvc.perform(post(BASE + "/{id}/cancel-approval", id)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + approverToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isOk())
@@ -214,7 +257,10 @@ class WorkDiaryControllerIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + writerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canEdit").value(true))
-                .andExpect(jsonPath("$.canDelete").value(true));
+                .andExpect(jsonPath("$.canDelete").value(true))
+                .andExpect(jsonPath("$.approvedAt").doesNotExist())
+                .andExpect(jsonPath("$.approvedByUserId").doesNotExist())
+                .andExpect(jsonPath("$.directiveNote").value("결재합니다."));
 
         mockMvc.perform(put(BASE + "/{id}", id)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + writerToken)
@@ -518,6 +564,55 @@ class WorkDiaryControllerIntegrationTest {
 
     private String tokenWithAuthorities(long userId, String loginId, List<String> authorities) {
         return jwtTokenPort.createToken(userId, loginId, authorities);
+    }
+
+    private String assignApprover() {
+        Long ceoRoleId = roleRepository.findAllActive().stream()
+                .filter(role -> "CEO".equals(role.roleCode()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("CEO role not found"))
+                .id();
+        UserView ceo = userApplicationService.register(
+                new UserCommand(
+                        "wd-ceo-" + UUID.randomUUID().toString().substring(0, 8),
+                        "Password123!",
+                        "대표-" + UUID.randomUUID().toString().substring(0, 4),
+                        null,
+                        null,
+                        List.of(ceoRoleId),
+                        null
+                ),
+                "admin"
+        );
+        systemSettingRepository.upsert(
+                SystemSettingService.KEY_WORKDIARY_APPROVER_USER_ID,
+                "\"" + ceo.id() + "\"",
+                "admin"
+        );
+        return tokenWithAuthorities(ceo.id(), ceo.loginId(), List.of(
+                "community:workdiary:read", "community:workdiary:approve"
+        ));
+    }
+
+    private void submit(String token, long id) throws Exception {
+        mockMvc.perform(post(BASE + "/{id}/submit", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SUBMITTED"));
+    }
+
+    private ResultActions approve(String token, long id) throws Exception {
+        return mockMvc.perform(post(BASE + "/{id}/approve", id)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .characterEncoding(StandardCharsets.UTF_8)
+                .content("""
+                        {
+                          "directiveNote": "결재합니다."
+                        }
+                        """));
     }
 
     private long createDiary(String token, LocalDate workDate, Map<String, ?> fieldValues) throws Exception {

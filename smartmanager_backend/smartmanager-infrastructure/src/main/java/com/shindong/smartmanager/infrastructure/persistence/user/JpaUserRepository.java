@@ -126,11 +126,15 @@ public class JpaUserRepository implements UserRepository {
     private UserView toView(UserJpaEntity entity, Map<Long, RoleJpaEntity> roleMap) {
         List<Long> roleIds = new ArrayList<>();
         List<String> roleCodes = new ArrayList<>();
-        for (UserRoleJpaEntity userRole : userRoleRepository.findByUserId(entity.getId())) {
-            RoleJpaEntity role = roleMap.get(userRole.getRoleId());
-            if (role != null) {
+        List<String> roleNames = new ArrayList<>();
+        List<Long> assignedRoleIds = userRoleRepository.findByUserId(entity.getId()).stream()
+                .map(UserRoleJpaEntity::getRoleId)
+                .toList();
+        for (RoleJpaEntity role : roleMap.values()) {
+            if (assignedRoleIds.contains(role.getId())) {
                 roleIds.add(role.getId());
                 roleCodes.add(role.getRoleCode());
+                roleNames.add(role.getRoleName());
             }
         }
 
@@ -150,9 +154,11 @@ public class JpaUserRepository implements UserRepository {
                 entity.getEmail(),
                 roleIds,
                 roleCodes,
+                roleNames,
                 entity.getWorkDiaryGroupId(),
                 workDiaryGroupName,
-                entity.getCreatedAt()
+                entity.getCreatedAt(),
+                false
         );
     }
 

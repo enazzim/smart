@@ -19,15 +19,18 @@ public class WorkDiaryService {
     private final WorkDiaryRepository workDiaryRepository;
     private final UserRepository userRepository;
     private final CodeGroupOptionsRepository codeGroupOptionsRepository;
+    private final WorkDiaryApproverPolicy workDiaryApproverPolicy;
 
     public WorkDiaryService(
             WorkDiaryRepository workDiaryRepository,
             UserRepository userRepository,
-            CodeGroupOptionsRepository codeGroupOptionsRepository
+            CodeGroupOptionsRepository codeGroupOptionsRepository,
+            WorkDiaryApproverPolicy workDiaryApproverPolicy
     ) {
         this.workDiaryRepository = workDiaryRepository;
         this.userRepository = userRepository;
         this.codeGroupOptionsRepository = codeGroupOptionsRepository;
+        this.workDiaryApproverPolicy = workDiaryApproverPolicy;
     }
 
     public WorkDiaryTemplateView getMyTemplate(long userId) {
@@ -92,9 +95,7 @@ public class WorkDiaryService {
     }
 
     public boolean isApprover(long actorUserId) {
-        return userRepository.findActiveById(actorUserId)
-                .map(user -> user.roleCodes().contains("SYSTEM_ADMIN"))
-                .orElse(false);
+        return workDiaryApproverPolicy.isApprover(actorUserId);
     }
 
     public WorkDiaryPageView list(WorkDiaryListCriteria criteria) {
@@ -204,6 +205,9 @@ public class WorkDiaryService {
         if (entry.status() == WorkDiaryStatus.APPROVED) {
             throw new IllegalStateException("이미 결재된 업무일지입니다.");
         }
+        if (entry.status() != WorkDiaryStatus.SUBMITTED) {
+            throw new IllegalStateException("제출된 업무일지만 결재할 수 있습니다.");
+        }
         Instant now = Instant.now();
         String approverName = userRepository.findActiveById(command.actorUserId())
                 .map(u -> u.name())
@@ -256,7 +260,7 @@ public class WorkDiaryService {
     }
 
     private void assertCanRead(WorkDiaryRepository.WorkDiaryEntryRecord entry, long actorUserId, boolean approver) {
-        if (approver) {
+        if (approver && entry.status() != WorkDiaryStatus.DRAFT) {
             return;
         }
         assertOwner(entry, actorUserId);
@@ -332,7 +336,7 @@ public class WorkDiaryService {
                 : null;
         boolean canEdit = record.authorUserId() == actorUserId && canAuthorEdit(record);
         boolean canDelete = canEdit;
-        boolean canApprove = approver && record.status() != WorkDiaryStatus.APPROVED;
+        boolean canApprove = approver && record.status() == WorkDiaryStatus.SUBMITTED;
         boolean canCancelApproval = approver && record.status() == WorkDiaryStatus.APPROVED;
         return new WorkDiaryDetailView(
                 record.id(),

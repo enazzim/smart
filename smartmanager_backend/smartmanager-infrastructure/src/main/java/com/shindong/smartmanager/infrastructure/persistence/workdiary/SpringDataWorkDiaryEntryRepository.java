@@ -36,6 +36,7 @@ public interface SpringDataWorkDiaryEntryRepository extends JpaRepository<WorkDi
               AND (:fromDate IS NULL OR e.workDate >= :fromDate)
               AND (:toDate IS NULL OR e.workDate <= :toDate)
               AND (:status IS NULL OR e.status = :status)
+              AND (:excludedStatus IS NULL OR e.status <> :excludedStatus)
             ORDER BY e.workDate DESC, e.id DESC
             """)
     List<WorkDiaryEntryJpaEntity> findActiveEntries(
@@ -43,6 +44,7 @@ public interface SpringDataWorkDiaryEntryRepository extends JpaRepository<WorkDi
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
             @Param("status") WorkDiaryStatus status,
+            @Param("excludedStatus") WorkDiaryStatus excludedStatus,
             Pageable pageable
     );
 
@@ -53,12 +55,14 @@ public interface SpringDataWorkDiaryEntryRepository extends JpaRepository<WorkDi
               AND (:fromDate IS NULL OR e.workDate >= :fromDate)
               AND (:toDate IS NULL OR e.workDate <= :toDate)
               AND (:status IS NULL OR e.status = :status)
+              AND (:excludedStatus IS NULL OR e.status <> :excludedStatus)
             """)
     long countActiveEntries(
             @Param("authorUserId") Long authorUserId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
-            @Param("status") WorkDiaryStatus status
+            @Param("status") WorkDiaryStatus status,
+            @Param("excludedStatus") WorkDiaryStatus excludedStatus
     );
 }
 

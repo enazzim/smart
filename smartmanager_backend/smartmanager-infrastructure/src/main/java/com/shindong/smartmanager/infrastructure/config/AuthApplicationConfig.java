@@ -4,6 +4,7 @@ import com.shindong.smartmanager.application.auth.AuthService;
 import com.shindong.smartmanager.application.auth.AuthUserRepository;
 import com.shindong.smartmanager.application.auth.JwtTokenPort;
 import com.shindong.smartmanager.application.security.PasswordHasher;
+import com.shindong.smartmanager.application.workdiary.WorkDiaryApproverPolicy;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,8 +17,9 @@ public class AuthApplicationConfig {
     public AuthService authService(
             AuthUserRepository authUserRepository,
             PasswordHasher passwordHasher,
-            JwtTokenPort jwtTokenPort
+            JwtTokenPort jwtTokenPort,
+            WorkDiaryApproverPolicy workDiaryApproverPolicy
     ) {
-        return new AuthService(authUserRepository, passwordHasher, jwtTokenPort);
+        return new AuthService(authUserRepository, passwordHasher, jwtTokenPort, workDiaryApproverPolicy::isApprover);
     }
 }

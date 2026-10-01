@@ -1,21 +1,25 @@
 package com.shindong.smartmanager.application.auth;
 
 import com.shindong.smartmanager.application.security.PasswordHasher;
+import java.util.function.LongPredicate;
 
 public class AuthService {
 
     private final AuthUserRepository authUserRepository;
     private final PasswordHasher passwordHasher;
     private final JwtTokenPort jwtTokenPort;
+    private final LongPredicate workDiaryApprover;
 
     public AuthService(
             AuthUserRepository authUserRepository,
             PasswordHasher passwordHasher,
-            JwtTokenPort jwtTokenPort
+            JwtTokenPort jwtTokenPort,
+            LongPredicate workDiaryApprover
     ) {
         this.authUserRepository = authUserRepository;
         this.passwordHasher = passwordHasher;
         this.jwtTokenPort = jwtTokenPort;
+        this.workDiaryApprover = workDiaryApprover;
     }
 
     public AuthTokenView login(LoginCommand command) {
@@ -91,7 +95,9 @@ public class AuthService {
                 user.loginId(),
                 user.name(),
                 user.roleCodes(),
-                user.authorities()
+                user.authorities(),
+                user.workDiaryGroupId(),
+                workDiaryApprover.test(user.id())
         );
     }
 }

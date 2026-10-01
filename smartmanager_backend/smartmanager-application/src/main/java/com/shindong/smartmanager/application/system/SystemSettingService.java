@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 public class SystemSettingService {
@@ -14,6 +15,7 @@ public class SystemSettingService {
     public static final String KEY_MRP_GROUPING_MODE = "mrp.grouping_mode";
     public static final String KEY_PRODUCTION_MATERIAL_ISSUE_ENABLED = "production.material_issue.enabled";
     public static final String KEY_INVENTORY_ALLOW_NEGATIVE_STOCK = "inventory.allow_negative_stock";
+    public static final String KEY_WORKDIARY_APPROVER_USER_ID = "workdiary.approver_user_id";
 
     private static final String VALUE_YES = "YES";
     private static final String VALUE_NO = "NO";
@@ -58,12 +60,30 @@ public class SystemSettingService {
                         VALUE_YES
                 )
         );
+        DEFINITIONS.put(
+                KEY_WORKDIARY_APPROVER_USER_ID,
+                new SettingDefinition(
+                        "업무일지 결재자",
+                        "업무일지를 결재·결재취소할 대표자. CEO 역할 사용자만 선택할 수 있으며, 미지정 시 결재자가 없습니다.",
+                        List.of(),
+                        ""
+                )
+        );
     }
 
     private final SystemSettingRepository systemSettingRepository;
+    private final Function<String, Map<String, String>> workDiaryApproverOptions;
 
     public SystemSettingService(SystemSettingRepository systemSettingRepository) {
+        this(systemSettingRepository, current -> Map.of("", "(미지정)"));
+    }
+
+    public SystemSettingService(
+            SystemSettingRepository systemSettingRepository,
+            Function<String, Map<String, String>> workDiaryApproverOptions
+    ) {
         this.systemSettingRepository = systemSettingRepository;
+        this.workDiaryApproverOptions = workDiaryApproverOptions;
     }
 
     public List<SystemSettingItemView> listManagedSettings() {
@@ -80,12 +100,16 @@ public class SystemSettingService {
                     String value = storedView != null
                             ? parseJsonString(storedView.valueJson())
                             : definition.defaultValue();
+                    Map<String, String> labels = KEY_WORKDIARY_APPROVER_USER_ID.equals(key)
+                            ? workDiaryApproverOptions.apply(value)
+                            : Map.of();
                     return new SystemSettingItemView(
                             key,
                             definition.label(),
                             definition.description(),
                             value,
-                            definition.allowedValues(),
+                            labels.isEmpty() ? definition.allowedValues() : new ArrayList<>(labels.keySet()),
+                            labels,
                             storedView != null ? storedView.updatedAt() : null,
                             storedView != null ? storedView.updatedBy() : null
                     );
@@ -99,7 +123,10 @@ public class SystemSettingService {
             throw new IllegalArgumentException("수정할 수 없는 설정 키입니다: " + settingKey);
         }
         String normalized = normalizeValue(settingKey, value);
-        if (!definition.allowedValues().contains(normalized)) {
+        List<String> allowedValues = KEY_WORKDIARY_APPROVER_USER_ID.equals(settingKey)
+                ? new ArrayList<>(workDiaryApproverOptions.apply(null).keySet())
+                : definition.allowedValues();
+        if (!allowedValues.contains(normalized)) {
             throw new IllegalArgumentException("허용되지 않는 설정 값입니다: " + value);
         }
         systemSettingRepository.upsert(settingKey, toJsonString(normalized), actorUserId);
@@ -146,13 +173,16 @@ public class SystemSettingService {
         if (KEY_CLOSING_FISCAL_CUTOVER_DAY.equals(settingKey)) {
             return FiscalCutoverPolicy.normalizeSettingValue(value);
         }
+        if (KEY_WORKDIARY_APPROVER_USER_ID.equals(settingKey)) {
+            return value == null ? "" : value.trim();
+        }
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("설정 값을 입력하세요.");
         }
         return value.trim();
     }
 
-    static String parseJsonString(String json) {
+    public static String parseJsonString(String json) {
         if (json == null || json.isBlank()) {
             return "";
         }

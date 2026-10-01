@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AuthenticatedUser } from '../api/auth';
-import { useAuth } from '../context/AuthContext';
 import {
   WORK_DIARY_FILTERABLE_STATUSES,
   WORK_DIARY_STATUS_LABELS,
@@ -63,9 +62,10 @@ export default function WorkDiaryPage({
   onNavigateDetail,
   onNavigateCompose,
 }: WorkDiaryPageProps) {
-  const { canWriteDashboard } = useAuth();
-  const canWrite = canWriteDashboard();
-  const canApprove = currentUser?.roleCodes.includes('SYSTEM_ADMIN') ?? false;
+  const canWrite =
+    (currentUser?.authorities.includes('community:workdiary:write') ?? false) &&
+    currentUser?.workDiaryGroupId != null;
+  const canApprove = currentUser?.workDiaryApprover ?? false;
 
   if (screen.mode === 'list') {
     return (
@@ -189,7 +189,7 @@ function WorkDiaryListView({
             </button>
           </div>
         )}
-        {!canWrite && canApprove && (
+        {!canWrite && (canApprove || canManageTemplates) && (
           <button type="button" className="secondary" disabled={templatesLoading} onClick={() => void openTemplates()}>
             그룹 양식 보기
           </button>
@@ -215,7 +215,7 @@ function WorkDiaryListView({
             }}
           >
             <option value="">전체</option>
-            {WORK_DIARY_FILTERABLE_STATUSES.map((value) => (
+            {WORK_DIARY_FILTERABLE_STATUSES.filter((value) => !canApprove || value !== 'DRAFT').map((value) => (
               <option key={value} value={value}>
                 {WORK_DIARY_STATUS_LABELS[value]}
               </option>
@@ -477,6 +477,12 @@ function WorkDiaryDetailView({
           {detail.approvedAt && (
             <p className="meta-text">
               결재: {detail.approvedByName ?? '—'} ({detail.approvedAt.slice(0, 16).replace('T', ' ')})
+            </p>
+          )}
+          {!detail.approvedAt && detail.approvalCanceledAt && (
+            <p className="meta-text">
+              결재취소: {detail.approvalCanceledByName ?? '—'} (
+              {detail.approvalCanceledAt.slice(0, 16).replace('T', ' ')})
             </p>
           )}
         </section>

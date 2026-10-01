@@ -3,6 +3,7 @@ package com.shindong.smartmanager.api.web.system.settings;
 import com.shindong.smartmanager.application.system.SystemSettingItemView;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 public record SystemSettingResponse(
         String settingKey,
@@ -10,6 +11,7 @@ public record SystemSettingResponse(
         String description,
         String value,
         List<String> allowedValues,
+        Map<String, String> allowedValueLabels,
         Instant updatedAt,
         String updatedBy
 ) {
@@ -20,6 +22,7 @@ public record SystemSettingResponse(
                 view.description(),
                 view.value(),
                 view.allowedValues(),
+                view.allowedValueLabels(),
                 view.updatedAt(),
                 view.updatedBy()
         );

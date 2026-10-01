@@ -65,7 +65,11 @@ function formatDateTime(value?: string | null): string {
   return date.toLocaleString('ko-KR');
 }
 
-function formatAllowedValue(settingKey: string, value: string): string {
+function formatAllowedValue(setting: SystemSetting, value: string): string {
+  const { settingKey } = setting;
+  if (setting.allowedValueLabels && value in setting.allowedValueLabels) {
+    return setting.allowedValueLabels[value];
+  }
   if (settingKey === 'mrp.grouping_mode') {
     return MRP_GROUPING_MODE_LABELS[value] ?? value;
   }
@@ -137,7 +141,7 @@ function SettingsList({
                           checked={draftValue === value}
                           onChange={() => onDraftChange(setting.settingKey, value)}
                         />
-                        {formatAllowedValue(setting.settingKey, value)}
+                        {formatAllowedValue(setting, value)}
                       </label>
                     ))}
                   </div>
@@ -148,7 +152,7 @@ function SettingsList({
                   >
                     {setting.allowedValues.map((value) => (
                       <option key={value} value={value}>
-                        {formatAllowedValue(setting.settingKey, value)}
+                        {formatAllowedValue(setting, value)}
                       </option>
                     ))}
                   </select>
@@ -465,7 +469,7 @@ export default function SystemSettingsPage() {
 
   const onSave = async (setting: SystemSetting) => {
     const nextValue = draftValues[setting.settingKey];
-    if (!nextValue || nextValue === setting.value) {
+    if (nextValue === undefined || nextValue === setting.value) {
       return;
     }
     setSubmittingKey(setting.settingKey);
@@ -496,12 +500,14 @@ export default function SystemSettingsPage() {
   const inventorySettings = settings.filter((row) => row.settingKey.startsWith('inventory.'));
   const mrpSettings = settings.filter((row) => row.settingKey.startsWith('mrp.'));
   const productionSettings = settings.filter((row) => row.settingKey.startsWith('production.'));
+  const workDiarySettings = settings.filter((row) => row.settingKey.startsWith('workdiary.'));
 
   const settingSections = [
     { key: 'inventory', title: '재고', settings: inventorySettings },
     { key: 'production', title: '생산', settings: productionSettings },
     { key: 'mrp', title: 'MRP', settings: mrpSettings },
     { key: 'closing', title: '회계마감', settings: closingSettings },
+    { key: 'workdiary', title: '업무일지', settings: workDiarySettings },
   ] as const;
 
   return (

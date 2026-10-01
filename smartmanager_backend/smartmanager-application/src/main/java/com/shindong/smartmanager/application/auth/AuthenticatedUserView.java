@@ -7,6 +7,8 @@ public record AuthenticatedUserView(
         String loginId,
         String name,
         List<String> roleCodes,
-        List<String> authorities
+        List<String> authorities,
+        Long workDiaryGroupId,
+        boolean workDiaryApprover
 ) {
 }

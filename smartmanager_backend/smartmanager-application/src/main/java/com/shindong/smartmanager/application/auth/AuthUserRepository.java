@@ -21,7 +21,8 @@ public interface AuthUserRepository {
             String passwordHash,
             String name,
             List<String> roleCodes,
-            List<String> authorities
+            List<String> authorities,
+            Long workDiaryGroupId
     ) {
     }
 }

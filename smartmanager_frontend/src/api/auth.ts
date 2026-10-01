@@ -8,6 +8,8 @@ export interface AuthenticatedUser {
   name: string;
   roleCodes: string[];
   authorities: string[];
+  workDiaryGroupId?: number | null;
+  workDiaryApprover?: boolean;
 }
 
 export interface AuthTokenResponse {

@@ -81,7 +81,9 @@ public class AuthController {
             String loginId,
             String name,
             java.util.List<String> roleCodes,
-            java.util.List<String> authorities
+            java.util.List<String> authorities,
+            Long workDiaryGroupId,
+            boolean workDiaryApprover
     ) {
         static AuthenticatedUserResponse from(AuthenticatedUserView view) {
             return new AuthenticatedUserResponse(
@@ -89,7 +91,9 @@ public class AuthController {
                     view.loginId(),
                     view.name(),
                     view.roleCodes(),
-                    view.authorities()
+                    view.authorities(),
+                    view.workDiaryGroupId(),
+                    view.workDiaryApprover()
             );
         }
     }

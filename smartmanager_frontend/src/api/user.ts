@@ -14,9 +14,11 @@ export interface User {
   email?: string | null;
   roleIds: number[];
   roleCodes: string[];
+  roleNames: string[];
   workDiaryGroupId?: number | null;
   workDiaryGroupName?: string | null;
   createdAt: string;
+  workDiaryApprover: boolean;
 }
 
 export interface CreateUserRequest {

@@ -2725,6 +2725,40 @@ table.nested-table td {
   vertical-align: middle;
 }
 
+.work-diary-status-badge,
+.approver-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.work-diary-status-badge.status-draft {
+  background: #eceff1;
+  color: #546e7a;
+}
+
+.work-diary-status-badge.status-submitted {
+  background: #e65100;
+  color: #fff;
+}
+
+.work-diary-status-badge.status-approved {
+  background: #2e7d32;
+  color: #fff;
+}
+
+.approver-badge {
+  background: #1565c0;
+  color: #fff;
+}
+
 .board-required-picker {
   display: flex;
   flex-direction: column;

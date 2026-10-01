@@ -6,6 +6,7 @@ import com.shindong.smartmanager.application.role.RoleRepository;
 import com.shindong.smartmanager.application.security.PasswordHasher;
 import com.shindong.smartmanager.application.user.UserRepository;
 import com.shindong.smartmanager.application.user.UserService;
+import com.shindong.smartmanager.application.workdiary.WorkDiaryApproverPolicy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,14 +19,16 @@ public class UserApplicationConfig {
             RoleRepository roleRepository,
             CodeGroupOptionsRepository codeGroupOptionsRepository,
             PasswordHasher passwordHasher,
-            DomainEventStore domainEventStore
+            DomainEventStore domainEventStore,
+            WorkDiaryApproverPolicy workDiaryApproverPolicy
     ) {
         return new UserService(
                 userRepository,
                 roleRepository,
                 codeGroupOptionsRepository,
                 passwordHasher,
-                domainEventStore
+                domainEventStore,
+                workDiaryApproverPolicy
         );
     }
 }

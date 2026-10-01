@@ -5,10 +5,12 @@ import com.shindong.smartmanager.application.code.CodeOptionView;
 import com.shindong.smartmanager.application.event.DomainEventStore;
 import com.shindong.smartmanager.application.role.RoleRepository;
 import com.shindong.smartmanager.application.security.PasswordHasher;
+import com.shindong.smartmanager.application.workdiary.WorkDiaryApproverPolicy;
 import com.shindong.smartmanager.domain.event.AggregateTypes;
 import com.shindong.smartmanager.domain.event.DomainEvent;
 import com.shindong.smartmanager.domain.event.EventTypes;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 public class UserService {
@@ -23,19 +25,22 @@ public class UserService {
     private final CodeGroupOptionsRepository codeGroupOptionsRepository;
     private final PasswordHasher passwordHasher;
     private final DomainEventStore domainEventStore;
+    private final WorkDiaryApproverPolicy workDiaryApproverPolicy;
 
     public UserService(
             UserRepository userRepository,
             RoleRepository roleRepository,
             CodeGroupOptionsRepository codeGroupOptionsRepository,
             PasswordHasher passwordHasher,
-            DomainEventStore domainEventStore
+            DomainEventStore domainEventStore,
+            WorkDiaryApproverPolicy workDiaryApproverPolicy
     ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.codeGroupOptionsRepository = codeGroupOptionsRepository;
         this.passwordHasher = passwordHasher;
         this.domainEventStore = domainEventStore;
+        this.workDiaryApproverPolicy = workDiaryApproverPolicy;
     }
 
     public UserView register(UserCommand command, String actorUserId) {
@@ -93,7 +98,10 @@ public class UserService {
     }
 
     public List<UserView> listActive(String query) {
-        return userRepository.findAllActive(query);
+        Optional<Long> approverId = workDiaryApproverPolicy.resolveApproverUserId();
+        return userRepository.findAllActive(query).stream()
+                .map(user -> markApprover(user, approverId))
+                .toList();
     }
 
     public List<UserView> listActiveForActor(String query, long actorUserId, List<String> authorities) {
@@ -119,7 +127,12 @@ public class UserService {
 
     public UserView getActive(long id) {
         return userRepository.findActiveById(id)
+                .map(user -> markApprover(user, workDiaryApproverPolicy.resolveApproverUserId()))
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + id));
+    }
+
+    private static UserView markApprover(UserView user, Optional<Long> approverId) {
+        return user.withWorkDiaryApprover(approverId.map(id -> id == user.id()).orElse(false));
     }
 
     public boolean isLoginIdAvailable(String loginId) {

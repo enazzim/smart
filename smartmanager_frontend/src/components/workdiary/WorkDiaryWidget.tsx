@@ -1,5 +1,5 @@
 import type { WorkDiaryListItem } from '../../api/workDiary';
-import { formatWorkDiaryDate } from '../../api/workDiary';
+import { WORK_DIARY_STATUS_LABELS, formatWorkDiaryDate } from '../../api/workDiary';
 import NewPostBadge from '../board/NewPostBadge';
 
 interface WorkDiaryWidgetProps {
@@ -45,6 +45,9 @@ export default function WorkDiaryWidget({
                     {item.workDateTitle || `${item.authorName} 업무일지`}
                   </span>
                   <NewPostBadge dateValue={item.workDate} />
+                  <span className={`work-diary-status-badge status-${item.status.toLowerCase()}`}>
+                    {WORK_DIARY_STATUS_LABELS[item.status]}
+                  </span>
                 </span>
                 <span className="board-widget-date">{formatWorkDiaryDate(item.workDate)}</span>
               </button>

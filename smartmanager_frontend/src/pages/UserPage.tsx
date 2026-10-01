@@ -35,6 +35,10 @@ function toggleRole(roleIds: number[], roleId: number): number[] {
   return roleIds.includes(roleId) ? roleIds.filter((id) => id !== roleId) : [...roleIds, roleId];
 }
 
+function roleNamesText(user: User): string {
+  return user.roleNames.join(', ');
+}
+
 interface UserPageProps {
   currentUser: AuthenticatedUser | null;
   canManageUsers: boolean;
@@ -70,7 +74,7 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
         이름: user.name,
         연락처: user.contact ?? '',
         이메일: user.email ?? '',
-        역할: user.roleCodes.join(', '),
+        역할: roleNamesText(user) + (user.workDiaryApprover ? ' (결재자)' : ''),
         업무일지그룹: user.workDiaryGroupName ?? '',
       })),
     [users],
@@ -277,7 +281,7 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
   if (isSelfService) {
     const profile = selfUser;
     const roleLabel =
-      profile?.roleCodes.join(', ') || currentUser?.roleCodes.join(', ') || '—';
+      (profile ? roleNamesText(profile) : '') || currentUser?.roleCodes.join(', ') || '—';
 
     return (
       <div className="page">
@@ -538,7 +542,10 @@ export default function UserPage({ currentUser, canManageUsers }: UserPageProps)
                 <td>{user.name}</td>
                 <td>{user.contact ?? '—'}</td>
                 <td>{user.email ?? '—'}</td>
-                <td>{user.roleCodes.join(', ') || '—'}</td>
+                <td>
+                  {roleNamesText(user) || '—'}
+                  {user.workDiaryApprover && <span className="approver-badge">결재자</span>}
+                </td>
                 <td>{user.workDiaryGroupName ?? '—'}</td>
                 <td className="row-actions">
                   <button type="button" className="btn-action" onClick={() => startEdit(user)}>

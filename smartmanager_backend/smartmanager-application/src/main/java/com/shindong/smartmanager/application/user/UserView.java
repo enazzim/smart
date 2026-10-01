@@ -11,8 +11,16 @@ public record UserView(
         String email,
         List<Long> roleIds,
         List<String> roleCodes,
+        List<String> roleNames,
         Long workDiaryGroupId,
         String workDiaryGroupName,
-        Instant createdAt
+        Instant createdAt,
+        boolean workDiaryApprover
 ) {
+    public UserView withWorkDiaryApprover(boolean value) {
+        return new UserView(
+                id, loginId, name, contact, email, roleIds, roleCodes, roleNames,
+                workDiaryGroupId, workDiaryGroupName, createdAt, value
+        );
+    }
 }

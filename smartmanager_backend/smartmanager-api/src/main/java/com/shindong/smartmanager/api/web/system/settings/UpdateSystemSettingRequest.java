@@ -1,8 +1,8 @@
 package com.shindong.smartmanager.api.web.system.settings;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 public record UpdateSystemSettingRequest(
-        @NotBlank String value
+        @NotNull String value
 ) {
 }

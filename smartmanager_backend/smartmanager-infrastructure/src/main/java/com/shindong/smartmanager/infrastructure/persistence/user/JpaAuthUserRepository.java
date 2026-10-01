@@ -92,7 +92,8 @@ public class JpaAuthUserRepository implements AuthUserRepository {
                 entity.getPasswordHash(),
                 entity.getName(),
                 authRepository.findRoleCodesByUserId(userId),
-                authRepository.findPermissionCodesByUserId(userId)
+                authRepository.findPermissionCodesByUserId(userId),
+                entity.getWorkDiaryGroupId()
         );
     }
 }

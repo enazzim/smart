@@ -89,6 +89,7 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
                         criteria.fromDate(),
                         criteria.toDate(),
                         criteria.status(),
+                        excludedStatus(criteria),
                         PageRequest.of(Math.max(criteria.page(), 0), Math.max(criteria.size(), 1))
                 ).stream()
                 .map(this::toEntryRecord)
@@ -103,8 +104,13 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
                 authorUserId,
                 criteria.fromDate(),
                 criteria.toDate(),
-                criteria.status()
+                criteria.status(),
+                excludedStatus(criteria)
         );
+    }
+
+    private static WorkDiaryStatus excludedStatus(WorkDiaryListCriteria criteria) {
+        return criteria.approver() ? WorkDiaryStatus.DRAFT : null;
     }
 
     @Override
@@ -216,6 +222,8 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
         WorkDiaryEntryJpaEntity entity = entryRepository.findActiveById(id)
                 .orElseThrow(() -> new IllegalArgumentException("업무일지를 찾을 수 없습니다: " + id));
         entity.setStatus(status);
+        entity.setApprovedAt(null);
+        entity.setApprovedByUserId(null);
         entity.setApprovalCanceledAt(canceledAt);
         entity.setApprovalCanceledByUserId(canceledByUserId);
         entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserIdText));

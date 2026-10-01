@@ -12,9 +12,11 @@ public record UserResponse(
         String email,
         List<Long> roleIds,
         List<String> roleCodes,
+        List<String> roleNames,
         Long workDiaryGroupId,
         String workDiaryGroupName,
-        Instant createdAt
+        Instant createdAt,
+        boolean workDiaryApprover
 ) {
     static UserResponse from(UserView view) {
         return new UserResponse(
@@ -25,9 +27,11 @@ public record UserResponse(
                 view.email(),
                 view.roleIds(),
                 view.roleCodes(),
+                view.roleNames(),
                 view.workDiaryGroupId(),
                 view.workDiaryGroupName(),
-                view.createdAt()
+                view.createdAt(),
+                view.workDiaryApprover()
         );
     }
 }
