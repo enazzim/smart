@@ -1,6 +1,6 @@
 # EC2 Smart-Manager 배포 요건 체크리스트
 
-**전제**: OS는 **Amazon Linux 2023**. 공인 IP `52.78.102.6`로 HTTP 접속. **JDK 17**·MariaDB 11.4·Nginx는 EC2에 이미 설치됨. 도메인/HTTPS는 추후 확장 항목.
+**전제**: OS는 **Amazon Linux 2023**. 공인 IP `3.36.75.21`로 HTTP 접속. **JDK 17**·MariaDB 11.4·Nginx는 EC2에 이미 설치됨. 도메인/HTTPS는 추후 확장 항목.
 
 관련 설정 초안:
 
@@ -161,7 +161,7 @@ AL2023는 `sites-available` 대신 **`/etc/nginx/conf.d/`** 를 사용합니다.
 - [ ] `/actuator/` 외부 차단
 - [ ] `sudo nginx -t && sudo systemctl reload nginx`
 
-접속 URL: `http://52.78.102.6/`
+접속 URL: `http://3.36.75.21/`
 
 ---
 
@@ -178,7 +178,7 @@ AL2023는 `sites-available` 대신 **`/etc/nginx/conf.d/`** 를 사용합니다.
 
 - [ ] 8080 보안 그룹 미개방
 - [ ] JWT·DB·admin 비밀번호 git 미커밋
-- [ ] `GET http://52.78.102.6/api/health` 확인
+- [ ] `GET http://3.36.75.21/api/health` 확인
 - [ ] `POST /api/v1/auth/login` 확인
 - [ ] (추후) 도메인 + Let's Encrypt HTTPS + 443
 
@@ -201,7 +201,7 @@ AL2023는 `sites-available` 대신 **`/etc/nginx/conf.d/`** 를 사용합니다.
 
 ## 11. 스모크 테스트
 
-- [ ] 메인 화면 로드 (`http://52.78.102.6/`)
+- [ ] 메인 화면 로드 (`http://3.36.75.21/`)
 - [ ] 로그인
 - [ ] 도면 PDF 업로드·조회
 - [ ] 게시판 첨부 업로드

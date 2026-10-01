@@ -93,10 +93,10 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ```bash
 curl -sS http://127.0.0.1:8080/api/health
-curl -sS http://52.78.102.6/api/health
+curl -sS http://3.36.75.21/api/health
 ```
 
-브라우저: `http://52.78.102.6/`
+브라우저: `http://3.36.75.21/`
 
 ## 재배포
 
