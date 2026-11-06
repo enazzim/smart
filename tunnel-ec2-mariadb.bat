@@ -7,7 +7,7 @@ rem  PC:127.0.0.1:LOCAL_PORT  -->  EC2:127.0.0.1:3306
 rem ============================================================
 
 set "ROOT=%~dp0"
-set "EC2_HOST=3.36.75.21"
+set "EC2_HOST=15.164.211.35"
 set "EC2_USER=ec2-user"
 set "PEM_KEY=%ROOT%sindong-key.pem"
 set "LOCAL_PORT=3307"

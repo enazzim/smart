@@ -8,7 +8,7 @@ rem  - Builds nothing. Uploads smartmanager_frontend\dist as-is.
 rem ============================================================
 
 set "ROOT=%~dp0"
-set "EC2_HOST=3.36.75.21"
+set "EC2_HOST=15.164.211.35"
 set "EC2_USER=ec2-user"
 set "PEM_KEY=%ROOT%sindong-key.pem"
 set "FRONTEND_DIR=%ROOT%smartmanager_frontend"
