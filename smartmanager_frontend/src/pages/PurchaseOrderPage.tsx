@@ -23,6 +23,7 @@ import {
   type PartnerPriceItem,
 } from '../utils/unitPriceHelpers';
 import { formatAmount, formatQty } from '../utils/numberFormat';
+import { commitListSearchFilters } from '../utils/listSearchFilters';
 import { useConfirm } from '../context/ConfirmContext';
 
 type OrderPageTab = 'general' | 'subMaterial';
@@ -114,7 +115,8 @@ export default function PurchaseOrderPage() {
   const confirm = useConfirm();
   const [pageTab, setPageTab] = useState<OrderPageTab>('general');
   const [generalOrderMode, setGeneralOrderMode] = useState<GeneralOrderMode>('mrp');
-  const itemPropertyScope = pageTab === 'subMaterial' ? 'SUB_MATERIAL' : 'GENERAL';
+  const itemPropertyScope: 'GENERAL' | 'SUB_MATERIAL' =
+    pageTab === 'subMaterial' ? 'SUB_MATERIAL' : 'GENERAL';
   const allowedManualClasses = pageTab === 'subMaterial' ? SUB_MATERIAL_ITEM_CLASSES : GENERAL_ITEM_CLASSES;
   const [candidates, setCandidates] = useState<MrpPurchaseCandidate[]>([]);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
@@ -177,12 +179,14 @@ export default function PurchaseOrderPage() {
   }, []);
 
   const onSearchOrders = () => {
-    void loadOrders({
-      ...listFilters,
-      partnerName: listPartner?.companyName ?? '',
-      itemNo: listItem?.itemNo,
-      itemPropertyScope,
-    });
+    void loadOrders(
+      commitListSearchFilters<PurchaseOrderListParams>({
+        ...listFilters,
+        partnerName: listPartner?.companyName ?? '',
+        itemNo: listItem?.itemNo,
+        itemPropertyScope,
+      }),
+    );
   };
 
   const onResetOrderFilters = () => {

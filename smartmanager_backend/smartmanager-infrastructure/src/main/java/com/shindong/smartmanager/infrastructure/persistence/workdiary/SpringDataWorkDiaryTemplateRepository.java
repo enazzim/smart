@@ -22,5 +22,12 @@ public interface SpringDataWorkDiaryTemplateRepository extends JpaRepository<Wor
             ORDER BY t.templateCode ASC
             """)
     List<WorkDiaryTemplateJpaEntity> findAllActive();
+
+    @Query("""
+            SELECT t FROM WorkDiaryTemplateJpaEntity t
+            WHERE t.workDiaryGroupId = :groupId
+              AND t.recordingState = 1
+            """)
+    List<WorkDiaryTemplateJpaEntity> findAllActiveByGroupId(@Param("groupId") long groupId);
 }
 

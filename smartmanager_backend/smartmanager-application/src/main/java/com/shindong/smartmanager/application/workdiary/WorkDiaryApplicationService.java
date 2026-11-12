@@ -11,6 +11,10 @@ public interface WorkDiaryApplicationService {
 
     WorkDiaryTemplateView updateTemplate(UpdateWorkDiaryTemplateCommand command);
 
+    WorkDiaryTemplateView createGroup(long actorUserId, String actorUserIdText);
+
+    void deleteGroup(long workDiaryGroupId, long actorUserId, String actorUserIdText);
+
     WorkDiaryPageView list(WorkDiaryListCriteria criteria);
 
     boolean isApprover(long actorUserId);

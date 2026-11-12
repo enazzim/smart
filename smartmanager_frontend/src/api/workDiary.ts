@@ -191,6 +191,22 @@ export async function updateWorkDiaryTemplate(
   );
 }
 
+export async function createWorkDiaryTemplateGroup(): Promise<WorkDiaryTemplate> {
+  return handleResponse(
+    await apiFetch('/api/v1/work-diaries/template-groups', {
+      method: 'POST',
+    }),
+  );
+}
+
+export async function deleteWorkDiaryTemplateGroup(workDiaryGroupId: number): Promise<void> {
+  await handleResponse(
+    await apiFetch(`/api/v1/work-diaries/template-groups/${workDiaryGroupId}`, {
+      method: 'DELETE',
+    }),
+  );
+}
+
 export async function fetchMyWorkDiaryTemplate(): Promise<WorkDiaryTemplate> {
   return handleResponse(await apiFetch('/api/v1/work-diaries/my-template'));
 }

@@ -64,5 +64,7 @@ public interface SpringDataWorkDiaryEntryRepository extends JpaRepository<WorkDi
             @Param("status") WorkDiaryStatus status,
             @Param("excludedStatus") WorkDiaryStatus excludedStatus
     );
+
+    boolean existsByWorkDiaryGroupIdAndRecordingState(long workDiaryGroupId, int recordingState);
 }
 

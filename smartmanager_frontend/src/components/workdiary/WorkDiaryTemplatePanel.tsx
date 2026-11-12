@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { WorkDiaryFieldSchema, WorkDiaryTemplate } from '../../api/workDiary';
-import { parseSchemaFields, updateWorkDiaryTemplate } from '../../api/workDiary';
+import {
+  createWorkDiaryTemplateGroup,
+  deleteWorkDiaryTemplateGroup,
+  parseSchemaFields,
+  updateWorkDiaryTemplate,
+} from '../../api/workDiary';
+import { useConfirm } from '../../context/ConfirmContext';
 import {
   type EditorFieldRow,
   editorRowsToFields,
@@ -319,7 +325,52 @@ export function WorkDiaryTemplatesCatalog({
   onClose,
   onTemplatesChange,
 }: WorkDiaryTemplatesCatalogProps) {
+  const confirm = useConfirm();
   const [editingTemplate, setEditingTemplate] = useState<WorkDiaryTemplate | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+
+  const onAddGroup = async () => {
+    if (!canManageTemplates || busy) return;
+    setBusy(true);
+    setCatalogError(null);
+    try {
+      const created = await createWorkDiaryTemplateGroup();
+      onTemplatesChange([...templates, created].sort((a, b) => a.templateCode.localeCompare(b.templateCode)));
+    } catch (e) {
+      setCatalogError(e instanceof Error ? e.message : '그룹 추가에 실패했습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onDeleteGroup = async (template: WorkDiaryTemplate) => {
+    if (!canManageTemplates || busy) return;
+    const groupLabel = template.workDiaryGroupName || template.templateCode;
+    if (
+      !(await confirm(`「${groupLabel}」을(를) 삭제하시겠습니까?\n사용 중인 그룹은 삭제할 수 없습니다.`, {
+        title: '그룹 삭제',
+        confirmLabel: '삭제',
+        cancelLabel: '닫기',
+        danger: true,
+      }))
+    ) {
+      return;
+    }
+    setBusy(true);
+    setCatalogError(null);
+    try {
+      await deleteWorkDiaryTemplateGroup(template.workDiaryGroupId);
+      onTemplatesChange(templates.filter((item) => item.workDiaryGroupId !== template.workDiaryGroupId));
+      if (editingTemplate?.workDiaryGroupId === template.workDiaryGroupId) {
+        setEditingTemplate(null);
+      }
+    } catch (e) {
+      setCatalogError(e instanceof Error ? e.message : '그룹 삭제에 실패했습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <>
@@ -334,14 +385,24 @@ export function WorkDiaryTemplatesCatalog({
             <div className="modal-header-text">
               <h2 id="work-diary-templates-title">업무일지 그룹 양식</h2>
               {canManageTemplates && (
-                <p className="meta-text">시스템 관리자: 그룹 카드를 더블클릭하면 양식을 수정할 수 있습니다.</p>
+                <p className="meta-text">
+                  시스템 관리자: 그룹 추가/삭제 가능. 카드를 더블클릭하면 양식을 수정할 수 있습니다.
+                </p>
               )}
             </div>
-            <button type="button" className="secondary" onClick={onClose}>
-              닫기
-            </button>
+            <div className="inline-actions">
+              {canManageTemplates && (
+                <button type="button" className="secondary" disabled={busy} onClick={() => void onAddGroup()}>
+                  {busy ? '처리 중…' : '그룹 추가'}
+                </button>
+              )}
+              <button type="button" className="secondary" onClick={onClose}>
+                닫기
+              </button>
+            </div>
           </header>
           <div className="modal-body">
+            {catalogError && <p className="error-banner">{catalogError}</p>}
             <div className="work-diary-templates-grid">
             {templates.map((template) => (
               <article
@@ -352,15 +413,34 @@ export function WorkDiaryTemplatesCatalog({
                 }}
                 title={canManageTemplates ? '더블클릭하여 양식 수정' : undefined}
               >
-                <h3>{template.workDiaryGroupName || '—'}</h3>
+                <div className="work-diary-template-card-header">
+                  <h3>{template.workDiaryGroupName || '—'}</h3>
+                  {canManageTemplates && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void onDeleteGroup(template);
+                      }}
+                    >
+                      삭제
+                    </button>
+                  )}
+                </div>
                 <p className="meta-text">{template.templateName}</p>
                 <ol>
-                  {parseSchemaFields(template.fieldSchema).map((field) => (
-                    <li key={field.key}>
-                      {field.label}
-                      {field.type === 'checklist' ? ` (${field.items?.length ?? 0})` : ''}
-                    </li>
-                  ))}
+                  {parseSchemaFields(template.fieldSchema).length === 0 ? (
+                    <li className="meta-text">등록된 입력 항목이 없습니다.</li>
+                  ) : (
+                    parseSchemaFields(template.fieldSchema).map((field) => (
+                      <li key={field.key}>
+                        {field.label}
+                        {field.type === 'checklist' ? ` (${field.items?.length ?? 0})` : ''}
+                      </li>
+                    ))
+                  )}
                 </ol>
               </article>
             ))}

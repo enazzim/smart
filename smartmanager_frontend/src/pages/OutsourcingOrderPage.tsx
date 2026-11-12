@@ -12,6 +12,7 @@ import {
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import { formatAmount, formatQty } from '../utils/numberFormat';
+import { commitListSearchFilters } from '../utils/listSearchFilters';
 import { useConfirm } from '../context/ConfirmContext';
 
 function todayIso(): string {
@@ -98,11 +99,11 @@ export default function OutsourcingOrderPage() {
   }, []);
 
   const onSearchOrders = () => {
-    appliedListFiltersRef.current = {
+    appliedListFiltersRef.current = commitListSearchFilters({
       ...listFilters,
       partnerName: listPartner?.companyName,
       itemNo: listItem?.itemNo,
-    };
+    });
     void loadOrders();
   };
 

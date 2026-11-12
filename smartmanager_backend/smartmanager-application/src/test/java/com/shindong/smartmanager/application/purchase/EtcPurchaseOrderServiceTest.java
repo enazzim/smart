@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.shindong.smartmanager.domain.purchase.EtcPurchaseOrderStatus;
 import java.math.BigDecimal;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+@Tag("core")
 class EtcPurchaseOrderServiceTest {
 
     @Test

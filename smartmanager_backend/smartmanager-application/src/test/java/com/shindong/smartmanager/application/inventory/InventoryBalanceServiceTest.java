@@ -20,8 +20,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+@Tag("core")
 class InventoryBalanceServiceTest {
 
     private static final long RAW_LOCATION_ID = 1L;
@@ -197,7 +199,8 @@ class InventoryBalanceServiceTest {
         assertEquals(1, balanceRepository.storeSize());
         assertEquals(0, balanceRepository.findFirst().orElseThrow().stockQty().compareTo(BigDecimal.ZERO));
         assertEquals(null, balanceRepository.findFirst().orElseThrow().partnerId());
-        assertEquals(11L, movementRepository.lastPartnerId());
+        // DELIVERY 잔고 슬롯은 partner 무시, stock_movement.partner_id는 수불처로 유지(마지막 OUT=99)
+        assertEquals(99L, movementRepository.lastPartnerId());
 
         service.recordMovement(new RecordStockMovementCommand(
                 200L,

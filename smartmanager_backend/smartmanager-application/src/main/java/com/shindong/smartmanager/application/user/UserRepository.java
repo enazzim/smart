@@ -19,5 +19,7 @@ public interface UserRepository {
 
     boolean existsActiveByLoginId(String loginId, Long excludeId);
 
+    boolean existsActiveByWorkDiaryGroupId(long workDiaryGroupId);
+
     Optional<String> findActiveLoginId(long id);
 }

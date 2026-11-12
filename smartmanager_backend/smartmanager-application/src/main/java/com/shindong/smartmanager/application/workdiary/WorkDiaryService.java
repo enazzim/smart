@@ -2,34 +2,46 @@ package com.shindong.smartmanager.application.workdiary;
 
 import com.shindong.smartmanager.application.code.CodeGroupOptionsRepository;
 import com.shindong.smartmanager.application.code.CodeOptionView;
+import com.shindong.smartmanager.application.publiccode.CreateSmallCommand;
+import com.shindong.smartmanager.application.publiccode.PublicCodeLargeView;
+import com.shindong.smartmanager.application.publiccode.PublicCodeRepository;
+import com.shindong.smartmanager.application.publiccode.PublicCodeSmallView;
 import com.shindong.smartmanager.application.user.UserRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class WorkDiaryService {
 
     private static final String WORK_DIARY_GROUP = "WORK_DIARY_GROUP";
+    private static final String WORK_DIARY_GROUP_LARGE_CODE = "1900";
+    private static final Pattern GROUP_NAME_PATTERN = Pattern.compile("^(\\d+)\\s*그룹$");
 
     private final WorkDiaryRepository workDiaryRepository;
     private final UserRepository userRepository;
     private final CodeGroupOptionsRepository codeGroupOptionsRepository;
+    private final PublicCodeRepository publicCodeRepository;
     private final WorkDiaryApproverPolicy workDiaryApproverPolicy;
 
     public WorkDiaryService(
             WorkDiaryRepository workDiaryRepository,
             UserRepository userRepository,
             CodeGroupOptionsRepository codeGroupOptionsRepository,
+            PublicCodeRepository publicCodeRepository,
             WorkDiaryApproverPolicy workDiaryApproverPolicy
     ) {
         this.workDiaryRepository = workDiaryRepository;
         this.userRepository = userRepository;
         this.codeGroupOptionsRepository = codeGroupOptionsRepository;
+        this.publicCodeRepository = publicCodeRepository;
         this.workDiaryApproverPolicy = workDiaryApproverPolicy;
     }
 
@@ -67,11 +79,7 @@ public class WorkDiaryService {
     }
 
     public WorkDiaryTemplateView updateTemplate(UpdateWorkDiaryTemplateCommand command) {
-        var user = userRepository.findActiveById(command.actorUserId())
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + command.actorUserId()));
-        if (!user.roleCodes().contains("SYSTEM_ADMIN")) {
-            throw new IllegalStateException("업무일지 양식은 시스템 관리자만 수정할 수 있습니다.");
-        }
+        requireSystemAdmin(command.actorUserId());
         var template = workDiaryRepository.findActiveTemplateByGroupId(command.workDiaryGroupId())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "업무일지 템플릿을 찾을 수 없습니다. groupId=" + command.workDiaryGroupId()));
@@ -92,6 +100,107 @@ public class WorkDiaryService {
                 command.templateName().trim(),
                 WorkDiaryFieldSchemaSupport.forWriter(fieldSchema)
         );
+    }
+
+    public WorkDiaryTemplateView createGroup(long actorUserId, String actorUserIdText) {
+        requireSystemAdmin(actorUserId);
+        List<CodeOptionView> groups = codeGroupOptionsRepository.findActiveOptions(WORK_DIARY_GROUP);
+        int nextNumber = nextGroupNumber(groups);
+        if (nextNumber > 99) {
+            throw new IllegalStateException("그룹 번호는 99까지 생성할 수 있습니다.");
+        }
+        String groupName = String.format("%02d 그룹", nextNumber);
+        String templateCode = String.format("%02d", nextNumber);
+        String smallCode = nextSmallCode(groups);
+
+        PublicCodeLargeView header = publicCodeRepository.findActiveLargeHeader(WORK_DIARY_GROUP_LARGE_CODE)
+                .orElseThrow(() -> new IllegalStateException("업무일지그룹 대분류(1900)를 찾을 수 없습니다."));
+        if (!WORK_DIARY_GROUP.equals(header.usageType())) {
+            throw new IllegalStateException("업무일지그룹 대분류 usageType이 올바르지 않습니다.");
+        }
+        if (publicCodeRepository.existsActiveSmall(WORK_DIARY_GROUP_LARGE_CODE, smallCode)) {
+            throw new IllegalStateException("이미 존재하는 그룹 코드입니다: " + smallCode);
+        }
+        if (publicCodeRepository.existsActiveSmallByName(WORK_DIARY_GROUP_LARGE_CODE, groupName, null)) {
+            throw new IllegalStateException("이미 존재하는 그룹명입니다: " + groupName);
+        }
+
+        long groupId = publicCodeRepository.saveSmall(
+                new CreateSmallCommand(WORK_DIARY_GROUP_LARGE_CODE, smallCode, groupName),
+                header,
+                actorUserIdText
+        );
+
+        Map<String, Object> emptySchema = new LinkedHashMap<>();
+        emptySchema.put("version", WorkDiaryFieldSchemaSupport.SCHEMA_VERSION);
+        emptySchema.put("fields", List.of());
+
+        var created = workDiaryRepository.createTemplate(
+                templateCode,
+                groupId,
+                "업무일지 " + groupName,
+                emptySchema,
+                actorUserIdText
+        );
+        return new WorkDiaryTemplateView(
+                created.templateCode(),
+                created.workDiaryGroupId(),
+                groupName,
+                created.templateName(),
+                WorkDiaryFieldSchemaSupport.forWriter(created.fieldSchema())
+        );
+    }
+
+    public void deleteGroup(long workDiaryGroupId, long actorUserId, String actorUserIdText) {
+        requireSystemAdmin(actorUserId);
+        PublicCodeSmallView group = publicCodeRepository.findActiveSmallById(workDiaryGroupId)
+                .orElseThrow(() -> new IllegalArgumentException("업무일지 그룹을 찾을 수 없습니다: " + workDiaryGroupId));
+        if (!WORK_DIARY_GROUP.equals(group.usageType())) {
+            throw new IllegalArgumentException("업무일지 그룹이 아닙니다: " + workDiaryGroupId);
+        }
+
+        String label = "「" + group.smallName() + "」";
+        if (userRepository.existsActiveByWorkDiaryGroupId(workDiaryGroupId)) {
+            throw new IllegalStateException(label + "은(는) 사용자에서 사용 중이라 삭제할 수 없습니다.");
+        }
+        if (workDiaryRepository.existsActiveEntryByGroupId(workDiaryGroupId)) {
+            throw new IllegalStateException(label + "은(는) 업무일지에서 사용 중이라 삭제할 수 없습니다.");
+        }
+
+        workDiaryRepository.softDeleteTemplateByGroupId(workDiaryGroupId, actorUserIdText);
+        publicCodeRepository.softDeleteSmall(workDiaryGroupId, actorUserIdText);
+    }
+
+    private void requireSystemAdmin(long actorUserId) {
+        var user = userRepository.findActiveById(actorUserId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + actorUserId));
+        if (!user.roleCodes().contains("SYSTEM_ADMIN")) {
+            throw new IllegalStateException("업무일지 그룹/양식은 시스템 관리자만 변경할 수 있습니다.");
+        }
+    }
+
+    private static int nextGroupNumber(List<CodeOptionView> groups) {
+        int max = -1;
+        for (CodeOptionView group : groups) {
+            Matcher matcher = GROUP_NAME_PATTERN.matcher(group.name() == null ? "" : group.name().trim());
+            if (matcher.matches()) {
+                max = Math.max(max, Integer.parseInt(matcher.group(1)));
+            }
+        }
+        return max + 1;
+    }
+
+    private static String nextSmallCode(List<CodeOptionView> groups) {
+        long maxCode = 19000000L;
+        for (CodeOptionView group : groups) {
+            try {
+                long code = Long.parseLong(group.code().trim());
+                maxCode = Math.max(maxCode, code);
+            } catch (Exception ignored) {
+                // ignore non-numeric codes
+            }
+        }
+        return String.valueOf(maxCode + 10L);
     }
 
     public boolean isApprover(long actorUserId) {

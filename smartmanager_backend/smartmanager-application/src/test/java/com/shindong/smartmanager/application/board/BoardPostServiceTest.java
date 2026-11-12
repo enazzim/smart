@@ -220,6 +220,10 @@ class BoardPostServiceTest {
         }
 
         @Override
+        public boolean existsActiveByWorkDiaryGroupId(long workDiaryGroupId) {
+            return false;
+        }
+
         public boolean existsActiveByLoginId(String loginId, Long excludeId) {
             return false;
         }

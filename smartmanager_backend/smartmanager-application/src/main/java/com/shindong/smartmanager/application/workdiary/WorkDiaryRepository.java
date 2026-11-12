@@ -44,6 +44,14 @@ public interface WorkDiaryRepository {
 
     List<WorkDiaryTemplateRecord> findAllActiveTemplates();
 
+    WorkDiaryTemplateRecord createTemplate(
+            String templateCode,
+            long workDiaryGroupId,
+            String templateName,
+            Map<String, Object> fieldSchema,
+            String actorUserIdText
+    );
+
     void updateTemplate(
             long workDiaryGroupId,
             String templateName,
@@ -51,6 +59,10 @@ public interface WorkDiaryRepository {
             String actorLoginId,
             String actorUserIdText
     );
+
+    void softDeleteTemplateByGroupId(long workDiaryGroupId, String actorUserIdText);
+
+    boolean existsActiveEntryByGroupId(long workDiaryGroupId);
 
     Optional<WorkDiaryEntryRecord> findActiveEntryById(long id);
 

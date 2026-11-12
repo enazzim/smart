@@ -3299,6 +3299,18 @@ table.nested-table td {
   min-height: 0;
 }
 
+.work-diary-template-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.work-diary-template-card-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
 .work-diary-template-card h3 {
   margin: 0 0 0.25rem;
   font-size: 0.95rem;

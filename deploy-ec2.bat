@@ -79,6 +79,20 @@ if "%SKIP_BUILD%"=="1" (
 )
 
 echo [1/4] Building...
+echo   - Backend core tests ^(@Tag core^)
+cd /d "%BACKEND_DIR%"
+call gradlew.bat test -PcoreTests=true --no-daemon
+if errorlevel 1 (
+    echo ERROR: Backend core tests failed. Deploy aborted.
+    exit /b 1
+)
+echo   - Frontend tests ^(vitest^)
+cd /d "%FRONTEND_DIR%"
+call npm test
+if errorlevel 1 (
+    echo ERROR: Frontend tests failed. Deploy aborted.
+    exit /b 1
+)
 if "%DO_API%"=="1" (
     echo   - API bootJar
     cd /d "%BACKEND_DIR%"

@@ -31,12 +31,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
  * LOT 체크리스트 E2E: 입고(RAW) → 투입(OUT) → 산출(SALES IN) → 출고(DELIVERY) → 매출(DELIVERY OUT).
  * 슬롯 집계와 Lot 잔량·genealogy가 동일 TX 경로({@link InventoryBalanceService})로 맞는지 검증한다.
  */
+@Tag("core")
 class LotTraceabilityFlowTest {
 
     private static final long RAW_ITEM_ID = 10L;

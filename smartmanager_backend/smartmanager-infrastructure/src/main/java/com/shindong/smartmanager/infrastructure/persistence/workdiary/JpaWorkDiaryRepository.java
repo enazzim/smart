@@ -51,6 +51,30 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
 
     @Override
     @Transactional
+    public WorkDiaryTemplateRecord createTemplate(
+            String templateCode,
+            long workDiaryGroupId,
+            String templateName,
+            Map<String, Object> fieldSchema,
+            String actorUserIdText
+    ) {
+        Instant now = Instant.now();
+        Long actorId = masterAuditActorLookup.idOf(actorUserIdText);
+        WorkDiaryTemplateJpaEntity entity = new WorkDiaryTemplateJpaEntity();
+        entity.setTemplateCode(templateCode);
+        entity.setWorkDiaryGroupId(workDiaryGroupId);
+        entity.setTemplateName(templateName);
+        entity.setFieldSchema(writeJson(fieldSchema));
+        entity.setRecordingState(1);
+        entity.setCreatedById(actorId);
+        entity.setCreatedAt(now);
+        entity.setUpdatedById(actorId);
+        entity.setUpdatedAt(now);
+        return toTemplateRecord(templateRepository.save(entity));
+    }
+
+    @Override
+    @Transactional
     public void updateTemplate(
             long workDiaryGroupId,
             String templateName,
@@ -66,6 +90,25 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
         entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserIdText));
         entity.setUpdatedAt(Instant.now());
         templateRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteTemplateByGroupId(long workDiaryGroupId, String actorUserIdText) {
+        Instant now = Instant.now();
+        Long actorId = masterAuditActorLookup.idOf(actorUserIdText);
+        for (WorkDiaryTemplateJpaEntity entity : templateRepository.findAllActiveByGroupId(workDiaryGroupId)) {
+            entity.setRecordingState(0);
+            entity.setUpdatedById(actorId);
+            entity.setUpdatedAt(now);
+            templateRepository.save(entity);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsActiveEntryByGroupId(long workDiaryGroupId) {
+        return entryRepository.existsByWorkDiaryGroupIdAndRecordingState(workDiaryGroupId, 1);
     }
 
     @Override

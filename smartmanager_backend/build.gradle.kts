@@ -26,6 +26,11 @@ subprojects {
     }
 
     tasks.withType<Test> {
-        useJUnitPlatform()
+        useJUnitPlatform {
+            // 배포·로컬 핵심 스위트: ./gradlew test -PcoreTests=true
+            if (findProperty("coreTests") == "true") {
+                includeTags("core")
+            }
+        }
     }
 }

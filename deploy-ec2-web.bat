@@ -52,6 +52,16 @@ if not exist "%DIST_DIR%\index.html" (
     exit /b 1
 )
 
+echo [0/3] Frontend tests ^(vitest^)...
+cd /d "%FRONTEND_DIR%"
+call npm test
+if errorlevel 1 (
+    echo ERROR: Frontend tests failed. Deploy aborted.
+    exit /b 1
+)
+echo   OK
+echo.
+
 echo [1/3] Checking SSH...
 ssh -i "%PEM_KEY%" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 %EC2_USER%@%EC2_HOST% "echo ok" >nul 2>&1
 if errorlevel 1 (

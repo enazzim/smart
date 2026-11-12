@@ -162,6 +162,12 @@ public class JpaUserRepository implements UserRepository {
         );
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsActiveByWorkDiaryGroupId(long workDiaryGroupId) {
+        return userRepository.existsByWorkDiaryGroupIdAndRecordingState(workDiaryGroupId, 1);
+    }
+
     private Map<Long, RoleJpaEntity> loadActiveRoleMap() {
         Map<Long, RoleJpaEntity> roleMap = new LinkedHashMap<>();
         for (RoleJpaEntity role : roleRepository.findByRecordingStateOrderByRoleCodeAsc(1)) {

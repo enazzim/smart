@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
@@ -14,7 +16,8 @@
     "@types/sockjs-client": "^1.5.4",
     "@vitejs/plugin-react": "^6.0.3",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "vite": "^8.1.1",
+    "vitest": "^3.2.4"
   },
   "dependencies": {
     "@stomp/stompjs": "^7.2.0",

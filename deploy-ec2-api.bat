@@ -12,6 +12,7 @@ set "EC2_HOST=15.164.211.35"
 set "EC2_USER=ec2-user"
 set "PEM_KEY=%ROOT%sindong-key.pem"
 set "BACKEND_DIR=%ROOT%smartmanager_backend"
+set "FRONTEND_DIR=%ROOT%smartmanager_frontend"
 set "REMOTE_TMP=/tmp/smartmanager-deploy-api"
 set "APPLY_API_SH=%ROOT%deploy\scripts\ec2-apply-api.sh"
 set "SKIP_BUILD=0"
@@ -65,7 +66,22 @@ if "%SKIP_BUILD%"=="1" (
     echo [1/4] Build skipped.
     echo.
 ) else (
-    echo [1/4] Building API bootJar...
+    echo [1/4] Core tests + API bootJar...
+    cd /d "%BACKEND_DIR%"
+    echo   - Backend core tests ^(@Tag core^)
+    call gradlew.bat test -PcoreTests=true --no-daemon
+    if errorlevel 1 (
+        echo ERROR: Backend core tests failed. Deploy aborted.
+        exit /b 1
+    )
+    echo   - Frontend tests ^(vitest^)
+    cd /d "%FRONTEND_DIR%"
+    call npm test
+    if errorlevel 1 (
+        echo ERROR: Frontend tests failed. Deploy aborted.
+        exit /b 1
+    )
+    echo   - API bootJar
     cd /d "%BACKEND_DIR%"
     call gradlew.bat :smartmanager-api:bootJar -x test --no-daemon
     if errorlevel 1 (

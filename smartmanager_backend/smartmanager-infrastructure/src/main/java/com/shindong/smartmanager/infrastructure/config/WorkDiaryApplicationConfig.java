@@ -2,6 +2,7 @@ package com.shindong.smartmanager.infrastructure.config;
 
 import com.shindong.smartmanager.application.auth.AuthUserRepository;
 import com.shindong.smartmanager.application.code.CodeGroupOptionsRepository;
+import com.shindong.smartmanager.application.publiccode.PublicCodeRepository;
 import com.shindong.smartmanager.application.system.SystemSettingRepository;
 import com.shindong.smartmanager.application.user.UserRepository;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryApproverPolicy;
@@ -27,12 +28,14 @@ public class WorkDiaryApplicationConfig {
             WorkDiaryRepository workDiaryRepository,
             UserRepository userRepository,
             CodeGroupOptionsRepository codeGroupOptionsRepository,
+            PublicCodeRepository publicCodeRepository,
             WorkDiaryApproverPolicy workDiaryApproverPolicy
     ) {
         return new WorkDiaryService(
                 workDiaryRepository,
                 userRepository,
                 codeGroupOptionsRepository,
+                publicCodeRepository,
                 workDiaryApproverPolicy
         );
     }

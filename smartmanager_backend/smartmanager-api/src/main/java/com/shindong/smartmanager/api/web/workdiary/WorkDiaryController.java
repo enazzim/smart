@@ -71,6 +71,34 @@ public class WorkDiaryController {
                 principal.loginId(),
                 String.valueOf(principal.userId())
         ));
+        return toTemplateResponse(view);
+    }
+
+    @PostMapping("/template-groups")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyAuthority('community:workdiary:read','community:workdiary:write','community:workdiary:approve')")
+    public WorkDiaryTemplateResponse createTemplateGroup() {
+        var principal = SecurityUtils.requirePrincipal();
+        WorkDiaryTemplateView view = workDiaryApplicationService.createGroup(
+                principal.userId(),
+                String.valueOf(principal.userId())
+        );
+        return toTemplateResponse(view);
+    }
+
+    @DeleteMapping("/template-groups/{workDiaryGroupId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyAuthority('community:workdiary:read','community:workdiary:write','community:workdiary:approve')")
+    public void deleteTemplateGroup(@PathVariable long workDiaryGroupId) {
+        var principal = SecurityUtils.requirePrincipal();
+        workDiaryApplicationService.deleteGroup(
+                workDiaryGroupId,
+                principal.userId(),
+                String.valueOf(principal.userId())
+        );
+    }
+
+    private static WorkDiaryTemplateResponse toTemplateResponse(WorkDiaryTemplateView view) {
         return new WorkDiaryTemplateResponse(
                 view.templateCode(),
                 view.workDiaryGroupId(),

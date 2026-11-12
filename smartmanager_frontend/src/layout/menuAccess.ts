@@ -109,9 +109,16 @@ export function canAccessSelfAccount(roleCodes: string[], authorities: string[])
   return authorities.includes('basis:user:read');
 }
 
-/** VIEWER 포함 시 등록·수정·삭제 불가 (SYSTEM_ADMIN·BASIS_MANAGER 제외) */
+/**
+ * 전역 조회 전용 여부.
+ * VIEWER 단독(또는 업무 쓰기 역할이 없을 때)만 true.
+ * 구매/영업/생산 담당 등과 VIEWER를 함께 쓰면 해당 권한 화면은 등록·수정·삭제 가능.
+ */
 export function isTransactionReadOnly(roleCodes: string[]): boolean {
   if (roleCodes.includes('SYSTEM_ADMIN') || roleCodes.includes('BASIS_MANAGER')) {
+    return false;
+  }
+  if (hasScopedOperatorRole(roleCodes)) {
     return false;
   }
   return roleCodes.includes('VIEWER');

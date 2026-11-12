@@ -3,8 +3,10 @@ package com.shindong.smartmanager.application.closing;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.LocalDate;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+@Tag("core")
 class FiscalCalendarServiceTest {
 
     private final FiscalCalendarService service = new FiscalCalendarService();

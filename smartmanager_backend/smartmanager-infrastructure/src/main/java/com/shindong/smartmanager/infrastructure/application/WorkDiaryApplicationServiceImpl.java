@@ -48,6 +48,18 @@ public class WorkDiaryApplicationServiceImpl implements WorkDiaryApplicationServ
     }
 
     @Override
+    @Transactional
+    public WorkDiaryTemplateView createGroup(long actorUserId, String actorUserIdText) {
+        return workDiaryService.createGroup(actorUserId, actorUserIdText);
+    }
+
+    @Override
+    @Transactional
+    public void deleteGroup(long workDiaryGroupId, long actorUserId, String actorUserIdText) {
+        workDiaryService.deleteGroup(workDiaryGroupId, actorUserId, actorUserIdText);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public WorkDiaryPageView list(WorkDiaryListCriteria criteria) {
         return workDiaryService.list(criteria);
