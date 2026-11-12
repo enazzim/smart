@@ -102,15 +102,17 @@ export default function SalesOrderManual({ onBack }: SalesOrderManualProps) {
         </figure>
         <ol>
           <li>
-            <strong>수주 양식 다운로드.</strong> 열 순서는 수주번호, 사업자등록번호, 수주일, 납기요구일, 품목번호,
-            수주수량, 단가, 비고입니다.
+            <strong>수주 양식 다운로드.</strong> 레거시와 동일합니다. 열 순서는 품목번호, 거래처명, 사업자등록번호,
+            수주일자, 적용단가, 총발주량, 납기요구일, 발주번호, 납품장소, 생산의뢰여부입니다. 날짜는 YYYYMMDD도
+            가능합니다.
           </li>
           <li>
-            <strong>사업자등록번호</strong>로 판매 거래처를 찾고, <strong>품목번호</strong>로 품목을 찾습니다. 수주일과
-            납기요구일은 필수입니다. 품목은 상품, 제품, 공정품만 가능합니다.
+            <strong>사업자등록번호</strong>로 판매 거래처를 찾고, <strong>품목번호</strong>로 품목을 찾습니다. 수주일자와
+            납기요구일은 필수입니다. <strong>발주번호</strong>는 수주번호로 저장됩니다. 거래처명·납품장소·생산의뢰여부는
+            참고용이며 DB에는 넣지 않습니다.
           </li>
           <li>
-            같은 <strong>수주번호</strong>인 행은 한 수주의 여러 줄로 묶입니다. 수주번호가 비어 있으면 그 행마다 수주가
+            같은 <strong>발주번호</strong>인 행은 한 수주의 여러 줄로 묶입니다. 발주번호가 비어 있으면 그 행마다 수주가
             하나씩 만들어지고 번호는 자동 채번됩니다.
           </li>
           <li>
@@ -118,8 +120,9 @@ export default function SalesOrderManual({ onBack }: SalesOrderManualProps) {
             <strong>제거</strong>로 파일을 지울 수 있습니다.
           </li>
           <li>
-            <strong>엑셀 일괄 등록</strong>은 미리보기가 있을 때만 누를 수 있습니다. 행 오류는 “몇 행: 사유”로
-            나열되고, 성공한 건만 저장됩니다. 일부만 성공해도 성공 건수는 목록에 반영됩니다.
+            <strong>엑셀 일괄 등록</strong>은 미리보기가 있을 때만 누를 수 있습니다. 정상 행만 등록되고, 오류 행은
+            화면 오류 목록에 원본 값과 오류사유가 표시됩니다. <strong>오류 엑셀 다운로드</strong>로 받아 수정한 뒤
+            다시 올릴 수 있습니다.
           </li>
         </ol>
       </section>

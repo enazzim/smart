@@ -21,12 +21,16 @@ import { isUnitPriceEffective, toPartnerPriceItems } from '../utils/unitPriceHel
 import {
   buildBulkOrdersFromRows,
   buildUnitPriceLookup,
+  downloadSalesOrderErrorExcel,
   downloadSalesOrderTemplate,
   indexCompaniesByRegNo,
   indexItemsByNo,
+  mapServerFailuresToErrorRows,
   parseSalesOrderExcel,
   type ParsedSalesOrderRow,
+  type SalesOrderBulkErrorRow,
 } from '../utils/salesOrderExcel';
+import { formatBusinessRegNo } from '../utils/businessRegNo';
 import { fetchCompanies } from '../api/company';
 import { fetchItems } from '../api/item';
 import { fetchUnitPrices } from '../api/unitPrice';
@@ -165,7 +169,7 @@ export default function SalesOrderPage() {
 
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [excelPreview, setExcelPreview] = useState<ParsedSalesOrderRow[]>([]);
-  const [excelErrors, setExcelErrors] = useState<{ rowNumber: number; message: string }[]>([]);
+  const [excelErrors, setExcelErrors] = useState<SalesOrderBulkErrorRow[]>([]);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [excelDragOver, setExcelDragOver] = useState(false);
   const excelInputRef = useRef<HTMLInputElement>(null);
@@ -426,7 +430,21 @@ export default function SalesOrderPage() {
       const parsed = await parseSalesOrderExcel(buffer);
       setExcelPreview(parsed);
     } catch (err) {
-      setExcelErrors([{ rowNumber: 0, message: err instanceof Error ? err.message : '엑셀 파싱 실패' }]);
+      setExcelErrors([
+        {
+          rowNumber: 0,
+          itemNo: '',
+          partnerName: '',
+          businessRegNo: '',
+          orderDate: '',
+          orderQty: 0,
+          requestedDeliveryDate: '',
+          orderNo: '',
+          deliveryPlace: '',
+          productionRequestYn: '',
+          errorReason: err instanceof Error ? err.message : '엑셀 파싱 실패',
+        },
+      ]);
     }
   };
 
@@ -447,7 +465,21 @@ export default function SalesOrderPage() {
 
   const onBulkUpload = async () => {
     if (!excelFile || excelPreview.length === 0) {
-      setExcelErrors([{ rowNumber: 0, message: '업로드할 엑셀 파일을 선택해 주세요.' }]);
+      setExcelErrors([
+        {
+          rowNumber: 0,
+          itemNo: '',
+          partnerName: '',
+          businessRegNo: '',
+          orderDate: '',
+          orderQty: 0,
+          requestedDeliveryDate: '',
+          orderNo: '',
+          deliveryPlace: '',
+          productionRequestYn: '',
+          errorReason: '업로드할 엑셀 파일을 선택해 주세요.',
+        },
+      ]);
       return;
     }
 
@@ -467,28 +499,52 @@ export default function SalesOrderPage() {
         unitPriceByPartnerItem: buildUnitPriceLookup(unitPrices),
       });
 
-      if (buildResult.errors.length > 0) {
-        setExcelErrors(buildResult.errors);
-      }
       if (buildResult.orders.length === 0) {
-        setBulkMessage('등록 가능한 수주가 없습니다.');
+        setExcelErrors(buildResult.errors);
+        setBulkMessage(
+          buildResult.errors.length > 0
+            ? `등록 가능한 수주가 없습니다. (${buildResult.errors.length}건 오류)`
+            : '등록 가능한 수주가 없습니다.',
+        );
         return;
       }
 
       const result = await createSalesOrdersBulk(buildResult.orders);
-      const serverErrors = result.failures.map((failure) => ({
-        rowNumber: failure.rowIndex + 1,
-        message: failure.message,
-      }));
-      setExcelErrors([...buildResult.errors, ...serverErrors]);
-      setBulkMessage(`${result.successCount}건 등록, ${result.failureCount}건 실패`);
+      const serverErrors = mapServerFailuresToErrorRows(result.failures, buildResult.orderSourceRows);
+      const allErrors = [...buildResult.errors, ...serverErrors];
+      setExcelErrors(allErrors);
+      const failedRowCount = allErrors.length;
+      const rightCount = excelPreview.length - failedRowCount;
+      if (failedRowCount === 0) {
+        setBulkMessage(`${result.successCount}건 등록되었습니다.`);
+      } else if (result.successCount === 0) {
+        setBulkMessage(`엑셀 자료가 모두 오류입니다. (${failedRowCount}건)`);
+      } else {
+        setBulkMessage(
+          `${failedRowCount}건을 제외한 ${Math.max(rightCount, 0)}행이 반영되었고, 수주 ${result.successCount}건이 등록되었습니다.`,
+        );
+      }
       if (result.successCount > 0) {
         setExcelFile(null);
         setExcelPreview([]);
         await load();
       }
     } catch (err) {
-      setExcelErrors([{ rowNumber: 0, message: err instanceof Error ? err.message : '일괄 등록 실패' }]);
+      setExcelErrors([
+        {
+          rowNumber: 0,
+          itemNo: '',
+          partnerName: '',
+          businessRegNo: '',
+          orderDate: '',
+          orderQty: 0,
+          requestedDeliveryDate: '',
+          orderNo: '',
+          deliveryPlace: '',
+          productionRequestYn: '',
+          errorReason: err instanceof Error ? err.message : '일괄 등록 실패',
+        },
+      ]);
     } finally {
       setSubmitting(false);
     }
@@ -712,8 +768,9 @@ export default function SalesOrderPage() {
               </button>
             </div>
             <p className="hint-text sales-order-excel-hint">
-              양식을 내려받아 작성 후 업로드하세요. 동일한 수주번호는 한 건의 수주로 묶이며, 수주번호가
-              비어 있으면 행마다 별도 수주가 생성됩니다.
+              레거시와 동일한 양식(품목번호·거래처명·사업자등록번호·수주일자·적용단가·총발주량·납기요구일·발주번호·납품장소·생산의뢰여부)을
+              사용합니다. 발주번호는 수주번호로 저장되며, 같은 발주번호는 한 수주로 묶입니다. 오류 행은
+              목록에서 확인하고 엑셀로 내려받아 수정할 수 있습니다.
             </p>
 
             <div
@@ -790,14 +847,57 @@ export default function SalesOrderPage() {
             </div>
             {bulkMessage && <p className="success-banner">{bulkMessage}</p>}
             {excelErrors.length > 0 && (
-              <ul className="import-card__errors">
-                {excelErrors.map((entry, index) => (
-                  <li key={`${entry.rowNumber}-${index}`}>
-                    {entry.rowNumber > 0 ? `${entry.rowNumber}행: ` : ''}
-                    {entry.message}
-                  </li>
-                ))}
-              </ul>
+              <div className="sales-order-excel-errors">
+                <div className="panel-header-row">
+                  <h3>오류 목록 ({excelErrors.length}건)</h3>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={submitting || excelErrors.every((row) => row.rowNumber <= 0)}
+                    onClick={() =>
+                      void downloadSalesOrderErrorExcel(excelErrors.filter((row) => row.rowNumber > 0))
+                    }
+                  >
+                    오류 엑셀 다운로드
+                  </button>
+                </div>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>행</th>
+                        <th>품목번호</th>
+                        <th>거래처명</th>
+                        <th>사업자등록번호</th>
+                        <th>수주일자</th>
+                        <th className="num">적용단가</th>
+                        <th className="num">총발주량</th>
+                        <th>납기요구일</th>
+                        <th>발주번호</th>
+                        <th>납품장소</th>
+                        <th>오류사유</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {excelErrors.map((entry, index) => (
+                        <tr key={`${entry.rowNumber}-${entry.itemNo}-${index}`}>
+                          <td>{entry.rowNumber > 0 ? entry.rowNumber : '-'}</td>
+                          <td>{entry.itemNo}</td>
+                          <td>{entry.partnerName}</td>
+                          <td>{entry.businessRegNo ? formatBusinessRegNo(entry.businessRegNo) : ''}</td>
+                          <td>{entry.orderDate}</td>
+                          <td className="num">{entry.unitPrice != null ? formatAmount(entry.unitPrice) : ''}</td>
+                          <td className="num">{entry.orderQty ? formatQty(entry.orderQty) : ''}</td>
+                          <td>{entry.requestedDeliveryDate}</td>
+                          <td>{entry.orderNo}</td>
+                          <td>{entry.deliveryPlace}</td>
+                          <td>{entry.errorReason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
           </div>
         )}

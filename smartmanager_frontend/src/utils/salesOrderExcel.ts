@@ -1,29 +1,43 @@
 import { createWorkbookWithSheet, downloadExcelWorkbook, normalizeExcelDate, parseFirstSheetRows } from './excelHelpers';
 import type { SalesOrderRequest } from '../api/salesOrder';
 
+/** KIT_ERP 수주일괄등록 양식 컬럼 (ExcelSample.xlsx) */
 export const SALES_ORDER_TEMPLATE_HEADERS = [
-  '수주번호',
-  '사업자등록번호',
-  '수주일',
-  '납기요구일',
   '품목번호',
-  '수주수량',
-  '단가',
-  '비고',
+  '거래처명',
+  '사업자등록번호',
+  '수주일자',
+  '적용단가',
+  '총발주량',
+  '납기요구일',
+  '발주번호',
+  '납품장소',
+  '생산의뢰여부',
 ] as const;
+
+export const SALES_ORDER_ERROR_HEADERS = [...SALES_ORDER_TEMPLATE_HEADERS, '오류사유'] as const;
 
 export type SalesOrderTemplateRow = Record<(typeof SALES_ORDER_TEMPLATE_HEADERS)[number], string | number>;
 
 export interface ParsedSalesOrderRow {
   rowNumber: number;
-  orderNo: string;
-  businessRegNo: string;
-  orderDate: string;
-  requestedDeliveryDate: string;
   itemNo: string;
-  orderQty: number;
+  partnerName: string;
+  businessRegNo: string;
+  /** ISO yyyy-MM-dd */
+  orderDate: string;
   unitPrice?: number;
-  remark: string;
+  orderQty: number;
+  /** ISO yyyy-MM-dd */
+  requestedDeliveryDate: string;
+  /** 레거시 발주번호 → Smart 수주번호 */
+  orderNo: string;
+  deliveryPlace: string;
+  productionRequestYn: string;
+}
+
+export interface SalesOrderBulkErrorRow extends ParsedSalesOrderRow {
+  errorReason: string;
 }
 
 function normalizeBusinessRegNo(value: string): string {
@@ -50,21 +64,56 @@ function normalizeDate(value: unknown): string {
   return normalizeExcelDate(value);
 }
 
+function toLegacyDateDisplay(iso: string): string {
+  if (!iso) {
+    return '';
+  }
+  return iso.replace(/-/g, '');
+}
+
+function toErrorExportRow(row: SalesOrderBulkErrorRow): Record<string, string | number> {
+  return {
+    품목번호: row.itemNo,
+    거래처명: row.partnerName,
+    사업자등록번호: row.businessRegNo,
+    수주일자: toLegacyDateDisplay(row.orderDate),
+    적용단가: row.unitPrice ?? '',
+    총발주량: row.orderQty || '',
+    납기요구일: toLegacyDateDisplay(row.requestedDeliveryDate),
+    발주번호: row.orderNo,
+    납품장소: row.deliveryPlace,
+    생산의뢰여부: row.productionRequestYn,
+    오류사유: row.errorReason,
+  };
+}
+
+function toBulkError(row: ParsedSalesOrderRow, errorReason: string): SalesOrderBulkErrorRow {
+  return { ...row, errorReason };
+}
+
 export async function downloadSalesOrderTemplate() {
   const sampleRows: SalesOrderTemplateRow[] = [
     {
-      수주번호: '',
-      사업자등록번호: '123-45-67890',
-      수주일: '2026-07-05',
-      납기요구일: '2026-07-20',
-      품목번호: 'ITEM-001',
-      수주수량: 10,
-      단가: 1000,
-      비고: '',
+      품목번호: 'M3235-00001',
+      거래처명: '대동공업㈜',
+      사업자등록번호: '613-81-04369',
+      수주일자: '20070701',
+      적용단가: 20419,
+      총발주량: 2000,
+      납기요구일: '20070731',
+      발주번호: 'TS0001',
+      납품장소: '',
+      생산의뢰여부: '',
     },
   ];
   const workbook = createWorkbookWithSheet('수주양식', SALES_ORDER_TEMPLATE_HEADERS, sampleRows);
   await downloadExcelWorkbook(workbook, '수주일괄등록양식.xlsx');
+}
+
+export async function downloadSalesOrderErrorExcel(errors: SalesOrderBulkErrorRow[]) {
+  const rows = errors.map(toErrorExportRow);
+  const workbook = createWorkbookWithSheet('오류목록', SALES_ORDER_ERROR_HEADERS, rows);
+  await downloadExcelWorkbook(workbook, '수주일괄등록_오류목록.xlsx');
 }
 
 export async function parseSalesOrderExcel(buffer: ArrayBuffer): Promise<ParsedSalesOrderRow[]> {
@@ -73,14 +122,16 @@ export async function parseSalesOrderExcel(buffer: ArrayBuffer): Promise<ParsedS
   return rawRows
     .map((row, index) => ({
       rowNumber: index + 2,
-      orderNo: cellString(row['수주번호']),
-      businessRegNo: cellString(row['사업자등록번호']),
-      orderDate: normalizeDate(row['수주일']),
-      requestedDeliveryDate: normalizeDate(row['납기요구일']),
       itemNo: cellString(row['품목번호']),
-      orderQty: cellNumber(row['수주수량']) ?? 0,
-      unitPrice: cellNumber(row['단가']),
-      remark: cellString(row['비고']),
+      partnerName: cellString(row['거래처명']),
+      businessRegNo: cellString(row['사업자등록번호']),
+      orderDate: normalizeDate(row['수주일자'] ?? row['수주일']),
+      unitPrice: cellNumber(row['적용단가'] ?? row['단가']),
+      orderQty: cellNumber(row['총발주량'] ?? row['수주수량']) ?? 0,
+      requestedDeliveryDate: normalizeDate(row['납기요구일']),
+      orderNo: cellString(row['발주번호'] ?? row['수주번호']),
+      deliveryPlace: cellString(row['납품장소']),
+      productionRequestYn: cellString(row['생산의뢰여부']),
     }))
     .filter(
       (row) =>
@@ -88,7 +139,8 @@ export async function parseSalesOrderExcel(buffer: ArrayBuffer): Promise<ParsedS
         row.itemNo ||
         row.orderDate ||
         row.requestedDeliveryDate ||
-        row.orderQty > 0,
+        row.orderQty > 0 ||
+        row.orderNo,
     );
 }
 
@@ -118,14 +170,16 @@ export function buildUnitPriceLookup(
 
 export interface BulkOrderBuildResult {
   orders: SalesOrderRequest[];
-  errors: { rowNumber: number; message: string }[];
+  /** orders[i]에 대응하는 원본 엑셀 행들 (서버 실패 매핑용) */
+  orderSourceRows: ParsedSalesOrderRow[][];
+  errors: SalesOrderBulkErrorRow[];
 }
 
 export function buildBulkOrdersFromRows(
   rows: ParsedSalesOrderRow[],
   context: BuildBulkOrderContext,
 ): BulkOrderBuildResult {
-  const errors: { rowNumber: number; message: string }[] = [];
+  const errors: SalesOrderBulkErrorRow[] = [];
   const grouped = new Map<string, ParsedSalesOrderRow[]>();
 
   rows.forEach((row, index) => {
@@ -136,63 +190,78 @@ export function buildBulkOrdersFromRows(
   });
 
   const orders: SalesOrderRequest[] = [];
+  const orderSourceRows: ParsedSalesOrderRow[][] = [];
 
   grouped.forEach((groupRows) => {
     const header = groupRows[0];
     const regNo = normalizeBusinessRegNo(header.businessRegNo);
     const partner = context.companiesByRegNo.get(regNo);
 
-    if (!partner) {
-      groupRows.forEach((row) =>
-        errors.push({ rowNumber: row.rowNumber, message: `사업자등록번호를 찾을 수 없습니다: ${row.businessRegNo}` }),
-      );
-      return;
-    }
-    if (!header.orderDate) {
-      errors.push({ rowNumber: header.rowNumber, message: '수주일은 필수입니다.' });
-      return;
-    }
-    if (!header.requestedDeliveryDate) {
-      errors.push({ rowNumber: header.rowNumber, message: '납기요구일은 필수입니다.' });
-      return;
-    }
+    const partnerReason = !partner
+      ? header.businessRegNo
+        ? `거래처(사업자등록번호)를 찾을 수 없습니다: ${header.businessRegNo}`
+        : '사업자등록번호는 필수입니다.'
+      : null;
+    const orderDateReason = !header.orderDate ? '수주일자는 필수입니다.' : null;
+    const deliveryDateReason = !header.requestedDeliveryDate ? '납기요구일은 필수입니다.' : null;
 
     const lines: SalesOrderRequest['lines'] = [];
+    const acceptedRows: ParsedSalesOrderRow[] = [];
+
     for (const row of groupRows) {
+      const reasons: string[] = [];
+      if (partnerReason) {
+        reasons.push(
+          row.businessRegNo
+            ? `거래처(사업자등록번호)를 찾을 수 없습니다: ${row.businessRegNo}`
+            : '사업자등록번호는 필수입니다.',
+        );
+      }
+      if (orderDateReason) {
+        reasons.push(orderDateReason);
+      }
+      if (deliveryDateReason) {
+        reasons.push(deliveryDateReason);
+      }
       if (!row.itemNo) {
-        errors.push({ rowNumber: row.rowNumber, message: '품목번호는 필수입니다.' });
-        continue;
+        reasons.push('품목번호는 필수입니다.');
       }
       if (!row.orderQty || row.orderQty <= 0) {
-        errors.push({ rowNumber: row.rowNumber, message: '수주수량은 0보다 커야 합니다.' });
-        continue;
+        reasons.push('총발주량은 0보다 커야 합니다.');
       }
 
-      const item = context.itemsByNo.get(row.itemNo.toUpperCase()) ?? context.itemsByNo.get(row.itemNo);
-      if (!item) {
-        errors.push({ rowNumber: row.rowNumber, message: `품목을 찾을 수 없습니다: ${row.itemNo}` });
-        continue;
+      const item =
+        row.itemNo
+          ? context.itemsByNo.get(row.itemNo.toUpperCase()) ?? context.itemsByNo.get(row.itemNo)
+          : undefined;
+      if (row.itemNo && !item) {
+        reasons.push(`품목을 찾을 수 없습니다: ${row.itemNo}`);
       }
 
-      const defaultUnitPrice = context.unitPriceByPartnerItem.get(unitPriceKey(partner.id, item.id));
-      const unitPrice = row.unitPrice ?? defaultUnitPrice;
-      if (unitPrice == null) {
-        errors.push({
-          rowNumber: row.rowNumber,
-          message: `판매단가가 없습니다. 단가를 입력하거나 판매단가를 등록해 주세요.`,
-        });
+      let unitPrice: number | undefined = row.unitPrice;
+      if (partner && item) {
+        const defaultUnitPrice = context.unitPriceByPartnerItem.get(unitPriceKey(partner.id, item.id));
+        unitPrice = row.unitPrice ?? defaultUnitPrice;
+        if (unitPrice == null) {
+          reasons.push('적용단가가 없습니다. 단가를 입력하거나 판매단가를 등록해 주세요.');
+        }
+      }
+
+      if (reasons.length > 0) {
+        errors.push(toBulkError(row, reasons.join(' / ')));
         continue;
       }
 
       lines.push({
-        itemId: item.id,
+        itemId: item!.id,
         orderQty: row.orderQty,
-        unitPrice,
+        unitPrice: unitPrice!,
         deliveryDate: row.requestedDeliveryDate || header.requestedDeliveryDate,
       });
+      acceptedRows.push(row);
     }
 
-    if (lines.length === 0) {
+    if (lines.length === 0 || !partner) {
       return;
     }
 
@@ -201,12 +270,29 @@ export function buildBulkOrdersFromRows(
       partnerId: partner.id,
       orderDate: header.orderDate,
       requestedDeliveryDate: header.requestedDeliveryDate,
-      remark: header.remark || undefined,
       lines,
     });
+    orderSourceRows.push(acceptedRows);
   });
 
-  return { orders, errors };
+  return { orders, orderSourceRows, errors };
+}
+
+export function mapServerFailuresToErrorRows(
+  failures: { rowIndex: number; message: string }[],
+  orderSourceRows: ParsedSalesOrderRow[][],
+): SalesOrderBulkErrorRow[] {
+  const errors: SalesOrderBulkErrorRow[] = [];
+  for (const failure of failures) {
+    const sources = orderSourceRows[failure.rowIndex] ?? [];
+    if (sources.length === 0) {
+      continue;
+    }
+    for (const row of sources) {
+      errors.push(toBulkError(row, failure.message));
+    }
+  }
+  return errors;
 }
 
 export function indexCompaniesByRegNo(

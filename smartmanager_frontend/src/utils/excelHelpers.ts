@@ -28,6 +28,20 @@ export function excelSerialToIsoDate(serial: number): string | null {
   return new Date(excelEpoch + wholeDays * 86_400_000).toISOString().slice(0, 10);
 }
 
+/** YYYYMMDD(예: 20070701) — 엑셀 일련번호와 구분 */
+function yyyymmddFromNumber(value: number): string | null {
+  if (!Number.isFinite(value) || !Number.isInteger(value)) return null;
+  // 엑셀 serial은 보통 5자리대(예: 2024-01-01 ≈ 45292). 8자리 이상은 YYYYMMDD로 본다.
+  if (value < 10000101 || value > 99991231) return null;
+  const text = String(value);
+  if (!/^\d{8}$/.test(text)) return null;
+  const y = Number(text.slice(0, 4));
+  const m = Number(text.slice(4, 6));
+  const d = Number(text.slice(6, 8));
+  if (y < 1000 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+  return `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}`;
+}
+
 export function normalizeExcelDate(value: unknown): string {
   if (value == null || value === '') return '';
   if (value instanceof Date) {
@@ -38,6 +52,8 @@ export function normalizeExcelDate(value: unknown): string {
     return `${y}-${m}-${d}`;
   }
   if (typeof value === 'number') {
+    const asYmd = yyyymmddFromNumber(value);
+    if (asYmd) return asYmd;
     const parsed = excelSerialToIsoDate(value);
     if (parsed) return parsed;
   }

@@ -4028,6 +4028,19 @@ td.num.sales-order-amount {
   margin-top: 0.25rem;
 }
 
+.sales-order-excel-errors {
+  margin-top: 1rem;
+}
+
+.sales-order-excel-errors h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sales-order-excel-errors .table-wrap {
+  margin-top: 0.5rem;
+}
+
 .sales-order-excel-section .import-card__errors {
   margin-top: 0.75rem;
 }
