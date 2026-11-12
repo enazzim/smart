@@ -164,12 +164,14 @@ public class JpaOutsourcingOrderRepository implements OutsourcingOrderRepository
         }
         String partnerName = normalizeQuery(criteria.partnerName());
         String orderNo = normalizeQuery(criteria.orderNo());
+        String itemNo = normalizeQuery(criteria.itemNo());
         return orderRepository.searchActive(
                 ACTIVE,
                 criteria.orderDateFrom(),
                 criteria.orderDateTo(),
                 partnerName,
                 orderNo,
+                itemNo,
                 criteria.status(),
                 criteria.excludeCancelled(),
                 OutsourcingOrderStatus.CANCELLED

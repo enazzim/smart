@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   cancelPurchaseOrder,
   confirmPurchaseOrder,
@@ -123,6 +123,11 @@ export default function PurchaseOrderPage() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<number>>(new Set());
   const [orderDate, setOrderDate] = useState(todayIso());
   const [listFilters, setListFilters] = useState<PurchaseOrderListParams>(() => defaultListFilters('GENERAL'));
+  const [listPartner, setListPartner] = useState<CompanySearchSelection | null>(null);
+  const [listItem, setListItem] = useState<ItemSearchSelection | null>(null);
+  const [listClearToken, setListClearToken] = useState(0);
+  /** 마지막으로 검색 버튼(또는 탭 진입)에서 적용된 조회 조건 — 등록·취소 후 재조회에 사용 */
+  const appliedListParamsRef = useRef<PurchaseOrderListParams>(defaultListFilters('GENERAL'));
   const [lastCreatedOrders, setLastCreatedOrders] = useState<PurchaseOrder[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -154,17 +159,14 @@ export default function PurchaseOrderPage() {
     }
   }, [orderDate]);
 
-  const loadOrders = useCallback(async () => {
+  /** params 생략 시 마지막으로 적용된 조건으로 재조회한다. 필터 입력 변경만으로는 호출되지 않는다. */
+  const loadOrders = useCallback(async (params?: PurchaseOrderListParams) => {
+    const effective = params ?? appliedListParamsRef.current;
+    appliedListParamsRef.current = effective;
     setLoadingOrders(true);
     setOrderError(null);
     try {
-      // 탭 전환 시 listFilters 반영 전 조회가 끼어들지 않도록 scope는 탭 값을 강제한다.
-      setOrders(
-        await fetchPurchaseOrders({
-          ...listFilters,
-          itemPropertyScope,
-        }),
-      );
+      setOrders(await fetchPurchaseOrders(effective));
       setSelectedOrderIds(new Set());
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : '구매발주 목록 조회 실패');
@@ -172,7 +174,40 @@ export default function PurchaseOrderPage() {
     } finally {
       setLoadingOrders(false);
     }
-  }, [listFilters, itemPropertyScope]);
+  }, []);
+
+  const onSearchOrders = () => {
+    void loadOrders({
+      ...listFilters,
+      partnerName: listPartner?.companyName ?? '',
+      itemNo: listItem?.itemNo,
+      itemPropertyScope,
+    });
+  };
+
+  const onResetOrderFilters = () => {
+    const defaults = defaultListFilters(itemPropertyScope);
+    setListFilters(defaults);
+    setListPartner(null);
+    setListItem(null);
+    setListClearToken((prev) => prev + 1);
+    void loadOrders(defaults);
+  };
+
+  /** 신규 등록 건이 목록에 보이도록 마지막 적용 조건의 발주일 범위를 확장해 재조회한다. */
+  const reloadOrdersIncluding = async (date: string) => {
+    const applied = appliedListParamsRef.current;
+    setListFilters((prev) => ({
+      ...prev,
+      orderDateFrom: prev.orderDateFrom && prev.orderDateFrom <= date ? prev.orderDateFrom : date,
+      orderDateTo: prev.orderDateTo && prev.orderDateTo >= date ? prev.orderDateTo : date,
+    }));
+    await loadOrders({
+      ...applied,
+      orderDateFrom: applied.orderDateFrom && applied.orderDateFrom <= date ? applied.orderDateFrom : date,
+      orderDateTo: applied.orderDateTo && applied.orderDateTo >= date ? applied.orderDateTo : date,
+    });
+  };
 
   const refreshAll = useCallback(async () => {
     setSelectedVendorKeys(new Set());
@@ -182,8 +217,14 @@ export default function PurchaseOrderPage() {
     await loadOrders();
   }, [loadCandidates, loadOrders, pageTab]);
 
+  // 마운트·탭(scope) 전환 시 기본 조건으로 1회만 조회한다. 이후 필터 입력으로는 재조회하지 않는다.
   useEffect(() => {
-    setListFilters(defaultListFilters(itemPropertyScope));
+    const defaults = defaultListFilters(itemPropertyScope);
+    setListFilters(defaults);
+    setListPartner(null);
+    setListItem(null);
+    setListClearToken((prev) => prev + 1);
+    void loadOrders(defaults);
     setOrders([]);
     setSelectedVendorKeys(new Set());
     setSelectedOrderIds(new Set());
@@ -194,17 +235,13 @@ export default function PurchaseOrderPage() {
     setMessage(null);
     setOrderError(null);
     setCandidateError(null);
-  }, [itemPropertyScope]);
+  }, [itemPropertyScope, loadOrders]);
 
   useEffect(() => {
     if (pageTab === 'general') {
       void loadCandidates();
     }
   }, [pageTab, loadCandidates]);
-
-  useEffect(() => {
-    void loadOrders();
-  }, [loadOrders]);
 
   const candidateByRequirementId = useMemo(() => {
     const map = new Map<number, MrpPurchaseCandidate>();
@@ -405,11 +442,6 @@ export default function PurchaseOrderPage() {
         createdOrders.push(order);
       }
       setLastCreatedOrders(createdOrders);
-      setListFilters((prev) => ({
-        ...prev,
-        orderDateFrom: prev.orderDateFrom && prev.orderDateFrom <= orderDate ? prev.orderDateFrom : orderDate,
-        orderDateTo: prev.orderDateTo && prev.orderDateTo >= orderDate ? prev.orderDateTo : orderDate,
-      }));
       if (createdOrders.length === 1) {
         setMessage(`구매발주 ${createdOrders[0].orderNo}을(를) 등록했습니다.`);
       } else {
@@ -419,7 +451,7 @@ export default function PurchaseOrderPage() {
       }
       setSelectedVendorKeys(new Set());
       await loadCandidates();
-      await loadOrders();
+      await reloadOrdersIncluding(orderDate);
     } catch (e) {
       setCandidateError(e instanceof Error ? e.message : 'MRP 발주 등록 실패');
     } finally {
@@ -476,14 +508,9 @@ export default function PurchaseOrderPage() {
       });
       const confirmed = await confirmPurchaseOrder(draft.id);
       setLastCreatedOrders([confirmed]);
-      setListFilters((prev) => ({
-        ...prev,
-        orderDateFrom: prev.orderDateFrom && prev.orderDateFrom <= orderDate ? prev.orderDateFrom : orderDate,
-        orderDateTo: prev.orderDateTo && prev.orderDateTo >= orderDate ? prev.orderDateTo : orderDate,
-      }));
       setMessage(`직접 발주 ${confirmed.orderNo}을(를) 등록·확정했습니다.`);
       setManualLines([newManualLine()]);
-      await loadOrders();
+      await reloadOrdersIncluding(orderDate);
     } catch (e) {
       setManualError(e instanceof Error ? e.message : '직접 발주 등록 실패');
     } finally {
@@ -931,15 +958,20 @@ export default function PurchaseOrderPage() {
               onChange={(e) => setListFilters((prev) => ({ ...prev, orderDateTo: e.target.value || undefined }))}
             />
           </label>
-          <label>
-            거래처명
-            <input
-              type="text"
-              value={listFilters.partnerName ?? ''}
-              placeholder="상호 검색"
-              onChange={(e) => setListFilters((prev) => ({ ...prev, partnerName: e.target.value }))}
-            />
-          </label>
+          <CompanySearchField
+            label="거래처"
+            partnerType="PURCHASE"
+            selectedCompany={listPartner}
+            onSelect={setListPartner}
+            clearToken={listClearToken}
+          />
+          <ItemSearchField
+            label="품목"
+            selectedItem={listItem}
+            onSelect={setListItem}
+            clearToken={listClearToken}
+            allowedClassifications={allowedManualClasses}
+          />
           <label>
             발주번호
             <input
@@ -951,13 +983,13 @@ export default function PurchaseOrderPage() {
           </label>
         </div>
         <div className="form-actions">
-          <button type="button" onClick={() => void loadOrders()}>
+          <button type="button" onClick={onSearchOrders}>
             검색
           </button>
           <button
             type="button"
             className="secondary"
-            onClick={() => setListFilters(defaultListFilters(itemPropertyScope))}
+            onClick={onResetOrderFilters}
           >
             초기화
           </button>

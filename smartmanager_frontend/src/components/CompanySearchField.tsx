@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { fetchCompanies, type CompanyRoleType } from '../api/company';
+import { fetchCompanyLookup, type CompanyRoleType } from '../api/company';
 import { formatBusinessRegNo } from '../utils/businessRegNo';
-import { sortByKoreanField } from '../utils/koreanSort';
 
 const SEARCH_DEBOUNCE_MS = 300;
+const MIN_QUERY_LENGTH = 1;
+const LOOKUP_LIMIT = 50;
 
 /** 구매·외주 거래처 필터용 — 배열 참조 안정화 */
 export const PURCHASE_OUTSOURCE_PARTNER_ROLES: readonly CompanyRoleType[] = ['PURCHASE', 'OUTSOURCE'];
@@ -16,43 +17,6 @@ export type CompanySearchSelection = {
 
 function formatCompanyLabel(company: CompanySearchSelection) {
   return `${company.companyName} (${formatBusinessRegNo(company.businessRegNo)})`;
-}
-
-function matchesQuery(company: CompanySearchSelection, query: string) {
-  const q = query.trim().toLowerCase();
-  if (!q) {
-    return true;
-  }
-  return (
-    company.companyName.toLowerCase().includes(q) ||
-    company.businessRegNo.toLowerCase().includes(q)
-  );
-}
-
-async function loadCompanies(
-  roles: CompanyRoleType | readonly CompanyRoleType[] | undefined,
-  query: string,
-): Promise<CompanySearchSelection[]> {
-  const companies = await fetchCompanies();
-  const filteredByRole = (() => {
-    if (!roles) {
-      return companies;
-    }
-    const roleList = Array.isArray(roles) ? roles : [roles];
-    return companies.filter((company) => roleList.some((role) => company.roles.includes(role)));
-  })();
-
-  const trimmed = query.trim();
-  return sortByKoreanField(
-    filteredByRole
-      .map((company) => ({
-        id: company.id,
-        companyName: company.companyName,
-        businessRegNo: company.businessRegNo,
-      }))
-      .filter((company) => matchesQuery(company, trimmed)),
-    (company) => company.companyName,
-  );
 }
 
 export interface CompanySearchFieldProps {
@@ -82,11 +46,13 @@ export default function CompanySearchField({
   );
   const listId = useId();
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestSeq = useRef(0);
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<CompanySearchSelection[]>([]);
   const [open, setOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [needsMoreInput, setNeedsMoreInput] = useState(false);
 
   const rolesFilter = useMemo(
     () => partnerTypes ?? partnerType,
@@ -95,15 +61,45 @@ export default function CompanySearchField({
 
   const fetchOptions = useCallback(
     async (searchQuery: string) => {
+      const trimmed = searchQuery.trim();
+      if (trimmed.length < MIN_QUERY_LENGTH) {
+        setOptions([]);
+        setNeedsMoreInput(true);
+        setSearching(false);
+        setSearchError(null);
+        return;
+      }
+
+      const seq = ++requestSeq.current;
+      setNeedsMoreInput(false);
       setSearching(true);
       setSearchError(null);
       try {
-        setOptions(await loadCompanies(rolesFilter, searchQuery));
+        const rows = await fetchCompanyLookup({
+          q: trimmed,
+          roles: rolesFilter,
+          limit: LOOKUP_LIMIT,
+        });
+        if (seq !== requestSeq.current) {
+          return;
+        }
+        setOptions(
+          rows.map((company) => ({
+            id: company.id,
+            companyName: company.companyName,
+            businessRegNo: company.businessRegNo,
+          })),
+        );
       } catch (e) {
+        if (seq !== requestSeq.current) {
+          return;
+        }
         setSearchError(e instanceof Error ? e.message : '거래처 검색 실패');
         setOptions([]);
       } finally {
-        setSearching(false);
+        if (seq === requestSeq.current) {
+          setSearching(false);
+        }
       }
     },
     [rolesFilter],
@@ -117,6 +113,7 @@ export default function CompanySearchField({
     setOptions([]);
     setOpen(false);
     setSearchError(null);
+    setNeedsMoreInput(false);
   }, [clearToken]);
 
   useEffect(() => {
@@ -175,6 +172,12 @@ export default function CompanySearchField({
     setOpen(true);
   };
 
+  const emptyMessage = needsMoreInput
+    ? '검색어를 입력하세요.'
+    : query.trim()
+      ? '일치하는 거래처가 없습니다.'
+      : '검색어를 입력하세요.';
+
   return (
     <label className="item-combobox">
       {label}
@@ -198,9 +201,7 @@ export default function CompanySearchField({
         <ul id={listId} className="item-combobox-list" role="listbox">
           {searching && <li className="item-combobox-empty">검색 중…</li>}
           {!searching && options.length === 0 && (
-            <li className="item-combobox-empty">
-              {query.trim() ? '일치하는 거래처가 없습니다.' : '등록된 거래처가 없습니다.'}
-            </li>
+            <li className="item-combobox-empty">{emptyMessage}</li>
           )}
           {!searching &&
             options.map((company) => (
@@ -216,6 +217,9 @@ export default function CompanySearchField({
                 </button>
               </li>
             ))}
+          {!searching && options.length >= LOOKUP_LIMIT && (
+            <li className="item-combobox-empty">상위 {LOOKUP_LIMIT}건만 표시합니다. 검색어를 더 입력하세요.</li>
+          )}
         </ul>
       )}
       {searchError && <span className="item-search-hint error-text">{searchError}</span>}

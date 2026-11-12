@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   cancelWorkPlanLine,
   cancelWorkPlansByProductionPlan,
@@ -11,13 +11,19 @@ import {
 import type { ProductionPlan } from '../api/productionPlan';
 import { formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+
+type PlanFilterDraft = Omit<WorkPlanListParams, 'itemNo' | 'itemName'>;
 
 export default function WorkPlanPage() {
   const confirm = useConfirm();
   const [targets, setTargets] = useState<ProductionPlan[]>([]);
   const [plans, setPlans] = useState<WorkPlan[]>([]);
   const [selectedPlanIds, setSelectedPlanIds] = useState<Set<number>>(new Set());
-  const [planFilters, setPlanFilters] = useState<WorkPlanListParams>({});
+  const [planFilters, setPlanFilters] = useState<PlanFilterDraft>({});
+  const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
+  const [itemClearToken, setItemClearToken] = useState(0);
+  const appliedParamsRef = useRef<WorkPlanListParams>({});
   const [loadingTargets, setLoadingTargets] = useState(true);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -41,25 +47,32 @@ export default function WorkPlanPage() {
     }
   }, []);
 
-  const loadPlans = useCallback(async () => {
+  const buildPlanParams = (): WorkPlanListParams => ({
+    ...planFilters,
+    itemNo: selectedItem?.itemNo,
+  });
+
+  const loadPlans = useCallback(async (params: WorkPlanListParams) => {
+    appliedParamsRef.current = params;
     setLoadingPlans(true);
     setError(null);
     try {
-      setPlans(await fetchWorkPlans(planFilters));
+      setPlans(await fetchWorkPlans(params));
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업계획 목록을 불러오지 못했습니다.');
     } finally {
       setLoadingPlans(false);
     }
-  }, [planFilters]);
+  }, []);
 
   useEffect(() => {
     void loadTargets();
   }, [loadTargets]);
 
+  // 탭 진입 시 마지막으로 적용된 조건으로 1회 조회 (필터 입력 변경과 무관)
   useEffect(() => {
     if (tab === 'plans') {
-      void loadPlans();
+      void loadPlans(appliedParamsRef.current);
     }
   }, [tab, loadPlans]);
 
@@ -114,7 +127,6 @@ export default function WorkPlanPage() {
       setMessage(`작업계획 ${created.length}건을 수립했습니다.`);
       setSelectedPlanIds(new Set());
       await loadTargets();
-      await loadPlans();
       setTab('plans');
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업계획 수립에 실패했습니다.');
@@ -134,7 +146,7 @@ export default function WorkPlanPage() {
       await cancelWorkPlanLine(id);
       setMessage('작업계획 1건을 취소했습니다.');
       await loadTargets();
-      await loadPlans();
+      await loadPlans(appliedParamsRef.current);
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업계획 취소에 실패했습니다.');
     } finally {
@@ -153,7 +165,7 @@ export default function WorkPlanPage() {
       const result = await cancelWorkPlansByProductionPlan(productionPlanId);
       setMessage(`생산계획 ${result.planNo}의 작업계획 ${result.cancelledCount}건을 취소했습니다.`);
       await loadTargets();
-      await loadPlans();
+      await loadPlans(appliedParamsRef.current);
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업계획 취소에 실패했습니다.');
     } finally {
@@ -163,6 +175,8 @@ export default function WorkPlanPage() {
 
   const resetPlanFilters = () => {
     setPlanFilters({});
+    setSelectedItem(null);
+    setItemClearToken((token) => token + 1);
   };
 
   return (
@@ -260,20 +274,12 @@ export default function WorkPlanPage() {
       {tab === 'plans' && (
         <>
           <section className="filter-panel">
-            <label>
-              품목번호
-              <input
-                value={planFilters.itemNo ?? ''}
-                onChange={(e) => setPlanFilters((f) => ({ ...f, itemNo: e.target.value }))}
-              />
-            </label>
-            <label>
-              품목명
-              <input
-                value={planFilters.itemName ?? ''}
-                onChange={(e) => setPlanFilters((f) => ({ ...f, itemName: e.target.value }))}
-              />
-            </label>
+            <ItemSearchField
+              label="품목"
+              selectedItem={selectedItem}
+              onSelect={setSelectedItem}
+              clearToken={itemClearToken}
+            />
             <label>
               공정명
               <input
@@ -310,7 +316,7 @@ export default function WorkPlanPage() {
             <button type="button" className="secondary" onClick={resetPlanFilters}>
               초기화
             </button>
-            <button type="button" className="secondary" disabled={submitting} onClick={() => void loadPlans()}>
+            <button type="button" className="secondary" disabled={submitting} onClick={() => void loadPlans(buildPlanParams())}>
               조회
             </button>
           </section>

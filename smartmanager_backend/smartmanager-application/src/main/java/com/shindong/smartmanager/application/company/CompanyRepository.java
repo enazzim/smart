@@ -16,6 +16,8 @@ public interface CompanyRepository {
 
     List<CompanyView> findAllActive();
 
+    List<CompanyLookupView> lookupActive(String query, List<CompanyRoleType> roles, int limit);
+
     Optional<CompanyView> findActiveById(long id);
 
     Optional<CompanyView> findActiveByBusinessRegNo(String businessRegNo);

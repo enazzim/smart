@@ -2197,6 +2197,72 @@ table.nested-table td {
   max-width: 48rem;
 }
 
+.page-header:has(> .page-manual-link) {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.page-manual-link {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.screen-manual {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 920px;
+}
+
+.screen-manual section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.screen-manual h2 {
+  margin: 0.4rem 0 0;
+  font-size: 1.05rem;
+}
+
+.screen-manual p,
+.screen-manual li {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.screen-manual ol {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.screen-manual figure {
+  margin: 0;
+}
+
+.screen-manual img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.screen-manual figcaption {
+  margin-top: 0.35rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
 .error-banner {
   margin: 0;
   padding: 0.65rem 0.85rem;

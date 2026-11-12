@@ -16,6 +16,7 @@ import {
   formatMoneyInput,
 } from '../utils/vatAmount';
 import { useConfirm } from '../context/ConfirmContext';
+import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -24,7 +25,6 @@ function todayIso(): string {
 type CollectionListSearchForm = {
   collectionDateFrom: string;
   collectionDateTo: string;
-  partnerName: string;
   collectionNo: string;
 };
 
@@ -32,7 +32,6 @@ function emptyCollectionListSearch(): CollectionListSearchForm {
   return {
     collectionDateFrom: '',
     collectionDateTo: '',
-    partnerName: '',
     collectionNo: '',
   };
 }
@@ -48,9 +47,12 @@ export default function SalesCollectionPage() {
   const confirm = useConfirm();
   const [candidates, setCandidates] = useState<SalesCollectionCandidate[]>([]);
   const [collections, setCollections] = useState<SalesCollection[]>([]);
-  const [candidateSearchPartnerName, setCandidateSearchPartnerName] = useState('');
+  const [candidateSearchPartner, setCandidateSearchPartner] = useState<CompanySearchSelection | null>(null);
+  const [candidatePartnerClearToken, setCandidatePartnerClearToken] = useState(0);
   const [hasSearchedCandidates, setHasSearchedCandidates] = useState(false);
   const [listSearch, setListSearch] = useState<CollectionListSearchForm>(() => emptyCollectionListSearch());
+  const [listSearchPartner, setListSearchPartner] = useState<CompanySearchSelection | null>(null);
+  const [listPartnerClearToken, setListPartnerClearToken] = useState(0);
   const [hasSearchedList, setHasSearchedList] = useState(false);
   const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null);
   const [collectionDate, setCollectionDate] = useState(todayIso());
@@ -86,11 +88,11 @@ export default function SalesCollectionPage() {
     (): SalesCollectionListParams => ({
       collectionDateFrom: listSearch.collectionDateFrom || undefined,
       collectionDateTo: listSearch.collectionDateTo || undefined,
-      partnerName: listSearch.partnerName || undefined,
+      partnerName: listSearchPartner?.companyName || undefined,
       collectionNo: listSearch.collectionNo || undefined,
       excludeCancelled: true,
     }),
-    [listSearch],
+    [listSearch, listSearchPartner],
   );
 
   const loadCollections = useCallback(
@@ -111,7 +113,16 @@ export default function SalesCollectionPage() {
   );
 
   const handleSearchCandidates = () => {
-    void loadCandidates(candidateSearchPartnerName);
+    void loadCandidates(candidateSearchPartner?.companyName);
+  };
+
+  const handleResetCandidateSearch = () => {
+    setCandidateSearchPartner(null);
+    setCandidatePartnerClearToken((token) => token + 1);
+    setCandidates([]);
+    setSelectedPartnerId(null);
+    setCandidateError(null);
+    setHasSearchedCandidates(false);
   };
 
   const handleSearchList = () => {
@@ -120,6 +131,8 @@ export default function SalesCollectionPage() {
 
   const handleResetListSearch = () => {
     setListSearch(emptyCollectionListSearch());
+    setListSearchPartner(null);
+    setListPartnerClearToken((token) => token + 1);
     setCollections([]);
     setCollectionError(null);
     setHasSearchedList(false);
@@ -240,7 +253,7 @@ export default function SalesCollectionPage() {
       setTotalAmountInput('');
       setRemark('');
       if (hasSearchedCandidates) {
-        await loadCandidates(candidateSearchPartnerName);
+        await loadCandidates(candidateSearchPartner?.companyName);
       }
       if (hasSearchedList) {
         await loadCollections();
@@ -260,7 +273,7 @@ export default function SalesCollectionPage() {
       await cancelSalesCollection(collection.id);
       setMessage(`수금 ${collection.collectionNo}을(를) 취소했습니다.`);
       if (hasSearchedCandidates) {
-        await loadCandidates(candidateSearchPartnerName);
+        await loadCandidates(candidateSearchPartner?.companyName);
       }
       if (hasSearchedList) {
         await loadCollections();
@@ -285,16 +298,18 @@ export default function SalesCollectionPage() {
       <section className="panel">
         <h2>미수 거래처</h2>
         <div className="filter-row">
-          <label>
-            거래처
-            <input
-              type="text"
-              value={candidateSearchPartnerName}
-              onChange={(e) => setCandidateSearchPartnerName(e.target.value)}
-            />
-          </label>
+          <CompanySearchField
+            label="거래처"
+            partnerType="SALES"
+            selectedCompany={candidateSearchPartner}
+            onSelect={setCandidateSearchPartner}
+            clearToken={candidatePartnerClearToken}
+          />
           <button type="button" className="secondary" onClick={handleSearchCandidates} disabled={loadingCandidates}>
             조회
+          </button>
+          <button type="button" className="secondary" onClick={handleResetCandidateSearch} disabled={loadingCandidates}>
+            초기화
           </button>
         </div>
         {loadingCandidates ? (
@@ -451,14 +466,13 @@ export default function SalesCollectionPage() {
               onChange={(e) => setListSearch((f) => ({ ...f, collectionDateTo: e.target.value }))}
             />
           </label>
-          <label>
-            거래처
-            <input
-              type="text"
-              value={listSearch.partnerName}
-              onChange={(e) => setListSearch((f) => ({ ...f, partnerName: e.target.value }))}
-            />
-          </label>
+          <CompanySearchField
+            label="거래처"
+            partnerType="SALES"
+            selectedCompany={listSearchPartner}
+            onSelect={setListSearchPartner}
+            clearToken={listPartnerClearToken}
+          />
           <label>
             수금번호
             <input

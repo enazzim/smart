@@ -203,7 +203,20 @@ class BoardPostServiceTest {
 
         @Override
         public Optional<com.shindong.smartmanager.application.user.UserView> findActiveById(long id) {
-            return Optional.empty();
+            return Optional.of(new com.shindong.smartmanager.application.user.UserView(
+                    id,
+                    "admin",
+                    "관리자",
+                    "",
+                    "",
+                    List.of(),
+                    List.of("SYSTEM_ADMIN"),
+                    List.of(),
+                    null,
+                    null,
+                    null,
+                    false
+            ));
         }
 
         @Override

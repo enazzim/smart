@@ -8,6 +8,7 @@ import com.shindong.smartmanager.application.closing.MonthClosingRepository;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.closing.MonthClosingView;
 import com.shindong.smartmanager.application.item.ItemCommand;
+import com.shindong.smartmanager.application.item.ItemLookupView;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemUpdateCommand;
 import com.shindong.smartmanager.application.item.ItemView;
@@ -232,6 +233,15 @@ class LotTraceabilityFlowTest {
         @Override
         public List<ItemView> findAllActive(String itemNoQuery, String itemNameQuery) {
             return List.copyOf(byId.values());
+        }
+
+        @Override
+        public List<ItemLookupView> lookupActive(
+                String query,
+                List<com.shindong.smartmanager.domain.item.PropertyClassification> classifications,
+                int limit
+        ) {
+            return List.of();
         }
 
         @Override

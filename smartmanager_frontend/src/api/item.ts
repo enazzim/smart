@@ -50,6 +50,31 @@ export async function fetchItems(itemNo?: string, itemName?: string): Promise<It
   return handleResponse<Item[]>(await apiFetch(url));
 }
 
+export interface ItemLookup {
+  id: number;
+  itemNo: string;
+  itemName: string;
+  propertyClassification: PropertyClassification;
+  modelType: string;
+  lotTracked: boolean;
+}
+
+export async function fetchItemLookup(params: {
+  q: string;
+  classifications?: PropertyClassification[];
+  limit?: number;
+}): Promise<ItemLookup[]> {
+  const search = new URLSearchParams();
+  search.set('q', params.q);
+  if (params.classifications && params.classifications.length > 0) {
+    search.set('classifications', params.classifications.join(','));
+  }
+  if (params.limit != null) {
+    search.set('limit', String(params.limit));
+  }
+  return handleResponse<ItemLookup[]>(await apiFetch(`${API_BASE}/lookup?${search.toString()}`));
+}
+
 export async function createItem(payload: CreateItemRequest): Promise<Item> {
   return handleResponse<Item>(
     await apiFetch(API_BASE, {

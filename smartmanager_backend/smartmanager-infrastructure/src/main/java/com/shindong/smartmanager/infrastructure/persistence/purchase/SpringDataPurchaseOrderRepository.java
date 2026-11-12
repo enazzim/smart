@@ -30,6 +30,19 @@ public interface SpringDataPurchaseOrderRepository extends JpaRepository<Purchas
               AND (:orderNo IS NULL OR :orderNo = '' OR LOWER(po.orderNo) LIKE LOWER(CONCAT('%', :orderNo, '%')))
               AND (:partnerName IS NULL OR :partnerName = '' OR LOWER(c.companyName) LIKE LOWER(CONCAT('%', :partnerName, '%')))
               AND (
+                    :itemNo IS NULL OR :itemNo = ''
+                    OR EXISTS (
+                        SELECT 1 FROM PurchaseOrderLineJpaEntity polItem
+                        JOIN ItemJpaEntity iItem ON iItem.id = polItem.itemId
+                        WHERE polItem.purchaseOrderId = po.id
+                          AND polItem.recordingState = 1
+                          AND (
+                                LOWER(iItem.itemNo) LIKE LOWER(CONCAT('%', :itemNo, '%'))
+                             OR LOWER(iItem.itemName) LIKE LOWER(CONCAT('%', :itemNo, '%'))
+                          )
+                    )
+              )
+              AND (
                     :itemPropertyScope IS NULL OR :itemPropertyScope = ''
                     OR (
                         :itemPropertyScope = 'SUB_MATERIAL'
@@ -77,6 +90,7 @@ public interface SpringDataPurchaseOrderRepository extends JpaRepository<Purchas
             @Param("orderDateTo") LocalDate orderDateTo,
             @Param("partnerName") String partnerName,
             @Param("orderNo") String orderNo,
+            @Param("itemNo") String itemNo,
             @Param("status") PurchaseOrderStatus status,
             @Param("excludeCancelled") boolean excludeCancelled,
             @Param("cancelledStatus") PurchaseOrderStatus cancelledStatus,

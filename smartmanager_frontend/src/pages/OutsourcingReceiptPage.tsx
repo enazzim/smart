@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import { ALL_ITEM_CLASSES } from '../utils/itemClassFilters';
 import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
 import { formatFiscalPeriodFromIso } from '../utils/fiscalCalendar';
 import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
@@ -63,6 +66,12 @@ export default function OutsourcingReceiptPage() {
     receiptDateFrom: addDaysIso(todayIso(), -30),
     receiptDateTo: todayIso(),
   }));
+  const [candidatePartner, setCandidatePartner] = useState<CompanySearchSelection | null>(null);
+  const [candidateItem, setCandidateItem] = useState<ItemSearchSelection | null>(null);
+  const [candidateItemQuery, setCandidateItemQuery] = useState('');
+  const [historyPartner, setHistoryPartner] = useState<CompanySearchSelection | null>(null);
+  const appliedFiltersRef = useRef<OutsourcingReceiptCandidateParams>(filters);
+  const appliedHistoryFiltersRef = useRef<OutsourcingReceiptListParams>(historyFilters);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -86,7 +95,7 @@ export default function OutsourcingReceiptPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchOutsourcingReceiptCandidates(filters);
+      const data = await fetchOutsourcingReceiptCandidates(appliedFiltersRef.current);
       setCandidates(data);
       setSelectedLineIds(new Set());
       setReceiptQtyByLineId({});
@@ -95,20 +104,39 @@ export default function OutsourcingReceiptPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, []);
 
   const loadReceipts = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const data = await fetchOutsourcingReceipts(historyFilters);
+      const data = await fetchOutsourcingReceipts(appliedHistoryFiltersRef.current);
       setReceipts(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : '입고 이력을 불러오지 못했습니다.');
     } finally {
       setHistoryLoading(false);
     }
-  }, [historyFilters]);
+  }, []);
 
+  const onSearchCandidates = () => {
+    const itemText = candidateItemQuery.trim();
+    appliedFiltersRef.current = {
+      ...filters,
+      partnerName: candidatePartner?.companyName,
+      itemNo: candidateItem ? candidateItem.itemNo : itemText || undefined,
+    };
+    void loadCandidates();
+  };
+
+  const onSearchHistory = () => {
+    appliedHistoryFiltersRef.current = {
+      ...historyFilters,
+      partnerName: historyPartner?.companyName,
+    };
+    void loadReceipts();
+  };
+
+  // 최초 진입 시 1회 조회 (이후에는 조회 버튼·등록/취소 후에만 재조회)
   useEffect(() => {
     void loadCandidates();
   }, [loadCandidates]);
@@ -279,13 +307,12 @@ export default function OutsourcingReceiptPage() {
       {tab === 'candidates' && (
         <>
           <section className="filter-panel">
-            <label>
-              거래처
-              <input
-                value={filters.partnerName ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, partnerName: e.target.value }))}
-              />
-            </label>
+            <CompanySearchField
+              label="거래처"
+              partnerType="OUTSOURCE"
+              selectedCompany={candidatePartner}
+              onSelect={setCandidatePartner}
+            />
             <label>
               발주번호
               <input
@@ -309,14 +336,14 @@ export default function OutsourcingReceiptPage() {
                 onChange={(e) => setFilters((f) => ({ ...f, orderDateTo: e.target.value }))}
               />
             </label>
-            <label>
-              품목번호
-              <input
-                value={filters.itemNo ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, itemNo: e.target.value }))}
-              />
-            </label>
-            <button type="button" onClick={() => void loadCandidates()}>
+            <ItemSearchField
+              label="품목"
+              selectedItem={candidateItem}
+              onSelect={setCandidateItem}
+              onQueryTextChange={setCandidateItemQuery}
+              allowedClassifications={ALL_ITEM_CLASSES}
+            />
+            <button type="button" onClick={onSearchCandidates}>
               조회
             </button>
           </section>
@@ -434,13 +461,12 @@ export default function OutsourcingReceiptPage() {
       {tab === 'history' && (
         <>
           <section className="filter-panel">
-            <label>
-              거래처
-              <input
-                value={historyFilters.partnerName ?? ''}
-                onChange={(e) => setHistoryFilters((f) => ({ ...f, partnerName: e.target.value }))}
-              />
-            </label>
+            <CompanySearchField
+              label="거래처"
+              partnerType="OUTSOURCE"
+              selectedCompany={historyPartner}
+              onSelect={setHistoryPartner}
+            />
             <label>
               입고일(부터)
               <input
@@ -457,7 +483,7 @@ export default function OutsourcingReceiptPage() {
                 onChange={(e) => setHistoryFilters((f) => ({ ...f, receiptDateTo: e.target.value }))}
               />
             </label>
-            <button type="button" onClick={() => void loadReceipts()}>
+            <button type="button" onClick={onSearchHistory}>
               조회
             </button>
           </section>

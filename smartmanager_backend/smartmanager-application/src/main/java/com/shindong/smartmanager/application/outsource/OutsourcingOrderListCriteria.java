@@ -8,6 +8,7 @@ public record OutsourcingOrderListCriteria(
         LocalDate orderDateTo,
         String partnerName,
         String orderNo,
+        String itemNo,
         OutsourcingOrderStatus status,
         boolean excludeCancelled
 ) {

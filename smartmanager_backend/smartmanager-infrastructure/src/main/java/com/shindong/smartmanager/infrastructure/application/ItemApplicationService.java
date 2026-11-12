@@ -1,9 +1,11 @@
 package com.shindong.smartmanager.infrastructure.application;
 
 import com.shindong.smartmanager.application.item.ItemCommand;
+import com.shindong.smartmanager.application.item.ItemLookupView;
 import com.shindong.smartmanager.application.item.ItemService;
 import com.shindong.smartmanager.application.item.ItemUpdateCommand;
 import com.shindong.smartmanager.application.item.ItemView;
+import com.shindong.smartmanager.domain.item.PropertyClassification;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,15 @@ public class ItemApplicationService {
     @Transactional(readOnly = true)
     public List<ItemView> listActive(String itemNoQuery, String itemNameQuery) {
         return itemService.listActive(itemNoQuery, itemNameQuery);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ItemLookupView> lookupActive(
+            String query,
+            List<PropertyClassification> classifications,
+            Integer limit
+    ) {
+        return itemService.lookupActive(query, classifications, limit);
     }
 
     @Transactional(readOnly = true)

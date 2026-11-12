@@ -75,8 +75,15 @@ export default function BoardPage({
   const boardTitle = BOARD_TYPE_LABELS[boardType];
   const { canWriteDashboard, currentUser } = useAuth();
   const isSystemAdmin = currentUser?.roleCodes.includes('SYSTEM_ADMIN') ?? false;
-  const canCreate = boardType === 'NOTICE' ? isSystemAdmin : canWriteDashboard();
-  const canReply = boardType === 'NOTICE' ? isSystemAdmin : canWriteDashboard();
+  const isCeo = currentUser?.roleCodes.includes('CEO') ?? false;
+  const hasBoardWrite = currentUser?.authorities.includes('community:board:write') ?? false;
+  const canCreate =
+    boardType === 'NOTICE'
+      ? isSystemAdmin || isCeo
+      : isCeo && !hasBoardWrite
+        ? boardType === 'PRESIDENT_NOTICE'
+        : canWriteDashboard();
+  const canReply = canCreate;
 
   if (screen.mode === 'list') {
     return (
@@ -590,8 +597,14 @@ function BoardComposeView({
   const noticeCompose = boardType === 'NOTICE' && composeMode !== 'reply';
   const excludeUserId =
     composeMode === 'edit' ? authorUserId : currentUser?.id;
+  const isCeo = currentUser?.roleCodes.includes('CEO') ?? false;
+  const hasBoardWrite = currentUser?.authorities.includes('community:board:write') ?? false;
   const canWriteNotice =
-    boardType !== 'NOTICE' || (currentUser?.roleCodes.includes('SYSTEM_ADMIN') ?? false);
+    boardType !== 'NOTICE'
+    || (currentUser?.roleCodes.includes('SYSTEM_ADMIN') ?? false)
+    || isCeo;
+  const ceoReadOnlyBoard =
+    isCeo && !hasBoardWrite && boardType !== 'NOTICE' && boardType !== 'PRESIDENT_NOTICE';
 
   const appendFiles = (incoming: FileList | null) => {
     if (!incoming || incoming.length === 0) {
@@ -726,11 +739,15 @@ function BoardComposeView({
     );
   }
 
-  if (!canWriteNotice && (composeMode === 'create' || composeMode === 'reply')) {
+  if ((!canWriteNotice || ceoReadOnlyBoard) && (composeMode === 'create' || composeMode === 'reply')) {
     return (
       <div className="page board-page">
         <BoardBreadcrumb boardTitle={boardTitle} onNavigateHome={onNavigateHome} onNavigateList={onNavigateList} />
-        <p className="error-banner">공지사항은 시스템 관리자만 작성할 수 있습니다.</p>
+        <p className="error-banner">
+          {canWriteNotice
+            ? '이 게시판은 작성할 수 없습니다.'
+            : '공지사항은 시스템 관리자와 CEO만 작성할 수 있습니다.'}
+        </p>
         <button type="button" className="secondary" onClick={onNavigateList}>
           목록으로
         </button>

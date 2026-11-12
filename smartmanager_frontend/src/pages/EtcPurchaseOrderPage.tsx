@@ -51,6 +51,8 @@ export default function EtcPurchaseOrderPage() {
   const [appliedListFilters, setAppliedListFilters] = useState<EtcPurchaseOrderListParams>(() => defaultListFilters());
   const [form, setForm] = useState(emptyForm);
   const [partner, setPartner] = useState<CompanySearchSelection | null>(null);
+  const [listPartner, setListPartner] = useState<CompanySearchSelection | null>(null);
+  const [listClearToken, setListClearToken] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [loadingList, setLoadingList] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -134,12 +136,14 @@ export default function EtcPurchaseOrderPage() {
   };
 
   const onListSearch = () => {
-    setAppliedListFilters({ ...listFilters });
+    setAppliedListFilters({ ...listFilters, partnerName: listPartner?.companyName ?? '' });
   };
 
   const onResetListFilters = () => {
     const defaults = defaultListFilters();
     setListFilters(defaults);
+    setListPartner(null);
+    setListClearToken((prev) => prev + 1);
     setAppliedListFilters(defaults);
   };
 
@@ -363,15 +367,13 @@ export default function EtcPurchaseOrderPage() {
               onChange={(e) => setListFilters((prev) => ({ ...prev, orderDateTo: e.target.value || undefined }))}
             />
           </label>
-          <label>
-            거래처명
-            <input
-              type="text"
-              value={listFilters.partnerName ?? ''}
-              placeholder="상호 검색"
-              onChange={(e) => setListFilters((prev) => ({ ...prev, partnerName: e.target.value }))}
-            />
-          </label>
+          <CompanySearchField
+            label="거래처"
+            partnerType="PURCHASE"
+            selectedCompany={listPartner}
+            onSelect={setListPartner}
+            clearToken={listClearToken}
+          />
           <label>
             발주번호
             <input

@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   cancelOutsourcingOrder,
   createOutsourcingOrderFromWorkPlan,
@@ -9,6 +9,8 @@ import {
   type OutsourcingOrderListParams,
   type WorkPlanOutsourceCandidate,
 } from '../api/outsourcingOrder';
+import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import { formatAmount, formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
 
@@ -54,6 +56,9 @@ export default function OutsourcingOrderPage() {
     orderDateTo: todayIso(),
     excludeCancelled: true,
   }));
+  const [listPartner, setListPartner] = useState<CompanySearchSelection | null>(null);
+  const [listItem, setListItem] = useState<ItemSearchSelection | null>(null);
+  const appliedListFiltersRef = useRef<OutsourcingOrderListParams>(listFilters);
   const [expandedWorkPlanIds, setExpandedWorkPlanIds] = useState<Set<number>>(new Set());
   const [selectedVendorKeys, setSelectedVendorKeys] = useState<Set<string>>(new Set());
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<number>>(new Set());
@@ -77,11 +82,12 @@ export default function OutsourcingOrderPage() {
     }
   }, [orderDate]);
 
+  /** 마지막으로 조회 버튼에서 확정한 조건으로 목록을 조회한다. */
   const loadOrders = useCallback(async () => {
     setLoadingOrders(true);
     setOrderError(null);
     try {
-      setOrders(await fetchOutsourcingOrders(listFilters));
+      setOrders(await fetchOutsourcingOrders(appliedListFiltersRef.current));
       setSelectedOrderIds(new Set());
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : '외주발주 목록 조회 실패');
@@ -89,12 +95,22 @@ export default function OutsourcingOrderPage() {
     } finally {
       setLoadingOrders(false);
     }
-  }, [listFilters]);
+  }, []);
+
+  const onSearchOrders = () => {
+    appliedListFiltersRef.current = {
+      ...listFilters,
+      partnerName: listPartner?.companyName,
+      itemNo: listItem?.itemNo,
+    };
+    void loadOrders();
+  };
 
   useEffect(() => {
     void loadCandidates();
   }, [loadCandidates]);
 
+  // 최초 진입 시 1회 조회 (이후에는 조회 버튼·등록/취소 후에만 재조회)
   useEffect(() => {
     void loadOrders();
   }, [loadOrders]);
@@ -458,14 +474,18 @@ export default function OutsourcingOrderPage() {
               onChange={(e) => setListFilters((f) => ({ ...f, orderDateTo: e.target.value }))}
             />
           </label>
-          <label>
-            거래처
-            <input
-              type="text"
-              value={listFilters.partnerName ?? ''}
-              onChange={(e) => setListFilters((f) => ({ ...f, partnerName: e.target.value }))}
-            />
-          </label>
+          <CompanySearchField
+            label="거래처"
+            partnerType="OUTSOURCE"
+            selectedCompany={listPartner}
+            onSelect={setListPartner}
+          />
+          <ItemSearchField
+            label="품목"
+            selectedItem={listItem}
+            onSelect={setListItem}
+            allowedClassifications={['제품', '상품', '공정품', '원자재', '부자재', '팬텀']}
+          />
           <label>
             발주번호
             <input
@@ -474,7 +494,7 @@ export default function OutsourcingOrderPage() {
               onChange={(e) => setListFilters((f) => ({ ...f, orderNo: e.target.value }))}
             />
           </label>
-          <button type="button" className="secondary" onClick={() => void loadOrders()}>
+          <button type="button" className="secondary" onClick={onSearchOrders}>
             조회
           </button>
         </div>

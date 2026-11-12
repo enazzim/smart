@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   cancelWorkOrder,
   createWorkOrders,
@@ -8,15 +8,20 @@ import {
   type WorkOrderListParams,
 } from '../api/workOrder';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import { formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
+
+type OrderFilterDraft = Omit<WorkOrderListParams, 'itemNo' | 'itemName'>;
 
 export default function WorkOrderPage() {
   const confirm = useConfirm();
   const [targets, setTargets] = useState<WorkOrder[]>([]);
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [selectedPlanIds, setSelectedPlanIds] = useState<Set<number>>(new Set());
-  const [filters, setFilters] = useState<WorkOrderListParams>({});
+  const [filters, setFilters] = useState<OrderFilterDraft>({});
+  const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
+  const appliedParamsRef = useRef<WorkOrderListParams>({});
   const [loadingTargets, setLoadingTargets] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -57,25 +62,32 @@ export default function WorkOrderPage() {
     }
   }, []);
 
-  const loadOrders = useCallback(async () => {
+  const buildOrderParams = (): WorkOrderListParams => ({
+    ...filters,
+    itemNo: selectedItem?.itemNo,
+  });
+
+  const loadOrders = useCallback(async (params: WorkOrderListParams) => {
+    appliedParamsRef.current = params;
     setLoadingOrders(true);
     setError(null);
     try {
-      setOrders(await fetchWorkOrders(filters));
+      setOrders(await fetchWorkOrders(params));
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업지시 목록을 불러오지 못했습니다.');
     } finally {
       setLoadingOrders(false);
     }
-  }, [filters]);
+  }, []);
 
   useEffect(() => {
     void loadTargets();
   }, [loadTargets]);
 
+  // 탭 진입 시 마지막으로 적용된 조건으로 1회 조회 (필터 입력 변경과 무관)
   useEffect(() => {
     if (tab === 'orders') {
-      void loadOrders();
+      void loadOrders(appliedParamsRef.current);
     }
   }, [tab, loadOrders]);
 
@@ -101,7 +113,6 @@ export default function WorkOrderPage() {
       const created = await createWorkOrders([...selectedPlanIds]);
       setMessage(`작업지시 ${created.length}건을 발행했습니다.`);
       await loadTargets();
-      await loadOrders();
       setTab('orders');
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업지시 발행에 실패했습니다.');
@@ -119,7 +130,7 @@ export default function WorkOrderPage() {
       await cancelWorkOrder(id);
       setMessage(`작업지시 ${orderNum}을(를) 취소했습니다.`);
       await loadTargets();
-      await loadOrders();
+      await loadOrders(appliedParamsRef.current);
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업지시 취소에 실패했습니다.');
     } finally {
@@ -217,19 +228,12 @@ export default function WorkOrderPage() {
       {tab === 'orders' && (
         <>
           <section className="filter-panel">
-            <label>
-              품목번호
-              <input value={filters.itemNo ?? ''} onChange={(e) => setFilters((f) => ({ ...f, itemNo: e.target.value }))} />
-            </label>
-            <label>
-              품목명
-              <input value={filters.itemName ?? ''} onChange={(e) => setFilters((f) => ({ ...f, itemName: e.target.value }))} />
-            </label>
+            <ItemSearchField label="품목" selectedItem={selectedItem} onSelect={setSelectedItem} />
             <label>
               지시번호
               <input value={filters.orderNum ?? ''} onChange={(e) => setFilters((f) => ({ ...f, orderNum: e.target.value }))} />
             </label>
-            <button type="button" onClick={() => void loadOrders()}>
+            <button type="button" onClick={() => void loadOrders(buildOrderParams())}>
               검색
             </button>
           </section>

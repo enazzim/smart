@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   cancelPartnerPayment,
   createPartnerPayment,
@@ -37,6 +37,14 @@ function addDaysIso(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+function defaultListFilters(): PartnerPaymentListParams {
+  return {
+    paymentDateFrom: addDaysIso(todayIso(), -30),
+    paymentDateTo: todayIso(),
+    excludeCancelled: true,
+  };
 }
 
 function parseAmount(value: string): number | null {
@@ -109,12 +117,12 @@ export default function PartnerPaymentPage() {
   const [candidates, setCandidates] = useState<PartnerPaymentCandidate[]>([]);
   const [payments, setPayments] = useState<PartnerPayment[]>([]);
   const [prepaidBalances, setPrepaidBalances] = useState<PrepaidBalance[]>([]);
-  const [filters, setFilters] = useState<PartnerPaymentCandidateParams>({});
-  const [listFilters, setListFilters] = useState<PartnerPaymentListParams>(() => ({
-    paymentDateFrom: addDaysIso(todayIso(), -30),
-    paymentDateTo: todayIso(),
-    excludeCancelled: true,
-  }));
+  const [candidateFilterPartner, setCandidateFilterPartner] = useState<CompanySearchSelection | null>(null);
+  const [listFilters, setListFilters] = useState<PartnerPaymentListParams>(defaultListFilters);
+  const [listPartner, setListPartner] = useState<CompanySearchSelection | null>(null);
+  /** 마지막으로 조회 버튼(또는 최초 진입)에서 적용된 조건 — 등록·취소 후 재조회에 사용 */
+  const appliedCandidateRef = useRef<PartnerPaymentCandidateParams>({});
+  const appliedListRef = useRef<PartnerPaymentListParams>(defaultListFilters());
   const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null);
   const [prepaidPartner, setPrepaidPartner] = useState<CompanySearchSelection | null>(null);
   const [prepaidPartnerSummary, setPrepaidPartnerSummary] = useState<PartnerPaymentCandidate | null>(null);
@@ -141,7 +149,10 @@ export default function PartnerPaymentPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [balancesOpen, setBalancesOpen] = useState(true);
 
-  const loadCandidates = useCallback(async () => {
+  /** params 생략 시 마지막 적용 조건으로 조회한다. 필터 입력 변경만으로는 호출되지 않는다. */
+  const loadCandidates = useCallback(async (params?: PartnerPaymentCandidateParams) => {
+    const effective = params ?? appliedCandidateRef.current;
+    appliedCandidateRef.current = effective;
     if (paymentKind === 'PREPAID') {
       // 선지급은 CompanySearchField로 거래처를 고르므로 미지급 후보 테이블을 쓰지 않는다.
       setCandidates([]);
@@ -152,27 +163,38 @@ export default function PartnerPaymentPage() {
     setLoadingCandidates(true);
     setCandidateError(null);
     try {
-      setCandidates(await fetchPartnerPaymentCandidates(filters));
+      setCandidates(await fetchPartnerPaymentCandidates(effective));
     } catch (e) {
       setCandidateError(e instanceof Error ? e.message : '미지급 후보 조회 실패');
       setCandidates([]);
     } finally {
       setLoadingCandidates(false);
     }
-  }, [filters, paymentKind]);
+  }, [paymentKind]);
 
-  const loadPayments = useCallback(async () => {
+  /** params 생략 시 마지막 적용 조건으로 조회한다. */
+  const loadPayments = useCallback(async (params?: PartnerPaymentListParams) => {
+    const effective = params ?? appliedListRef.current;
+    appliedListRef.current = effective;
     setLoadingPayments(true);
     setPaymentError(null);
     try {
-      setPayments(await fetchPartnerPayments(listFilters));
+      setPayments(await fetchPartnerPayments(effective));
     } catch (e) {
       setPaymentError(e instanceof Error ? e.message : '지급 목록 조회 실패');
       setPayments([]);
     } finally {
       setLoadingPayments(false);
     }
-  }, [listFilters]);
+  }, []);
+
+  const onSearchCandidates = () => {
+    void loadCandidates({ partnerName: candidateFilterPartner?.companyName });
+  };
+
+  const onSearchPayments = () => {
+    void loadPayments({ ...listFilters, partnerName: listPartner?.companyName });
+  };
 
   const loadPrepaidBalances = useCallback(async (partnerId: number | null) => {
     if (partnerId == null) {
@@ -186,6 +208,7 @@ export default function PartnerPaymentPage() {
     }
   }, []);
 
+  // 최초 진입·등록 모드 전환 시에만 마지막 적용 조건으로 조회한다(필터 입력으로는 재조회하지 않음).
   useEffect(() => {
     void loadCandidates();
   }, [loadCandidates]);
@@ -643,15 +666,13 @@ export default function PartnerPaymentPage() {
         ) : (
           <>
             <div className="filter-row">
-              <label>
-                거래처
-                <input
-                  type="text"
-                  value={filters.partnerName ?? ''}
-                  onChange={(e) => setFilters((f) => ({ ...f, partnerName: e.target.value }))}
-                />
-              </label>
-              <button type="button" className="secondary" onClick={() => void loadCandidates()} disabled={loadingCandidates}>
+              <CompanySearchField
+                label="거래처"
+                partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
+                selectedCompany={candidateFilterPartner}
+                onSelect={setCandidateFilterPartner}
+              />
+              <button type="button" className="secondary" onClick={onSearchCandidates} disabled={loadingCandidates}>
                 조회
               </button>
             </div>
@@ -979,14 +1000,12 @@ export default function PartnerPaymentPage() {
               onChange={(e) => setListFilters((f) => ({ ...f, paymentDateTo: e.target.value }))}
             />
           </label>
-          <label>
-            거래처
-            <input
-              type="text"
-              value={listFilters.partnerName ?? ''}
-              onChange={(e) => setListFilters((f) => ({ ...f, partnerName: e.target.value }))}
-            />
-          </label>
+          <CompanySearchField
+            label="거래처"
+            partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
+            selectedCompany={listPartner}
+            onSelect={setListPartner}
+          />
           <label>
             지급번호
             <input
@@ -995,7 +1014,7 @@ export default function PartnerPaymentPage() {
               onChange={(e) => setListFilters((f) => ({ ...f, paymentNo: e.target.value }))}
             />
           </label>
-          <button type="button" className="secondary" onClick={() => void loadPayments()}>
+          <button type="button" className="secondary" onClick={onSearchPayments}>
             조회
           </button>
         </div>

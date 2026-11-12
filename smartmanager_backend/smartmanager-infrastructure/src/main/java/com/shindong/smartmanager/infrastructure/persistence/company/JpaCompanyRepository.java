@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.infrastructure.persistence.company;
 
 import com.shindong.smartmanager.application.company.CompanyCommand;
+import com.shindong.smartmanager.application.company.CompanyLookupView;
 import com.shindong.smartmanager.application.company.CompanyRepository;
 import com.shindong.smartmanager.application.company.CompanyUpdateCommand;
 import com.shindong.smartmanager.application.company.CompanyView;
@@ -10,6 +11,7 @@ import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditA
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -84,6 +86,21 @@ public class JpaCompanyRepository implements CompanyRepository {
     public List<CompanyView> findAllActive() {
         return companyRepository.findByRecordingStateOrderByIdDesc(1).stream()
                 .map(entity -> toView(entity, findRoles(entity.getId())))
+                .toList();
+    }
+
+    @Override
+    public List<CompanyLookupView> lookupActive(String query, List<CompanyRoleType> roles, int limit) {
+        String q = query == null ? "" : query.trim();
+        if (q.isEmpty() || limit <= 0) {
+            return List.of();
+        }
+        var pageable = PageRequest.of(0, limit);
+        List<CompanyJpaEntity> entities = (roles == null || roles.isEmpty())
+                ? companyRepository.lookupActive(q, pageable)
+                : companyRepository.lookupActiveByRoles(q, roles, pageable);
+        return entities.stream()
+                .map(entity -> new CompanyLookupView(entity.getId(), entity.getCompanyName(), entity.getBusinessRegNo()))
                 .toList();
     }
 

@@ -45,6 +45,7 @@ public class PurchaseOrderController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDateTo,
             @RequestParam(required = false) String partnerName,
             @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) String itemNo,
             @RequestParam(required = false) PurchaseOrderStatus status,
             @RequestParam(defaultValue = "true") boolean excludeCancelled,
             @RequestParam(required = false) String itemPropertyScope
@@ -54,6 +55,7 @@ public class PurchaseOrderController {
                 orderDateTo,
                 partnerName,
                 orderNo,
+                itemNo,
                 status,
                 excludeCancelled,
                 itemPropertyScope

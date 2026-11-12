@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.application.item;
 
+import com.shindong.smartmanager.domain.item.PropertyClassification;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,6 +17,8 @@ public interface ItemRepository {
     void softDelete(long id, String actorUserId);
 
     List<ItemView> findAllActive(String itemNoQuery, String itemNameQuery);
+
+    List<ItemLookupView> lookupActive(String query, List<PropertyClassification> classifications, int limit);
 
     Optional<ItemView> findActiveById(long id);
 

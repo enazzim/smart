@@ -24,7 +24,7 @@ public final class CommunityAuthorize {
     @Target({ElementType.METHOD})
     @Retention(RetentionPolicy.RUNTIME)
     @Documented
-    @PreAuthorize("hasAuthority('community:board:write')")
+    @PreAuthorize("hasAuthority('community:board:write') or hasAuthority('community:workdiary:approve')")
     public @interface Write {
     }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import type { PropertyClassification } from '../api/item';
 import {
@@ -53,10 +53,18 @@ export default function MiscStockMovementPage() {
   const [availableLots, setAvailableLots] = useState<LotRow[]>([]);
   const [movementDate, setMovementDate] = useState(todayIso());
 
-  const [filterItemNo, setFilterItemNo] = useState('');
-  const [filterItemName, setFilterItemName] = useState('');
+  const [filterItem, setFilterItem] = useState<ItemSearchSelection | null>(null);
+  const [filterItemQuery, setFilterItemQuery] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState(addDaysIso(todayIso(), -30));
   const [filterDateTo, setFilterDateTo] = useState(todayIso());
+  const appliedHistoryFilterRef = useRef<{
+    itemNo?: string;
+    movementDateFrom?: string;
+    movementDateTo?: string;
+  }>({
+    movementDateFrom: addDaysIso(todayIso(), -30),
+    movementDateTo: todayIso(),
+  });
 
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -141,26 +149,31 @@ export default function MiscStockMovementPage() {
     }
   }, [selectedItem, processRequired, processSequenceId, movementDate]);
 
+  /** 마지막으로 조회 버튼에서 확정한 조건으로 이력을 조회한다. */
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true);
     setError(null);
     try {
-      setRows(
-        await fetchMiscStockMovements({
-          itemNo: filterItemNo || undefined,
-          itemName: filterItemName || undefined,
-          movementDateFrom: filterDateFrom || undefined,
-          movementDateTo: filterDateTo || undefined,
-        }),
-      );
+      setRows(await fetchMiscStockMovements(appliedHistoryFilterRef.current));
     } catch (e) {
       setError(e instanceof Error ? e.message : '이력 조회 실패');
       setRows([]);
     } finally {
       setLoadingHistory(false);
     }
-  }, [filterItemNo, filterItemName, filterDateFrom, filterDateTo]);
+  }, []);
 
+  const onSearchHistory = () => {
+    const itemText = filterItemQuery.trim();
+    appliedHistoryFilterRef.current = {
+      itemNo: filterItem ? filterItem.itemNo : itemText || undefined,
+      movementDateFrom: filterDateFrom || undefined,
+      movementDateTo: filterDateTo || undefined,
+    };
+    void loadHistory();
+  };
+
+  // 최초 진입 시 1회 조회 (이후에는 조회 버튼·등록/수정/삭제 후에만 재조회)
   useEffect(() => {
     void loadHistory();
   }, [loadHistory]);
@@ -507,14 +520,13 @@ export default function MiscStockMovementPage() {
       <section className="panel">
         <h2>입출고 내역</h2>
         <div className="filter-panel">
-          <label>
-            품목번호
-            <input value={filterItemNo} onChange={(e) => setFilterItemNo(e.target.value)} />
-          </label>
-          <label>
-            품목명
-            <input value={filterItemName} onChange={(e) => setFilterItemName(e.target.value)} />
-          </label>
+          <ItemSearchField
+            label="품목"
+            selectedItem={filterItem}
+            onSelect={setFilterItem}
+            onQueryTextChange={setFilterItemQuery}
+            allowedClassifications={ALL_ITEM_CLASSES}
+          />
           <label>
             일자(부터)
             <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
@@ -523,7 +535,7 @@ export default function MiscStockMovementPage() {
             일자(까지)
             <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
           </label>
-          <button type="button" onClick={() => void loadHistory()}>
+          <button type="button" onClick={onSearchHistory}>
             조회
           </button>
         </div>

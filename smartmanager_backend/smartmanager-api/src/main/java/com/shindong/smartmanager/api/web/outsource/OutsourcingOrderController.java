@@ -46,6 +46,7 @@ public class OutsourcingOrderController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDateTo,
             @RequestParam(required = false) String partnerName,
             @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) String itemNo,
             @RequestParam(required = false) OutsourcingOrderStatus status,
             @RequestParam(defaultValue = "true") boolean excludeCancelled
     ) {
@@ -54,6 +55,7 @@ public class OutsourcingOrderController {
                 orderDateTo,
                 partnerName,
                 orderNo,
+                itemNo,
                 status,
                 excludeCancelled
         )).stream().map(OutsourcingOrderResponse::from).toList();

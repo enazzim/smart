@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
 import GridExcelExportButton from '../components/GridExcelExportButton';
@@ -64,6 +64,9 @@ export default function EtcPurchaseReceiptPage() {
   const editFiscal = useFiscalPeriod(editReceiptDate, fiscalCutoverSetting);
   const [candidateFilters, setCandidateFilters] = useState<EtcPurchaseReceiptCandidateParams>({});
   const [candidateFilterPartner, setCandidateFilterPartner] = useState<CompanySearchSelection | null>(null);
+  const [candidateClearToken, setCandidateClearToken] = useState(0);
+  /** 마지막으로 조회 버튼(또는 탭 진입)에서 적용된 조건 — 등록·취소 후 재조회에 사용 */
+  const appliedCandidateRef = useRef<EtcPurchaseReceiptCandidateParams>({});
   const [historyFilters, setHistoryFilters] = useState<EtcPurchaseReceiptListParams>(() =>
     createDefaultHistoryFilters(fiscalCutoverSetting),
   );
@@ -152,23 +155,31 @@ export default function EtcPurchaseReceiptPage() {
     }
   };
 
-  const loadCandidates = useCallback(async () => {
+  /** params 생략 시 마지막 적용 조건으로 조회한다. 필터 입력 변경만으로는 호출되지 않는다. */
+  const loadCandidates = useCallback(async (params?: EtcPurchaseReceiptCandidateParams) => {
+    const effective = params ?? appliedCandidateRef.current;
+    appliedCandidateRef.current = effective;
     setLoadingCandidates(true);
     setError(null);
     try {
-      setCandidates(
-        await fetchEtcPurchaseReceiptCandidates({
-          ...candidateFilters,
-          partnerName: candidateFilterPartner?.companyName,
-        }),
-      );
+      setCandidates(await fetchEtcPurchaseReceiptCandidates(effective));
     } catch (e) {
       setError(e instanceof Error ? e.message : '미완료 발주 조회 실패');
       setCandidates([]);
     } finally {
       setLoadingCandidates(false);
     }
-  }, [candidateFilters, candidateFilterPartner]);
+  }, []);
+
+  const onSearchCandidates = () => {
+    void loadCandidates({ ...candidateFilters, partnerName: candidateFilterPartner?.companyName });
+  };
+
+  const onShowAllCandidates = () => {
+    setCandidateFilterPartner(null);
+    setCandidateClearToken((prev) => prev + 1);
+    void loadCandidates({ ...candidateFilters, partnerName: undefined });
+  };
 
   const loadReceipts = useCallback(async () => {
     setLoadingHistory(true);
@@ -343,13 +354,14 @@ export default function EtcPurchaseReceiptPage() {
               partnerType="PURCHASE"
               selectedCompany={candidateFilterPartner}
               onSelect={setCandidateFilterPartner}
+              clearToken={candidateClearToken}
               placeholder="전체 조회 — 상호 또는 사업자번호 입력"
             />
             <button
               type="button"
               className="secondary"
               disabled={candidateFilterPartner == null}
-              onClick={() => setCandidateFilterPartner(null)}
+              onClick={onShowAllCandidates}
             >
               전체
             </button>
@@ -369,7 +381,7 @@ export default function EtcPurchaseReceiptPage() {
                 onChange={(e) => setCandidateFilters((f) => ({ ...f, deliveryTo: e.target.value }))}
               />
             </label>
-            <button type="button" onClick={() => void loadCandidates()}>
+            <button type="button" onClick={onSearchCandidates}>
               조회
             </button>
           </section>

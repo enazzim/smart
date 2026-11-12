@@ -1,9 +1,11 @@
 package com.shindong.smartmanager.infrastructure.application;
 
 import com.shindong.smartmanager.application.company.CompanyCommand;
+import com.shindong.smartmanager.application.company.CompanyLookupView;
 import com.shindong.smartmanager.application.company.CompanyService;
 import com.shindong.smartmanager.application.company.CompanyUpdateCommand;
 import com.shindong.smartmanager.application.company.CompanyView;
+import com.shindong.smartmanager.domain.company.CompanyRoleType;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,11 @@ public class CompanyApplicationService {
     @Transactional(readOnly = true)
     public List<CompanyView> listActive() {
         return companyService.listActive();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CompanyLookupView> lookupActive(String query, List<CompanyRoleType> roles, Integer limit) {
+        return companyService.lookupActive(query, roles, limit);
     }
 
     @Transactional(readOnly = true)

@@ -4,8 +4,10 @@ import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.item.ItemCommand;
 import com.shindong.smartmanager.application.item.ItemUpdateCommand;
+import com.shindong.smartmanager.domain.item.PropertyClassification;
 import com.shindong.smartmanager.infrastructure.application.ItemApplicationService;
 import jakarta.validation.Valid;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -38,6 +40,18 @@ public class ItemController {
     ) {
         return itemApplicationService.listActive(itemNo, itemName).stream()
                 .map(ItemResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/lookup")
+    public List<ItemLookupResponse> lookup(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String classifications,
+            @RequestParam(required = false) Integer limit
+    ) {
+        List<PropertyClassification> classFilters = parseClassifications(classifications);
+        return itemApplicationService.lookupActive(q, classFilters, limit).stream()
+                .map(ItemLookupResponse::from)
                 .toList();
     }
 
@@ -119,5 +133,17 @@ public class ItemController {
     @BasisAuthorize.ItemWrite
     public void delete(@PathVariable long id) {
         itemApplicationService.delete(id, SecurityUtils.requireLoginId());
+    }
+
+    private static List<PropertyClassification> parseClassifications(String classifications) {
+        if (classifications == null || classifications.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(classifications.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .map(PropertyClassification::valueOf)
+                .distinct()
+                .toList();
     }
 }

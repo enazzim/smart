@@ -11,6 +11,9 @@ import java.util.List;
 
 public class CompanyService {
 
+    private static final int DEFAULT_LOOKUP_LIMIT = 50;
+    private static final int MAX_LOOKUP_LIMIT = 100;
+
     private final CompanyRepository companyRepository;
     private final PartnerLedgerProjector partnerLedgerProjector;
     private final PartnerLedgerAccountRepository partnerLedgerAccountRepository;
@@ -104,6 +107,15 @@ public class CompanyService {
         return companyRepository.findAllActive();
     }
 
+    public List<CompanyLookupView> lookupActive(String query, List<CompanyRoleType> roles, Integer limit) {
+        int resolvedLimit = resolveLookupLimit(limit);
+        String q = query == null ? "" : query.trim();
+        if (q.isEmpty()) {
+            return List.of();
+        }
+        return companyRepository.lookupActive(q, roles, resolvedLimit);
+    }
+
     public CompanyView getActive(long id) {
         return companyRepository.findActiveById(id)
                 .orElseThrow(() -> new IllegalArgumentException("거래처를 찾을 수 없습니다: " + id));
@@ -192,5 +204,12 @@ public class CompanyService {
 
     private String escape(String value) {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static int resolveLookupLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_LOOKUP_LIMIT;
+        }
+        return Math.min(limit, MAX_LOOKUP_LIMIT);
     }
 }

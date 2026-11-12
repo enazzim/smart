@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import type { PropertyClassification } from '../api/item';
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
@@ -19,6 +22,9 @@ import { useConfirm } from '../context/ConfirmContext';
 
 type ReceiptTab = 'candidates' | 'history' | 'subCandidates' | 'subHistory';
 
+const GENERAL_ITEM_CLASSES: PropertyClassification[] = ['원자재', '상품'];
+const SUB_MATERIAL_ITEM_CLASSES: PropertyClassification[] = ['부자재'];
+
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -26,6 +32,18 @@ function addDaysIso(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
+}
+function defaultCandidateFilters(): PurchaseReceiptCandidateParams {
+  return {
+    orderDateFrom: addDaysIso(todayIso(), -30),
+    orderDateTo: todayIso(),
+  };
+}
+function defaultHistoryFilters(): PurchaseReceiptListParams {
+  return {
+    receiptDateFrom: addDaysIso(todayIso(), -30),
+    receiptDateTo: todayIso(),
+  };
 }
 function checkLabel(value: string): string {
   return value === 'INSPECTION' ? '검사' : '무검사';
@@ -55,14 +73,17 @@ export default function PurchaseReceiptPage() {
   const [receiptDate, setReceiptDate] = useState(todayIso());
   const { fiscalCutoverSetting } = useMaterialIssueSetting();
   const fiscalPeriod = useFiscalPeriod(receiptDate, fiscalCutoverSetting);
-  const [filters, setFilters] = useState<PurchaseReceiptCandidateParams>(() => ({
-    orderDateFrom: addDaysIso(todayIso(), -30),
-    orderDateTo: todayIso(),
-  }));
-  const [historyFilters, setHistoryFilters] = useState<PurchaseReceiptListParams>(() => ({
-    receiptDateFrom: addDaysIso(todayIso(), -30),
-    receiptDateTo: todayIso(),
-  }));
+  const [filters, setFilters] = useState<PurchaseReceiptCandidateParams>(defaultCandidateFilters);
+  const [historyFilters, setHistoryFilters] = useState<PurchaseReceiptListParams>(defaultHistoryFilters);
+  const [candPartner, setCandPartner] = useState<CompanySearchSelection | null>(null);
+  const [candItem, setCandItem] = useState<ItemSearchSelection | null>(null);
+  const [candClearToken, setCandClearToken] = useState(0);
+  const [histPartner, setHistPartner] = useState<CompanySearchSelection | null>(null);
+  const [histItem, setHistItem] = useState<ItemSearchSelection | null>(null);
+  const [histClearToken, setHistClearToken] = useState(0);
+  /** 마지막으로 조회 버튼(또는 탭 진입)에서 적용된 조건 — 탭 진입·등록·취소 후 재조회에 사용 */
+  const appliedCandidateRef = useRef<PurchaseReceiptCandidateParams>(defaultCandidateFilters());
+  const appliedHistoryRef = useRef<PurchaseReceiptListParams>(defaultHistoryFilters());
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -95,11 +116,15 @@ export default function PurchaseReceiptPage() {
     selectableCandidates.length > 0 &&
     selectableCandidates.every((row) => selectedLineIds.has(row.purchaseOrderLineId));
   const someSelected = selectableCandidates.some((row) => selectedLineIds.has(row.purchaseOrderLineId));
-  const loadCandidates = useCallback(async () => {
+  const allowedItemClasses = isSubMaterialTab ? SUB_MATERIAL_ITEM_CLASSES : GENERAL_ITEM_CLASSES;
+  /** params 생략 시 마지막 적용 조건으로 조회한다. 필터 입력 변경만으로는 호출되지 않는다. */
+  const loadCandidates = useCallback(async (params?: PurchaseReceiptCandidateParams) => {
+    const effective = params ?? appliedCandidateRef.current;
+    appliedCandidateRef.current = effective;
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchPurchaseReceiptCandidates({ ...filters, itemPropertyScope });
+      const data = await fetchPurchaseReceiptCandidates({ ...effective, itemPropertyScope });
       setCandidates(data);
       setSelectedLineIds(new Set());
       setReceiptQtyByLineId({});
@@ -110,18 +135,50 @@ export default function PurchaseReceiptPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, itemPropertyScope]);
-  const loadReceipts = useCallback(async () => {
+  }, [itemPropertyScope]);
+  const loadReceipts = useCallback(async (params?: PurchaseReceiptListParams) => {
+    const effective = params ?? appliedHistoryRef.current;
+    appliedHistoryRef.current = effective;
     setHistoryLoading(true);
     try {
-      const data = await fetchPurchaseReceipts({ ...historyFilters, itemPropertyScope });
+      const data = await fetchPurchaseReceipts({ ...effective, itemPropertyScope });
       setReceipts(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : '입고 이력을 불러오지 못했습니다.');
     } finally {
       setHistoryLoading(false);
     }
-  }, [historyFilters, itemPropertyScope]);
+  }, [itemPropertyScope]);
+  const onSearchCandidates = () => {
+    void loadCandidates({
+      ...filters,
+      partnerName: candPartner?.companyName,
+      itemNum: candItem?.itemNo,
+      itemName: undefined,
+    });
+  };
+  const onSearchReceipts = () => {
+    void loadReceipts({
+      ...historyFilters,
+      partnerName: histPartner?.companyName,
+      itemNum: histItem?.itemNo,
+      itemName: undefined,
+    });
+  };
+  /** 일반↔부자재 전환 시 품목 분류가 달라지므로 품목 선택을 비운다. */
+  const changeTab = (next: ReceiptTab) => {
+    const nextIsSub = next === 'subCandidates' || next === 'subHistory';
+    if (nextIsSub !== isSubMaterialTab) {
+      setCandItem(null);
+      setHistItem(null);
+      setCandClearToken((prev) => prev + 1);
+      setHistClearToken((prev) => prev + 1);
+      appliedCandidateRef.current = { ...appliedCandidateRef.current, itemNum: undefined, itemName: undefined };
+      appliedHistoryRef.current = { ...appliedHistoryRef.current, itemNum: undefined, itemName: undefined };
+    }
+    setTab(next);
+  };
+  // 탭 진입(또는 일반/부자재 범위 전환) 시 마지막 적용 조건으로 1회 조회한다.
   useEffect(() => {
     if (isCandidateTab) {
       void loadCandidates();
@@ -288,23 +345,23 @@ export default function PurchaseReceiptPage() {
         </p>
       </header>
       <div className="tab-row">
-        <button type="button" className={tab === 'candidates' ? 'tab-active' : undefined} onClick={() => setTab('candidates')}>
+        <button type="button" className={tab === 'candidates' ? 'tab-active' : undefined} onClick={() => changeTab('candidates')}>
           미입고 발주
         </button>
-        <button type="button" className={tab === 'history' ? 'tab-active' : undefined} onClick={() => setTab('history')}>
+        <button type="button" className={tab === 'history' ? 'tab-active' : undefined} onClick={() => changeTab('history')}>
           입고 이력
         </button>
         <button
           type="button"
           className={tab === 'subCandidates' ? 'tab-active' : undefined}
-          onClick={() => setTab('subCandidates')}
+          onClick={() => changeTab('subCandidates')}
         >
           부자재입고
         </button>
         <button
           type="button"
           className={tab === 'subHistory' ? 'tab-active' : undefined}
-          onClick={() => setTab('subHistory')}
+          onClick={() => changeTab('subHistory')}
         >
           부자재입고이력
         </button>
@@ -314,13 +371,13 @@ export default function PurchaseReceiptPage() {
       {isCandidateTab && (
         <>
           <section className="filter-panel">
-            <label>
-              거래처
-              <input
-                value={filters.partnerName ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, partnerName: e.target.value }))}
-              />
-            </label>
+            <CompanySearchField
+              label="거래처"
+              partnerType="PURCHASE"
+              selectedCompany={candPartner}
+              onSelect={setCandPartner}
+              clearToken={candClearToken}
+            />
             <label>
               발주번호
               <input
@@ -344,14 +401,14 @@ export default function PurchaseReceiptPage() {
                 onChange={(e) => setFilters((f) => ({ ...f, orderDateTo: e.target.value }))}
               />
             </label>
-            <label>
-              품목번호
-              <input
-                value={filters.itemNum ?? ''}
-                onChange={(e) => setFilters((f) => ({ ...f, itemNum: e.target.value }))}
-              />
-            </label>
-            <button type="button" onClick={() => void loadCandidates()}>
+            <ItemSearchField
+              label="품목"
+              selectedItem={candItem}
+              onSelect={setCandItem}
+              allowedClassifications={allowedItemClasses}
+              clearToken={candClearToken}
+            />
+            <button type="button" onClick={onSearchCandidates}>
               조회
             </button>
           </section>
@@ -508,27 +565,20 @@ export default function PurchaseReceiptPage() {
       {isHistoryTab && (
         <>
           <section className="filter-panel">
-            <label>
-              거래처
-              <input
-                value={historyFilters.partnerName ?? ''}
-                onChange={(e) => setHistoryFilters((f) => ({ ...f, partnerName: e.target.value }))}
-              />
-            </label>
-            <label>
-              품목번호
-              <input
-                value={historyFilters.itemNum ?? ''}
-                onChange={(e) => setHistoryFilters((f) => ({ ...f, itemNum: e.target.value }))}
-              />
-            </label>
-            <label>
-              품목명
-              <input
-                value={historyFilters.itemName ?? ''}
-                onChange={(e) => setHistoryFilters((f) => ({ ...f, itemName: e.target.value }))}
-              />
-            </label>
+            <CompanySearchField
+              label="거래처"
+              partnerType="PURCHASE"
+              selectedCompany={histPartner}
+              onSelect={setHistPartner}
+              clearToken={histClearToken}
+            />
+            <ItemSearchField
+              label="품목"
+              selectedItem={histItem}
+              onSelect={setHistItem}
+              allowedClassifications={allowedItemClasses}
+              clearToken={histClearToken}
+            />
             <label>
               입고일(부터)
               <input
@@ -545,7 +595,7 @@ export default function PurchaseReceiptPage() {
                 onChange={(e) => setHistoryFilters((f) => ({ ...f, receiptDateTo: e.target.value }))}
               />
             </label>
-            <button type="button" onClick={() => void loadReceipts()}>
+            <button type="button" onClick={onSearchReceipts}>
               조회
             </button>
           </section>

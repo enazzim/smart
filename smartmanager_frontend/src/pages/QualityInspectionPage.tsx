@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import CompanySearchField, {
+  PURCHASE_OUTSOURCE_PARTNER_ROLES,
+  type CompanySearchSelection,
+} from '../components/CompanySearchField';
 import FiscalPeriodDisplay from '../components/FiscalPeriodDisplay';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
+import { ALL_ITEM_CLASSES } from '../utils/itemClassFilters';
 import { useFiscalPeriod } from '../hooks/useFiscalPeriod';
 import { formatFiscalPeriodFromInstant } from '../utils/fiscalCalendar';
 import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
@@ -52,6 +58,14 @@ export default function QualityInspectionPage() {
     completedDateFrom: addDaysIso(todayIso(), -30),
     completedDateTo: todayIso(),
   }));
+  const [pendingPartner, setPendingPartner] = useState<CompanySearchSelection | null>(null);
+  const [pendingItem, setPendingItem] = useState<ItemSearchSelection | null>(null);
+  const [pendingItemQuery, setPendingItemQuery] = useState('');
+  const [historyPartner, setHistoryPartner] = useState<CompanySearchSelection | null>(null);
+  const [historyItem, setHistoryItem] = useState<ItemSearchSelection | null>(null);
+  const [historyItemQuery, setHistoryItemQuery] = useState('');
+  const appliedPendingFiltersRef = useRef<QualityInspectionListParams>(pendingFilters);
+  const appliedHistoryFiltersRef = useRef<QualityInspectionListParams>(historyFilters);
   const [tab, setTab] = useState<'pending' | 'history'>('pending');
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -78,10 +92,11 @@ export default function QualityInspectionPage() {
     setLoading(true);
     setError(null);
     try {
+      const applied = appliedPendingFiltersRef.current;
       const data = await fetchQualityInspections({
-        ...pendingFilters,
+        ...applied,
         status: 'PENDING',
-        sourceType: pendingFilters.sourceType || undefined,
+        sourceType: applied.sourceType || undefined,
       });
       setPending(data);
       setSelectedIds(new Set());
@@ -90,15 +105,16 @@ export default function QualityInspectionPage() {
     } finally {
       setLoading(false);
     }
-  }, [pendingFilters]);
+  }, []);
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
+      const applied = appliedHistoryFiltersRef.current;
       const data = await fetchQualityInspections({
-        ...historyFilters,
+        ...applied,
         status: 'COMPLETED',
-        sourceType: historyFilters.sourceType || undefined,
+        sourceType: applied.sourceType || undefined,
       });
       setHistory(data);
     } catch (e) {
@@ -106,8 +122,31 @@ export default function QualityInspectionPage() {
     } finally {
       setHistoryLoading(false);
     }
-  }, [historyFilters]);
+  }, []);
 
+  const onSearchPending = () => {
+    const itemText = pendingItemQuery.trim();
+    appliedPendingFiltersRef.current = {
+      ...pendingFilters,
+      partnerName: pendingPartner?.companyName,
+      itemNo: pendingItem ? pendingItem.itemNo : itemText || undefined,
+      itemName: undefined,
+    };
+    void loadPending();
+  };
+
+  const onSearchHistory = () => {
+    const itemText = historyItemQuery.trim();
+    appliedHistoryFiltersRef.current = {
+      ...historyFilters,
+      partnerName: historyPartner?.companyName,
+      itemNo: historyItem ? historyItem.itemNo : itemText || undefined,
+      itemName: undefined,
+    };
+    void loadHistory();
+  };
+
+  // 탭 진입 시 마지막 확정 조건으로 조회 (필터 입력 변경만으로는 재조회하지 않음)
   useEffect(() => {
     if (tab === 'pending') {
       void loadPending();
@@ -389,27 +428,19 @@ export default function QualityInspectionPage() {
                 <option value="OUTSOURCE">외주</option>
               </select>
             </label>
-            <label>
-              거래처
-              <input
-                value={pendingFilters.partnerName ?? ''}
-                onChange={(e) => setPendingFilters((f) => ({ ...f, partnerName: e.target.value }))}
-              />
-            </label>
-            <label>
-              품목번호
-              <input
-                value={pendingFilters.itemNo ?? ''}
-                onChange={(e) => setPendingFilters((f) => ({ ...f, itemNo: e.target.value }))}
-              />
-            </label>
-            <label>
-              품목명
-              <input
-                value={pendingFilters.itemName ?? ''}
-                onChange={(e) => setPendingFilters((f) => ({ ...f, itemName: e.target.value }))}
-              />
-            </label>
+            <CompanySearchField
+              label="거래처"
+              partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
+              selectedCompany={pendingPartner}
+              onSelect={setPendingPartner}
+            />
+            <ItemSearchField
+              label="품목"
+              selectedItem={pendingItem}
+              onSelect={setPendingItem}
+              onQueryTextChange={setPendingItemQuery}
+              allowedClassifications={ALL_ITEM_CLASSES}
+            />
             <label>
               입고일(부터)
               <input
@@ -426,7 +457,7 @@ export default function QualityInspectionPage() {
                 onChange={(e) => setPendingFilters((f) => ({ ...f, receiptDateTo: e.target.value }))}
               />
             </label>
-            <button type="button" onClick={() => void loadPending()}>
+            <button type="button" onClick={onSearchPending}>
               조회
             </button>
           </section>
@@ -546,20 +577,19 @@ export default function QualityInspectionPage() {
                 <option value="OUTSOURCE">외주</option>
               </select>
             </label>
-            <label>
-              거래처
-              <input
-                value={historyFilters.partnerName ?? ''}
-                onChange={(e) => setHistoryFilters((f) => ({ ...f, partnerName: e.target.value }))}
-              />
-            </label>
-            <label>
-              품목번호
-              <input
-                value={historyFilters.itemNo ?? ''}
-                onChange={(e) => setHistoryFilters((f) => ({ ...f, itemNo: e.target.value }))}
-              />
-            </label>
+            <CompanySearchField
+              label="거래처"
+              partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
+              selectedCompany={historyPartner}
+              onSelect={setHistoryPartner}
+            />
+            <ItemSearchField
+              label="품목"
+              selectedItem={historyItem}
+              onSelect={setHistoryItem}
+              onQueryTextChange={setHistoryItemQuery}
+              allowedClassifications={ALL_ITEM_CLASSES}
+            />
             <label>
               검사완료일(부터)
               <input
@@ -576,7 +606,7 @@ export default function QualityInspectionPage() {
                 onChange={(e) => setHistoryFilters((f) => ({ ...f, completedDateTo: e.target.value }))}
               />
             </label>
-            <button type="button" onClick={() => void loadHistory()}>
+            <button type="button" onClick={onSearchHistory}>
               조회
             </button>
           </section>

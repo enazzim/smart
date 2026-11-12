@@ -4,8 +4,10 @@ import com.shindong.smartmanager.api.security.BasisAuthorize;
 import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.company.CompanyCommand;
 import com.shindong.smartmanager.application.company.CompanyUpdateCommand;
+import com.shindong.smartmanager.domain.company.CompanyRoleType;
 import com.shindong.smartmanager.infrastructure.application.CompanyApplicationService;
 import jakarta.validation.Valid;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,6 +36,18 @@ public class CompanyController {
     public List<CompanyResponse> list() {
         return companyApplicationService.listActive().stream()
                 .map(CompanyResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/lookup")
+    public List<CompanyLookupResponse> lookup(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String roles,
+            @RequestParam(required = false) Integer limit
+    ) {
+        List<CompanyRoleType> roleFilters = parseRoles(roles);
+        return companyApplicationService.lookupActive(q, roleFilters, limit).stream()
+                .map(CompanyLookupResponse::from)
                 .toList();
     }
 
@@ -101,5 +116,17 @@ public class CompanyController {
     @BasisAuthorize.CompanyWrite
     public void delete(@PathVariable long id) {
         companyApplicationService.delete(id, SecurityUtils.requireLoginId());
+    }
+
+    private static List<CompanyRoleType> parseRoles(String roles) {
+        if (roles == null || roles.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(roles.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .map(CompanyRoleType::valueOf)
+                .distinct()
+                .toList();
     }
 }

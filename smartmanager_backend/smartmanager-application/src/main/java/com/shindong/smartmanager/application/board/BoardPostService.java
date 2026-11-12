@@ -12,6 +12,15 @@ import java.util.Set;
 public class BoardPostService {
 
     private static final String SYSTEM_ADMIN_ROLE = "SYSTEM_ADMIN";
+    private static final String CEO_ROLE = "CEO";
+    /** community:board:write 를 가진 역할. CEO는 이 목록에 넣지 않는다. */
+    private static final Set<String> BOARD_WRITE_ROLES = Set.of(
+            SYSTEM_ADMIN_ROLE,
+            "BASIS_MANAGER",
+            "SALES_OPERATOR",
+            "PRODUCTION_OPERATOR",
+            "PURCHASE_OPERATOR"
+    );
 
     private static final List<BoardType> DASHBOARD_BOARD_TYPES = List.of(
             BoardType.NOTICE,
@@ -74,7 +83,7 @@ public class BoardPostService {
             String actorUserId
     ) {
         validateTopPost(command);
-        assertNoticeWriteAllowed(command.boardType(), authorUserId);
+        assertBoardWriteAllowed(command.boardType(), authorUserId);
         String content = normalizeContent(command.content());
         long postId = boardPostRepository.saveTopPost(
                 command.boardType(),
@@ -104,7 +113,7 @@ public class BoardPostService {
             String actorUserId
     ) {
         BoardPostRepository.BoardPostRecord parent = findActivePost(parentPostId);
-        assertNoticeWriteAllowed(parent.boardType(), authorUserId);
+        assertBoardWriteAllowed(parent.boardType(), authorUserId);
         String content = normalizeContent(command.content());
         if (content.isBlank()) {
             throw new IllegalArgumentException("답글 내용을 입력하세요.");
@@ -391,15 +400,27 @@ public class BoardPostService {
         return List.copyOf(unique);
     }
 
-    private void assertNoticeWriteAllowed(BoardType boardType, long authorUserId) {
-        if (boardType != BoardType.NOTICE) {
+    private void assertBoardWriteAllowed(BoardType boardType, long authorUserId) {
+        List<String> roleCodes = userRepository.findActiveById(authorUserId)
+                .map(user -> user.roleCodes())
+                .orElse(List.of());
+        Set<String> roles = roleCodes == null ? Set.of() : new HashSet<>(roleCodes);
+        boolean ceo = roles.contains(CEO_ROLE);
+        boolean boardWriter = roles.stream().anyMatch(BOARD_WRITE_ROLES::contains);
+        if (boardType == BoardType.NOTICE) {
+            if (!roles.contains(SYSTEM_ADMIN_ROLE) && !ceo) {
+                throw new IllegalStateException("공지사항은 시스템 관리자와 CEO만 작성할 수 있습니다.");
+            }
             return;
         }
-        boolean systemAdmin = userRepository.findActiveById(authorUserId)
-                .map(user -> user.roleCodes().contains(SYSTEM_ADMIN_ROLE))
-                .orElse(false);
-        if (!systemAdmin) {
-            throw new IllegalStateException("공지사항은 시스템 관리자만 작성할 수 있습니다.");
+        if (boardType == BoardType.PRESIDENT_NOTICE) {
+            if (!boardWriter && !ceo) {
+                throw new IllegalStateException("게시글을 작성할 권한이 없습니다.");
+            }
+            return;
+        }
+        if (!boardWriter) {
+            throw new IllegalStateException("이 게시판은 작성할 수 없습니다.");
         }
     }
 

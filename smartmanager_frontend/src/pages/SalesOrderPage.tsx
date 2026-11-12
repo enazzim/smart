@@ -32,6 +32,7 @@ import { fetchItems } from '../api/item';
 import { fetchUnitPrices } from '../api/unitPrice';
 import { formatAmount, formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
+import SalesOrderManual from '../manual/SalesOrderManual';
 
 const SALES_ITEM_CLASSES: PropertyClassification[] = ['상품', '제품', '공정품'];
 
@@ -130,6 +131,7 @@ function toRequest(
 export default function SalesOrderPage() {
   const confirm = useConfirm();
   const [registerMode, setRegisterMode] = useState<RegisterMode>('single');
+  const [manualOpen, setManualOpen] = useState(false);
   const [lineRows, setLineRows] = useState<SalesOrderLineListRow[]>([]);
   const [searchPartner, setSearchPartner] = useState<CompanySearchSelection | null>(null);
   const [searchItem, setSearchItem] = useState<ItemSearchSelection | null>(null);
@@ -502,6 +504,14 @@ export default function SalesOrderPage() {
 
   const orderTotal = lines.reduce((sum, line) => sum + lineAmount(line.orderQty, line.unitPrice), 0);
 
+  if (manualOpen) {
+    return (
+      <div className="page">
+        <SalesOrderManual onBack={() => setManualOpen(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <header className="page-header">
@@ -512,6 +522,9 @@ export default function SalesOrderPage() {
             엑셀 일괄 등록을 지원합니다.
           </p>
         </div>
+        <button type="button" className="link-button page-manual-link" onClick={() => setManualOpen(true)}>
+          사용설명서
+        </button>
       </header>
 
       <section className="panel">

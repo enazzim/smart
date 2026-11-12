@@ -52,6 +52,7 @@ export interface OutsourcingOrderListParams {
   orderDateTo?: string;
   partnerName?: string;
   orderNo?: string;
+  itemNo?: string;
   status?: OutsourcingOrderStatus;
   excludeCancelled?: boolean;
 }
@@ -101,6 +102,7 @@ function buildQuery(params?: OutsourcingOrderListParams): string {
   if (params.orderDateTo) search.set('orderDateTo', params.orderDateTo);
   if (params.partnerName?.trim()) search.set('partnerName', params.partnerName.trim());
   if (params.orderNo?.trim()) search.set('orderNo', params.orderNo.trim());
+  if (params.itemNo?.trim()) search.set('itemNo', params.itemNo.trim());
   if (params.status) search.set('status', params.status);
   if (params.excludeCancelled !== undefined) search.set('excludeCancelled', String(params.excludeCancelled));
   const query = search.toString();

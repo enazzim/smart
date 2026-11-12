@@ -239,6 +239,7 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
         }
         String partnerName = normalizeQuery(criteria.partnerName());
         String orderNo = normalizeQuery(criteria.orderNo());
+        String itemNo = normalizeQuery(criteria.itemNo());
         String itemPropertyScope = normalizeScope(criteria.itemPropertyScope());
         return orderRepository.searchActive(
                 ACTIVE,
@@ -246,6 +247,7 @@ public class JpaPurchaseOrderRepository implements PurchaseOrderRepository {
                 criteria.orderDateTo(),
                 partnerName,
                 orderNo,
+                itemNo,
                 criteria.status(),
                 criteria.excludeCancelled(),
                 PurchaseOrderStatus.CANCELLED,

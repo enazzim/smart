@@ -28,6 +28,19 @@ public interface SpringDataOutsourcingOrderRepository extends JpaRepository<Outs
               AND (:excludeCancelled = false OR oo.status <> :cancelledStatus)
               AND (:orderNo IS NULL OR :orderNo = '' OR LOWER(oo.orderNo) LIKE LOWER(CONCAT('%', :orderNo, '%')))
               AND (:partnerName IS NULL OR :partnerName = '' OR LOWER(c.companyName) LIKE LOWER(CONCAT('%', :partnerName, '%')))
+              AND (
+                    :itemNo IS NULL OR :itemNo = ''
+                    OR EXISTS (
+                        SELECT 1 FROM OutsourcingOrderLineJpaEntity ool
+                        JOIN ItemJpaEntity i ON i.id = ool.itemId
+                        WHERE ool.outsourcingOrderId = oo.id
+                          AND ool.recordingState = 1
+                          AND (
+                                LOWER(i.itemNo) LIKE LOWER(CONCAT('%', :itemNo, '%'))
+                             OR LOWER(i.itemName) LIKE LOWER(CONCAT('%', :itemNo, '%'))
+                          )
+                    )
+              )
             ORDER BY oo.orderDate DESC, oo.id DESC
             """)
     List<OutsourcingOrderJpaEntity> searchActive(
@@ -36,6 +49,7 @@ public interface SpringDataOutsourcingOrderRepository extends JpaRepository<Outs
             @Param("orderDateTo") LocalDate orderDateTo,
             @Param("partnerName") String partnerName,
             @Param("orderNo") String orderNo,
+            @Param("itemNo") String itemNo,
             @Param("status") OutsourcingOrderStatus status,
             @Param("excludeCancelled") boolean excludeCancelled,
             @Param("cancelledStatus") OutsourcingOrderStatus cancelledStatus

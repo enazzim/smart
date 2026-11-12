@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { fetchItems } from '../api/item';
+import { fetchItemLookup } from '../api/item';
 import type { PropertyClassification } from '../api/item';
 import { sortByKoreanField } from '../utils/koreanSort';
 
 const DEFAULT_ALLOWED_CLASSES: PropertyClassification[] = ['제품', '상품', '공정품'];
 const SEARCH_DEBOUNCE_MS = 300;
+const MIN_QUERY_LENGTH = 1;
+const LOOKUP_LIMIT = 50;
 
 function toAllowedClassesKey(classes?: PropertyClassification[]): string {
   return (classes ?? DEFAULT_ALLOWED_CLASSES).join('\0');
@@ -45,30 +47,6 @@ function matchesQuery(item: ItemSearchSelection, query: string) {
   );
 }
 
-async function loadProductItems(
-  query: string,
-  allowedClasses: Set<PropertyClassification>,
-): Promise<ItemSearchSelection[]> {
-  // 전체 바인딩 후 입력값으로 클라이언트 필터 (포커스·타이핑 시)
-  const results = await fetchItems();
-  const trimmed = query.trim();
-
-  return sortByKoreanField(
-    results
-      .filter((item) => allowedClasses.has(item.propertyClassification))
-      .filter((item) => matchesQuery(item, trimmed))
-      .map((item) => ({
-        id: item.id,
-        itemNo: item.itemNo,
-        itemName: item.itemName,
-        propertyClassification: item.propertyClassification,
-        modelType: item.modelType,
-        lotTracked: item.lotTracked,
-      })),
-    (item) => item.itemName,
-  );
-}
-
 export interface ItemSearchFieldProps {
   label: string;
   selectedItem: ItemSearchSelection | null;
@@ -103,39 +81,84 @@ export default function ItemSearchField({
   const isLocalMode = items !== undefined;
   const allowedClassesKey = toAllowedClassesKey(allowedClassifications);
   const allowedClasses = useMemo(
-    () => new Set<PropertyClassification>(allowedClassifications ?? DEFAULT_ALLOWED_CLASSES),
+    () => (allowedClassifications ?? DEFAULT_ALLOWED_CLASSES),
     [allowedClassesKey],
   );
   const listId = useId();
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestSeq = useRef(0);
   const prevSelectedRef = useRef<ItemSearchSelection | null>(null);
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<ItemSearchSelection[]>([]);
   const [open, setOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [needsMoreInput, setNeedsMoreInput] = useState(false);
 
   const loadLocalOptions = useCallback(
-    (searchQuery: string) =>
-      sortByKoreanField(
-        items!.filter((item) => matchesQuery(item, searchQuery)),
+    (searchQuery: string) => {
+      const trimmed = searchQuery.trim();
+      if (trimmed.length < MIN_QUERY_LENGTH) {
+        setNeedsMoreInput(true);
+        return [] as ItemSearchSelection[];
+      }
+      setNeedsMoreInput(false);
+      return sortByKoreanField(
+        items!.filter((item) => matchesQuery(item, trimmed)),
         (item) => item.itemName,
-      ),
+      ).slice(0, LOOKUP_LIMIT);
+    },
     [items],
   );
 
-  const fetchOptions = useCallback(async (searchQuery: string) => {
-    setSearching(true);
-    setSearchError(null);
-    try {
-      setOptions(await loadProductItems(searchQuery, allowedClasses));
-    } catch (e) {
-      setSearchError(e instanceof Error ? e.message : '품목 검색 실패');
-      setOptions([]);
-    } finally {
-      setSearching(false);
-    }
-  }, [allowedClassesKey]);
+  const fetchOptions = useCallback(
+    async (searchQuery: string) => {
+      const trimmed = searchQuery.trim();
+      if (trimmed.length < MIN_QUERY_LENGTH) {
+        setOptions([]);
+        setNeedsMoreInput(true);
+        setSearching(false);
+        setSearchError(null);
+        return;
+      }
+
+      const seq = ++requestSeq.current;
+      setNeedsMoreInput(false);
+      setSearching(true);
+      setSearchError(null);
+      try {
+        const rows = await fetchItemLookup({
+          q: trimmed,
+          classifications: allowedClasses,
+          limit: LOOKUP_LIMIT,
+        });
+        if (seq !== requestSeq.current) {
+          return;
+        }
+        setOptions(
+          rows.map((item) => ({
+            id: item.id,
+            itemNo: item.itemNo,
+            itemName: item.itemName,
+            propertyClassification: item.propertyClassification,
+            modelType: item.modelType,
+            lotTracked: item.lotTracked,
+          })),
+        );
+      } catch (e) {
+        if (seq !== requestSeq.current) {
+          return;
+        }
+        setSearchError(e instanceof Error ? e.message : '품목 검색 실패');
+        setOptions([]);
+      } finally {
+        if (seq === requestSeq.current) {
+          setSearching(false);
+        }
+      }
+    },
+    [allowedClassesKey],
+  );
 
   useEffect(() => {
     if (clearToken === undefined || clearToken === 0) {
@@ -145,6 +168,7 @@ export default function ItemSearchField({
     setOptions([]);
     setOpen(false);
     setSearchError(null);
+    setNeedsMoreInput(false);
     prevSelectedRef.current = null;
     onQueryTextChange?.('');
   }, [clearToken]);
@@ -155,7 +179,6 @@ export default function ItemSearchField({
       setQuery(labelText);
       onQueryTextChange?.(labelText);
     } else if (prevSelectedRef.current) {
-      // 입력으로 선택만 해제한 경우는 유지. 선택 라벨이 그대로면 외부 초기화로 비움.
       const prevLabel = formatItemLabel(prevSelectedRef.current, displayMode);
       setQuery((current) => {
         if (current === prevLabel) {
@@ -239,13 +262,15 @@ export default function ItemSearchField({
 
   const resolvedEmptyMessage =
     emptyMessage ??
-    (isLocalMode
-      ? query.trim()
-        ? '일치하는 품목이 없습니다.'
-        : '단가 품목이 없습니다.'
-      : query.trim()
-        ? '일치하는 품목이 없습니다.'
-        : '등록된 품목이 없습니다.');
+    (needsMoreInput
+      ? '검색어를 입력하세요.'
+      : isLocalMode
+        ? query.trim()
+          ? '일치하는 품목이 없습니다.'
+          : '단가 품목이 없습니다.'
+        : query.trim()
+          ? '일치하는 품목이 없습니다.'
+          : '검색어를 입력하세요.');
 
   return (
     <label className="item-combobox">
@@ -287,6 +312,9 @@ export default function ItemSearchField({
                 </button>
               </li>
             ))}
+          {(!searching || isLocalMode) && options.length >= LOOKUP_LIMIT && (
+            <li className="item-combobox-empty">상위 {LOOKUP_LIMIT}건만 표시합니다. 검색어를 더 입력하세요.</li>
+          )}
         </ul>
       )}
       {searchError && <span className="item-search-hint error-text">{searchError}</span>}

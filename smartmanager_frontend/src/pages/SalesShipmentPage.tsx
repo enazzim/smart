@@ -15,6 +15,8 @@ import {
   translateInventoryLocationInText,
 } from '../utils/inventoryLocation';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import { formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
 
@@ -71,6 +73,11 @@ export default function SalesShipmentPage() {
     shipmentDateTo: todayIso(),
     excludeCancelled: true,
   }));
+  const [candidatePartner, setCandidatePartner] = useState<CompanySearchSelection | null>(null);
+  const [candidateItem, setCandidateItem] = useState<ItemSearchSelection | null>(null);
+  const [candidateClearToken, setCandidateClearToken] = useState(0);
+  const [listPartner, setListPartner] = useState<CompanySearchSelection | null>(null);
+  const [listClearToken, setListClearToken] = useState(0);
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
   const [shipmentQtyByLineId, setShipmentQtyByLineId] = useState<Record<number, string>>({});
   const [lotIdByLineId, setLotIdByLineId] = useState<Record<number, number | null>>({});
@@ -108,11 +115,15 @@ export default function SalesShipmentPage() {
     excludeCancelled: true,
   });
 
-  const loadCandidates = useCallback(async (params: SalesShipmentCandidateParams = filters) => {
+  const loadCandidates = useCallback(async () => {
     setLoadingCandidates(true);
     setCandidateError(null);
     try {
-      const rows = await fetchSalesShipmentCandidates(params);
+      const rows = await fetchSalesShipmentCandidates({
+        ...filters,
+        partnerName: candidatePartner?.companyName,
+        itemNum: candidateItem?.itemNo,
+      });
       setCandidates(rows);
       setCandidatesSearched(true);
       setShipmentQtyByLineId((prev) => {
@@ -131,13 +142,18 @@ export default function SalesShipmentPage() {
     } finally {
       setLoadingCandidates(false);
     }
-  }, [filters]);
+  }, [filters, candidatePartner, candidateItem]);
 
-  const loadShipments = useCallback(async (params: SalesShipmentListParams = listFilters) => {
+  const loadShipments = useCallback(async () => {
     setLoadingShipments(true);
     setShipmentError(null);
     try {
-      setShipments(await fetchSalesShipments(params));
+      setShipments(
+        await fetchSalesShipments({
+          ...listFilters,
+          partnerName: listPartner?.companyName,
+        }),
+      );
       setShipmentsSearched(true);
     } catch (e) {
       setShipmentError(e instanceof Error ? e.message : '출고·납품 목록 조회 실패');
@@ -146,14 +162,19 @@ export default function SalesShipmentPage() {
     } finally {
       setLoadingShipments(false);
     }
-  }, [listFilters]);
+  }, [listFilters, listPartner]);
 
   const handleResetCandidateFilters = () => {
     setFilters(defaultCandidateFilters());
+    setCandidatePartner(null);
+    setCandidateItem(null);
+    setCandidateClearToken((token) => token + 1);
   };
 
   const handleResetListFilters = () => {
     setListFilters(defaultListFilters());
+    setListPartner(null);
+    setListClearToken((token) => token + 1);
   };
 
   const selectableLineIds = useMemo(
@@ -303,22 +324,19 @@ export default function SalesShipmentPage() {
       <section className="panel">
         <h2>수주 출고 후보</h2>
         <div className="sales-shipment-filters">
-          <label>
-            거래처
-            <input
-              type="text"
-              value={filters.partnerName ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, partnerName: e.target.value }))}
-            />
-          </label>
-          <label>
-            품번
-            <input
-              type="text"
-              value={filters.itemNum ?? ''}
-              onChange={(e) => setFilters((f) => ({ ...f, itemNum: e.target.value }))}
-            />
-          </label>
+          <CompanySearchField
+            label="거래처"
+            partnerType="SALES"
+            selectedCompany={candidatePartner}
+            onSelect={setCandidatePartner}
+            clearToken={candidateClearToken}
+          />
+          <ItemSearchField
+            label="품목"
+            selectedItem={candidateItem}
+            onSelect={setCandidateItem}
+            clearToken={candidateClearToken}
+          />
           <label>
             수주번호
             <input
@@ -557,14 +575,13 @@ export default function SalesShipmentPage() {
               onChange={(e) => setListFilters((f) => ({ ...f, shipmentDateTo: e.target.value }))}
             />
           </label>
-          <label>
-            거래처
-            <input
-              type="text"
-              value={listFilters.partnerName ?? ''}
-              onChange={(e) => setListFilters((f) => ({ ...f, partnerName: e.target.value }))}
-            />
-          </label>
+          <CompanySearchField
+            label="거래처"
+            partnerType="SALES"
+            selectedCompany={listPartner}
+            onSelect={setListPartner}
+            clearToken={listClearToken}
+          />
           <label>
             출고번호
             <input

@@ -50,6 +50,31 @@ export async function fetchCompanies(): Promise<Company[]> {
   return handleResponse<Company[]>(await apiFetch(API_BASE));
 }
 
+export interface CompanyLookup {
+  id: number;
+  companyName: string;
+  businessRegNo: string;
+}
+
+export async function fetchCompanyLookup(params: {
+  q: string;
+  roles?: CompanyRoleType | readonly CompanyRoleType[];
+  limit?: number;
+}): Promise<CompanyLookup[]> {
+  const search = new URLSearchParams();
+  search.set('q', params.q);
+  if (params.roles) {
+    const roles = Array.isArray(params.roles) ? params.roles : [params.roles];
+    if (roles.length > 0) {
+      search.set('roles', roles.join(','));
+    }
+  }
+  if (params.limit != null) {
+    search.set('limit', String(params.limit));
+  }
+  return handleResponse<CompanyLookup[]>(await apiFetch(`${API_BASE}/lookup?${search.toString()}`));
+}
+
 export async function fetchCompany(id: number): Promise<Company> {
   return handleResponse<Company>(await apiFetch(`${API_BASE}/${id}`));
 }

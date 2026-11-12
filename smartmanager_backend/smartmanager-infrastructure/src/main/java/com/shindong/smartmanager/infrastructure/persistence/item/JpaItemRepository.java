@@ -1,13 +1,16 @@
 package com.shindong.smartmanager.infrastructure.persistence.item;
 
 import com.shindong.smartmanager.application.item.ItemCommand;
+import com.shindong.smartmanager.application.item.ItemLookupView;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemUpdateCommand;
 import com.shindong.smartmanager.application.item.ItemView;
+import com.shindong.smartmanager.domain.item.PropertyClassification;
 import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -87,6 +90,28 @@ public class JpaItemRepository implements ItemRepository {
         String itemName = itemNameQuery == null ? "" : itemNameQuery.trim();
         return itemRepository.searchActive(itemNo, itemName).stream()
                 .map(this::toView)
+                .toList();
+    }
+
+    @Override
+    public List<ItemLookupView> lookupActive(String query, List<PropertyClassification> classifications, int limit) {
+        String q = query == null ? "" : query.trim();
+        if (q.isEmpty() || limit <= 0) {
+            return List.of();
+        }
+        var pageable = PageRequest.of(0, limit);
+        List<ItemJpaEntity> entities = (classifications == null || classifications.isEmpty())
+                ? itemRepository.lookupActive(q, pageable)
+                : itemRepository.lookupActiveByClassifications(q, classifications, pageable);
+        return entities.stream()
+                .map(entity -> new ItemLookupView(
+                        entity.getId(),
+                        entity.getItemNo(),
+                        entity.getItemName(),
+                        entity.getPropertyClassification(),
+                        entity.getModelType(),
+                        entity.isLotTracked()
+                ))
                 .toList();
     }
 

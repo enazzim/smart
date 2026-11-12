@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   cancelWorkReport,
   createWorkReport,
@@ -15,9 +15,12 @@ import { fetchWorkStandards } from '../api/workStandard';
 import { useMaterialIssueSetting } from '../context/MaterialIssueSettingContext';
 import WorkerSearchField from '../components/WorkerSearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import { fetchAvailableLots, type LotRow } from '../api/lot';
 import { formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
+
+type ReportFilterDraft = Omit<WorkReportListParams, 'itemNo' | 'itemName'>;
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -83,7 +86,9 @@ export default function WorkReportPage() {
   const { materialIssueEnabled, setMaterialIssueEnabled, negativeStockAllowed } = useMaterialIssueSetting();
   const [targets, setTargets] = useState<WorkOrder[]>([]);
   const [reports, setReports] = useState<WorkReport[]>([]);
-  const [filters, setFilters] = useState<WorkReportListParams>({});
+  const [filters, setFilters] = useState<ReportFilterDraft>({});
+  const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
+  const appliedParamsRef = useRef<WorkReportListParams>({});
   const [loadingTargets, setLoadingTargets] = useState(true);
   const [loadingReports, setLoadingReports] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -138,25 +143,32 @@ export default function WorkReportPage() {
     }
   }, []);
 
-  const loadReports = useCallback(async () => {
+  const buildReportParams = (): WorkReportListParams => ({
+    ...filters,
+    itemNo: selectedItem?.itemNo,
+  });
+
+  const loadReports = useCallback(async (params: WorkReportListParams) => {
+    appliedParamsRef.current = params;
     setLoadingReports(true);
     setError(null);
     try {
-      setReports(await fetchWorkReports(filters));
+      setReports(await fetchWorkReports(params));
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업일보 목록을 불러오지 못했습니다.');
     } finally {
       setLoadingReports(false);
     }
-  }, [filters]);
+  }, []);
 
   useEffect(() => {
     void loadTargets();
   }, [loadTargets]);
 
+  // 탭 진입 시 마지막으로 적용된 조건으로 1회 조회 (필터 입력 변경과 무관)
   useEffect(() => {
     if (tab === 'reports') {
-      void loadReports();
+      void loadReports(appliedParamsRef.current);
     }
   }, [tab, loadReports]);
 
@@ -474,7 +486,7 @@ export default function WorkReportPage() {
       await cancelWorkReport(id);
       setMessage(`작업일보 ${reportNum}을(를) 취소했습니다.`);
       await loadTargets();
-      await loadReports();
+      await loadReports(appliedParamsRef.current);
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업일보 취소에 실패했습니다.');
     } finally {
@@ -563,10 +575,7 @@ export default function WorkReportPage() {
       {tab === 'reports' && (
         <>
           <section className="filter-panel">
-            <label>
-              품목번호
-              <input value={filters.itemNo ?? ''} onChange={(e) => setFilters((f) => ({ ...f, itemNo: e.target.value }))} />
-            </label>
+            <ItemSearchField label="품목" selectedItem={selectedItem} onSelect={setSelectedItem} />
             <label>
               일보번호
               <input value={filters.reportNum ?? ''} onChange={(e) => setFilters((f) => ({ ...f, reportNum: e.target.value }))} />
@@ -579,7 +588,7 @@ export default function WorkReportPage() {
                 onChange={(e) => setFilters((f) => ({ ...f, reportDateFrom: e.target.value }))}
               />
             </label>
-            <button type="button" onClick={() => void loadReports()}>
+            <button type="button" onClick={() => void loadReports(buildReportParams())}>
               검색
             </button>
           </section>

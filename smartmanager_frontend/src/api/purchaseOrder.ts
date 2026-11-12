@@ -89,6 +89,7 @@ export interface PurchaseOrderListParams {
   orderDateTo?: string;
   partnerName?: string;
   orderNo?: string;
+  itemNo?: string;
   status?: PurchaseOrderStatus;
   excludeCancelled?: boolean;
   /** GENERAL | SUB_MATERIAL */
@@ -108,6 +109,9 @@ export async function fetchPurchaseOrders(params?: PurchaseOrderListParams): Pro
   }
   if (params?.orderNo?.trim()) {
     search.set('orderNo', params.orderNo.trim());
+  }
+  if (params?.itemNo?.trim()) {
+    search.set('itemNo', params.itemNo.trim());
   }
   if (params?.status) {
     search.set('status', params.status);

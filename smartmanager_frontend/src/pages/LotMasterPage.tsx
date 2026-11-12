@@ -26,7 +26,9 @@ export default function LotMasterPage() {
   const { canWrite } = useAuth();
   const canEdit = canWrite('inventory:lot:write');
 
-  const [itemNo, setItemNo] = useState('');
+  const [filterItem, setFilterItem] = useState<ItemSearchSelection | null>(null);
+  const [filterItemQuery, setFilterItemQuery] = useState('');
+  const [filterItemClearToken, setFilterItemClearToken] = useState(0);
   const [lotNoFilter, setLotNoFilter] = useState('');
   const [locationCode, setLocationCode] = useState('');
   const [statusFilter, setStatusFilter] = useState<LotStatus | ''>('');
@@ -55,7 +57,7 @@ export default function LotMasterPage() {
     setError(null);
     try {
       const rows = await fetchLots({
-        itemNo: itemNo || undefined,
+        itemNo: filterItem ? filterItem.itemNo : filterItemQuery.trim() || undefined,
         lotNo: lotNoFilter || undefined,
         status: statusFilter || undefined,
         locationCode: locationCode || undefined,
@@ -71,7 +73,7 @@ export default function LotMasterPage() {
     } finally {
       setLoading(false);
     }
-  }, [itemNo, lotNoFilter, statusFilter, locationCode]);
+  }, [filterItem, filterItemQuery, lotNoFilter, statusFilter, locationCode]);
 
   useEffect(() => {
     if (selectedLot) {
@@ -275,10 +277,14 @@ export default function LotMasterPage() {
       )}
 
       <section className="filter-panel">
-        <label>
-          품목번호
-          <input value={itemNo} onChange={(e) => setItemNo(e.target.value)} />
-        </label>
+        <ItemSearchField
+          label="품목"
+          selectedItem={filterItem}
+          onSelect={setFilterItem}
+          onQueryTextChange={setFilterItemQuery}
+          clearToken={filterItemClearToken}
+          allowedClassifications={ALL_ITEM_CLASSES}
+        />
         <label>
           Lot번호
           <input value={lotNoFilter} onChange={(e) => setLotNoFilter(e.target.value)} />
@@ -309,7 +315,9 @@ export default function LotMasterPage() {
           type="button"
           className="secondary"
           onClick={() => {
-            setItemNo('');
+            setFilterItem(null);
+            setFilterItemQuery('');
+            setFilterItemClearToken((n) => n + 1);
             setLotNoFilter('');
             setLocationCode('');
             setStatusFilter('');

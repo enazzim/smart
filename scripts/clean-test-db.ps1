@@ -79,7 +79,8 @@ function Invoke-Mysql {
 
 $db = Read-DbConfig $EnvFile
 $mysql = Resolve-MysqlExe $MysqlExe
-$sqlFile = Join-Path $PSScriptRoot 'clean-test-db-except-basis.sql'
+# B안: 기준정보 유지 + TX/수불 전량 삭제 + 재고·원장 잔액 0
+$sqlFile = Join-Path $PSScriptRoot 'cleanup_tx_reset_keep_masters_B.sql'
 
 Write-Host "`n=== SmartManager DB clean ($Mode) ===" -ForegroundColor Cyan
 Write-Host "  mysql: $($mysql)"

@@ -4,9 +4,13 @@ import com.shindong.smartmanager.application.event.DomainEventStore;
 import com.shindong.smartmanager.domain.event.AggregateTypes;
 import com.shindong.smartmanager.domain.event.DomainEvent;
 import com.shindong.smartmanager.domain.event.EventTypes;
+import com.shindong.smartmanager.domain.item.PropertyClassification;
 import java.util.List;
 
 public class ItemService {
+
+    private static final int DEFAULT_LOOKUP_LIMIT = 50;
+    private static final int MAX_LOOKUP_LIMIT = 100;
 
     private final ItemRepository itemRepository;
     private final DomainEventStore domainEventStore;
@@ -106,6 +110,19 @@ public class ItemService {
         return itemRepository.findAllActive(itemNoQuery, itemNameQuery);
     }
 
+    public List<ItemLookupView> lookupActive(
+            String query,
+            List<PropertyClassification> classifications,
+            Integer limit
+    ) {
+        int resolvedLimit = resolveLookupLimit(limit);
+        String q = query == null ? "" : query.trim();
+        if (q.isEmpty()) {
+            return List.of();
+        }
+        return itemRepository.lookupActive(q, classifications, resolvedLimit);
+    }
+
     public ItemView getActive(long id) {
         return itemRepository.findActiveById(id)
                 .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + id));
@@ -177,5 +194,12 @@ public class ItemService {
 
     private String escape(String value) {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static int resolveLookupLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_LOOKUP_LIMIT;
+        }
+        return Math.min(limit, MAX_LOOKUP_LIMIT);
     }
 }

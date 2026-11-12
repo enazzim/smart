@@ -1,11 +1,13 @@
 package com.shindong.smartmanager.application.drawing;
 
 import com.shindong.smartmanager.application.company.CompanyCommand;
+import com.shindong.smartmanager.application.company.CompanyLookupView;
 import com.shindong.smartmanager.application.company.CompanyRepository;
 import com.shindong.smartmanager.application.company.CompanyUpdateCommand;
 import com.shindong.smartmanager.application.company.CompanyView;
 import com.shindong.smartmanager.application.event.DomainEventStore;
 import com.shindong.smartmanager.application.item.ItemCommand;
+import com.shindong.smartmanager.application.item.ItemLookupView;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemUpdateCommand;
 import com.shindong.smartmanager.application.item.ItemView;
@@ -490,6 +492,15 @@ class DrawingServiceTest {
         }
 
         @Override
+        public List<ItemLookupView> lookupActive(
+                String query,
+                List<com.shindong.smartmanager.domain.item.PropertyClassification> classifications,
+                int limit
+        ) {
+            return List.of();
+        }
+
+        @Override
         public Optional<ItemView> findActiveById(long id) {
             if (id == 100L) {
                 return Optional.of(new ItemView(
@@ -542,6 +553,15 @@ class DrawingServiceTest {
 
         @Override
         public List<CompanyView> findAllActive() {
+            return List.of();
+        }
+
+        @Override
+        public List<CompanyLookupView> lookupActive(
+                String query,
+                List<com.shindong.smartmanager.domain.company.CompanyRoleType> roles,
+                int limit
+        ) {
             return List.of();
         }
 

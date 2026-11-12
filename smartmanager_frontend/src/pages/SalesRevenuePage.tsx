@@ -12,6 +12,7 @@ import {
 import { fetchAvailableLots, type LotRow } from '../api/lot';
 import { INVENTORY_LOCATION_LABEL, translateInventoryLocationInText } from '../utils/inventoryLocation';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import type { PropertyClassification } from '../api/item';
 import { formatAmount, formatQty } from '../utils/numberFormat';
@@ -20,14 +21,12 @@ import { useConfirm } from '../context/ConfirmContext';
 const REVENUE_ITEM_CLASSES: PropertyClassification[] = ['제품', '상품', '공정품', '부자재', '팬텀'];
 
 type CandidateSearchForm = {
-  partnerName: string;
   shipmentDateFrom: string;
   shipmentDateTo: string;
 };
 
 function emptyCandidateSearch(): CandidateSearchForm {
   return {
-    partnerName: '',
     shipmentDateFrom: '',
     shipmentDateTo: '',
   };
@@ -36,7 +35,6 @@ function emptyCandidateSearch(): CandidateSearchForm {
 type RevenueListSearchForm = {
   revenueDateFrom: string;
   revenueDateTo: string;
-  partnerName: string;
   revenueNo: string;
 };
 
@@ -44,7 +42,6 @@ function emptyRevenueListSearch(): RevenueListSearchForm {
   return {
     revenueDateFrom: '',
     revenueDateTo: '',
-    partnerName: '',
     revenueNo: '',
   };
 }
@@ -70,10 +67,14 @@ export default function SalesRevenuePage() {
   const [candidateSearch, setCandidateSearch] = useState<CandidateSearchForm>(() => emptyCandidateSearch());
   const [candidateSearchItem, setCandidateSearchItem] = useState<ItemSearchSelection | null>(null);
   const [candidateItemClearToken, setCandidateItemClearToken] = useState(0);
+  const [candidateSearchCompany, setCandidateSearchCompany] = useState<CompanySearchSelection | null>(null);
+  const [candidateCompanyClearToken, setCandidateCompanyClearToken] = useState(0);
   const [hasSearchedCandidates, setHasSearchedCandidates] = useState(false);
   const [listSearch, setListSearch] = useState<RevenueListSearchForm>(() => emptyRevenueListSearch());
   const [listSearchItem, setListSearchItem] = useState<ItemSearchSelection | null>(null);
   const [listItemClearToken, setListItemClearToken] = useState(0);
+  const [listSearchCompany, setListSearchCompany] = useState<CompanySearchSelection | null>(null);
+  const [listCompanyClearToken, setListCompanyClearToken] = useState(0);
   const [hasSearchedList, setHasSearchedList] = useState(false);
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
   const [revenueQtyByLineId, setRevenueQtyByLineId] = useState<Record<number, string>>({});
@@ -102,12 +103,12 @@ export default function SalesRevenuePage() {
 
   const buildCandidateParams = useCallback(
     (): SalesRevenueCandidateParams => ({
-      partnerName: candidateSearch.partnerName || undefined,
+      partnerName: candidateSearchCompany?.companyName || undefined,
       shipmentDateFrom: candidateSearch.shipmentDateFrom || undefined,
       shipmentDateTo: candidateSearch.shipmentDateTo || undefined,
       itemId: candidateSearchItem?.id,
     }),
-    [candidateSearch, candidateSearchItem],
+    [candidateSearch, candidateSearchItem, candidateSearchCompany],
   );
 
   const loadCandidates = useCallback(
@@ -147,6 +148,8 @@ export default function SalesRevenuePage() {
     setCandidateSearch(emptyCandidateSearch());
     setCandidateSearchItem(null);
     setCandidateItemClearToken((token) => token + 1);
+    setCandidateSearchCompany(null);
+    setCandidateCompanyClearToken((token) => token + 1);
     setCandidates([]);
     setSelectedLineIds(new Set());
     setLotIdByLineId({});
@@ -158,12 +161,12 @@ export default function SalesRevenuePage() {
     (): SalesRevenueListParams => ({
       revenueDateFrom: listSearch.revenueDateFrom || undefined,
       revenueDateTo: listSearch.revenueDateTo || undefined,
-      partnerName: listSearch.partnerName || undefined,
+      partnerName: listSearchCompany?.companyName || undefined,
       revenueNo: listSearch.revenueNo || undefined,
       itemId: listSearchItem?.id,
       excludeCancelled: true,
     }),
-    [listSearch, listSearchItem],
+    [listSearch, listSearchItem, listSearchCompany],
   );
 
   const loadRevenues = useCallback(
@@ -191,6 +194,8 @@ export default function SalesRevenuePage() {
     setListSearch(emptyRevenueListSearch());
     setListSearchItem(null);
     setListItemClearToken((token) => token + 1);
+    setListSearchCompany(null);
+    setListCompanyClearToken((token) => token + 1);
     setRevenues([]);
     setRevenueError(null);
     setHasSearchedList(false);
@@ -336,14 +341,13 @@ export default function SalesRevenuePage() {
         <h2>출고 매출 후보</h2>
         <div className="ui-filter-panel sales-revenue-filter-panel">
           <div className="sales-revenue-candidate-search-grid">
-            <label>
-              거래처
-              <input
-                type="text"
-                value={candidateSearch.partnerName}
-                onChange={(e) => setCandidateSearch((f) => ({ ...f, partnerName: e.target.value }))}
-              />
-            </label>
+            <CompanySearchField
+              label="거래처"
+              partnerType="SALES"
+              selectedCompany={candidateSearchCompany}
+              onSelect={setCandidateSearchCompany}
+              clearToken={candidateCompanyClearToken}
+            />
             <ItemSearchField
               label="품목"
               selectedItem={candidateSearchItem}
@@ -581,14 +585,13 @@ export default function SalesRevenuePage() {
                 onChange={(e) => setListSearch((f) => ({ ...f, revenueDateTo: e.target.value }))}
               />
             </label>
-            <label>
-              거래처
-              <input
-                type="text"
-                value={listSearch.partnerName}
-                onChange={(e) => setListSearch((f) => ({ ...f, partnerName: e.target.value }))}
-              />
-            </label>
+            <CompanySearchField
+              label="거래처"
+              partnerType="SALES"
+              selectedCompany={listSearchCompany}
+              onSelect={setListSearchCompany}
+              clearToken={listCompanyClearToken}
+            />
             <ItemSearchField
               label="품목"
               selectedItem={listSearchItem}
