@@ -1,6 +1,6 @@
 package com.shindong.smartmanager.api.web;
 
-import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import tools.jackson.databind.exc.InvalidFormatException;
 import com.shindong.smartmanager.application.common.AppBusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,7 +83,7 @@ public class ApiExceptionHandler {
         if (root instanceof InvalidFormatException invalidFormat) {
             String field = invalidFormat.getPath().isEmpty()
                     ? ""
-                    : invalidFormat.getPath().get(invalidFormat.getPath().size() - 1).getFieldName();
+                    : invalidFormat.getPath().get(invalidFormat.getPath().size() - 1).getPropertyName();
             String value = String.valueOf(invalidFormat.getValue());
             if (invalidFormat.getTargetType() != null
                     && invalidFormat.getTargetType().isEnum()

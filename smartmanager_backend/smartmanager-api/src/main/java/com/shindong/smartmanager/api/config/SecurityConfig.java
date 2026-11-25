@@ -1,6 +1,6 @@
 package com.shindong.smartmanager.api.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.shindong.smartmanager.api.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;

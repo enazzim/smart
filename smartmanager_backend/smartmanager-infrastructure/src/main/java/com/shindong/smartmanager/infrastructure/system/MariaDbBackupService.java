@@ -1,6 +1,7 @@
 package com.shindong.smartmanager.infrastructure.system;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.shindong.smartmanager.application.system.backup.BackupFileView;
 import com.shindong.smartmanager.infrastructure.config.BackupProperties;
 import java.io.IOException;
@@ -391,7 +392,7 @@ public class MariaDbBackupService {
         BackupMetadata metadata = new BackupMetadata(reason, Instant.now());
         try {
             objectMapper.writerWithDefaultPrettyPrinter().writeValue(metaPath.toFile(), metadata);
-        } catch (IOException ex) {
+        } catch (JacksonException ex) {
             throw new IllegalStateException("백업 메타데이터 저장에 실패했습니다.", ex);
         }
     }
@@ -407,7 +408,7 @@ public class MariaDbBackupService {
                 return java.util.Optional.empty();
             }
             return java.util.Optional.of(metadata.reason().trim());
-        } catch (IOException ex) {
+        } catch (JacksonException ex) {
             return java.util.Optional.empty();
         }
     }

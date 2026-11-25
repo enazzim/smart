@@ -29,6 +29,6 @@ public class StompDrawingRevisionNotifier implements DrawingRevisionNotifier {
         payload.put("newMajorVersion", newMajorVersion);
         payload.put("message", "도면이 개정되었습니다! 즉시 화면을 갱신합니다.");
 
-        messagingTemplate.convertAndSend("/topic/drawings/" + partNo, payload);
+        messagingTemplate.convertAndSend("/topic/drawings/" + partNo, (Object) payload);
     }
 }
