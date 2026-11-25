@@ -23,6 +23,7 @@ export interface SalesRevenueCandidate {
   billableMessage?: string | null;
   lotTracked: boolean;
   shipmentLotId?: number | null;
+  shipmentLotNo?: string | null;
 }
 
 export interface SalesRevenueLine {

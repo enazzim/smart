@@ -5,6 +5,7 @@ import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.company.CompanyRepository;
 import com.shindong.smartmanager.application.event.DomainEventStore;
 import com.shindong.smartmanager.application.inventory.InventoryBalanceService;
+import com.shindong.smartmanager.application.inventory.LotRepository;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.ledger.PartnerLedgerService;
 import com.shindong.smartmanager.application.sales.SalesCollectionRepository;
@@ -125,6 +126,7 @@ public class SalesApplicationConfig {
             SalesHistoryRepository salesHistoryRepository,
             SalesRevenueInventoryService salesRevenueInventoryService,
             ItemRepository itemRepository,
+            LotRepository lotRepository,
             PartnerLedgerService partnerLedgerService,
             FiscalCalendarService fiscalCalendarService,
             MonthClosingService monthClosingService,
@@ -135,6 +137,7 @@ public class SalesApplicationConfig {
                 salesHistoryRepository,
                 salesRevenueInventoryService,
                 itemRepository,
+                lotRepository,
                 partnerLedgerService,
                 fiscalCalendarService,
                 monthClosingService,

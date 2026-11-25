@@ -30,16 +30,32 @@ public class LotInventoryService {
             BigDecimal qty,
             String actorUserId
     ) {
+        applyLotMovement(itemId, lotId, inventoryBalanceId, movementType, qty, actorUserId, false);
+    }
+
+    /**
+     * @param followBoundLot 이미 전표에 묶인 Lot. 품목의 추적 여부를 나중에 꺼도 그 Lot 잔량을 같이 움직인다.
+     */
+    public void applyLotMovement(
+            long itemId,
+            Long lotId,
+            long inventoryBalanceId,
+            StockMovementType movementType,
+            BigDecimal qty,
+            String actorUserId,
+            boolean followBoundLot
+    ) {
         ItemView item = itemRepository.findActiveById(itemId)
                 .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + itemId));
 
         if (!item.lotTracked()) {
-            if (lotId != null) {
-                throw new IllegalArgumentException("Lot 비추적 품목에 lotId를 지정할 수 없습니다: " + item.itemNo());
+            if (lotId == null || !followBoundLot) {
+                if (lotId != null) {
+                    throw new IllegalArgumentException("Lot 비추적 품목에 lotId를 지정할 수 없습니다: " + item.itemNo());
+                }
+                return;
             }
-            return;
-        }
-        if (lotId == null) {
+        } else if (lotId == null) {
             throw new IllegalArgumentException("Lot 추적 품목은 lotId가 필수입니다: " + item.itemNo());
         }
 

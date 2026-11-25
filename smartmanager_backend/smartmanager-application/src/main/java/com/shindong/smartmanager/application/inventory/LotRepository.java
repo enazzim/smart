@@ -51,6 +51,19 @@ public interface LotRepository {
 
     Optional<BigDecimal> findLotBalanceQty(long lotId, long inventoryBalanceId);
 
+    /**
+     * 지정 창고·회계연·공정·거래처 슬롯에 있는 Lot 잔량 합.
+     * 공정·거래처가 null이면 해당 컬럼이 NULL인 슬롯만 합산한다.
+     */
+    BigDecimal sumQtyOnHand(
+            long lotId,
+            String locationCode,
+            int fiscalYear,
+            Long outputProcessId,
+            Long inputProcessId,
+            Long partnerId
+    );
+
     String allocateLotNo(long itemId, String itemNo, LocalDate sequenceDate);
 
     void applyLotBalanceDelta(

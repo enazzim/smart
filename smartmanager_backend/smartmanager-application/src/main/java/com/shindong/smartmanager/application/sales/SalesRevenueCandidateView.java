@@ -23,6 +23,7 @@ public record SalesRevenueCandidateView(
         boolean billable,
         String billableMessage,
         boolean lotTracked,
-        Long shipmentLotId
+        Long shipmentLotId,
+        String shipmentLotNo
 ) {
 }

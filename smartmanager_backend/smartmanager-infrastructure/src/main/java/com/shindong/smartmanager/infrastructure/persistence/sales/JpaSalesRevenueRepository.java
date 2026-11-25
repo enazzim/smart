@@ -177,7 +177,8 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
                     billable,
                     message,
                     toBooleanFlag(row[14]),
-                    row[15] != null ? ((Number) row[15]).longValue() : null
+                    row[15] != null ? ((Number) row[15]).longValue() : null,
+                    null
             ));
         }
         return result;
@@ -213,7 +214,8 @@ public class JpaSalesRevenueRepository implements SalesRevenueRepository {
                 item != null ? item.getItemName() : "",
                 line.getShipmentQty(),
                 line.getInvoicedQty(),
-                line.getUnitPrice()
+                line.getUnitPrice(),
+                line.getLotId()
         );
     }
 

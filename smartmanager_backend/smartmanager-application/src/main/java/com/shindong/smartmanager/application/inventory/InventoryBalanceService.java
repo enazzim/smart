@@ -120,6 +120,15 @@ public class InventoryBalanceService {
     }
 
     public StockMovementView recordMovement(RecordStockMovementCommand command) {
+        return recordMovement(command, false);
+    }
+
+    /** 전표에 이미 묶인 Lot를 품목 추적 여부와 관계없이 같은 수량으로 움직인다. */
+    public StockMovementView recordBoundLotMovement(RecordStockMovementCommand command) {
+        return recordMovement(command, true);
+    }
+
+    private StockMovementView recordMovement(RecordStockMovementCommand command, boolean followBoundLot) {
         monthClosingService.assertTransactionOpen(command.movementDate());
 
         long locationId = locationRepository.findActiveLocationIdByCode(command.locationCode())
@@ -171,7 +180,8 @@ public class InventoryBalanceService {
                     updated.id(),
                     command.movementType(),
                     command.qty(),
-                    command.actorUserId()
+                    command.actorUserId(),
+                    followBoundLot
             );
         } else if (command.lotId() != null) {
             throw new IllegalStateException("LotInventoryService가 구성되지 않았습니다.");

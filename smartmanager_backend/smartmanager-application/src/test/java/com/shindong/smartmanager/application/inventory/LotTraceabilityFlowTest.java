@@ -364,6 +364,21 @@ class LotTraceabilityFlowTest {
         }
 
         @Override
+        public BigDecimal sumQtyOnHand(
+                long lotId,
+                String locationCode,
+                int fiscalYear,
+                Long outputProcessId,
+                Long inputProcessId,
+                Long partnerId
+        ) {
+            return balances.entrySet().stream()
+                    .filter(entry -> entry.getKey().startsWith(lotId + ":"))
+                    .map(Map.Entry::getValue)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        @Override
         public String allocateLotNo(long itemId, String itemNo, LocalDate sequenceDate) {
             return itemNo + "-" + sequenceDate.toString().replace("-", "") + "-001";
         }

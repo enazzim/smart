@@ -1,6 +1,6 @@
 package com.shindong.smartmanager.api.web.system.imports;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import tools.jackson.databind.annotation.JsonDeserialize;
 import com.shindong.smartmanager.application.system.imports.UnitPriceImportRow;
 import com.shindong.smartmanager.domain.pricing.CostType;
 import jakarta.validation.Valid;

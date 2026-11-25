@@ -393,6 +393,57 @@ public class JpaLotRepository implements LotRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public BigDecimal sumQtyOnHand(
+            long lotId,
+            String locationCode,
+            int fiscalYear,
+            Long outputProcessId,
+            Long inputProcessId,
+            Long partnerId
+    ) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT COALESCE(SUM(lb.qty_on_hand), 0)
+                FROM inventory_lot_balance lb
+                JOIN inventory_balance ib ON ib.id = lb.inventory_balance_id AND ib.recording_state = 1
+                JOIN inventory_location il ON il.id = ib.location_id
+                WHERE lb.recording_state = 1
+                  AND lb.lot_id = :lotId
+                  AND il.location_code = :locationCode
+                  AND ib.fiscal_year = :fiscalYear
+                """);
+        if (outputProcessId == null) {
+            sql.append(" AND ib.output_process_id IS NULL");
+        } else {
+            sql.append(" AND ib.output_process_id = :outputProcessId");
+        }
+        if (inputProcessId == null) {
+            sql.append(" AND ib.input_process_id IS NULL");
+        } else {
+            sql.append(" AND ib.input_process_id = :inputProcessId");
+        }
+        if (partnerId == null) {
+            sql.append(" AND ib.partner_id IS NULL");
+        } else {
+            sql.append(" AND ib.partner_id = :partnerId");
+        }
+        Query query = entityManager.createNativeQuery(sql.toString());
+        query.setParameter("lotId", lotId);
+        query.setParameter("locationCode", locationCode);
+        query.setParameter("fiscalYear", fiscalYear);
+        if (outputProcessId != null) {
+            query.setParameter("outputProcessId", outputProcessId);
+        }
+        if (inputProcessId != null) {
+            query.setParameter("inputProcessId", inputProcessId);
+        }
+        if (partnerId != null) {
+            query.setParameter("partnerId", partnerId);
+        }
+        return toBigDecimal(query.getSingleResult());
+    }
+
+    @Override
     @Transactional
     public String allocateLotNo(long itemId, String itemNo, LocalDate sequenceDate) {
         LocalDate date = sequenceDate != null ? sequenceDate : LocalDate.now();

@@ -2,12 +2,12 @@ package com.shindong.smartmanager.infrastructure.persistence.workdiary;
 
 import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryListCriteria;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryRepository;
 import com.shindong.smartmanager.application.workdiary.WorkDiaryStatus;
-import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -311,7 +311,7 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
     private String writeJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (IOException ex) {
+        } catch (JacksonException ex) {
             throw new IllegalStateException("JSON 직렬화에 실패했습니다.", ex);
         }
     }
@@ -322,7 +322,7 @@ public class JpaWorkDiaryRepository implements WorkDiaryRepository {
         }
         try {
             return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
-        } catch (IOException ex) {
+        } catch (JacksonException ex) {
             throw new IllegalStateException("JSON 파싱에 실패했습니다.", ex);
         }
     }
