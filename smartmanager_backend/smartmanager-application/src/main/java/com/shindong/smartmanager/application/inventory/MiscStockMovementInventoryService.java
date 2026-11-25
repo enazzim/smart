@@ -47,6 +47,18 @@ public class MiscStockMovementInventoryService {
             Long outputProcessId,
             String actorUserId
     ) {
+        ensureInventorySlot(itemId, locationCode, movementDate, outputProcessId, null, null, actorUserId);
+    }
+
+    public void ensureInventorySlot(
+            long itemId,
+            String locationCode,
+            LocalDate movementDate,
+            Long outputProcessId,
+            Long inputProcessId,
+            Long partnerId,
+            String actorUserId
+    ) {
         if (LOCATION_WIP.equals(locationCode) && outputProcessId != null && actorUserId != null) {
             wipBalanceProjector.ensure(itemId, outputProcessId, actorUserId);
         }
@@ -55,8 +67,8 @@ public class MiscStockMovementInventoryService {
                 locationCode,
                 movementDate,
                 outputProcessId,
-                null,
-                null
+                inputProcessId,
+                partnerId
         );
     }
 
@@ -87,6 +99,8 @@ public class MiscStockMovementInventoryService {
                 movement.locationCode(),
                 movement.movementDate(),
                 movement.outputProcessId(),
+                movement.inputProcessId(),
+                movement.partnerId(),
                 actorUserId
         );
 
@@ -99,7 +113,8 @@ public class MiscStockMovementInventoryService {
                     movement.movementDate(),
                     movement.qty(),
                     movement.outputProcessId(),
-                    null
+                    movement.inputProcessId(),
+                    movement.partnerId()
             );
         }
 
@@ -119,8 +134,8 @@ public class MiscStockMovementInventoryService {
                 reverse ? REFERENCE_TYPE_CANCEL : REFERENCE_TYPE,
                 movement.id(),
                 movement.outputProcessId(),
-                null,
-                null,
+                movement.inputProcessId(),
+                movement.partnerId(),
                 lotId,
                 actorUserId
         ));

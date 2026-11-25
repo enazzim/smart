@@ -27,6 +27,8 @@ public record MiscStockMovementView(
         String note,
         MiscStockMovementStatus status,
         Instant createdAt,
-        Long lotId
+        Long lotId,
+        Long inputProcessId,
+        Long partnerId
 ) {
 }

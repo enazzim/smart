@@ -30,6 +30,7 @@ import PayableApprovalPage from '../pages/PayableApprovalPage';
 import InventoryLedgerPage from '../pages/InventoryLedgerPage';
 import LotMasterPage from '../pages/LotMasterPage';
 import MiscStockMovementPage from '../pages/MiscStockMovementPage';
+import StocktakePage from '../pages/StocktakePage';
 import WorkPlanPage from '../pages/WorkPlanPage';
 import WorkCenterLoadPage from '../pages/WorkCenterLoadPage';
 import WorkOrderPage from '../pages/WorkOrderPage';
@@ -102,7 +103,7 @@ export type PurchasePageId =
   | 'purchase-payable-approval'
   | 'purchase-payment';
 
-export type InventoryPageId = 'inventory-misc-movement' | 'inventory-ledger' | 'inventory-lot';
+export type InventoryPageId = 'inventory-misc-movement' | 'inventory-ledger' | 'inventory-lot' | 'inventory-stocktake';
 
 export type OutsourcePageId = 'outsource-order' | 'outsource-shipment' | 'outsource-receipt';
 
@@ -190,6 +191,7 @@ export const MENU_GROUPS: MenuGroup[] = [
       { id: 'inventory-misc-movement', label: '기타 입출고' },
       { id: 'inventory-ledger', label: '재고·원장' },
       { id: 'inventory-lot', label: 'Lot 마스터' },
+      { id: 'inventory-stocktake', label: '재고실사' },
     ],
   },
   {
@@ -385,6 +387,9 @@ export function renderInventoryPage(page: InventoryPageId) {
   }
   if (page === 'inventory-lot') {
     return <LotMasterPage />;
+  }
+  if (page === 'inventory-stocktake') {
+    return <StocktakePage />;
   }
   return <InventoryLedgerPage />;
 }

@@ -15,12 +15,12 @@ import com.shindong.smartmanager.domain.inventory.LotOriginType;
 import com.shindong.smartmanager.domain.inventory.LotStatus;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
 import com.shindong.smartmanager.infrastructure.persistence.item.SpringDataItemRepository;
+import com.shindong.smartmanager.infrastructure.persistence.support.JdbcInstantValues;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -394,6 +394,28 @@ public class JpaLotRepository implements LotRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public BigDecimal sumQtyThroughBalance(long lotId, long inventoryBalanceId) {
+        Query query = entityManager.createNativeQuery("""
+                SELECT COALESCE(SUM(lb.qty_on_hand), 0)
+                FROM inventory_lot_balance lb
+                JOIN inventory_balance ib ON ib.id = lb.inventory_balance_id AND ib.recording_state = 1
+                JOIN inventory_balance current_slot ON current_slot.id = :inventoryBalanceId
+                WHERE lb.recording_state = 1
+                  AND lb.lot_id = :lotId
+                  AND ib.item_id = current_slot.item_id
+                  AND ib.location_id = current_slot.location_id
+                  AND ib.fiscal_year <= current_slot.fiscal_year
+                  AND ib.output_process_id <=> current_slot.output_process_id
+                  AND ib.input_process_id <=> current_slot.input_process_id
+                  AND ib.partner_id <=> current_slot.partner_id
+                """);
+        query.setParameter("lotId", lotId);
+        query.setParameter("inventoryBalanceId", inventoryBalanceId);
+        return toBigDecimal(query.getSingleResult());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public BigDecimal sumQtyOnHand(
             long lotId,
             String locationCode,
@@ -730,16 +752,7 @@ public class JpaLotRepository implements LotRepository {
     }
 
     private static Instant toInstant(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Instant instant) {
-            return instant;
-        }
-        if (value instanceof Timestamp timestamp) {
-            return timestamp.toInstant();
-        }
-        return Instant.parse(value.toString());
+        return JdbcInstantValues.toInstant(value);
     }
 
     private static BigDecimal toBigDecimal(Object value) {

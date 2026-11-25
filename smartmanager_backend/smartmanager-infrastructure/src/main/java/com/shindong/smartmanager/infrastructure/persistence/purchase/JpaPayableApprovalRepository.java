@@ -14,10 +14,10 @@ import com.shindong.smartmanager.domain.purchase.PayableApprovalStatus;
 import com.shindong.smartmanager.domain.purchase.PurchaseHistorySourceType;
 import com.shindong.smartmanager.infrastructure.persistence.outsource.OutsourceHistoryJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.outsource.SpringDataOutsourceHistoryRepository;
+import com.shindong.smartmanager.infrastructure.persistence.support.JdbcInstantValues;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import java.math.BigDecimal;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -662,15 +662,6 @@ public class JpaPayableApprovalRepository implements PayableApprovalRepository {
     }
 
     private static Instant toInstant(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Instant instant) {
-            return instant;
-        }
-        if (value instanceof Timestamp timestamp) {
-            return timestamp.toInstant();
-        }
-        return Instant.parse(value.toString());
+        return JdbcInstantValues.toInstant(value);
     }
 }

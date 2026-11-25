@@ -8,6 +8,7 @@ import com.shindong.smartmanager.domain.inventory.InventoryLocationLabels;
 import com.shindong.smartmanager.domain.inventory.StockMovementType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 재고 수량 변경의 단일 진입점. 모든 입·출고 TX는 {@link #recordMovement}를 통해야 하며,
@@ -90,7 +91,7 @@ public class InventoryBalanceService {
                 inputProcessId,
                 balancePartnerId(locationCode, partnerId)
         );
-        return balanceRepository.ensureBalance(key).stockQty();
+        return balanceRepository.sumQtyThrough(key);
     }
 
     public void assertSufficientStockForOutbound(
@@ -102,13 +103,30 @@ public class InventoryBalanceService {
             Long outputProcessId,
             Long inputProcessId
     ) {
+        assertSufficientStockForOutbound(
+                itemId, itemNo, locationCode, movementDate, qty, outputProcessId, inputProcessId, null
+        );
+    }
+
+    public void assertSufficientStockForOutbound(
+            long itemId,
+            String itemNo,
+            String locationCode,
+            LocalDate movementDate,
+            BigDecimal qty,
+            Long outputProcessId,
+            Long inputProcessId,
+            Long partnerId
+    ) {
         if (systemSettingService.isNegativeStockAllowed()) {
             return;
         }
         if (qty == null || qty.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
-        BigDecimal onHand = currentStockQty(itemId, locationCode, movementDate, outputProcessId, inputProcessId, null);
+        BigDecimal onHand = currentStockQty(
+                itemId, locationCode, movementDate, outputProcessId, inputProcessId, partnerId
+        );
         if (onHand.compareTo(qty) < 0) {
             throw new IllegalArgumentException(
                     "재고가 부족합니다: " + itemNo + " (" + InventoryLocationLabels.label(locationCode) + ") — 필요 "
@@ -150,15 +168,20 @@ public class InventoryBalanceService {
                 balancePartnerId(command.locationCode(), command.partnerId())
         );
 
-        InventoryBalanceSlotView balance = balanceRepository.ensureBalance(key);
+        List<InventoryBalanceSlotView> locked = balanceRepository.lockSlotsThrough(key);
         BigDecimal signedQty = signedQuantity(command.movementType(), command.qty());
         BigDecimal signedAmount = signedQuantity(command.movementType(), command.amount());
-
-        BigDecimal newQty = balance.stockQty().add(signedQty);
-        if (!systemSettingService.isNegativeStockAllowed() && newQty.compareTo(BigDecimal.ZERO) < 0) {
+        BigDecimal onHand = locked.stream()
+                .map(InventoryBalanceSlotView::stockQty)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (!systemSettingService.isNegativeStockAllowed()
+                && onHand.add(signedQty).compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalStateException("재고 수량이 부족합니다. itemId=" + command.itemId()
                     + ", location=" + command.locationCode());
         }
+
+        InventoryBalanceSlotView balance = balanceRepository.ensureBalance(key);
+        BigDecimal newQty = balance.stockQty().add(signedQty);
 
         BigDecimal newAmount = balance.stockAmount().add(signedAmount);
         InventoryBalanceSlotView updated = balanceRepository.saveBalance(new InventoryBalanceSlotView(

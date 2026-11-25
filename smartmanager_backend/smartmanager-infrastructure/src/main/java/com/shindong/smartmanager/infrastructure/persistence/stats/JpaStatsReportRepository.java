@@ -1442,18 +1442,55 @@ public class JpaStatsReportRepository implements StatsReportRepository {
     public List<WarehouseMonthlyIoView> findWarehouseMonthlyIo(WarehouseMonthlyIoCriteria criteria) {
         int year = criteria.fiscalYear();
         int month = criteria.fiscalMonth();
-        int prevYear = month == 1 ? year - 1 : year;
-        int prevMonth = month == 1 ? 12 : month - 1;
 
         StringBuilder sql = new StringBuilder("""
                 SELECT ib.item_id, i.item_no, i.item_name,
                        il.location_code, il.location_name,
                        ps.process_sequence, pc.small_name,
                        :fiscalYear AS fiscal_year, :fiscalMonth AS fiscal_month,
-                       COALESCE(prev.stock_qty, 0) AS carry_in_qty,
+                       (
+                         COALESCE((
+                           SELECT SUM(older.stock_qty)
+                           FROM inventory_balance older
+                           WHERE older.recording_state = 1
+                             AND older.item_id = ib.item_id
+                             AND older.location_id = ib.location_id
+                             AND older.fiscal_year < ib.fiscal_year
+                             AND older.output_process_id <=> ib.output_process_id
+                             AND older.input_process_id <=> ib.input_process_id
+                             AND older.partner_id <=> ib.partner_id
+                         ), 0)
+                         + COALESCE((
+                           SELECT SUM(pm.stock_qty)
+                           FROM inventory_balance_monthly pm
+                           WHERE pm.inventory_balance_id = ib.id
+                             AND pm.recording_state = 1
+                             AND pm.month_num < :fiscalMonth
+                         ), 0)
+                       ) AS carry_in_qty,
                        COALESCE(cur.in_qty, 0) AS in_qty,
                        COALESCE(cur.out_qty, 0) AS out_qty,
-                       COALESCE(cur.stock_qty, COALESCE(prev.stock_qty, 0)) AS ending_qty
+                       (
+                         COALESCE((
+                           SELECT SUM(older.stock_qty)
+                           FROM inventory_balance older
+                           WHERE older.recording_state = 1
+                             AND older.item_id = ib.item_id
+                             AND older.location_id = ib.location_id
+                             AND older.fiscal_year < ib.fiscal_year
+                             AND older.output_process_id <=> ib.output_process_id
+                             AND older.input_process_id <=> ib.input_process_id
+                             AND older.partner_id <=> ib.partner_id
+                         ), 0)
+                         + COALESCE((
+                           SELECT SUM(pm.stock_qty)
+                           FROM inventory_balance_monthly pm
+                           WHERE pm.inventory_balance_id = ib.id
+                             AND pm.recording_state = 1
+                             AND pm.month_num < :fiscalMonth
+                         ), 0)
+                         + COALESCE(cur.stock_qty, 0)
+                       ) AS ending_qty
                 FROM inventory_balance ib
                 JOIN item i ON i.id = ib.item_id
                 JOIN inventory_location il ON il.id = ib.location_id
@@ -1463,23 +1500,6 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                   ON cur.inventory_balance_id = ib.id
                  AND cur.month_num = :fiscalMonth
                  AND cur.recording_state = 1
-                LEFT JOIN inventory_balance prev_ib
-                  ON :fiscalMonth = 1
-                 AND prev_ib.item_id = ib.item_id
-                 AND prev_ib.location_id = ib.location_id
-                 AND prev_ib.fiscal_year = :prevYear
-                 AND ((prev_ib.output_process_id IS NULL AND ib.output_process_id IS NULL)
-                      OR prev_ib.output_process_id = ib.output_process_id)
-                 AND ((prev_ib.partner_id IS NULL AND ib.partner_id IS NULL)
-                      OR prev_ib.partner_id = ib.partner_id)
-                 AND prev_ib.recording_state = 1
-                LEFT JOIN inventory_balance_monthly prev
-                  ON prev.recording_state = 1
-                 AND prev.month_num = :prevMonth
-                 AND (
-                      (:fiscalMonth > 1 AND prev.inventory_balance_id = ib.id)
-                   OR (:fiscalMonth = 1 AND prev.inventory_balance_id = prev_ib.id)
-                 )
                 WHERE ib.recording_state = 1
                   AND ib.fiscal_year = :fiscalYear
                   AND il.location_code = :locationCode
@@ -1487,8 +1507,6 @@ public class JpaStatsReportRepository implements StatsReportRepository {
         Map<String, Object> params = new HashMap<>();
         params.put("fiscalYear", (short) year);
         params.put("fiscalMonth", (byte) month);
-        params.put("prevYear", (short) prevYear);
-        params.put("prevMonth", (byte) prevMonth);
         params.put("locationCode", criteria.locationCode());
 
         if (criteria.itemId() != null) {
@@ -1502,8 +1520,18 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                   AND (COALESCE(cur.in_qty, 0) <> 0
                     OR COALESCE(cur.out_qty, 0) <> 0
                     OR COALESCE(cur.stock_qty, 0) <> 0
-                    OR COALESCE(prev.stock_qty, 0) <> 0
-                    OR ib.stock_qty <> 0)
+                    OR ib.stock_qty <> 0
+                    OR EXISTS (
+                         SELECT 1 FROM inventory_balance older
+                         WHERE older.recording_state = 1
+                           AND older.item_id = ib.item_id
+                           AND older.location_id = ib.location_id
+                           AND older.fiscal_year < ib.fiscal_year
+                           AND older.stock_qty <> 0
+                           AND older.output_process_id <=> ib.output_process_id
+                           AND older.input_process_id <=> ib.input_process_id
+                           AND older.partner_id <=> ib.partner_id
+                    ))
                  ORDER BY i.item_no, ps.process_sequence, ib.id
                  LIMIT 2000
                 """);

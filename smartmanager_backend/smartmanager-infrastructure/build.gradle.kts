@@ -19,6 +19,8 @@ dependencies {
     runtimeOnly("org.mariadb.jdbc:mariadb-java-client")
     implementation("org.apache.pdfbox:pdfbox:3.0.3")
     implementation("org.springframework.boot:spring-boot-starter-websocket")
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 dependencyManagement {

@@ -112,7 +112,17 @@ public class JpaInventoryLedgerRepository implements InventoryLedgerRepository {
                 SELECT ib.id, ib.item_id, i.item_no, i.item_name,
                        il.location_code, il.location_name,
                        ps.process_sequence, pc.small_name,
-                       ib.fiscal_year, ib.stock_qty, ib.stock_amount
+                       ib.fiscal_year,
+                       (SELECT COALESCE(SUM(prev.stock_qty), 0)
+                          FROM inventory_balance prev
+                         WHERE prev.recording_state = 1
+                           AND prev.item_id = ib.item_id
+                           AND prev.location_id = ib.location_id
+                           AND prev.fiscal_year <= ib.fiscal_year
+                           AND prev.output_process_id <=> ib.output_process_id
+                           AND prev.input_process_id <=> ib.input_process_id
+                           AND prev.partner_id <=> ib.partner_id) AS stock_qty,
+                       ib.stock_amount
                 FROM inventory_balance ib
                 JOIN item i ON i.id = ib.item_id
                 JOIN inventory_location il ON il.id = ib.location_id
@@ -138,7 +148,16 @@ public class JpaInventoryLedgerRepository implements InventoryLedgerRepository {
                 params.put("fiscalYear", criteria.fiscalYear().shortValue());
             }
         }
-        sql.append(" AND (ib.stock_qty <> 0 OR EXISTS (SELECT 1 FROM inventory_balance_monthly m")
+        sql.append(" AND ((SELECT COALESCE(SUM(prev.stock_qty), 0)")
+                .append(" FROM inventory_balance prev")
+                .append(" WHERE prev.recording_state = 1")
+                .append(" AND prev.item_id = ib.item_id")
+                .append(" AND prev.location_id = ib.location_id")
+                .append(" AND prev.fiscal_year <= ib.fiscal_year")
+                .append(" AND prev.output_process_id <=> ib.output_process_id")
+                .append(" AND prev.input_process_id <=> ib.input_process_id")
+                .append(" AND prev.partner_id <=> ib.partner_id) <> 0")
+                .append(" OR EXISTS (SELECT 1 FROM inventory_balance_monthly m")
                 .append(" WHERE m.inventory_balance_id = ib.id AND m.recording_state = 1")
                 .append(" AND (m.in_qty <> 0 OR m.out_qty <> 0)))");
         sql.append(" ORDER BY i.item_no, il.location_code, ps.process_sequence, ib.id");

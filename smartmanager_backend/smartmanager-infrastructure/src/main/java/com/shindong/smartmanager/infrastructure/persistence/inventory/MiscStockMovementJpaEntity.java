@@ -41,6 +41,12 @@ public class MiscStockMovementJpaEntity {
     @Column(name = "output_process_id")
     private Long outputProcessId;
 
+    @Column(name = "input_process_id")
+    private Long inputProcessId;
+
+    @Column(name = "partner_id")
+    private Long partnerId;
+
     @Column(name = "lot_id")
     private Long lotId;
 
@@ -125,6 +131,22 @@ public class MiscStockMovementJpaEntity {
 
     public void setOutputProcessId(Long outputProcessId) {
         this.outputProcessId = outputProcessId;
+    }
+
+    public Long getInputProcessId() {
+        return inputProcessId;
+    }
+
+    public void setInputProcessId(Long inputProcessId) {
+        this.inputProcessId = inputProcessId;
+    }
+
+    public Long getPartnerId() {
+        return partnerId;
+    }
+
+    public void setPartnerId(Long partnerId) {
+        this.partnerId = partnerId;
     }
 
     public Long getLotId() {

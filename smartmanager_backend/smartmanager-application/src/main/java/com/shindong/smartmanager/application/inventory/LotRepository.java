@@ -51,6 +51,9 @@ public interface LotRepository {
 
     Optional<BigDecimal> findLotBalanceQty(long lotId, long inventoryBalanceId);
 
+    /** 이 슬롯과 같은 논리 키의 회계연도 이하 Lot 잔량 합. 기록 대상 행은 바꾸지 않는다. */
+    BigDecimal sumQtyThroughBalance(long lotId, long inventoryBalanceId);
+
     /**
      * 지정 창고·회계연·공정·거래처 슬롯에 있는 Lot 잔량 합.
      * 공정·거래처가 null이면 해당 컬럼이 NULL인 슬롯만 합산한다.

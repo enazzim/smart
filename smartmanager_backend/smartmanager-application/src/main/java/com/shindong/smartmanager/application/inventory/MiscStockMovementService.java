@@ -20,6 +20,7 @@ public class MiscStockMovementService {
     private final MiscStockMovementInventoryService inventoryService;
     private final LotService lotService;
     private final MonthClosingService monthClosingService;
+    private final PrefixedNumberSequence numberSequence;
 
     public MiscStockMovementService(
             MiscStockMovementRepository miscStockMovementRepository,
@@ -27,7 +28,8 @@ public class MiscStockMovementService {
             MiscStockMovementResolver resolver,
             MiscStockMovementInventoryService inventoryService,
             LotService lotService,
-            MonthClosingService monthClosingService
+            MonthClosingService monthClosingService,
+            PrefixedNumberSequence numberSequence
     ) {
         this.miscStockMovementRepository = miscStockMovementRepository;
         this.itemRepository = itemRepository;
@@ -35,6 +37,7 @@ public class MiscStockMovementService {
         this.inventoryService = inventoryService;
         this.lotService = lotService;
         this.monthClosingService = monthClosingService;
+        this.numberSequence = numberSequence;
     }
 
     public List<MiscStockMovementView> list(MiscStockMovementListCriteria criteria) {
@@ -83,11 +86,19 @@ public class MiscStockMovementService {
     }
 
     public MiscStockMovementView register(CreateMiscStockMovementCommand command, String actorUserId) {
+        monthClosingService.assertTransactionOpen(command.movementDate());
+        return registerAssigned(command, nextMovementNo(command.movementDate()), actorUserId);
+    }
+
+    /** 배치가 번호와 월마감 확인을 이미 끝낸 뒤 호출한다. */
+    public MiscStockMovementView registerAssigned(
+            CreateMiscStockMovementCommand command,
+            String movementNo,
+            String actorUserId
+    ) {
         validateCommand(command);
         ItemView item = requireItem(command.itemId());
-        monthClosingService.assertTransactionOpen(command.movementDate());
-
-        MiscStockMovementTarget target = resolver.resolve(item, command.processSequenceId());
+        ResolvedTarget target = resolveTarget(item, command);
         Long lotId = resolveLotId(item, command, actorUserId);
         MiscStockMovementView saved = miscStockMovementRepository.save(
                 new MiscStockMovementSaveCommand(
@@ -99,9 +110,11 @@ public class MiscStockMovementService {
                         normalizeQty(command.qty()),
                         command.reasonCodeId(),
                         normalizeNote(command.note()),
-                        lotId
+                        lotId,
+                        target.inputProcessId(),
+                        target.partnerId()
                 ),
-                nextMovementNo(command.movementDate()),
+                movementNo,
                 actorUserId
         );
 
@@ -125,7 +138,7 @@ public class MiscStockMovementService {
         inventoryService.applyCancellation(existing, oldItem.itemNo(), actorUserId);
 
         ItemView item = requireItem(command.itemId());
-        MiscStockMovementTarget target = resolver.resolve(item, command.processSequenceId());
+        ResolvedTarget target = resolveTarget(item, command);
         Long lotId = resolveLotId(item, command, actorUserId);
         MiscStockMovementView updated = miscStockMovementRepository.update(
                 id,
@@ -138,7 +151,9 @@ public class MiscStockMovementService {
                         normalizeQty(command.qty()),
                         command.reasonCodeId(),
                         normalizeNote(command.note()),
-                        lotId
+                        lotId,
+                        target.inputProcessId(),
+                        target.partnerId()
                 ),
                 actorUserId
         );
@@ -148,6 +163,8 @@ public class MiscStockMovementService {
                 target.locationCode(),
                 command.movementDate(),
                 target.outputProcessId(),
+                target.inputProcessId(),
+                target.partnerId(),
                 actorUserId
         );
         inventoryService.applyRegistration(updated, item.itemNo(), actorUserId);
@@ -222,6 +239,25 @@ public class MiscStockMovementService {
         normalizeQty(command.qty());
     }
 
+    private ResolvedTarget resolveTarget(ItemView item, CreateMiscStockMovementCommand command) {
+        if (command.partnerId() == null) {
+            MiscStockMovementTarget target = resolver.resolve(item, command.processSequenceId());
+            return new ResolvedTarget(target.locationCode(), target.outputProcessId(), null, null);
+        }
+        if (command.inputProcessId() == null) {
+            throw new IllegalArgumentException("외주 입출고는 투입공정이 필요합니다.");
+        }
+        return new ResolvedTarget("OUTSOURCE", null, command.inputProcessId(), command.partnerId());
+    }
+
+    private record ResolvedTarget(
+            String locationCode,
+            Long outputProcessId,
+            Long inputProcessId,
+            Long partnerId
+    ) {
+    }
+
     private ItemView requireItem(long itemId) {
         return itemRepository.findActiveById(itemId)
                 .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + itemId));
@@ -244,7 +280,8 @@ public class MiscStockMovementService {
 
     private String nextMovementNo(LocalDate movementDate) {
         String prefix = "MSM-" + movementDate.format(DateTimeFormatter.BASIC_ISO_DATE) + "-";
-        long seq = miscStockMovementRepository.countByMovementNoPrefix(prefix) + 1;
+        int existingMax = miscStockMovementRepository.maxMovementNoSuffix(prefix);
+        int seq = numberSequence.next(NumberSequenceKind.MISC_MOVEMENT, prefix, existingMax);
         return prefix + String.format("%03d", seq);
     }
 }

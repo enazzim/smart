@@ -13,13 +13,13 @@ import com.shindong.smartmanager.infrastructure.persistence.code.PublicCodeJpaEn
 import com.shindong.smartmanager.infrastructure.persistence.code.SpringDataPublicCodeRepository;
 import com.shindong.smartmanager.infrastructure.persistence.item.ItemJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.item.SpringDataItemRepository;
+import com.shindong.smartmanager.infrastructure.persistence.support.JdbcInstantValues;
 import com.shindong.smartmanager.infrastructure.persistence.process.ProcessSequenceJpaEntity;
 import com.shindong.smartmanager.infrastructure.persistence.process.SpringDataProcessSequenceRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import java.math.BigDecimal;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -52,7 +52,9 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
                    m.note,
                    m.status,
                    m.created_at,
-                   m.lot_id
+                   m.lot_id,
+                   m.input_process_id,
+                   m.partner_id
             FROM misc_stock_movement m
             JOIN item i ON i.id = m.item_id AND i.recording_state = 1
             LEFT JOIN process_sequence ps ON ps.id = m.output_process_id AND ps.recording_state = 1
@@ -91,6 +93,19 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public int maxMovementNoSuffix(String prefix) {
+        Query query = entityManager.createNativeQuery("""
+                SELECT COALESCE(MAX(CAST(SUBSTRING(movement_no, CHAR_LENGTH(:prefix) + 1) AS UNSIGNED)), 0)
+                FROM misc_stock_movement
+                WHERE movement_no LIKE CONCAT(:prefix, '%')
+                """);
+        query.setParameter("prefix", prefix);
+        Number value = (Number) query.getSingleResult();
+        return value != null ? value.intValue() : 0;
+    }
+
+    @Override
     @Transactional
     public MiscStockMovementView save(MiscStockMovementSaveCommand command, String movementNo, String actorUserId) {
         ItemJpaEntity item = itemRepository.findByIdAndRecordingState(command.itemId(), ACTIVE)
@@ -99,10 +114,8 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
             publicCodeRepository.findByIdAndRecordingState(command.reasonCodeId(), ACTIVE)
                     .orElseThrow(() -> new IllegalArgumentException("입출고 사유를 찾을 수 없습니다."));
         }
-        if (command.outputProcessId() != null) {
-            processRepository.findByIdAndRecordingState(command.outputProcessId(), ACTIVE)
-                    .orElseThrow(() -> new IllegalArgumentException("공정을 찾을 수 없습니다: " + command.outputProcessId()));
-        }
+        requireProcess(command.outputProcessId());
+        requireProcess(command.inputProcessId());
 
         Instant now = Instant.now();
         MiscStockMovementJpaEntity entity = new MiscStockMovementJpaEntity();
@@ -112,6 +125,8 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
         entity.setItemId(command.itemId());
         entity.setLocationCode(command.locationCode());
         entity.setOutputProcessId(command.outputProcessId());
+        entity.setInputProcessId(command.inputProcessId());
+        entity.setPartnerId(command.partnerId());
         entity.setLotId(command.lotId());
         entity.setQty(command.qty());
         entity.setReasonCodeId(command.reasonCodeId());
@@ -140,16 +155,16 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
             publicCodeRepository.findByIdAndRecordingState(command.reasonCodeId(), ACTIVE)
                     .orElseThrow(() -> new IllegalArgumentException("입출고 사유를 찾을 수 없습니다."));
         }
-        if (command.outputProcessId() != null) {
-            processRepository.findByIdAndRecordingState(command.outputProcessId(), ACTIVE)
-                    .orElseThrow(() -> new IllegalArgumentException("공정을 찾을 수 없습니다: " + command.outputProcessId()));
-        }
+        requireProcess(command.outputProcessId());
+        requireProcess(command.inputProcessId());
 
         entity.setMovementDate(command.movementDate());
         entity.setMovementDirection(command.movementDirection());
         entity.setItemId(command.itemId());
         entity.setLocationCode(command.locationCode());
         entity.setOutputProcessId(command.outputProcessId());
+        entity.setInputProcessId(command.inputProcessId());
+        entity.setPartnerId(command.partnerId());
         entity.setLotId(command.lotId());
         entity.setQty(command.qty());
         entity.setReasonCodeId(command.reasonCodeId());
@@ -257,7 +272,9 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
                 row[15] != null ? row[15].toString() : null,
                 MiscStockMovementStatus.valueOf(row[16].toString()),
                 toInstant(row[17]),
-                row.length > 18 && row[18] != null ? ((Number) row[18]).longValue() : null
+                row.length > 18 && row[18] != null ? ((Number) row[18]).longValue() : null,
+                row.length > 19 && row[19] != null ? ((Number) row[19]).longValue() : null,
+                row.length > 20 && row[20] != null ? ((Number) row[20]).longValue() : null
         );
     }
 
@@ -300,8 +317,18 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
                 entity.getNote(),
                 entity.getStatus(),
                 entity.getCreatedAt(),
-                entity.getLotId()
+                entity.getLotId(),
+                entity.getInputProcessId(),
+                entity.getPartnerId()
         );
+    }
+
+    private void requireProcess(Long processId) {
+        if (processId == null) {
+            return;
+        }
+        processRepository.findByIdAndRecordingState(processId, ACTIVE)
+                .orElseThrow(() -> new IllegalArgumentException("공정을 찾을 수 없습니다: " + processId));
     }
 
     private static BigDecimal toBigDecimal(Object value) {
@@ -325,15 +352,6 @@ public class JpaMiscStockMovementRepository implements MiscStockMovementReposito
     }
 
     private static Instant toInstant(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Instant instant) {
-            return instant;
-        }
-        if (value instanceof Timestamp timestamp) {
-            return timestamp.toInstant();
-        }
-        return Instant.parse(value.toString());
+        return JdbcInstantValues.toInstant(value);
     }
 }

@@ -80,7 +80,9 @@ public class MiscStockMovementController {
                         request.note(),
                         request.lotId(),
                         request.lotNo(),
-                        Boolean.TRUE.equals(request.autoGenerateLot())
+                        Boolean.TRUE.equals(request.autoGenerateLot()),
+                        null,
+                        null
                 ),
                 principal.loginId()
         ));
@@ -105,7 +107,9 @@ public class MiscStockMovementController {
                         request.note(),
                         request.lotId(),
                         request.lotNo(),
-                        Boolean.TRUE.equals(request.autoGenerateLot())
+                        Boolean.TRUE.equals(request.autoGenerateLot()),
+                        null,
+                        null
                 ),
                 principal.loginId()
         ));

@@ -364,6 +364,11 @@ class LotTraceabilityFlowTest {
         }
 
         @Override
+        public BigDecimal sumQtyThroughBalance(long lotId, long inventoryBalanceId) {
+            return findLotBalanceQty(lotId, inventoryBalanceId).orElse(BigDecimal.ZERO);
+        }
+
+        @Override
         public BigDecimal sumQtyOnHand(
                 long lotId,
                 String locationCode,
@@ -500,6 +505,32 @@ class LotTraceabilityFlowTest {
         public InventoryBalanceSlotView saveBalance(InventoryBalanceSlotView balance) {
             store.put(balance.id(), balance);
             return balance;
+        }
+
+        @Override
+        public BigDecimal sumQtyThrough(InventoryBalanceKey key) {
+            return store.values().stream()
+                    .filter(balance -> sameKey(balance, key) && balance.fiscalYear() <= key.fiscalYear())
+                    .map(InventoryBalanceSlotView::stockQty)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        @Override
+        public java.util.List<InventoryBalanceSlotView> lockSlotsThrough(InventoryBalanceKey key) {
+            return store.values().stream()
+                    .filter(balance -> sameKey(balance, key) && balance.fiscalYear() <= key.fiscalYear())
+                    .sorted(java.util.Comparator
+                            .comparingInt(InventoryBalanceSlotView::fiscalYear)
+                            .thenComparingLong(InventoryBalanceSlotView::id))
+                    .toList();
+        }
+
+        private static boolean sameKey(InventoryBalanceSlotView balance, InventoryBalanceKey key) {
+            return balance.itemId() == key.itemId()
+                    && balance.locationId() == key.locationId()
+                    && java.util.Objects.equals(balance.outputProcessId(), key.outputProcessId())
+                    && java.util.Objects.equals(balance.inputProcessId(), key.inputProcessId())
+                    && java.util.Objects.equals(balance.partnerId(), key.partnerId());
         }
 
         long findSlotId(long itemId, long locationId, Long processId) {

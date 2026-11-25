@@ -12,6 +12,12 @@ public interface SpringDataPublicCodeRepository extends JpaRepository<PublicCode
 
     Optional<PublicCodeJpaEntity> findByIdAndRecordingState(Long id, int recordingState);
 
+    Optional<PublicCodeJpaEntity> findByLargeCodeAndSmallCodeAndRecordingState(
+            String largeCode,
+            String smallCode,
+            int recordingState
+    );
+
     Optional<PublicCodeJpaEntity> findByLargeCodeAndSmallCodeIsNullAndRecordingState(String largeCode, int recordingState);
 
     boolean existsByLargeCodeAndSmallCodeIsNullAndRecordingState(String largeCode, int recordingState);

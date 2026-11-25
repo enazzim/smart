@@ -7,6 +7,8 @@ public interface MiscStockMovementRepository {
 
     long countByMovementNoPrefix(String prefix);
 
+    int maxMovementNoSuffix(String prefix);
+
     MiscStockMovementView save(MiscStockMovementSaveCommand command, String movementNo, String actorUserId);
 
     Optional<MiscStockMovementView> findActiveById(long id);

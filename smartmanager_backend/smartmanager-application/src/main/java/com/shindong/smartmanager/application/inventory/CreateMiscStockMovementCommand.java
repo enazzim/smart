@@ -14,6 +14,8 @@ public record CreateMiscStockMovementCommand(
         String note,
         Long lotId,
         String lotNo,
-        boolean autoGenerateLot
+        boolean autoGenerateLot,
+        Long inputProcessId,
+        Long partnerId
 ) {
 }

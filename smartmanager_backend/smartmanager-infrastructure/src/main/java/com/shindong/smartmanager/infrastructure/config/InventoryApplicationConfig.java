@@ -15,6 +15,12 @@ import com.shindong.smartmanager.application.inventory.MiscStockMovementInventor
 import com.shindong.smartmanager.application.inventory.MiscStockMovementRepository;
 import com.shindong.smartmanager.application.inventory.MiscStockMovementResolver;
 import com.shindong.smartmanager.application.inventory.MiscStockMovementService;
+import com.shindong.smartmanager.application.inventory.OutsourceStocktakeCatalog;
+import com.shindong.smartmanager.application.inventory.StocktakeBookQuery;
+import com.shindong.smartmanager.application.inventory.StocktakeHistoryQuery;
+import com.shindong.smartmanager.application.inventory.StocktakeLotQuery;
+import com.shindong.smartmanager.application.inventory.StocktakeService;
+import com.shindong.smartmanager.application.inventory.PrefixedNumberSequence;
 import com.shindong.smartmanager.application.inventory.StockMovementRepository;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.process.ProcessRepository;
@@ -80,13 +86,39 @@ public class InventoryApplicationConfig {
     }
 
     @Bean
+    public StocktakeService stocktakeService(
+            ItemRepository itemRepository,
+            MiscStockMovementResolver miscStockMovementResolver,
+            InventoryBalanceService inventoryBalanceService,
+            InventoryLocationQueryRepository inventoryLocationQueryRepository,
+            FiscalCalendarService fiscalCalendarService,
+            StocktakeHistoryQuery stocktakeHistoryQuery,
+            StocktakeBookQuery stocktakeBookQuery,
+            OutsourceStocktakeCatalog outsourceStocktakeCatalog,
+            StocktakeLotQuery stocktakeLotQuery
+    ) {
+        return new StocktakeService(
+                itemRepository,
+                miscStockMovementResolver,
+                inventoryBalanceService,
+                inventoryLocationQueryRepository,
+                fiscalCalendarService,
+                stocktakeHistoryQuery,
+                stocktakeBookQuery,
+                outsourceStocktakeCatalog,
+                stocktakeLotQuery
+        );
+    }
+
+    @Bean
     public MiscStockMovementService miscStockMovementService(
             MiscStockMovementRepository miscStockMovementRepository,
             ItemRepository itemRepository,
             MiscStockMovementResolver miscStockMovementResolver,
             MiscStockMovementInventoryService miscStockMovementInventoryService,
             LotService lotService,
-            MonthClosingService monthClosingService
+            MonthClosingService monthClosingService,
+            PrefixedNumberSequence numberSequence
     ) {
         return new MiscStockMovementService(
                 miscStockMovementRepository,
@@ -94,7 +126,8 @@ public class InventoryApplicationConfig {
                 miscStockMovementResolver,
                 miscStockMovementInventoryService,
                 lotService,
-                monthClosingService
+                monthClosingService,
+                numberSequence
         );
     }
 }

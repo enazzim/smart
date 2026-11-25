@@ -70,8 +70,7 @@ public class LotInventoryService {
 
         BigDecimal signedQty = signedQuantity(movementType, qty);
         if (signedQty.compareTo(BigDecimal.ZERO) < 0) {
-            BigDecimal onHand = lotRepository.findLotBalanceQty(lotId, inventoryBalanceId)
-                    .orElse(BigDecimal.ZERO);
+            BigDecimal onHand = lotRepository.sumQtyThroughBalance(lotId, inventoryBalanceId);
             if (onHand.add(signedQty).compareTo(BigDecimal.ZERO) < 0) {
                 throw new IllegalArgumentException(
                         "Lot 잔량이 부족합니다: " + lot.lotNo()

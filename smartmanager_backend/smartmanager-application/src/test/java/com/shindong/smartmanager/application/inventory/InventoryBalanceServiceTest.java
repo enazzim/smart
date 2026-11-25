@@ -267,6 +267,41 @@ class InventoryBalanceServiceTest {
     }
 
     @Test
+    void januaryOutboundKeepsPriorYearSlotAndAllowsNegativeCurrentYearSlot() {
+        setNegativeStockAllowed(false);
+        service.recordMovement(movement(LocalDate.of(2026, 12, 20), StockMovementType.IN, new BigDecimal("100"), 11L));
+        service.recordMovement(movement(LocalDate.of(2027, 1, 10), StockMovementType.OUT, new BigDecimal("30"), 12L));
+
+        assertEquals(
+                new BigDecimal("70"),
+                service.currentStockQty(100L, "RAW", LocalDate.of(2027, 1, 10), null, null, null)
+        );
+        assertEquals(new BigDecimal("100"), balanceRepository.findByFiscalYear(2026).orElseThrow().stockQty());
+        assertEquals(new BigDecimal("-30"), balanceRepository.findByFiscalYear(2027).orElseThrow().stockQty());
+
+        int slots = balanceRepository.storeSize();
+        assertEquals(
+                new BigDecimal("70"),
+                service.currentStockQty(100L, "RAW", LocalDate.of(2028, 3, 1), null, null, null)
+        );
+        assertEquals(slots, balanceRepository.storeSize());
+    }
+
+    @Test
+    void januaryOutboundRejectedWhenCumulativeOnHandWouldGoNegative() {
+        setNegativeStockAllowed(false);
+        service.recordMovement(movement(LocalDate.of(2026, 12, 20), StockMovementType.IN, new BigDecimal("100"), 21L));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> service.recordMovement(
+                        movement(LocalDate.of(2027, 1, 10), StockMovementType.OUT, new BigDecimal("130"), 22L)
+                )
+        );
+        assertEquals(1, balanceRepository.storeSize());
+    }
+
+    @Test
     void fiscalCutoverDayMapsToNextMonth() {
         StockMovementView movement = service.recordMovement(new RecordStockMovementCommand(
                 100L,
@@ -283,6 +318,28 @@ class InventoryBalanceServiceTest {
                 "admin"
         ));
         assertEquals(7, movement.fiscalMonth());
+    }
+
+    private static RecordStockMovementCommand movement(
+            LocalDate movementDate,
+            StockMovementType type,
+            BigDecimal qty,
+            long referenceId
+    ) {
+        return new RecordStockMovementCommand(
+                100L,
+                "RAW",
+                movementDate,
+                type,
+                qty,
+                BigDecimal.ZERO,
+                "STOCKTAKE",
+                referenceId,
+                null,
+                null,
+                null,
+                "admin"
+        );
     }
 
     private RecordStockMovementCommand inCommand(BigDecimal qty) {
@@ -349,12 +406,34 @@ class InventoryBalanceServiceTest {
             return balance;
         }
 
+        @Override
+        public BigDecimal sumQtyThrough(InventoryBalanceKey key) {
+            return store.values().stream()
+                    .filter(balance -> sameLogicalKey(balance, key) && balance.fiscalYear() <= key.fiscalYear())
+                    .map(InventoryBalanceSlotView::stockQty)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        @Override
+        public java.util.List<InventoryBalanceSlotView> lockSlotsThrough(InventoryBalanceKey key) {
+            return store.values().stream()
+                    .filter(balance -> sameLogicalKey(balance, key) && balance.fiscalYear() <= key.fiscalYear())
+                    .sorted(java.util.Comparator
+                            .comparingInt(InventoryBalanceSlotView::fiscalYear)
+                            .thenComparingLong(InventoryBalanceSlotView::id))
+                    .toList();
+        }
+
         Optional<InventoryBalanceSlotView> findById(long id) {
             return Optional.ofNullable(store.get(id));
         }
 
         Optional<InventoryBalanceSlotView> findFirst() {
             return store.values().stream().findFirst();
+        }
+
+        Optional<InventoryBalanceSlotView> findByFiscalYear(int fiscalYear) {
+            return store.values().stream().filter(balance -> balance.fiscalYear() == fiscalYear).findFirst();
         }
 
         int storeSize() {
@@ -366,9 +445,12 @@ class InventoryBalanceServiceTest {
         }
 
         private static boolean matches(InventoryBalanceSlotView balance, InventoryBalanceKey key) {
+            return sameLogicalKey(balance, key) && balance.fiscalYear() == key.fiscalYear();
+        }
+
+        private static boolean sameLogicalKey(InventoryBalanceSlotView balance, InventoryBalanceKey key) {
             return balance.itemId() == key.itemId()
                     && balance.locationId() == key.locationId()
-                    && balance.fiscalYear() == key.fiscalYear()
                     && nullableEquals(balance.outputProcessId(), key.outputProcessId())
                     && nullableEquals(balance.inputProcessId(), key.inputProcessId())
                     && nullableEquals(balance.partnerId(), key.partnerId());

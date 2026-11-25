@@ -52,7 +52,12 @@ const PURCHASE_PAGES = new Set<string>([
   'purchase-payable-approval',
   'purchase-payment',
 ]);
-const INVENTORY_PAGES = new Set<string>(['inventory-misc-movement', 'inventory-ledger', 'inventory-lot']);
+const INVENTORY_PAGES = new Set<string>([
+  'inventory-misc-movement',
+  'inventory-ledger',
+  'inventory-lot',
+  'inventory-stocktake',
+]);
 const OUTSOURCE_PAGES = new Set<string>(['outsource-order', 'outsource-shipment', 'outsource-receipt']);
 const QUALITY_PAGES = new Set<string>(['quality-inspection']);
 const STATS_PAGES = new Set<string>([

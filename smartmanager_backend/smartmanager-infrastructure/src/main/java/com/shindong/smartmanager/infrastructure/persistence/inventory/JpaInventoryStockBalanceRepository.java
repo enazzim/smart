@@ -5,6 +5,7 @@ import com.shindong.smartmanager.application.inventory.InventoryBalanceSlotView;
 import com.shindong.smartmanager.application.inventory.InventoryStockBalanceRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,36 @@ public class JpaInventoryStockBalanceRepository implements InventoryStockBalance
                 )
                 .map(this::toView)
                 .orElseGet(() -> createBalance(key));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal sumQtyThrough(InventoryBalanceKey key) {
+        BigDecimal sum = balanceRepository.sumQtyThrough(
+                key.itemId(),
+                key.locationId(),
+                (short) key.fiscalYear(),
+                key.outputProcessId(),
+                key.inputProcessId(),
+                key.partnerId()
+        );
+        return sum != null ? sum : BigDecimal.ZERO;
+    }
+
+    @Override
+    @Transactional
+    public List<InventoryBalanceSlotView> lockSlotsThrough(InventoryBalanceKey key) {
+        return balanceRepository.lockSlotsThrough(
+                        key.itemId(),
+                        key.locationId(),
+                        (short) key.fiscalYear(),
+                        key.outputProcessId(),
+                        key.inputProcessId(),
+                        key.partnerId()
+                )
+                .stream()
+                .map(this::toView)
+                .toList();
     }
 
     @Override

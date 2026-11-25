@@ -13,6 +13,8 @@ public record MiscStockMovementSaveCommand(
         BigDecimal qty,
         Long reasonCodeId,
         String note,
-        Long lotId
+        Long lotId,
+        Long inputProcessId,
+        Long partnerId
 ) {
 }

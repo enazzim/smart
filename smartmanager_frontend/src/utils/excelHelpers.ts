@@ -172,7 +172,7 @@ async function sanitizeXlsxForExcelJs(buffer: ArrayBuffer): Promise<ArrayBuffer>
   return zip.generateAsync({ type: 'arraybuffer' });
 }
 
-async function loadWorkbookFromBuffer(buffer: ArrayBuffer): Promise<ExcelJS.Workbook> {
+export async function loadWorkbookFromBuffer(buffer: ArrayBuffer): Promise<ExcelJS.Workbook> {
   const workbook = new ExcelJS.Workbook();
   try {
     await workbook.xlsx.load(buffer);
