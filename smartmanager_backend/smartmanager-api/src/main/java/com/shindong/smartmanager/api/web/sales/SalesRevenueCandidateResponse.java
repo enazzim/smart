@@ -24,7 +24,8 @@ public record SalesRevenueCandidateResponse(
         boolean billable,
         String billableMessage,
         boolean lotTracked,
-        Long shipmentLotId
+        Long shipmentLotId,
+        String shipmentLotNo
 ) {
     public static SalesRevenueCandidateResponse from(SalesRevenueCandidateView view) {
         return new SalesRevenueCandidateResponse(
@@ -47,7 +48,8 @@ public record SalesRevenueCandidateResponse(
                 view.billable(),
                 view.billableMessage(),
                 view.lotTracked(),
-                view.shipmentLotId()
+                view.shipmentLotId(),
+                view.shipmentLotNo()
         );
     }
 }

@@ -46,7 +46,7 @@ public class SalesRevenueInventoryService {
             String actorUserId
     ) {
         assertSufficientDeliveryStock(revenueDate, itemId, itemNo, qty);
-        inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
+        inventoryBalanceService.recordBoundLotMovement(new RecordStockMovementCommand(
                 itemId,
                 "DELIVERY",
                 revenueDate,
@@ -76,7 +76,7 @@ public class SalesRevenueInventoryService {
         Long resolvedLotId = lotId != null
                 ? lotId
                 : inventoryBalanceService.findLotIdByReference(REFERENCE_TYPE, revenueLineId).orElse(null);
-        inventoryBalanceService.recordMovement(new RecordStockMovementCommand(
+        inventoryBalanceService.recordBoundLotMovement(new RecordStockMovementCommand(
                 itemId,
                 "DELIVERY",
                 revenueDate,

@@ -17,7 +17,8 @@ public record SalesShipmentLineRevenueContext(
         String itemName,
         BigDecimal shipmentQty,
         BigDecimal invoicedQty,
-        BigDecimal unitPrice
+        BigDecimal unitPrice,
+        Long lotId
 ) {
     public BigDecimal remainingQty() {
         return shipmentQty.subtract(invoicedQty);

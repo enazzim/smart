@@ -9,7 +9,6 @@ import {
   type SalesRevenueCandidateParams,
   type SalesRevenueListParams,
 } from '../api/salesRevenue';
-import { fetchAvailableLots, type LotRow } from '../api/lot';
 import { INVENTORY_LOCATION_LABEL, translateInventoryLocationInText } from '../utils/inventoryLocation';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
@@ -78,8 +77,6 @@ export default function SalesRevenuePage() {
   const [hasSearchedList, setHasSearchedList] = useState(false);
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
   const [revenueQtyByLineId, setRevenueQtyByLineId] = useState<Record<number, string>>({});
-  const [lotIdByLineId, setLotIdByLineId] = useState<Record<number, number | null>>({});
-  const [lotsByLineId, setLotsByLineId] = useState<Record<number, LotRow[]>>({});
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [loadingRevenues, setLoadingRevenues] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -120,7 +117,6 @@ export default function SalesRevenuePage() {
         const rows = await fetchSalesRevenueCandidates(override ?? buildCandidateParams());
         setCandidates(rows);
         setSelectedLineIds(new Set());
-        setLotIdByLineId({});
         setRevenueQtyByLineId((prev) => {
           const next = { ...prev };
           for (const row of rows) {
@@ -152,7 +148,6 @@ export default function SalesRevenuePage() {
     setCandidateCompanyClearToken((token) => token + 1);
     setCandidates([]);
     setSelectedLineIds(new Set());
-    setLotIdByLineId({});
     setCandidateError(null);
     setHasSearchedCandidates(false);
   };
@@ -220,26 +215,6 @@ export default function SalesRevenuePage() {
       else next.delete(shipmentLineId);
       return next;
     });
-    if (checked) {
-      const row = candidates.find((candidate) => candidate.shipmentLineId === shipmentLineId);
-      if (row?.lotTracked) {
-        void (async () => {
-          try {
-            const lots = await fetchAvailableLots(row.itemId, 'DELIVERY', null);
-            setLotsByLineId((prev) => ({ ...prev, [shipmentLineId]: lots }));
-            const preferred =
-              row.shipmentLotId != null && lots.some((lot) => lot.id === row.shipmentLotId)
-                ? row.shipmentLotId
-                : lots.length === 1
-                  ? lots[0].id
-                  : null;
-            setLotIdByLineId((prev) => ({ ...prev, [shipmentLineId]: preferred }));
-          } catch {
-            setLotsByLineId((prev) => ({ ...prev, [shipmentLineId]: [] }));
-          }
-        })();
-      }
-    }
   };
 
   const onCreateRevenues = async () => {
@@ -247,23 +222,14 @@ export default function SalesRevenuePage() {
       const row = candidates.find((candidate) => candidate.shipmentLineId === shipmentLineId);
       const qty = parseQty(revenueQtyByLineId[shipmentLineId] ?? (row ? String(row.remainingQty) : ''));
       if (qty == null || !row) return null;
-      if (row.lotTracked && lotIdByLineId[shipmentLineId] == null) {
-        return { error: `Lot 추적 품목은 Lot를 선택해야 합니다: ${row.itemNo}` };
-      }
       return {
         salesShipmentLineId: shipmentLineId,
         revenueQty: qty,
-        lotId: row.lotTracked ? lotIdByLineId[shipmentLineId] ?? null : null,
+        lotId: row.shipmentLotId ?? null,
       };
     });
-    const lotError = mapped.find((line) => line && 'error' in line);
-    if (lotError && 'error' in lotError) {
-      setRevenueError(String(lotError.error));
-      return;
-    }
     const lines = mapped.filter(
-      (line): line is { salesShipmentLineId: number; revenueQty: number; lotId: number | null } =>
-        line != null && !('error' in line),
+      (line): line is { salesShipmentLineId: number; revenueQty: number; lotId: number | null } => line != null,
     );
 
     if (lines.length === 0) {
@@ -278,7 +244,6 @@ export default function SalesRevenuePage() {
       const created = await createSalesRevenue({ revenueDate, lines });
       setMessage(`매출 ${created.revenueNo}을(를) 등록했습니다. (${INVENTORY_LOCATION_LABEL.DELIVERY} 감소)`);
       setSelectedLineIds(new Set());
-      setLotIdByLineId({});
       if (hasSearchedCandidates) {
         await loadCandidates(buildCandidateParams());
       }
@@ -454,29 +419,7 @@ export default function SalesRevenuePage() {
                       <td className="num">{formatAmount(row.unitPrice)}</td>
                       <td className="num">{formatQty(row.deliveryOnHandQty)}</td>
                       <td>{renderCandidateQtyInput(row)}</td>
-                      <td>
-                        {row.lotTracked ? (
-                          <select
-                            value={lotIdByLineId[row.shipmentLineId] ?? ''}
-                            disabled={submitting || !selectedLineIds.has(row.shipmentLineId)}
-                            onChange={(e) =>
-                              setLotIdByLineId((prev) => ({
-                                ...prev,
-                                [row.shipmentLineId]: e.target.value ? Number(e.target.value) : null,
-                              }))
-                            }
-                          >
-                            <option value="">선택</option>
-                            {(lotsByLineId[row.shipmentLineId] ?? []).map((lot) => (
-                              <option key={lot.id} value={lot.id}>
-                                {lot.lotNo}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
+                      <td>{row.shipmentLotNo ?? '—'}</td>
                       <td>{billableLabel(row)}</td>
                     </tr>
                   ))}
@@ -549,6 +492,10 @@ export default function SalesRevenuePage() {
                     <div>
                       <dt>{INVENTORY_LOCATION_LABEL.DELIVERY} 재고</dt>
                       <dd>{formatQty(row.deliveryOnHandQty)}</dd>
+                    </div>
+                    <div>
+                      <dt>Lot</dt>
+                      <dd>{row.shipmentLotNo ?? '—'}</dd>
                     </div>
                   </dl>
                   <label className="sales-revenue-candidate-card__qty">

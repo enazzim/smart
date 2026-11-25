@@ -4,18 +4,23 @@ import com.shindong.smartmanager.application.closing.FiscalCalendarService;
 import com.shindong.smartmanager.application.closing.FiscalPeriod;
 import com.shindong.smartmanager.application.closing.MonthClosingService;
 import com.shindong.smartmanager.application.event.DomainEventStore;
+import com.shindong.smartmanager.application.inventory.LotRepository;
+import com.shindong.smartmanager.application.inventory.LotView;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.ledger.PartnerLedgerService;
 import com.shindong.smartmanager.domain.event.AggregateTypes;
 import com.shindong.smartmanager.domain.event.DomainEvent;
 import com.shindong.smartmanager.domain.event.EventTypes;
+import com.shindong.smartmanager.domain.inventory.InventoryLocationLabels;
+import com.shindong.smartmanager.domain.inventory.LotStatus;
 import com.shindong.smartmanager.domain.sales.SalesHistorySourceType;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,8 +31,11 @@ public class SalesRevenueService {
 
     private final SalesRevenueRepository salesRevenueRepository;
     private final SalesHistoryRepository salesHistoryRepository;
+    private static final String LOCATION_DELIVERY = "DELIVERY";
+
     private final SalesRevenueInventoryService inventoryService;
     private final ItemRepository itemRepository;
+    private final LotRepository lotRepository;
     private final PartnerLedgerService partnerLedgerService;
     private final FiscalCalendarService fiscalCalendarService;
     private final MonthClosingService monthClosingService;
@@ -38,6 +46,7 @@ public class SalesRevenueService {
             SalesHistoryRepository salesHistoryRepository,
             SalesRevenueInventoryService inventoryService,
             ItemRepository itemRepository,
+            LotRepository lotRepository,
             PartnerLedgerService partnerLedgerService,
             FiscalCalendarService fiscalCalendarService,
             MonthClosingService monthClosingService,
@@ -47,6 +56,7 @@ public class SalesRevenueService {
         this.salesHistoryRepository = salesHistoryRepository;
         this.inventoryService = inventoryService;
         this.itemRepository = itemRepository;
+        this.lotRepository = lotRepository;
         this.partnerLedgerService = partnerLedgerService;
         this.fiscalCalendarService = fiscalCalendarService;
         this.monthClosingService = monthClosingService;
@@ -54,7 +64,9 @@ public class SalesRevenueService {
     }
 
     public List<SalesRevenueCandidateView> listCandidates(SalesRevenueCandidateCriteria criteria) {
-        return salesRevenueRepository.findCandidates(criteria);
+        return salesRevenueRepository.findCandidates(criteria).stream()
+                .map(this::annotateShipmentLot)
+                .toList();
     }
 
     public List<SalesRevenueView> list(SalesRevenueListCriteria criteria) {
@@ -70,6 +82,7 @@ public class SalesRevenueService {
 
         Set<Long> seenLineIds = new HashSet<>();
         Map<Long, SalesShipmentLineRevenueContext> contextByLineId = new LinkedHashMap<>();
+        Map<Long, Long> resolvedLotByLineId = new LinkedHashMap<>();
         Map<Long, List<CreateSalesRevenueLineCommand>> linesByPartner = new LinkedHashMap<>();
 
         for (CreateSalesRevenueLineCommand lineCommand : command.lines()) {
@@ -80,9 +93,12 @@ public class SalesRevenueService {
                     lineCommand.salesShipmentLineId()
             );
             validateLine(lineCommand, context);
+            Long lotId = resolveLotId(context, lineCommand.lotId());
+            resolvedLotByLineId.put(lineCommand.salesShipmentLineId(), lotId);
             contextByLineId.put(lineCommand.salesShipmentLineId(), context);
             linesByPartner.computeIfAbsent(context.partnerId(), ignored -> new ArrayList<>()).add(lineCommand);
         }
+        assertDeliveryCovers(revenueDate, command.lines(), contextByLineId, resolvedLotByLineId);
 
         SalesRevenueView lastRevenue = null;
         for (Map.Entry<Long, List<CreateSalesRevenueLineCommand>> entry : linesByPartner.entrySet()) {
@@ -91,6 +107,7 @@ public class SalesRevenueService {
                     entry.getKey(),
                     entry.getValue(),
                     contextByLineId,
+                    resolvedLotByLineId,
                     actorUserId
             );
         }
@@ -102,6 +119,7 @@ public class SalesRevenueService {
             long partnerId,
             List<CreateSalesRevenueLineCommand> lines,
             Map<Long, SalesShipmentLineRevenueContext> contextByLineId,
+            Map<Long, Long> resolvedLotByLineId,
             String actorUserId
     ) {
         Set<Long> shipmentIds = new HashSet<>();
@@ -111,7 +129,7 @@ public class SalesRevenueService {
             SalesShipmentLineRevenueContext context = contextByLineId.get(lineCommand.salesShipmentLineId());
             shipmentIds.add(context.shipmentId());
             BigDecimal amount = lineAmount(lineCommand.revenueQty(), context.unitPrice());
-            Long lotId = resolveLotId(context.itemId(), lineCommand.lotId());
+            Long lotId = resolvedLotByLineId.get(lineCommand.salesShipmentLineId());
             lineSaves.add(new SalesRevenueLineSaveCommand(
                     lineCommand.salesShipmentLineId(),
                     lineCommand.revenueQty(),
@@ -120,12 +138,6 @@ public class SalesRevenueService {
                     amount,
                     lotId
             ));
-            inventoryService.assertSufficientDeliveryStock(
-                    revenueDate,
-                    context.itemId(),
-                    context.itemNo(),
-                    lineCommand.revenueQty()
-            );
         }
 
         Long salesShipmentId = shipmentIds.size() == 1 ? shipmentIds.iterator().next() : null;
@@ -208,22 +220,185 @@ public class SalesRevenueService {
                             + ", 잔량=" + context.remainingQty().stripTrailingZeros().toPlainString()
             );
         }
-        resolveLotId(context.itemId(), line.lotId());
+        resolveLotId(context, line.lotId());
     }
 
-    private Long resolveLotId(long itemId, Long lotId) {
-        ItemView item = itemRepository.findActiveById(itemId)
-                .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + itemId));
-        if (item.lotTracked()) {
-            if (lotId == null) {
-                throw new IllegalArgumentException("Lot 추적 품목은 Lot를 선택해야 합니다: " + item.itemNo());
-            }
-            return lotId;
+    private Long resolveLotId(SalesShipmentLineRevenueContext context, Long requestedLotId) {
+        ItemView item = itemRepository.findActiveById(context.itemId())
+                .orElseThrow(() -> new IllegalArgumentException("품목을 찾을 수 없습니다: " + context.itemId()));
+        LotView shipmentLot = null;
+        if (context.lotId() != null) {
+            shipmentLot = lotRepository.findActiveById(context.lotId()).orElse(null);
         }
-        if (lotId != null) {
-            throw new IllegalArgumentException("Lot 비추적 품목은 Lot를 지정할 수 없습니다: " + item.itemNo());
+        return resolveShipmentLot(
+                context.itemId(),
+                item.itemNo(),
+                item.lotTracked(),
+                context.lotId(),
+                requestedLotId,
+                shipmentLot
+        );
+    }
+
+    /**
+     * 매출 Lot는 출고 줄에 저장된 Lot다. 납품창고의 다른 Lot로 바꾸지 않는다.
+     */
+    static Long resolveShipmentLot(
+            long itemId,
+            String itemNo,
+            boolean itemLotTracked,
+            Long shipmentLotId,
+            Long requestedLotId,
+            LotView shipmentLot
+    ) {
+        if (shipmentLotId != null) {
+            if (requestedLotId != null && !requestedLotId.equals(shipmentLotId)) {
+                throw new IllegalArgumentException("매출 Lot는 출고 Lot와 같아야 합니다: " + itemNo);
+            }
+            if (shipmentLot == null || shipmentLot.id() != shipmentLotId || shipmentLot.itemId() != itemId) {
+                throw new IllegalArgumentException("출고 Lot를 찾을 수 없습니다: " + itemNo);
+            }
+            if (shipmentLot.status() == LotStatus.BLOCKED) {
+                throw new IllegalArgumentException("차단된 Lot는 입출고할 수 없습니다: " + shipmentLot.lotNo());
+            }
+            return shipmentLotId;
+        }
+        if (itemLotTracked) {
+            throw new IllegalArgumentException(
+                    "출고에 Lot가 없습니다. 출고를 취소하고 Lot를 지정해 다시 출고하세요: " + itemNo
+            );
+        }
+        if (requestedLotId != null) {
+            throw new IllegalArgumentException("Lot 비추적 품목은 Lot를 지정할 수 없습니다: " + itemNo);
         }
         return null;
+    }
+
+    private void assertDeliveryCovers(
+            LocalDate revenueDate,
+            List<CreateSalesRevenueLineCommand> lines,
+            Map<Long, SalesShipmentLineRevenueContext> contextByLineId,
+            Map<Long, Long> resolvedLotByLineId
+    ) {
+        Map<Long, BigDecimal> qtyByItem = new LinkedHashMap<>();
+        Map<Long, String> itemNoById = new HashMap<>();
+        Map<Long, BigDecimal> qtyByLot = new LinkedHashMap<>();
+        Map<Long, String> lotNoById = new HashMap<>();
+        for (CreateSalesRevenueLineCommand line : lines) {
+            SalesShipmentLineRevenueContext context = contextByLineId.get(line.salesShipmentLineId());
+            qtyByItem.merge(context.itemId(), line.revenueQty(), BigDecimal::add);
+            itemNoById.putIfAbsent(context.itemId(), context.itemNo());
+            Long lotId = resolvedLotByLineId.get(line.salesShipmentLineId());
+            if (lotId == null) {
+                continue;
+            }
+            qtyByLot.merge(lotId, line.revenueQty(), BigDecimal::add);
+            lotNoById.computeIfAbsent(lotId, id -> lotRepository.findActiveById(id)
+                    .map(LotView::lotNo)
+                    .orElse("Lot " + id));
+        }
+        for (Map.Entry<Long, BigDecimal> entry : qtyByItem.entrySet()) {
+            inventoryService.assertSufficientDeliveryStock(
+                    revenueDate,
+                    entry.getKey(),
+                    itemNoById.get(entry.getKey()),
+                    entry.getValue()
+            );
+        }
+        int fiscalYear = fiscalCalendarService.resolvePeriod(revenueDate).fiscalYear();
+        for (Map.Entry<Long, BigDecimal> entry : qtyByLot.entrySet()) {
+            BigDecimal onHand = lotRepository.sumQtyOnHand(
+                    entry.getKey(),
+                    LOCATION_DELIVERY,
+                    fiscalYear,
+                    null,
+                    null,
+                    null
+            );
+            if (onHand.compareTo(entry.getValue()) < 0) {
+                throw new IllegalArgumentException(
+                        "Lot 잔량이 부족합니다: " + lotNoById.get(entry.getKey())
+                                + " — 필요 " + entry.getValue().stripTrailingZeros().toPlainString()
+                                + ", 보유 " + onHand.stripTrailingZeros().toPlainString()
+                );
+            }
+        }
+    }
+
+    private SalesRevenueCandidateView annotateShipmentLot(SalesRevenueCandidateView row) {
+        if (row.shipmentLotId() == null) {
+            if (!row.lotTracked()) {
+                return row;
+            }
+            return copyCandidate(
+                    row,
+                    false,
+                    "출고에 Lot가 없습니다. 출고를 취소하고 Lot를 지정해 다시 출고하세요: " + row.itemNo(),
+                    null
+            );
+        }
+        LotView lot = lotRepository.findActiveById(row.shipmentLotId()).orElse(null);
+        if (lot == null || lot.itemId() != row.itemId()) {
+            return copyCandidate(row, false, "출고 Lot를 찾을 수 없습니다: " + row.itemNo(), null);
+        }
+        if (lot.status() == LotStatus.BLOCKED) {
+            return copyCandidate(row, false, "차단된 Lot는 입출고할 수 없습니다: " + lot.lotNo(), lot.lotNo());
+        }
+        int fiscalYear = fiscalCalendarService.resolvePeriod(LocalDate.now()).fiscalYear();
+        BigDecimal lotQty = lotRepository.sumQtyOnHand(
+                lot.id(), LOCATION_DELIVERY, fiscalYear, null, null, null);
+        boolean billable = row.billable();
+        String message = row.billableMessage();
+        if (lotQty.compareTo(BigDecimal.ZERO) <= 0) {
+            billable = false;
+            message = joinMessage(message, "납품창고 Lot 잔량이 없습니다: " + lot.lotNo());
+        } else if (lotQty.compareTo(row.remainingQty()) < 0) {
+            message = joinMessage(
+                    message,
+                    InventoryLocationLabels.label(LOCATION_DELIVERY) + " Lot 잔량("
+                            + lotQty.stripTrailingZeros().toPlainString()
+                            + ")이 매출 잔량보다 적습니다: " + lot.lotNo()
+            );
+        }
+        return copyCandidate(row, billable, message, lot.lotNo());
+    }
+
+    private static SalesRevenueCandidateView copyCandidate(
+            SalesRevenueCandidateView row,
+            boolean billable,
+            String message,
+            String shipmentLotNo
+    ) {
+        return new SalesRevenueCandidateView(
+                row.shipmentLineId(),
+                row.shipmentId(),
+                row.shipmentNo(),
+                row.shipmentDate(),
+                row.partnerId(),
+                row.partnerName(),
+                row.orderLineId(),
+                row.orderNo(),
+                row.itemId(),
+                row.itemNo(),
+                row.itemName(),
+                row.shippedQty(),
+                row.invoicedQty(),
+                row.remainingQty(),
+                row.deliveryOnHandQty(),
+                row.unitPrice(),
+                billable,
+                message,
+                row.lotTracked(),
+                row.shipmentLotId(),
+                shipmentLotNo
+        );
+    }
+
+    private static String joinMessage(String current, String next) {
+        if (current == null || current.isBlank()) {
+            return next;
+        }
+        return current + " " + next;
     }
 
     static BigDecimal lineAmount(BigDecimal qty, BigDecimal unitPrice) {
