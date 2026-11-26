@@ -665,6 +665,57 @@ header p {
   cursor: pointer;
 }
 
+.group-menu-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.group-menu-toolbar .form-actions {
+  margin: 0;
+}
+
+.group-menu-select {
+  width: min(100%, 22rem);
+}
+
+.group-menu-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.group-menu-groups fieldset {
+  border: 1px solid var(--sm-blue-100);
+  border-radius: 8px;
+  margin: 0;
+  padding: 0.7rem 0.9rem 0.85rem;
+}
+
+.group-menu-groups legend {
+  padding: 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--sm-blue-800);
+}
+
+.group-menu-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.45rem 0.75rem;
+}
+
+.app-main .group-menu-checks label.checkbox {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  width: auto;
+  font-weight: 400;
+}
+
 .form-grid label.checkbox {
   display: inline-flex;
   flex-direction: row;

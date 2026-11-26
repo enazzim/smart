@@ -74,6 +74,8 @@ public class OutsourceApplicationConfig {
 
             UnitPriceRepository unitPriceRepository,
 
+            ProcessRepository processRepository,
+
             DomainEventStore domainEventStore
 
     ) {
@@ -89,6 +91,8 @@ public class OutsourceApplicationConfig {
                 itemRepository,
 
                 unitPriceRepository,
+
+                processRepository,
 
                 domainEventStore
 

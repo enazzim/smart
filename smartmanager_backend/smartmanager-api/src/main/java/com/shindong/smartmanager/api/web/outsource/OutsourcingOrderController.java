@@ -64,9 +64,11 @@ public class OutsourcingOrderController {
     @GetMapping("/work-plan-candidates")
     @PreAuthorize("hasAuthority('outsource:order:read')")
     public List<WorkPlanOutsourceCandidateResponse> listWorkPlanCandidates(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDate
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDate,
+            @RequestParam(required = false) Long itemId,
+            @RequestParam(required = false) Long partnerId
     ) {
-        return outsourcingOrderApplicationService.listWorkPlanCandidates(orderDate).stream()
+        return outsourcingOrderApplicationService.listWorkPlanCandidates(orderDate, itemId, partnerId).stream()
                 .map(WorkPlanOutsourceCandidateResponse::from)
                 .toList();
     }

@@ -113,9 +113,23 @@ export async function fetchOutsourcingOrders(params?: OutsourcingOrderListParams
   return handleResponse(await apiFetch(`/api/v1/outsource/orders${buildQuery(params)}`));
 }
 
-export async function fetchWorkPlanOutsourceCandidates(orderDate?: string): Promise<WorkPlanOutsourceCandidate[]> {
-  const search = orderDate ? `?orderDate=${encodeURIComponent(orderDate)}` : '';
-  return handleResponse(await apiFetch(`/api/v1/outsource/orders/work-plan-candidates${search}`));
+export type WorkPlanOutsourceCandidateSearch = {
+  orderDate?: string;
+  itemId?: number;
+  partnerId?: number;
+};
+
+export async function fetchWorkPlanOutsourceCandidates(
+  params?: WorkPlanOutsourceCandidateSearch,
+): Promise<WorkPlanOutsourceCandidate[]> {
+  const search = new URLSearchParams();
+  if (params?.orderDate) search.set('orderDate', params.orderDate);
+  if (params?.itemId != null) search.set('itemId', String(params.itemId));
+  if (params?.partnerId != null) search.set('partnerId', String(params.partnerId));
+  const query = search.toString();
+  return handleResponse(
+    await apiFetch(`/api/v1/outsource/orders/work-plan-candidates${query ? `?${query}` : ''}`),
+  );
 }
 
 export async function createOutsourcingOrderFromWorkPlan(payload: {

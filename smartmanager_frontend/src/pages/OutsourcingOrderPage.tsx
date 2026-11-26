@@ -8,7 +8,9 @@ import {
   type OutsourcingOrder,
   type OutsourcingOrderListParams,
   type WorkPlanOutsourceCandidate,
+  type WorkPlanOutsourceCandidateSearch,
 } from '../api/outsourcingOrder';
+import type { PropertyClassification } from '../api/item';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import { formatAmount, formatQty } from '../utils/numberFormat';
@@ -24,6 +26,8 @@ function addDaysIso(iso: string, days: number): string {
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
 }
+
+const OUTSOURCE_ITEM_CLASSES: PropertyClassification[] = ['공정품', '제품'];
 
 function vendorKey(workPlanId: number, partnerId: number): string {
   return `${workPlanId}:${partnerId}`;
@@ -52,6 +56,10 @@ export default function OutsourcingOrderPage() {
   const [candidates, setCandidates] = useState<WorkPlanOutsourceCandidate[]>([]);
   const [orders, setOrders] = useState<OutsourcingOrder[]>([]);
   const [orderDate, setOrderDate] = useState(todayIso());
+  const [candidateItem, setCandidateItem] = useState<ItemSearchSelection | null>(null);
+  const [candidatePartner, setCandidatePartner] = useState<CompanySearchSelection | null>(null);
+  const [candidatesSearched, setCandidatesSearched] = useState(false);
+  const appliedCandidateRef = useRef<WorkPlanOutsourceCandidateSearch>({ orderDate: todayIso() });
   const [listFilters, setListFilters] = useState<OutsourcingOrderListParams>(() => ({
     orderDateFrom: addDaysIso(todayIso(), -7),
     orderDateTo: todayIso(),
@@ -63,7 +71,7 @@ export default function OutsourcingOrderPage() {
   const [expandedWorkPlanIds, setExpandedWorkPlanIds] = useState<Set<number>>(new Set());
   const [selectedVendorKeys, setSelectedVendorKeys] = useState<Set<string>>(new Set());
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<number>>(new Set());
-  const [loadingCandidates, setLoadingCandidates] = useState(true);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
@@ -71,18 +79,30 @@ export default function OutsourcingOrderPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [tab, setTab] = useState<'register' | 'list'>('register');
 
-  const loadCandidates = useCallback(async () => {
+  const loadCandidates = useCallback(async (params?: WorkPlanOutsourceCandidateSearch) => {
+    const effective = params ?? appliedCandidateRef.current;
+    appliedCandidateRef.current = effective;
+    setCandidatesSearched(true);
     setLoadingCandidates(true);
     setCandidateError(null);
     try {
-      setCandidates(await fetchWorkPlanOutsourceCandidates(orderDate));
+      setCandidates(await fetchWorkPlanOutsourceCandidates(effective));
+      setSelectedVendorKeys(new Set());
     } catch (e) {
       setCandidateError(e instanceof Error ? e.message : '작업계획 발주 대상 조회 실패');
       setCandidates([]);
     } finally {
       setLoadingCandidates(false);
     }
-  }, [orderDate]);
+  }, []);
+
+  const onSearchCandidates = () => {
+    void loadCandidates({
+      orderDate,
+      itemId: candidateItem?.id,
+      partnerId: candidatePartner?.id,
+    });
+  };
 
   /** 마지막으로 조회 버튼에서 확정한 조건으로 목록을 조회한다. */
   const loadOrders = useCallback(async () => {
@@ -108,11 +128,7 @@ export default function OutsourcingOrderPage() {
     void loadOrders();
   };
 
-  useEffect(() => {
-    void loadCandidates();
-  }, [loadCandidates]);
-
-  // 최초 진입 시 1회 조회 (이후에는 조회 버튼·등록/취소 후에만 재조회)
+  // 발주 목록만 최초 1회 조회한다. 작업계획 후보는 검색 버튼에서 조회한다.
   useEffect(() => {
     void loadOrders();
   }, [loadOrders]);
@@ -242,7 +258,9 @@ export default function OutsourcingOrderPage() {
       }
       setMessage(`외주발주 ${created.map((o) => o.orderNo).join(', ')}을(를) 등록했습니다.`);
       setSelectedVendorKeys(new Set());
-      await loadCandidates();
+      if (candidatesSearched) {
+        await loadCandidates();
+      }
       await loadOrders();
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : '외주발주 등록 실패');
@@ -258,7 +276,9 @@ export default function OutsourcingOrderPage() {
     try {
       await cancelOutsourcingOrder(order.id);
       setMessage(`외주발주 ${order.orderNo}을(를) 취소했습니다.`);
-      await loadCandidates();
+      if (candidatesSearched) {
+        await loadCandidates();
+      }
       await loadOrders();
     } catch (e) {
       setOrderError(e instanceof Error ? e.message : '외주발주 취소 실패');
@@ -291,13 +311,27 @@ export default function OutsourcingOrderPage() {
       {tab === 'register' && (
       <section className="panel">
         <h2>작업계획 발주 후보</h2>
-        <div className="action-bar">
+        <div className="form-grid-wide">
           <label>
             발주일
             <input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} disabled={submitting} />
           </label>
-          <button type="button" className="secondary" onClick={() => void loadCandidates()} disabled={loadingCandidates}>
-            새로고침
+          <CompanySearchField
+            label="거래처"
+            partnerType="OUTSOURCE"
+            selectedCompany={candidatePartner}
+            onSelect={setCandidatePartner}
+          />
+          <ItemSearchField
+            label="품목"
+            allowedClassifications={OUTSOURCE_ITEM_CLASSES}
+            selectedItem={candidateItem}
+            onSelect={setCandidateItem}
+          />
+        </div>
+        <div className="form-actions">
+          <button type="button" onClick={onSearchCandidates} disabled={loadingCandidates}>
+            {loadingCandidates ? '조회 중…' : '검색'}
           </button>
           <button
             type="button"
@@ -307,10 +341,11 @@ export default function OutsourcingOrderPage() {
             {submitting ? '등록 중…' : `선택 발주 (${selectedCount})`}
           </button>
         </div>
+        {candidateError && <p className="error-banner">{candidateError}</p>}
         {loadingCandidates ? (
           <p>불러오는 중…</p>
-        ) : candidateError ? (
-          <p className="error-banner">{candidateError}</p>
+        ) : !candidatesSearched ? (
+          <p>검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요. 거래처와 품목을 비우면 공정품·제품 외주 작업계획 전체가 조회됩니다.</p>
         ) : candidates.length === 0 ? (
           <p className="hint">발주 가능한 외주 작업계획이 없습니다.</p>
         ) : (

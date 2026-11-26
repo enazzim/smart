@@ -127,9 +127,21 @@ export async function fetchPurchaseOrders(params?: PurchaseOrderListParams): Pro
   return handleResponse(res);
 }
 
-export async function fetchMrpPurchaseCandidates(orderDate?: string): Promise<MrpPurchaseCandidate[]> {
-  const query = orderDate ? `?orderDate=${encodeURIComponent(orderDate)}` : '';
-  const res = await apiFetch(`/api/v1/purchase/orders/mrp-candidates${query}`);
+export type MrpPurchaseCandidateSearch = {
+  orderDate?: string;
+  itemId?: number;
+  partnerId?: number;
+};
+
+export async function fetchMrpPurchaseCandidates(
+  params?: MrpPurchaseCandidateSearch,
+): Promise<MrpPurchaseCandidate[]> {
+  const search = new URLSearchParams();
+  if (params?.orderDate) search.set('orderDate', params.orderDate);
+  if (params?.itemId != null) search.set('itemId', String(params.itemId));
+  if (params?.partnerId != null) search.set('partnerId', String(params.partnerId));
+  const query = search.toString();
+  const res = await apiFetch(`/api/v1/purchase/orders/mrp-candidates${query ? `?${query}` : ''}`);
   return handleResponse(res);
 }
 

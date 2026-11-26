@@ -26,7 +26,7 @@ public class UnitPriceService {
     private static final Set<PropertyClassification> PURCHASE_ITEM_CLASSES =
             EnumSet.of(PropertyClassification.원자재, PropertyClassification.상품, PropertyClassification.부자재);
     private static final Set<PropertyClassification> SALE_ITEM_CLASSES =
-            EnumSet.of(PropertyClassification.제품, PropertyClassification.상품, PropertyClassification.공정품);
+            EnumSet.of(PropertyClassification.제품, PropertyClassification.상품);
     private static final Set<PropertyClassification> OUTSOURCE_ITEM_CLASSES =
             EnumSet.of(PropertyClassification.제품, PropertyClassification.공정품);
 
@@ -279,7 +279,7 @@ public class UnitPriceService {
         if (!allowed.contains(item.propertyClassification())) {
             String allowedLabel = switch (costType) {
                 case PURCHASE -> "원자재·상품·부자재";
-                case SALE -> "제품·상품·공정품";
+                case SALE -> "제품·상품";
                 case OUTSOURCE -> "제품·공정품";
             };
             throw new IllegalArgumentException(

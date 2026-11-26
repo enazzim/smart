@@ -1,6 +1,8 @@
 package com.shindong.smartmanager.application.auth;
 
+import com.shindong.smartmanager.application.menu.WorkDiaryGroupMenuRepository;
 import com.shindong.smartmanager.application.security.PasswordHasher;
+import java.util.List;
 import java.util.function.LongPredicate;
 
 public class AuthService {
@@ -9,17 +11,20 @@ public class AuthService {
     private final PasswordHasher passwordHasher;
     private final JwtTokenPort jwtTokenPort;
     private final LongPredicate workDiaryApprover;
+    private final WorkDiaryGroupMenuRepository workDiaryGroupMenuRepository;
 
     public AuthService(
             AuthUserRepository authUserRepository,
             PasswordHasher passwordHasher,
             JwtTokenPort jwtTokenPort,
-            LongPredicate workDiaryApprover
+            LongPredicate workDiaryApprover,
+            WorkDiaryGroupMenuRepository workDiaryGroupMenuRepository
     ) {
         this.authUserRepository = authUserRepository;
         this.passwordHasher = passwordHasher;
         this.jwtTokenPort = jwtTokenPort;
         this.workDiaryApprover = workDiaryApprover;
+        this.workDiaryGroupMenuRepository = workDiaryGroupMenuRepository;
     }
 
     public AuthTokenView login(LoginCommand command) {
@@ -97,7 +102,16 @@ public class AuthService {
                 user.roleCodes(),
                 user.authorities(),
                 user.workDiaryGroupId(),
-                workDiaryApprover.test(user.id())
+                workDiaryApprover.test(user.id()),
+                allowedMenuIds(user)
         );
+    }
+
+    /** 그룹이 없거나 시스템 관리자면 null. 그룹이 있으면 허용 메뉴(없을 수 있음). */
+    private List<String> allowedMenuIds(AuthUserRepository.AuthUserRecord user) {
+        if (user.roleCodes().contains("SYSTEM_ADMIN") || user.workDiaryGroupId() == null) {
+            return null;
+        }
+        return workDiaryGroupMenuRepository.findMenuIds(user.workDiaryGroupId());
     }
 }

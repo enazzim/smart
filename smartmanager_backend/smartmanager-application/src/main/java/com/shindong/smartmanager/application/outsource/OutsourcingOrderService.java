@@ -4,6 +4,8 @@ import com.shindong.smartmanager.application.company.CompanyRepository;
 import com.shindong.smartmanager.application.event.DomainEventStore;
 import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
+import com.shindong.smartmanager.application.process.ProcessRepository;
+import com.shindong.smartmanager.application.process.ProcessView;
 import com.shindong.smartmanager.application.production.WorkPlanRepository;
 import com.shindong.smartmanager.application.production.WorkPlanView;
 import com.shindong.smartmanager.application.unitprice.UnitPriceRepository;
@@ -16,6 +18,7 @@ import com.shindong.smartmanager.domain.item.PropertyClassification;
 import com.shindong.smartmanager.domain.outsource.OutsourcingOrderSourceType;
 import com.shindong.smartmanager.domain.outsource.OutsourcingOrderStatus;
 import com.shindong.smartmanager.domain.pricing.CostType;
+import com.shindong.smartmanager.domain.process.ProcessVariant;
 import com.shindong.smartmanager.domain.process.WorkDistinction;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -48,6 +51,7 @@ public class OutsourcingOrderService {
     private final CompanyRepository companyRepository;
     private final ItemRepository itemRepository;
     private final UnitPriceRepository unitPriceRepository;
+    private final ProcessRepository processRepository;
     private final DomainEventStore domainEventStore;
 
     public OutsourcingOrderService(
@@ -56,6 +60,7 @@ public class OutsourcingOrderService {
             CompanyRepository companyRepository,
             ItemRepository itemRepository,
             UnitPriceRepository unitPriceRepository,
+            ProcessRepository processRepository,
             DomainEventStore domainEventStore
     ) {
         this.outsourcingOrderRepository = outsourcingOrderRepository;
@@ -63,6 +68,7 @@ public class OutsourcingOrderService {
         this.companyRepository = companyRepository;
         this.itemRepository = itemRepository;
         this.unitPriceRepository = unitPriceRepository;
+        this.processRepository = processRepository;
         this.domainEventStore = domainEventStore;
     }
 
@@ -189,9 +195,18 @@ public class OutsourcingOrderService {
     }
 
     public List<WorkPlanOutsourceCandidateView> listWorkPlanCandidates(LocalDate orderDate) {
+        return listWorkPlanCandidates(orderDate, null, null);
+    }
+
+    public List<WorkPlanOutsourceCandidateView> listWorkPlanCandidates(
+            LocalDate orderDate,
+            Long itemId,
+            Long partnerId
+    ) {
         LocalDate effectiveDate = orderDate != null ? orderDate : LocalDate.now();
         List<WorkPlanView> outsourcePlans = workPlanRepository.findAllActive(null).stream()
                 .filter(plan -> plan.workDistinction() == WorkDistinction.OUTSOURCE)
+                .filter(plan -> itemId == null || plan.itemId() == itemId)
                 .toList();
         if (outsourcePlans.isEmpty()) {
             return List.of();
@@ -201,21 +216,56 @@ public class OutsourcingOrderService {
         Map<Long, BigDecimal> orderedQtyByWorkPlanId =
                 outsourcingOrderRepository.sumOrderedQtyByWorkPlanIds(workPlanIds);
 
-        Set<Long> itemIds = outsourcePlans.stream().map(WorkPlanView::itemId).collect(Collectors.toSet());
+        Map<Long, Boolean> allowedItemById = new HashMap<>();
+        Set<Long> itemIds = outsourcePlans.stream()
+                .filter(plan -> hasRemainingQty(plan, orderedQtyByWorkPlanId))
+                .map(WorkPlanView::itemId)
+                .filter(id -> isAllowedOutsourceItem(id, allowedItemById))
+                .collect(Collectors.toSet());
         Map<Long, List<UnitPriceView>> pricesByItemId =
                 resolveEffectiveOutsourcePricesByItem(itemIds, effectiveDate);
+        Map<Long, List<ProcessView>> processesByItemId = new HashMap<>();
+        for (Long id : itemIds) {
+            processesByItemId.put(id, processRepository.findAllActiveByItemId(id, ProcessVariant.plan));
+        }
 
         List<WorkPlanOutsourceCandidateView> candidates = new ArrayList<>();
         for (WorkPlanView plan : outsourcePlans) {
+            if (!isAllowedOutsourceItem(plan.itemId(), allowedItemById)) {
+                continue;
+            }
             BigDecimal orderedQty = orderedQtyByWorkPlanId.getOrDefault(plan.id(), BigDecimal.ZERO);
             BigDecimal remainingQty = plan.plannedQty().subtract(orderedQty);
             if (remainingQty.compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
             List<UnitPriceView> prices = pricesByItemId.getOrDefault(plan.itemId(), List.of());
-            candidates.add(toWorkPlanCandidateView(plan, orderedQty, remainingQty, prices, effectiveDate));
+            List<ProcessView> processes = processesByItemId.getOrDefault(plan.itemId(), List.of());
+            WorkPlanOutsourceCandidateView candidate =
+                    toWorkPlanCandidateView(plan, orderedQty, remainingQty, prices, processes);
+            if (partnerId != null && candidate.vendors().stream().noneMatch(vendor -> vendor.partnerId() == partnerId)) {
+                continue;
+            }
+            candidates.add(candidate);
         }
         return candidates;
+    }
+
+    private boolean hasRemainingQty(WorkPlanView plan, Map<Long, BigDecimal> orderedQtyByWorkPlanId) {
+        BigDecimal orderedQty = orderedQtyByWorkPlanId.getOrDefault(plan.id(), BigDecimal.ZERO);
+        return plan.plannedQty().subtract(orderedQty).compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    private boolean isAllowedOutsourceItem(long itemId, Map<Long, Boolean> cache) {
+        Boolean cached = cache.get(itemId);
+        if (cached != null) {
+            return cached;
+        }
+        boolean allowed = itemRepository.findActiveById(itemId)
+                .map(item -> ALLOWED_ITEM_CLASSES.contains(item.propertyClassification()))
+                .orElse(false);
+        cache.put(itemId, allowed);
+        return allowed;
     }
 
     public OutsourcingOrderView register(OutsourcingOrderCommand command, String actorUserId) {
@@ -320,10 +370,11 @@ public class OutsourcingOrderService {
             BigDecimal orderedQty,
             BigDecimal remainingQty,
             List<UnitPriceView> outsourcePrices,
-            LocalDate orderDate
+            List<ProcessView> processes
     ) {
         List<UnitPriceView> allocatable = outsourcePrices.stream()
                 .filter(price -> price.orderRate() != null && price.orderRate().compareTo(BigDecimal.ZERO) > 0)
+                .filter(price -> coversWorkPlanProcess(plan, price, processes))
                 .sorted((left, right) -> left.companyName().compareToIgnoreCase(right.companyName()))
                 .toList();
         BigDecimal orderRateTotal = allocatable.stream()
@@ -371,6 +422,28 @@ public class OutsourcingOrderService {
         if (orderRateTotal.compareTo(HUNDRED) != 0) {
             return "발주비율 합계가 100%가 아닙니다. (현재 "
                     + orderRateTotal.stripTrailingZeros().toPlainString() + "%)";
+        }
+        return null;
+    }
+
+    /** 외주단가의 시작·종료 공정 순번이 작업계획 공정을 포함하는지 확인한다. */
+    private boolean coversWorkPlanProcess(WorkPlanView plan, UnitPriceView price, List<ProcessView> processes) {
+        if (price.beginProcessCodeId() == null || price.endProcessCodeId() == null) {
+            return false;
+        }
+        Short begin = sequenceOf(processes, price.beginProcessCodeId());
+        Short end = sequenceOf(processes, price.endProcessCodeId());
+        if (begin == null || end == null || begin > end) {
+            return false;
+        }
+        return plan.processSequenceNum() >= begin && plan.processSequenceNum() <= end;
+    }
+
+    private Short sequenceOf(List<ProcessView> processes, long processCodeId) {
+        for (ProcessView process : processes) {
+            if (process.processCodeId() == processCodeId) {
+                return process.processSequenceNum();
+            }
         }
         return null;
     }

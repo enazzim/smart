@@ -47,8 +47,8 @@ public class PurchaseOrderApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<MrpPurchaseCandidateView> listMrpCandidates(LocalDate orderDate) {
-        return purchaseOrderService.listMrpCandidates(orderDate);
+    public List<MrpPurchaseCandidateView> listMrpCandidates(LocalDate orderDate, Long itemId, Long partnerId) {
+        return purchaseOrderService.listMrpCandidates(orderDate, itemId, partnerId);
     }
 
     @Transactional(readOnly = true)

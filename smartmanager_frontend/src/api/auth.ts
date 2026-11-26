@@ -10,6 +10,8 @@ export interface AuthenticatedUser {
   authorities: string[];
   workDiaryGroupId?: number | null;
   workDiaryApprover?: boolean;
+  /** null이면 그룹 제한 없음. 배열이면 그 메뉴만 허용. */
+  allowedMenuIds?: string[] | null;
 }
 
 export interface AuthTokenResponse {

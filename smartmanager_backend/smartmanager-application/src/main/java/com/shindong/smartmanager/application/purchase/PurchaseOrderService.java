@@ -35,6 +35,10 @@ public class PurchaseOrderService {
     private static final Set<PropertyClassification> ALLOWED_ITEM_CLASSES =
             EnumSet.of(PropertyClassification.원자재, PropertyClassification.상품, PropertyClassification.부자재);
 
+    /** MRP 발주 대상 조회. 부자재는 부자재발주 탭에서 직접 발주한다. */
+    private static final Set<PropertyClassification> MRP_CANDIDATE_CLASSES =
+            EnumSet.of(PropertyClassification.원자재, PropertyClassification.상품);
+
     private static final BigDecimal HUNDRED = new BigDecimal("100");
 
     /** 기업정보(tenant-profile) API 연동 전 발주서 발신 기본값 */
@@ -175,6 +179,10 @@ public class PurchaseOrderService {
     }
 
     public List<MrpPurchaseCandidateView> listMrpCandidates(LocalDate refDate) {
+        return listMrpCandidates(refDate, null, null);
+    }
+
+    public List<MrpPurchaseCandidateView> listMrpCandidates(LocalDate refDate, Long itemId, Long partnerId) {
         LocalDate effectiveDate = refDate != null ? refDate : LocalDate.now();
         List<MaterialRequirementLineView> lines = mrpRepository.findAllActiveLines();
         if (lines.isEmpty()) {
@@ -183,6 +191,7 @@ public class PurchaseOrderService {
         Set<Long> lineIds = lines.stream().map(MaterialRequirementLineView::id).collect(Collectors.toSet());
         Map<Long, BigDecimal> orderedQtyByLineId = purchaseOrderRepository.sumOrderedQtyByRequirementLineIds(lineIds);
         Set<Long> itemIds = lines.stream()
+                .filter(line -> matchesMrpCandidate(line, itemId))
                 .filter(line -> hasRemainingQty(line, orderedQtyByLineId))
                 .map(MaterialRequirementLineView::componentItemId)
                 .collect(Collectors.toSet());
@@ -191,22 +200,36 @@ public class PurchaseOrderService {
 
         List<MrpPurchaseCandidateView> candidates = new ArrayList<>();
         for (MaterialRequirementLineView line : lines) {
+            if (!matchesMrpCandidate(line, itemId)) {
+                continue;
+            }
             BigDecimal orderedQty = orderedQtyByLineId.getOrDefault(line.id(), BigDecimal.ZERO);
             BigDecimal remainingQty = line.grossQty().subtract(orderedQty);
             if (remainingQty.compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
             Integer leadTimeDays = leadTimeByItemId.get(line.componentItemId());
-            candidates.add(toMrpPurchaseCandidateView(
+            MrpPurchaseCandidateView candidate = toMrpPurchaseCandidateView(
                     line,
                     remainingQty,
                     orderedQty,
                     pricesByItemId.getOrDefault(line.componentItemId(), List.of()),
                     leadTimeDays,
                     effectiveDate
-            ));
+            );
+            if (partnerId != null && candidate.vendors().stream().noneMatch(vendor -> vendor.partnerId() == partnerId)) {
+                continue;
+            }
+            candidates.add(candidate);
         }
         return candidates;
+    }
+
+    private boolean matchesMrpCandidate(MaterialRequirementLineView line, Long itemId) {
+        if (!MRP_CANDIDATE_CLASSES.contains(line.componentPropertyClassification())) {
+            return false;
+        }
+        return itemId == null || line.componentItemId() == itemId;
     }
 
     private boolean hasRemainingQty(MaterialRequirementLineView line, Map<Long, BigDecimal> orderedQtyByLineId) {

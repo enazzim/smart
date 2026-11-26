@@ -139,21 +139,54 @@ export function isDashboardSelection(category: string): boolean {
   return category === 'home' || category === 'board' || category === 'workdiary';
 }
 
+export function isChildMenuAllowed(
+  roleCodes: string[],
+  workDiaryGroupId: number | null | undefined,
+  allowedMenuIds: readonly string[] | null | undefined,
+  menuId: string,
+): boolean {
+  if (roleCodes.includes('SYSTEM_ADMIN') || workDiaryGroupId == null) {
+    return true;
+  }
+  return (allowedMenuIds ?? []).includes(menuId);
+}
+
 export function isSelectionVisible(
-  selection: { category: string },
+  selection: { category: string; page?: string },
   roleCodes: string[],
   authorities: string[] = [],
+  menuGrant?: {
+    workDiaryGroupId?: number | null;
+    allowedMenuIds?: readonly string[] | null;
+  },
 ): boolean {
+  let categoryVisible: boolean;
   switch (selection.category) {
     case 'home':
     case 'board':
     case 'workdiary':
-      return isCategoryVisible('home', roleCodes);
+      categoryVisible = isCategoryVisible('home', roleCodes);
+      break;
     case 'basis':
-      return canOpenBasis(roleCodes, authorities);
+      categoryVisible = canOpenBasis(roleCodes, authorities);
+      break;
     case 'system':
-      return isCategoryVisible('system', roleCodes);
+      categoryVisible = isCategoryVisible('system', roleCodes);
+      break;
     default:
-      return isCategoryVisible(selection.category, roleCodes);
+      categoryVisible = isCategoryVisible(selection.category, roleCodes);
+      break;
   }
+  if (!categoryVisible) {
+    return false;
+  }
+  if (selection.page && !isChildMenuAllowed(
+    roleCodes,
+    menuGrant?.workDiaryGroupId,
+    menuGrant?.allowedMenuIds,
+    selection.page,
+  )) {
+    return false;
+  }
+  return true;
 }

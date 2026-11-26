@@ -68,9 +68,11 @@ public class PurchaseOrderController {
     @GetMapping("/mrp-candidates")
     @PreAuthorize("hasAuthority('purchase:order:read')")
     public List<MrpPurchaseCandidateResponse> listMrpCandidates(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDate
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDate,
+            @RequestParam(required = false) Long itemId,
+            @RequestParam(required = false) Long partnerId
     ) {
-        return purchaseOrderApplicationService.listMrpCandidates(orderDate).stream()
+        return purchaseOrderApplicationService.listMrpCandidates(orderDate, itemId, partnerId).stream()
                 .map(MrpPurchaseCandidateResponse::from)
                 .toList();
     }

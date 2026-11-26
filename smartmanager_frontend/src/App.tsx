@@ -20,7 +20,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { MaterialIssueSettingProvider } from './context/MaterialIssueSettingContext';
 import { isSelectionVisible } from './layout/menuAccess';
-import { defaultChildId, type MenuCategory } from './layout/menuConfig';
+import { type MenuCategory } from './layout/menuConfig';
 import {
   clearSavedNavPath,
   expandedCategoryFromSelection,
@@ -90,7 +90,10 @@ function AuthenticatedApp({
       navigate('/', { replace: true });
       return;
     }
-    if (!isSelectionVisible(selection, currentUser.roleCodes, currentUser.authorities)) {
+    if (!isSelectionVisible(selection, currentUser.roleCodes, currentUser.authorities, {
+      workDiaryGroupId: currentUser.workDiaryGroupId,
+      allowedMenuIds: currentUser.allowedMenuIds,
+    })) {
       navigate('/', { replace: true });
       setExpandedCategory('home');
     }
@@ -124,7 +127,6 @@ function AuthenticatedApp({
       return;
     }
     setExpandedCategory((prev) => (prev === category ? null : category));
-    navigate(pathForCategory(category, defaultChildId(category)));
   };
 
   const onSelectChild = (category: MenuCategory, childId: string) => {

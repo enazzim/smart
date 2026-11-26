@@ -8,6 +8,7 @@ import {
   fetchPurchaseOrders,
   openPurchaseOrderPrint,
   type MrpPurchaseCandidate,
+  type MrpPurchaseCandidateSearch,
   type MrpPurchaseCandidateVendor,
   type PurchaseOrder,
   type PurchaseOrderListParams,
@@ -132,7 +133,11 @@ export default function PurchaseOrderPage() {
   /** 마지막으로 검색 버튼(또는 탭 진입)에서 적용된 조회 조건 — 등록·취소 후 재조회에 사용 */
   const appliedListParamsRef = useRef<PurchaseOrderListParams>(defaultListFilters('GENERAL'));
   const [lastCreatedOrders, setLastCreatedOrders] = useState<PurchaseOrder[]>([]);
-  const [loadingCandidates, setLoadingCandidates] = useState(true);
+  const [candidateItem, setCandidateItem] = useState<ItemSearchSelection | null>(null);
+  const [candidatePartner, setCandidatePartner] = useState<CompanySearchSelection | null>(null);
+  const [candidatesSearched, setCandidatesSearched] = useState(false);
+  const appliedCandidateRef = useRef<MrpPurchaseCandidateSearch>({ orderDate: todayIso() });
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
@@ -149,18 +154,30 @@ export default function PurchaseOrderPage() {
   const [manualLines, setManualLines] = useState<ManualPurchaseLine[]>(() => [newManualLine()]);
   const [manualError, setManualError] = useState<string | null>(null);
 
-  const loadCandidates = useCallback(async () => {
+  const loadCandidates = useCallback(async (params?: MrpPurchaseCandidateSearch) => {
+    const effective = params ?? appliedCandidateRef.current;
+    appliedCandidateRef.current = effective;
+    setCandidatesSearched(true);
     setLoadingCandidates(true);
     setCandidateError(null);
     try {
-      setCandidates(await fetchMrpPurchaseCandidates(orderDate));
+      setCandidates(await fetchMrpPurchaseCandidates(effective));
+      setSelectedVendorKeys(new Set());
     } catch (e) {
       setCandidateError(e instanceof Error ? e.message : 'MRP 발주 대상 조회 실패');
       setCandidates([]);
     } finally {
       setLoadingCandidates(false);
     }
-  }, [orderDate]);
+  }, []);
+
+  const onSearchCandidates = () => {
+    void loadCandidates({
+      orderDate,
+      itemId: candidateItem?.id,
+      partnerId: candidatePartner?.id,
+    });
+  };
 
   /** params 생략 시 마지막으로 적용된 조건으로 재조회한다. 필터 입력 변경만으로는 호출되지 않는다. */
   const loadOrders = useCallback(async (params?: PurchaseOrderListParams) => {
@@ -216,11 +233,11 @@ export default function PurchaseOrderPage() {
 
   const refreshAll = useCallback(async () => {
     setSelectedVendorKeys(new Set());
-    if (pageTab === 'general') {
+    if (pageTab === 'general' && candidatesSearched) {
       await loadCandidates();
     }
     await loadOrders();
-  }, [loadCandidates, loadOrders, pageTab]);
+  }, [candidatesSearched, loadCandidates, loadOrders, pageTab]);
 
   // 마운트·탭(scope) 전환 시 기본 조건으로 1회만 조회한다. 이후 필터 입력으로는 재조회하지 않는다.
   useEffect(() => {
@@ -241,12 +258,6 @@ export default function PurchaseOrderPage() {
     setOrderError(null);
     setCandidateError(null);
   }, [itemPropertyScope, loadOrders]);
-
-  useEffect(() => {
-    if (pageTab === 'general') {
-      void loadCandidates();
-    }
-  }, [pageTab, loadCandidates]);
 
   const candidateByRequirementId = useMemo(() => {
     const map = new Map<number, MrpPurchaseCandidate>();
@@ -455,7 +466,9 @@ export default function PurchaseOrderPage() {
         );
       }
       setSelectedVendorKeys(new Set());
-      await loadCandidates();
+      if (candidatesSearched) {
+        await loadCandidates();
+      }
       await reloadOrdersIncluding(orderDate);
     } catch (e) {
       setCandidateError(e instanceof Error ? e.message : 'MRP 발주 등록 실패');
@@ -749,8 +762,23 @@ export default function PurchaseOrderPage() {
             발주일
             <input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
           </label>
+          <CompanySearchField
+            label="거래처"
+            partnerType="PURCHASE"
+            selectedCompany={candidatePartner}
+            onSelect={setCandidatePartner}
+          />
+          <ItemSearchField
+            label="품목"
+            allowedClassifications={GENERAL_ITEM_CLASSES}
+            selectedItem={candidateItem}
+            onSelect={setCandidateItem}
+          />
         </div>
         <div className="form-actions">
+          <button type="button" disabled={loadingCandidates} onClick={onSearchCandidates}>
+            {loadingCandidates ? '조회 중…' : '검색'}
+          </button>
           <button
             type="button"
             disabled={submitting || selectedCount === 0}
@@ -758,12 +786,11 @@ export default function PurchaseOrderPage() {
           >
             {submitting ? '처리 중…' : `선택 발주 (${selectedCount})`}
           </button>
-          <button type="button" className="secondary" onClick={() => void loadCandidates()}>
-            새로고침
-          </button>
         </div>
         {loadingCandidates ? (
           <p>불러오는 중…</p>
+        ) : !candidatesSearched ? (
+          <p>검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요. 거래처와 품목을 비우면 원자재·상품 자재소요 전체가 조회됩니다.</p>
         ) : candidates.length === 0 ? (
           <p>발주 가능한 자재소요가 없습니다.</p>
         ) : (

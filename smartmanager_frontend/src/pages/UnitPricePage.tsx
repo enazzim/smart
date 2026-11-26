@@ -75,7 +75,7 @@ const TAB_CONFIG: {
     type: 'SALE',
     label: '판매단가',
     partnerType: 'SALES',
-    itemClasses: ['제품', '상품', '공정품'],
+    itemClasses: ['제품', '상품'],
     showProcess: false,
     orderRateDisabled: true,
   },

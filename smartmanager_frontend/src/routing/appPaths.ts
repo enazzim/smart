@@ -30,6 +30,7 @@ const SYSTEM_PAGES = new Set<string>([
   'role',
   'monthClosing',
   'systemSettings',
+  'groupMenu',
 ]);
 
 const SALES_PAGES = new Set<string>(['sales-order', 'sales-shipment', 'sales-revenue', 'sales-collection']);

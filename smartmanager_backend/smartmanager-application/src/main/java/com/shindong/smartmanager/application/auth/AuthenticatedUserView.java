@@ -9,6 +9,7 @@ public record AuthenticatedUserView(
         List<String> roleCodes,
         List<String> authorities,
         Long workDiaryGroupId,
-        boolean workDiaryApprover
+        boolean workDiaryApprover,
+        List<String> allowedMenuIds
 ) {
 }

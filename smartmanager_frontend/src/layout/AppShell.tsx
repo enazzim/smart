@@ -14,7 +14,7 @@ import {
   renderSystemPage,
 } from './menuConfig';
 import { useAuth } from '../context/AuthContext';
-import { canAccessSelfAccount, getVisibleMenuCategories, isDashboardSelection } from './menuAccess';
+import { canAccessSelfAccount, getVisibleMenuCategories, isChildMenuAllowed, isDashboardSelection } from './menuAccess';
 import BasisInfoPage from '../pages/BasisInfoPage';
 import BoardPage from '../pages/BoardPage';
 import DashboardPage from '../pages/DashboardPage';
@@ -157,6 +157,19 @@ export default function AppShell({
         )}
         <aside id="app-sidebar" className="app-sidebar" aria-label="메인 메뉴">
           {MENU_GROUPS.filter((group) => visibleCategories.has(group.id)).map((group) => {
+            const visibleChildren = (group.children ?? []).filter(
+              (child) =>
+                (child.id !== 'prod-material-issue' || materialIssueEnabled) &&
+                isChildMenuAllowed(
+                  currentUser?.roleCodes ?? [],
+                  currentUser?.workDiaryGroupId,
+                  currentUser?.allowedMenuIds,
+                  child.id,
+                ),
+            );
+            if (!group.direct && visibleChildren.length === 0) {
+              return null;
+            }
             const expanded = expandedCategory === group.id;
             const isDirect = group.direct === true;
             const isActive =
@@ -173,14 +186,9 @@ export default function AppShell({
                 >
                   {group.label}
                 </button>
-                {!isDirect && expanded && group.children && (
+                {!isDirect && expanded && (
                   <ul className="menu-children">
-                    {group.children
-                      .filter(
-                        (child) =>
-                          child.id !== 'prod-material-issue' || materialIssueEnabled,
-                      )
-                      .map((child) => {
+                    {visibleChildren.map((child) => {
                       const childActive =
                         selection.category === group.id &&
                         'page' in selection &&

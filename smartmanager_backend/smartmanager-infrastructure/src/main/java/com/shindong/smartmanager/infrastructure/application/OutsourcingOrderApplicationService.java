@@ -42,8 +42,12 @@ public class OutsourcingOrderApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<WorkPlanOutsourceCandidateView> listWorkPlanCandidates(LocalDate orderDate) {
-        return outsourcingOrderService.listWorkPlanCandidates(orderDate);
+    public List<WorkPlanOutsourceCandidateView> listWorkPlanCandidates(
+            LocalDate orderDate,
+            Long itemId,
+            Long partnerId
+    ) {
+        return outsourcingOrderService.listWorkPlanCandidates(orderDate, itemId, partnerId);
     }
 
     @Transactional(readOnly = true)

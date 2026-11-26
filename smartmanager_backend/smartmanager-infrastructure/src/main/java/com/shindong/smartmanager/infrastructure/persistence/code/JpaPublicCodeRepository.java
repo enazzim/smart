@@ -1,5 +1,6 @@
 package com.shindong.smartmanager.infrastructure.persistence.code;
 
+import com.shindong.smartmanager.application.menu.WorkDiaryGroupMenuRepository;
 import com.shindong.smartmanager.infrastructure.persistence.support.MasterAuditActorLookup;
 
 import com.shindong.smartmanager.application.publiccode.CreateLargeCommand;
@@ -20,13 +21,16 @@ public class JpaPublicCodeRepository implements PublicCodeRepository {
 
     private final SpringDataPublicCodeRepository publicCodeRepository;
     private final MasterAuditActorLookup masterAuditActorLookup;
+    private final WorkDiaryGroupMenuRepository workDiaryGroupMenuRepository;
 
     public JpaPublicCodeRepository(
             SpringDataPublicCodeRepository publicCodeRepository,
-            MasterAuditActorLookup masterAuditActorLookup
+            MasterAuditActorLookup masterAuditActorLookup,
+            WorkDiaryGroupMenuRepository workDiaryGroupMenuRepository
     ) {
         this.publicCodeRepository = publicCodeRepository;
         this.masterAuditActorLookup = masterAuditActorLookup;
+        this.workDiaryGroupMenuRepository = workDiaryGroupMenuRepository;
     }
 
     @Override
@@ -156,6 +160,7 @@ public class JpaPublicCodeRepository implements PublicCodeRepository {
             entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
             entity.setUpdatedAt(now);
             publicCodeRepository.save(entity);
+            workDiaryGroupMenuRepository.deleteByGroupId(entity.getId());
         }
     }
 
@@ -167,6 +172,7 @@ public class JpaPublicCodeRepository implements PublicCodeRepository {
         entity.setUpdatedById(masterAuditActorLookup.idOf(actorUserId));
         entity.setUpdatedAt(Instant.now());
         publicCodeRepository.save(entity);
+        workDiaryGroupMenuRepository.deleteByGroupId(entity.getId());
     }
 
     @Override
