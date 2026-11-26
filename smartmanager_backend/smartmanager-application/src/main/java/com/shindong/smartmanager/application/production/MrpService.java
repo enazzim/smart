@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class MrpService {
 
@@ -52,9 +53,20 @@ public class MrpService {
         this.systemSettingService = systemSettingService;
     }
 
-    public List<ProductionPlanView> listCalculationTargets() {
+    public List<ProductionPlanView> listCalculationTargets(
+            Long itemId,
+            LocalDate requestedDeliveryDateFrom,
+            LocalDate requestedDeliveryDateTo
+    ) {
         return productionPlanRepository.findAllActive(
-                new ProductionPlanListCriteria(null, null, null, null, null, ProductionPlanMrpStatus.NOT_CALCULATED)
+                new ProductionPlanListCriteria(
+                        null,
+                        itemId,
+                        requestedDeliveryDateFrom,
+                        requestedDeliveryDateTo,
+                        null,
+                        ProductionPlanMrpStatus.NOT_CALCULATED
+                )
         ).stream()
                 .filter(plan -> plan.status() == ProductionPlanStatus.PLANNED
                         || plan.status() == ProductionPlanStatus.IN_PROGRESS)
@@ -82,16 +94,65 @@ public class MrpService {
         return enrichLineCancellable(mrpRepository.findAllActiveLines());
     }
 
-    public MaterialRequirementGroupedResult listGroupedLines(Optional<Long> mrpRunId) {
-        MrpGroupingMode groupingMode = systemSettingService.resolveMrpGroupingMode();
-        List<MaterialRequirementLineView> lines = mrpRunId.isPresent()
-                ? listLinesByRun(mrpRunId.get())
+    public MaterialRequirementGroupedResult listGroupedLines(
+            Long mrpRunId,
+            Long parentItemId,
+            Long componentItemId,
+            LocalDate requestedDeliveryDateFrom,
+            LocalDate requestedDeliveryDateTo
+    ) {
+        List<MaterialRequirementLineView> lines = mrpRunId != null
+                ? listLinesByRun(mrpRunId)
                 : listAllLines();
-
+        lines = filterRequirementLines(
+                lines,
+                parentItemId,
+                componentItemId,
+                requestedDeliveryDateFrom,
+                requestedDeliveryDateTo
+        );
+        MrpGroupingMode groupingMode = systemSettingService.resolveMrpGroupingMode();
         if (groupingMode == MrpGroupingMode.BY_PLAN) {
             return new MaterialRequirementGroupedResult(groupingMode, lines, List.of());
         }
         return new MaterialRequirementGroupedResult(groupingMode, List.of(), groupByComponent(lines));
+    }
+
+    private List<MaterialRequirementLineView> filterRequirementLines(
+            List<MaterialRequirementLineView> lines,
+            Long parentItemId,
+            Long componentItemId,
+            LocalDate requestedDeliveryDateFrom,
+            LocalDate requestedDeliveryDateTo
+    ) {
+        boolean filterDelivery = requestedDeliveryDateFrom != null || requestedDeliveryDateTo != null;
+        Map<Long, LocalDate> deliveryByPlanId = filterDelivery
+                ? productionPlanRepository.findAllActive(
+                        new ProductionPlanListCriteria(null, null, null, null, null, null)
+                ).stream().collect(Collectors.toMap(
+                        ProductionPlanView::id,
+                        ProductionPlanView::requestedDeliveryDate,
+                        (left, right) -> left
+                ))
+                : Map.of();
+        return lines.stream()
+                .filter(line -> parentItemId == null || line.parentItemId() == parentItemId)
+                .filter(line -> componentItemId == null || line.componentItemId() == componentItemId)
+                .filter(line -> matchesDelivery(deliveryByPlanId.get(line.productionPlanId()), requestedDeliveryDateFrom, requestedDeliveryDateTo))
+                .toList();
+    }
+
+    private static boolean matchesDelivery(LocalDate delivery, LocalDate from, LocalDate to) {
+        if (from == null && to == null) {
+            return true;
+        }
+        if (delivery == null) {
+            return false;
+        }
+        if (from != null && delivery.isBefore(from)) {
+            return false;
+        }
+        return to == null || !delivery.isAfter(to);
     }
 
     private List<MaterialRequirementComponentGroupView> groupByComponent(List<MaterialRequirementLineView> lines) {

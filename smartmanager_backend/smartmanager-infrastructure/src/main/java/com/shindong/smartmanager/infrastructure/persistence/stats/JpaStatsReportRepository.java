@@ -1441,13 +1441,14 @@ public class JpaStatsReportRepository implements StatsReportRepository {
     @Transactional(readOnly = true)
     public List<WarehouseMonthlyIoView> findWarehouseMonthlyIo(WarehouseMonthlyIoCriteria criteria) {
         int year = criteria.fiscalYear();
-        int month = criteria.fiscalMonth();
+        Integer month = criteria.fiscalMonth();
+        boolean allMonths = month == null;
 
         StringBuilder sql = new StringBuilder("""
                 SELECT ib.item_id, i.item_no, i.item_name,
                        il.location_code, il.location_name,
                        ps.process_sequence, pc.small_name,
-                       :fiscalYear AS fiscal_year, :fiscalMonth AS fiscal_month,
+                       :fiscalYear AS fiscal_year, months.month_num AS fiscal_month,
                        (
                          COALESCE((
                            SELECT SUM(older.stock_qty)
@@ -1465,11 +1466,49 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                            FROM inventory_balance_monthly pm
                            WHERE pm.inventory_balance_id = ib.id
                              AND pm.recording_state = 1
-                             AND pm.month_num < :fiscalMonth
+                             AND pm.month_num < months.month_num
                          ), 0)
                        ) AS carry_in_qty,
-                       COALESCE(cur.in_qty, 0) AS in_qty,
-                       COALESCE(cur.out_qty, 0) AS out_qty,
+                       GREATEST(0, COALESCE(cur.in_qty, 0) - COALESCE((
+                         SELECT SUM(CASE
+                                      WHEN sm.movement_type = 'IN' THEN sm.qty
+                                      WHEN sm.movement_type = 'ADJUST' AND sm.qty > 0 THEN sm.qty
+                                      ELSE 0 END)
+                         FROM stock_movement sm
+                         WHERE sm.inventory_balance_id = ib.id
+                           AND sm.recording_state = 1
+                           AND sm.fiscal_month = months.month_num
+                           AND (
+                             RIGHT(sm.reference_type, 7) = '_CANCEL'
+                             OR EXISTS (
+                               SELECT 1 FROM stock_movement c
+                               WHERE c.recording_state = 1
+                                 AND c.inventory_balance_id = sm.inventory_balance_id
+                                 AND c.reference_id = sm.reference_id
+                                 AND c.reference_type = CONCAT(sm.reference_type, '_CANCEL')
+                             )
+                           )
+                       ), 0)) AS in_qty,
+                       GREATEST(0, COALESCE(cur.out_qty, 0) - COALESCE((
+                         SELECT SUM(CASE
+                                      WHEN sm.movement_type = 'OUT' THEN sm.qty
+                                      WHEN sm.movement_type = 'ADJUST' AND sm.qty < 0 THEN ABS(sm.qty)
+                                      ELSE 0 END)
+                         FROM stock_movement sm
+                         WHERE sm.inventory_balance_id = ib.id
+                           AND sm.recording_state = 1
+                           AND sm.fiscal_month = months.month_num
+                           AND (
+                             RIGHT(sm.reference_type, 7) = '_CANCEL'
+                             OR EXISTS (
+                               SELECT 1 FROM stock_movement c
+                               WHERE c.recording_state = 1
+                                 AND c.inventory_balance_id = sm.inventory_balance_id
+                                 AND c.reference_id = sm.reference_id
+                                 AND c.reference_type = CONCAT(sm.reference_type, '_CANCEL')
+                             )
+                           )
+                       ), 0)) AS out_qty,
                        (
                          COALESCE((
                            SELECT SUM(older.stock_qty)
@@ -1487,18 +1526,31 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                            FROM inventory_balance_monthly pm
                            WHERE pm.inventory_balance_id = ib.id
                              AND pm.recording_state = 1
-                             AND pm.month_num < :fiscalMonth
+                             AND pm.month_num < months.month_num
                          ), 0)
                          + COALESCE(cur.stock_qty, 0)
                        ) AS ending_qty
                 FROM inventory_balance ib
+                """);
+        if (allMonths) {
+            sql.append("""
+                JOIN (
+                  SELECT 1 AS month_num UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+                  UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8
+                  UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12
+                ) months
+                """);
+        } else {
+            sql.append(" JOIN (SELECT ").append(month.intValue()).append(" AS month_num) months ");
+        }
+        sql.append("""
                 JOIN item i ON i.id = ib.item_id
                 JOIN inventory_location il ON il.id = ib.location_id
                 LEFT JOIN process_sequence ps ON ps.id = ib.output_process_id AND ps.recording_state = 1
                 LEFT JOIN public_code pc ON pc.id = ps.public_code_id
                 LEFT JOIN inventory_balance_monthly cur
                   ON cur.inventory_balance_id = ib.id
-                 AND cur.month_num = :fiscalMonth
+                 AND cur.month_num = months.month_num
                  AND cur.recording_state = 1
                 WHERE ib.recording_state = 1
                   AND ib.fiscal_year = :fiscalYear
@@ -1506,7 +1558,6 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                 """);
         Map<String, Object> params = new HashMap<>();
         params.put("fiscalYear", (short) year);
-        params.put("fiscalMonth", (byte) month);
         params.put("locationCode", criteria.locationCode());
 
         if (criteria.itemId() != null) {
@@ -1516,7 +1567,16 @@ public class JpaStatsReportRepository implements StatsReportRepository {
             sql.append(" AND (i.item_no LIKE :itemNo OR i.item_name LIKE :itemNo)");
             params.put("itemNo", "%" + criteria.itemNo().trim() + "%");
         }
-        sql.append("""
+        if (allMonths) {
+            sql.append("""
+                  AND (COALESCE(cur.in_qty, 0) <> 0
+                    OR COALESCE(cur.out_qty, 0) <> 0
+                    OR COALESCE(cur.stock_qty, 0) <> 0)
+                 ORDER BY i.item_no, ps.process_sequence, months.month_num, ib.id
+                 LIMIT 10000
+                """);
+        } else {
+            sql.append("""
                   AND (COALESCE(cur.in_qty, 0) <> 0
                     OR COALESCE(cur.out_qty, 0) <> 0
                     OR COALESCE(cur.stock_qty, 0) <> 0
@@ -1535,6 +1595,7 @@ public class JpaStatsReportRepository implements StatsReportRepository {
                  ORDER BY i.item_no, ps.process_sequence, ib.id
                  LIMIT 2000
                 """);
+        }
 
         Query query = entityManager.createNativeQuery(sql.toString());
         params.forEach(query::setParameter);

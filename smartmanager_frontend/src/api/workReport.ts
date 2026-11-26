@@ -94,6 +94,26 @@ export interface WorkReportConsumptionStatus {
   materialIssueEnabled: boolean;
 }
 
+export interface WorkReportTargetSearchParams {
+  itemNo?: string;
+  processName?: string;
+  issuedFrom?: string;
+  issuedTo?: string;
+}
+
+function buildTargetQuery(params?: WorkReportTargetSearchParams): string {
+  if (!params) {
+    return '';
+  }
+  const search = new URLSearchParams();
+  if (params.itemNo?.trim()) search.set('itemNo', params.itemNo.trim());
+  if (params.processName?.trim()) search.set('processName', params.processName.trim());
+  if (params.issuedFrom) search.set('issuedFrom', params.issuedFrom);
+  if (params.issuedTo) search.set('issuedTo', params.issuedTo);
+  const query = search.toString();
+  return query ? `?${query}` : '';
+}
+
 function buildQuery(params?: WorkReportListParams): string {
   if (!params) {
     return '';
@@ -110,8 +130,8 @@ function buildQuery(params?: WorkReportListParams): string {
   return query ? `?${query}` : '';
 }
 
-export async function fetchWorkReportTargets(): Promise<WorkOrder[]> {
-  return handleResponse(await apiFetch('/api/v1/production/work-reports/report-targets'));
+export async function fetchWorkReportTargets(params?: WorkReportTargetSearchParams): Promise<WorkOrder[]> {
+  return handleResponse(await apiFetch(`/api/v1/production/work-reports/report-targets${buildTargetQuery(params)}`));
 }
 
 export async function fetchWorkReports(params?: WorkReportListParams): Promise<WorkReport[]> {

@@ -11,6 +11,7 @@ import com.shindong.smartmanager.application.production.WorkReportListCriteria;
 import com.shindong.smartmanager.application.production.WorkReportRepository;
 import com.shindong.smartmanager.application.production.WorkReportSaveCommand;
 import com.shindong.smartmanager.application.production.WorkReportView;
+import com.shindong.smartmanager.application.production.WorkTargetSearchCriteria;
 import com.shindong.smartmanager.domain.production.WorkReportHistorySourceType;
 import com.shindong.smartmanager.domain.production.WorkReportStatus;
 import com.shindong.smartmanager.infrastructure.persistence.code.PublicCodeJpaEntity;
@@ -85,22 +86,50 @@ public class JpaWorkReportRepository implements WorkReportRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<WorkOrderView> findReportTargets() {
-        String sql = """
+    public List<WorkOrderView> findReportTargets(WorkTargetSearchCriteria criteria) {
+        StringBuilder sql = new StringBuilder("""
                 SELECT wo.id
                 FROM work_order wo
+                JOIN work_plan wp ON wp.id = wo.work_plan_id
+                JOIN process_sequence ps ON ps.id = wp.process_sequence_id
+                JOIN item i ON i.id = ps.item_id
+                LEFT JOIN public_code pc ON pc.id = ps.public_code_id
                 WHERE wo.recording_state = 1
                   AND wo.status = 'ISSUED'
                   AND wo.reported_qty < wo.ordered_qty
-                ORDER BY wo.created_at ASC, wo.id ASC
-                """;
+                """);
+        Map<String, Object> params = new HashMap<>();
+        appendTargetFilters(sql, params, criteria);
+        sql.append(" ORDER BY wo.created_at ASC, wo.id ASC");
+
+        Query query = entityManager.createNativeQuery(sql.toString());
+        params.forEach(query::setParameter);
         @SuppressWarnings("unchecked")
-        List<Number> rows = entityManager.createNativeQuery(sql).getResultList();
+        List<Number> rows = query.getResultList();
         List<WorkOrderView> result = new ArrayList<>();
         for (Number row : rows) {
             workOrderRepository.findActiveIssuedById(row.longValue()).ifPresent(result::add);
         }
         return result;
+    }
+
+    private void appendTargetFilters(StringBuilder sql, Map<String, Object> params, WorkTargetSearchCriteria criteria) {
+        if (criteria.itemNo() != null && !criteria.itemNo().isBlank()) {
+            sql.append(" AND i.item_no LIKE :itemNo");
+            params.put("itemNo", "%" + criteria.itemNo().trim() + "%");
+        }
+        if (criteria.processName() != null && !criteria.processName().isBlank()) {
+            sql.append(" AND pc.small_name LIKE :processName");
+            params.put("processName", "%" + criteria.processName().trim() + "%");
+        }
+        if (criteria.dateFrom() != null) {
+            sql.append(" AND DATE(wo.created_at) >= :dateFrom");
+            params.put("dateFrom", criteria.dateFrom());
+        }
+        if (criteria.dateTo() != null) {
+            sql.append(" AND DATE(wo.created_at) <= :dateTo");
+            params.put("dateTo", criteria.dateTo());
+        }
     }
 
     @Override

@@ -142,9 +142,8 @@ public class StatsReportController {
             @RequestParam(required = false) Integer fiscalMonth
     ) {
         int year = fiscalYear != null ? fiscalYear : LocalDate.now().getYear();
-        int month = fiscalMonth != null ? fiscalMonth : LocalDate.now().getMonthValue();
         return statsReportApplicationService.listWarehouseMonthlyIo(new WarehouseMonthlyIoCriteria(
-                locationCode, itemId, itemNo, year, month
+                locationCode, itemId, itemNo, year, fiscalMonth
         )).stream().map(WarehouseMonthlyIoResponse::from).toList();
     }
 

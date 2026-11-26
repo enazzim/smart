@@ -337,11 +337,22 @@ export default function MiscStockMovementPage() {
         </p>
       </header>
 
-      {error && <div className="error">{error}</div>}
+      {error && editingId == null && <div className="error">{error}</div>}
       {message && <div className="success">{message}</div>}
 
-      <section className="panel">
-        <h2>{editingId != null ? `입출고 수정 (${editingId})` : '입출고 등록'}</h2>
+      <div
+        className={editingId != null ? 'modal-backdrop' : undefined}
+        role={editingId != null ? 'presentation' : undefined}
+      >
+      <section
+        className={editingId != null ? 'modal-panel' : 'panel'}
+        role={editingId != null ? 'dialog' : undefined}
+        aria-modal={editingId != null || undefined}
+        onClick={editingId != null ? (e) => e.stopPropagation() : undefined}
+        style={editingId != null ? { maxWidth: 'min(960px, 96vw)' } : undefined}
+      >
+        <h2>{editingId != null ? '입출고 수정' : '입출고 등록'}</h2>
+        {editingId != null && error && <div className="error">{error}</div>}
         <form onSubmit={(e) => void onSubmit(e)} className="misc-movement-form">
           <div className="misc-movement-row misc-movement-row--main">
             <label className="misc-field-direction">
@@ -510,12 +521,13 @@ export default function MiscStockMovementPage() {
             </button>
             {(editingId != null || selectedItem) && (
               <button type="button" className="secondary" onClick={resetForm} disabled={submitting}>
-                초기화
+                {editingId != null ? '닫기' : '초기화'}
               </button>
             )}
           </div>
         </form>
       </section>
+      </div>
 
       <section className="panel">
         <h2>입출고 내역</h2>

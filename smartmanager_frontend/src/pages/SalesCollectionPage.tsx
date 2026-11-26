@@ -67,6 +67,7 @@ export default function SalesCollectionPage() {
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [collectionError, setCollectionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [tab, setTab] = useState<'register' | 'list'>('register');
 
   const loadCandidates = useCallback(async (partnerName?: string) => {
     setLoadingCandidates(true);
@@ -295,6 +296,16 @@ export default function SalesCollectionPage() {
       {message && <p className="success-banner">{message}</p>}
       {collectionError && <p className="error-banner">{collectionError}</p>}
 
+      <div className="tab-row">
+        <button type="button" className={tab === 'register' ? 'tab-active' : undefined} onClick={() => setTab('register')}>
+          수금 등록
+        </button>
+        <button type="button" className={tab === 'list' ? 'tab-active' : undefined} onClick={() => setTab('list')}>
+          수금 목록
+        </button>
+      </div>
+
+      {tab === 'register' && (
       <section className="panel">
         <h2>미수 거래처</h2>
         <div className="filter-row">
@@ -446,7 +457,9 @@ export default function SalesCollectionPage() {
           </p>
         )}
       </section>
+      )}
 
+      {tab === 'list' && (
       <section className="panel">
         <h2>수금 목록</h2>
         <div className="filter-row">
@@ -540,6 +553,7 @@ export default function SalesCollectionPage() {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

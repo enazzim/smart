@@ -152,6 +152,33 @@ class LotTraceabilityFlowTest {
         assertEquals(LotStatus.DEPLETED, lots.findActiveById(fgLot.id()).orElseThrow().status());
     }
 
+    @Test
+    void genealogyTreeWalksEveryHopAndCollapsesDuplicateLinks() {
+        LotView rawLot = lotService.createOnReceipt(
+                RAW_ITEM_ID, "RM-TREE-001", LotOriginType.PURCHASE,
+                "purchase_receipt", 1L, "admin");
+        LotView midLot = lotService.createOnProduction(
+                FG_ITEM_ID, "FG-TREE-MID", false, "work_report", 2L, "admin");
+        LotView fgLot = lotService.createOnProduction(
+                FG_ITEM_ID, "FG-TREE-FG", false, "work_report", 3L, "admin");
+        lotService.recordWorkReportGenealogy(
+                2L, midLot.id(), List.of(new LotGenealogyParentQty(rawLot.id(), bd("4"))), "admin");
+        lotService.recordWorkReportGenealogy(
+                3L, fgLot.id(), List.of(new LotGenealogyParentQty(midLot.id(), bd("2"))), "admin");
+
+        LotGenealogyTreeNode up = lotService.findGenealogyTree(fgLot.id(), LotGenealogyDirection.UP);
+        assertEquals(fgLot.id(), up.lotId());
+        assertEquals(1, up.children().size());
+        assertEquals(midLot.id(), up.children().get(0).lotId());
+        assertEquals(rawLot.id(), up.children().get(0).children().get(0).lotId());
+        assertEquals(0, up.children().get(0).children().get(0).children().size());
+
+        LotGenealogyTreeNode down = lotService.findGenealogyTree(rawLot.id(), LotGenealogyDirection.DOWN);
+        assertEquals(1, down.children().size());
+        assertEquals(midLot.id(), down.children().get(0).lotId());
+        assertEquals(fgLot.id(), down.children().get(0).children().get(0).lotId());
+    }
+
     private RecordStockMovementCommand cmd(
             long itemId,
             String location,

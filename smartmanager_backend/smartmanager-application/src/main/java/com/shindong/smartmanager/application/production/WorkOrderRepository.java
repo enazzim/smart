@@ -1,12 +1,14 @@
 package com.shindong.smartmanager.application.production;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface WorkOrderRepository {
 
-    List<WorkOrderView> findOrderTargets();
+    List<WorkOrderView> findOrderTargets(WorkTargetSearchCriteria criteria);
 
     List<WorkOrderView> saveAll(List<WorkOrderSaveCommand> commands, String actorUserId);
 
@@ -17,6 +19,8 @@ public interface WorkOrderRepository {
     Optional<WorkOrderView> findActiveById(long id);
 
     BigDecimal sumActiveReportedQtyByWorkPlanId(long workPlanId);
+
+    Set<Long> findActiveIssuedWorkPlanIds(Collection<Long> workPlanIds);
 
     long countByOrderNumPrefix(String prefix);
 

@@ -2,8 +2,9 @@ package com.shindong.smartmanager.api.web.production;
 
 import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.infrastructure.application.MrpApplicationService;
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,8 +26,12 @@ public class MrpController {
 
     @GetMapping("/targets")
     @PreAuthorize("hasAuthority('production:mrp:read')")
-    public List<ProductionPlanResponse> listTargets() {
-        return mrpApplicationService.listCalculationTargets().stream()
+    public List<ProductionPlanResponse> listTargets(
+            @RequestParam(required = false) Long itemId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate requestedDeliveryDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate requestedDeliveryDateTo
+    ) {
+        return mrpApplicationService.listCalculationTargets(itemId, requestedDeliveryDateFrom, requestedDeliveryDateTo).stream()
                 .map(ProductionPlanResponse::from)
                 .toList();
     }
@@ -64,10 +69,20 @@ public class MrpController {
     @GetMapping("/lines/grouped")
     @PreAuthorize("hasAuthority('production:mrp:read')")
     public MaterialRequirementGroupedResponse listGroupedLines(
-            @RequestParam(required = false) Long runId
+            @RequestParam(required = false) Long runId,
+            @RequestParam(required = false) Long parentItemId,
+            @RequestParam(required = false) Long componentItemId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate requestedDeliveryDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate requestedDeliveryDateTo
     ) {
         return MaterialRequirementGroupedResponse.from(
-                mrpApplicationService.listGroupedLines(Optional.ofNullable(runId))
+                mrpApplicationService.listGroupedLines(
+                        runId,
+                        parentItemId,
+                        componentItemId,
+                        requestedDeliveryDateFrom,
+                        requestedDeliveryDateTo
+                )
         );
     }
 

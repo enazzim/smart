@@ -157,8 +157,8 @@ export default function LotMasterPage() {
         remark: editRemark.trim() || undefined,
       });
       setMessage(`Lot ${updated.lotNo} 를 수정했습니다.`);
+      setSelectedId(null);
       await loadLots();
-      setSelectedId(updated.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lot 수정에 실패했습니다.');
     } finally {
@@ -217,7 +217,7 @@ export default function LotMasterPage() {
         </div>
       </header>
 
-      {error && <p className="error-banner">{error}</p>}
+      {error && !selectedLot && <p className="error-banner">{error}</p>}
       {message && <p className="success-banner">{message}</p>}
 
       {canEdit && (
@@ -328,16 +328,18 @@ export default function LotMasterPage() {
       </section>
 
       {selectedLot && (
-        <section className="panel detail-panel">
-          <div className="panel-header-row">
-            <h2>
-              Lot 수정 — {selectedLot.lotNo} ({selectedLot.itemNo})
-            </h2>
-            <button type="button" className="secondary" onClick={onClearSelection}>
-              선택 해제
-            </button>
-          </div>
-          <form onSubmit={(e) => void onUpdate(e)} className="form-grid form-grid-wide">
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal-panel" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="panel-header-row">
+              <h2>
+                Lot 수정 — {selectedLot.lotNo} ({selectedLot.itemNo})
+              </h2>
+              <button type="button" className="secondary" onClick={onClearSelection}>
+                닫기
+              </button>
+            </div>
+            {error && <p className="error-banner">{error}</p>}
+            <form onSubmit={(e) => void onUpdate(e)} className="form-grid form-grid-wide">
             <label>
               Lot번호
               <input readOnly className="readonly" value={selectedLot.lotNo} />
@@ -400,7 +402,8 @@ export default function LotMasterPage() {
               </div>
             )}
           </form>
-        </section>
+          </div>
+        </div>
       )}
 
       <div className="panel-header-row">

@@ -27,7 +27,7 @@ import { commitListSearchFilters } from '../utils/listSearchFilters';
 import { useConfirm } from '../context/ConfirmContext';
 
 type OrderPageTab = 'general' | 'subMaterial';
-type GeneralOrderMode = 'mrp' | 'manual';
+type GeneralOrderMode = 'mrp' | 'manual' | 'list';
 
 const GENERAL_ITEM_CLASSES: PropertyClassification[] = ['원자재', '상품'];
 const SUB_MATERIAL_ITEM_CLASSES: PropertyClassification[] = ['부자재'];
@@ -115,6 +115,7 @@ export default function PurchaseOrderPage() {
   const confirm = useConfirm();
   const [pageTab, setPageTab] = useState<OrderPageTab>('general');
   const [generalOrderMode, setGeneralOrderMode] = useState<GeneralOrderMode>('mrp');
+  const [subMaterialMode, setSubMaterialMode] = useState<'register' | 'list'>('register');
   const itemPropertyScope: 'GENERAL' | 'SUB_MATERIAL' =
     pageTab === 'subMaterial' ? 'SUB_MATERIAL' : 'GENERAL';
   const allowedManualClasses = pageTab === 'subMaterial' ? SUB_MATERIAL_ITEM_CLASSES : GENERAL_ITEM_CLASSES;
@@ -542,6 +543,9 @@ export default function PurchaseOrderPage() {
   };
 
   const selectedCount = selectedVendorKeys.size;
+  const showingOrderList =
+    (pageTab === 'general' && generalOrderMode === 'list') ||
+    (pageTab === 'subMaterial' && subMaterialMode === 'list');
 
   return (
     <div className="page">
@@ -595,10 +599,39 @@ export default function PurchaseOrderPage() {
           >
             직접 발주
           </button>
+          <button
+            type="button"
+            className={generalOrderMode === 'list' ? 'tab-active' : undefined}
+            onClick={() => setGeneralOrderMode('list')}
+          >
+            발주 목록
+          </button>
         </div>
       )}
 
-      {(pageTab === 'subMaterial' || generalOrderMode === 'manual') && (
+      {pageTab === 'subMaterial' && (
+        <div className="tab-row tab-row-secondary" aria-label="부자재발주 화면">
+          <button
+            type="button"
+            className={subMaterialMode === 'register' ? 'tab-active' : undefined}
+            onClick={() => setSubMaterialMode('register')}
+          >
+            부자재 발주
+          </button>
+          <button
+            type="button"
+            className={subMaterialMode === 'list' ? 'tab-active' : undefined}
+            onClick={() => setSubMaterialMode('list')}
+          >
+            발주 목록
+          </button>
+        </div>
+      )}
+
+      {message && <p className="success-banner">{message}</p>}
+
+      {((pageTab === 'subMaterial' && subMaterialMode === 'register') ||
+        (pageTab === 'general' && generalOrderMode === 'manual')) && (
       <section className="panel">
         <h2>{pageTab === 'subMaterial' ? '부자재 발주' : '직접 발주'}</h2>
         <p className="hint-text">
@@ -888,7 +921,7 @@ export default function PurchaseOrderPage() {
       </section>
       )}
 
-      {lastCreatedOrders.length > 0 && (
+      {!showingOrderList && lastCreatedOrders.length > 0 && (
         <section className="panel sub-panel">
           <h2>방금 등록한 발주</h2>
           <p className="hint-text">아래에서 발주서(주문서)를 바로 출력할 수 있습니다.</p>
@@ -939,11 +972,11 @@ export default function PurchaseOrderPage() {
         </section>
       )}
 
+      {showingOrderList && (
       <section className="panel">
         <div className="panel-header-row">
           <h2>{pageTab === 'subMaterial' ? '부자재 발주 목록' : '발주 목록'}</h2>
         </div>
-        {message && <p>{message}</p>}
         {orderError && <div className="error">{orderError}</div>}
         <div className="form-grid-wide">
           <label>
@@ -1157,6 +1190,7 @@ export default function PurchaseOrderPage() {
           )
         )}
       </section>
+      )}
     </div>
   );
 }

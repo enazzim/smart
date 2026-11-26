@@ -64,6 +64,11 @@ export default function DefectClaimPage() {
   const [partner, setPartner] = useState<CompanySearchSelection | null>(null);
   const [item, setItem] = useState<ItemSearchSelection | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState(emptyForm);
+  const [editPartner, setEditPartner] = useState<CompanySearchSelection | null>(null);
+  const [editItem, setEditItem] = useState<ItemSearchSelection | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [tab, setTab] = useState<'register' | 'list'>('register');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -76,8 +81,6 @@ export default function DefectClaimPage() {
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
-
-  const isEditing = editingId != null;
 
   const exportRows = useMemo(
     () =>
@@ -101,8 +104,15 @@ export default function DefectClaimPage() {
     setForm(emptyForm());
     setPartner(null);
     setItem(null);
-    setEditingId(null);
     setFormError(null);
+  };
+
+  const closeEdit = () => {
+    setEditingId(null);
+    setEditForm(emptyForm());
+    setEditPartner(null);
+    setEditItem(null);
+    setEditError(null);
   };
 
   const startEdit = (row: DefectClaim) => {
@@ -111,25 +121,25 @@ export default function DefectClaimPage() {
       return;
     }
     setEditingId(row.id);
-    setPartner({
+    setEditPartner({
       id: row.partnerId,
       companyName: row.partnerName,
       businessRegNo: row.partnerBusinessRegNo,
     });
-    setItem({
+    setEditItem({
       id: row.itemId,
       itemNo: row.itemNo,
       itemName: row.itemName,
     });
-    setForm({
+    setEditForm({
       receiptDate: row.receiptDate,
       reason: row.reason,
       claimQty: String(row.claimQty),
       amount: String(row.amount),
     });
+    setEditError(null);
     setFormError(null);
     setMessage(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -169,19 +179,66 @@ export default function DefectClaimPage() {
         amount,
         reason: form.reason.trim(),
       };
-      if (isEditing && editingId != null) {
-        await updateDefectClaim(editingId, payload);
-        setMessage('불량변상을 수정했습니다.');
-      } else {
-        await createDefectClaim(payload);
-        setMessage('불량변상을 등록했습니다.');
-      }
+      await createDefectClaim(payload);
+      setMessage('불량변상을 등록했습니다.');
       resetForm();
       if (searched) {
         await runSearch();
       }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : '저장에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingId == null) {
+      return;
+    }
+    if (!editPartner) {
+      setEditError('거래처를 선택해 주세요.');
+      return;
+    }
+    if (!editItem) {
+      setEditError('품목을 선택해 주세요.');
+      return;
+    }
+    const claimQty = Number(editForm.claimQty);
+    const amount = Number(editForm.amount);
+    if (!editForm.reason.trim()) {
+      setEditError('불량변상 이유를 입력해 주세요.');
+      return;
+    }
+    if (!Number.isFinite(claimQty) || claimQty <= 0) {
+      setEditError('수량은 0보다 커야 합니다.');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setEditError('금액은 0보다 커야 합니다.');
+      return;
+    }
+
+    setSubmitting(true);
+    setEditError(null);
+    setMessage(null);
+    try {
+      await updateDefectClaim(editingId, {
+        partnerId: editPartner.id,
+        itemId: editItem.id,
+        receiptDate: editForm.receiptDate,
+        claimQty,
+        amount,
+        reason: editForm.reason.trim(),
+      });
+      setMessage('불량변상을 수정했습니다.');
+      closeEdit();
+      if (searched) {
+        await runSearch();
+      }
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : '저장에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -208,7 +265,7 @@ export default function DefectClaimPage() {
       await deleteDefectClaim(row.id);
       setMessage('불량변상을 삭제했습니다.');
       if (editingId === row.id) {
-        resetForm();
+        closeEdit();
       }
       if (searched) {
         await runSearch();
@@ -257,11 +314,21 @@ export default function DefectClaimPage() {
         <p>구매·외주 거래처 대상 불량변상을 등록하고 목록에서 조회·수정·삭제합니다.</p>
       </header>
 
-      {message && <p className="success-banner">{message}</p>}
+      <div className="tab-row">
+        <button type="button" className={tab === 'register' ? 'tab-active' : undefined} onClick={() => setTab('register')}>
+          불량변상 등록
+        </button>
+        <button type="button" className={tab === 'list' ? 'tab-active' : undefined} onClick={() => setTab('list')}>
+          변상 목록
+        </button>
+      </div>
 
+      {message && <p className="success-banner">{message}</p>}
+      {formError && <div className="error">{formError}</div>}
+
+      {tab === 'register' && (
       <section className="panel">
-        <h2>{isEditing ? '불량변상 수정' : '불량변상 등록'}</h2>
-        {formError && <div className="error">{formError}</div>}
+        <h2>불량변상 등록</h2>
         <form onSubmit={(e) => void onSubmit(e)}>
           <div className="form-grid-wide">
             <CompanySearchField
@@ -320,12 +387,14 @@ export default function DefectClaimPage() {
               초기화
             </button>
             <button type="submit" disabled={submitting}>
-              {submitting ? '처리 중…' : isEditing ? '수정' : '등록'}
+              {submitting ? '처리 중…' : '등록'}
             </button>
           </div>
         </form>
       </section>
+      )}
 
+      {tab === 'list' && (
       <section className="panel">
         <div className="panel-header-row">
           <h2>변상 목록</h2>
@@ -433,6 +502,78 @@ export default function DefectClaimPage() {
           </div>
         )}
       </section>
+      )}
+
+      {editingId != null && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal-panel" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <h2>불량변상 수정</h2>
+            {editError && <div className="error">{editError}</div>}
+            <form onSubmit={(e) => void onEditSubmit(e)}>
+              <div className="form-grid-wide">
+                <CompanySearchField
+                  label="거래처"
+                  partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
+                  selectedCompany={editPartner}
+                  onSelect={setEditPartner}
+                />
+                <ItemSearchField
+                  label="품목"
+                  selectedItem={editItem}
+                  onSelect={setEditItem}
+                  allowedClassifications={ALL_ITEM_CLASSES}
+                />
+                <label>
+                  변상등록일
+                  <input
+                    type="date"
+                    value={editForm.receiptDate}
+                    onChange={(e) => setEditForm((f) => ({ ...f, receiptDate: e.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  수량
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={editForm.claimQty}
+                    onChange={(e) => setEditForm((f) => ({ ...f, claimQty: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  금액
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={editForm.amount}
+                    onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
+                  />
+                </label>
+                <label className="span-2">
+                  불량변상 이유
+                  <input
+                    value={editForm.reason}
+                    onChange={(e) => setEditForm((f) => ({ ...f, reason: e.target.value }))}
+                    placeholder="불량변상 이유 입력"
+                    maxLength={500}
+                  />
+                </label>
+              </div>
+              <div className="form-actions">
+                <button type="button" className="secondary" onClick={closeEdit} disabled={submitting}>
+                  닫기
+                </button>
+                <button type="submit" disabled={submitting}>
+                  {submitting ? '처리 중…' : '수정'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

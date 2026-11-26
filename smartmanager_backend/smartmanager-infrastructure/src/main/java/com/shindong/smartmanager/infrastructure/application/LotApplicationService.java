@@ -2,6 +2,7 @@ package com.shindong.smartmanager.infrastructure.application;
 
 import com.shindong.smartmanager.application.inventory.CreateLotCommand;
 import com.shindong.smartmanager.application.inventory.LotGenealogyLinkView;
+import com.shindong.smartmanager.application.inventory.LotGenealogyTreeNode;
 import com.shindong.smartmanager.application.inventory.LotListCriteria;
 import com.shindong.smartmanager.application.inventory.LotService;
 import com.shindong.smartmanager.application.inventory.LotView;
@@ -56,6 +57,11 @@ public class LotApplicationService {
     @Transactional(readOnly = true)
     public List<LotGenealogyLinkView> findGenealogy(long lotId, LotGenealogyDirection direction) {
         return lotService.findGenealogy(lotId, direction);
+    }
+
+    @Transactional(readOnly = true)
+    public LotGenealogyTreeNode findGenealogyTree(long lotId, LotGenealogyDirection direction) {
+        return lotService.findGenealogyTree(lotId, direction);
     }
 
     @Transactional(readOnly = true)

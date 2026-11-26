@@ -19,6 +19,7 @@ import com.shindong.smartmanager.application.production.WorkCenterLoadQueryServi
 import com.shindong.smartmanager.application.production.WorkOrderRepository;
 import com.shindong.smartmanager.application.production.WorkOrderService;
 import com.shindong.smartmanager.application.production.WorkPlanRepository;
+import com.shindong.smartmanager.application.outsource.OutsourcingOrderRepository;
 import com.shindong.smartmanager.application.production.WorkPlanService;
 import com.shindong.smartmanager.application.production.MaterialIssueInventoryService;
 import com.shindong.smartmanager.application.production.MaterialIssueRepository;
@@ -75,7 +76,9 @@ public class ProductionApplicationConfig {
             ProcessRepository processRepository,
             WorkStandardRepository workStandardRepository,
             ItemCompositionService itemCompositionService,
-            ItemRepository itemRepository
+            ItemRepository itemRepository,
+            WorkOrderRepository workOrderRepository,
+            OutsourcingOrderRepository outsourcingOrderRepository
     ) {
         return new WorkPlanService(
                 workPlanRepository,
@@ -83,7 +86,9 @@ public class ProductionApplicationConfig {
                 processRepository,
                 workStandardRepository,
                 itemCompositionService,
-                itemRepository
+                itemRepository,
+                workOrderRepository,
+                outsourcingOrderRepository
         );
     }
 

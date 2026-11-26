@@ -5,6 +5,6 @@ public record WarehouseMonthlyIoCriteria(
         Long itemId,
         String itemNo,
         int fiscalYear,
-        int fiscalMonth
+        Integer fiscalMonth
 ) {
 }

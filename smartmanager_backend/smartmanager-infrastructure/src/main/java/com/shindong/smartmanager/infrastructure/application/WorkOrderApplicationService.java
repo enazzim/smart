@@ -3,6 +3,7 @@ package com.shindong.smartmanager.infrastructure.application;
 import com.shindong.smartmanager.application.production.WorkOrderListCriteria;
 import com.shindong.smartmanager.application.production.WorkOrderService;
 import com.shindong.smartmanager.application.production.WorkOrderView;
+import com.shindong.smartmanager.application.production.WorkTargetSearchCriteria;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,8 +18,8 @@ public class WorkOrderApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<WorkOrderView> listOrderTargets() {
-        return workOrderService.listOrderTargets();
+    public List<WorkOrderView> listOrderTargets(WorkTargetSearchCriteria criteria) {
+        return workOrderService.listOrderTargets(criteria);
     }
 
     @Transactional(readOnly = true)

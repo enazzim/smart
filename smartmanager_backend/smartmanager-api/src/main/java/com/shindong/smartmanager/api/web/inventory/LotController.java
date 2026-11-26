@@ -80,6 +80,15 @@ public class LotController {
                 .toList();
     }
 
+    @GetMapping("/{id}/genealogy/tree")
+    @PreAuthorize("hasAuthority('inventory:lot:read')")
+    public LotGenealogyTreeResponse genealogyTree(
+            @PathVariable long id,
+            @RequestParam(defaultValue = "UP") LotGenealogyDirection direction
+    ) {
+        return LotGenealogyTreeResponse.from(lotApplicationService.findGenealogyTree(id, direction));
+    }
+
     @GetMapping("/{id}/movements")
     @PreAuthorize("hasAuthority('inventory:lot:read')")
     public List<StockMovementResponse> movements(@PathVariable long id) {

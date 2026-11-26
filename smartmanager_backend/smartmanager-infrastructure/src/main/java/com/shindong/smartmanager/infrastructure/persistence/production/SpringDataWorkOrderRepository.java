@@ -2,6 +2,8 @@ package com.shindong.smartmanager.infrastructure.persistence.production;
 
 import com.shindong.smartmanager.domain.production.WorkOrderStatus;
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -27,6 +29,19 @@ public interface SpringDataWorkOrderRepository extends JpaRepository<WorkOrderJp
     BigDecimal sumReportedQtyByWorkPlanId(
             @Param("workPlanId") long workPlanId,
             @Param("active") int active
+    );
+
+    @Query("""
+            SELECT w.workPlanId
+            FROM WorkOrderJpaEntity w
+            WHERE w.workPlanId IN :workPlanIds
+              AND w.recordingState = :active
+              AND w.status = :status
+            """)
+    List<Long> findWorkPlanIdsByRecordingStateAndStatus(
+            @Param("workPlanIds") Collection<Long> workPlanIds,
+            @Param("active") int active,
+            @Param("status") WorkOrderStatus status
     );
 
     boolean existsByWorkPlanIdAndRecordingStateAndStatus(

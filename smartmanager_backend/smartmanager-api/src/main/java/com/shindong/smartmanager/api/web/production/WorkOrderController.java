@@ -2,6 +2,7 @@ package com.shindong.smartmanager.api.web.production;
 
 import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.production.WorkOrderListCriteria;
+import com.shindong.smartmanager.application.production.WorkTargetSearchCriteria;
 import com.shindong.smartmanager.infrastructure.application.WorkOrderApplicationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
@@ -31,10 +32,15 @@ public class WorkOrderController {
 
     @GetMapping("/order-targets")
     @PreAuthorize("hasAuthority('production:work-order:read')")
-    public List<WorkOrderResponse> listOrderTargets() {
-        return workOrderApplicationService.listOrderTargets().stream()
-                .map(WorkOrderResponse::from)
-                .toList();
+    public List<WorkOrderResponse> listOrderTargets(
+            @RequestParam(required = false) String itemNo,
+            @RequestParam(required = false) String processName,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate registeredFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate registeredTo
+    ) {
+        return workOrderApplicationService.listOrderTargets(new WorkTargetSearchCriteria(
+                itemNo, processName, registeredFrom, registeredTo
+        )).stream().map(WorkOrderResponse::from).toList();
     }
 
     @GetMapping

@@ -111,6 +111,7 @@ export default function OutsourcingShipmentPage() {
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [shipmentError, setShipmentError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [tab, setTab] = useState<'register' | 'list'>('register');
   const [advancePartner, setAdvancePartner] = useState<CompanySearchSelection | null>(null);
   const [advanceParentItem, setAdvanceParentItem] = useState<ItemSearchSelection | null>(null);
   const [advanceProcessOptions, setAdvanceProcessOptions] = useState<OutsourceAdvanceProcessOption[]>([]);
@@ -552,6 +553,17 @@ export default function OutsourcingShipmentPage() {
       {message && <p className="success-banner">{message}</p>}
       {shipmentError && <p className="error-banner">{shipmentError}</p>}
 
+      <div className="tab-row">
+        <button type="button" className={tab === 'register' ? 'tab-active' : undefined} onClick={() => setTab('register')}>
+          외주출고 등록
+        </button>
+        <button type="button" className={tab === 'list' ? 'tab-active' : undefined} onClick={() => setTab('list')}>
+          외주출고 목록
+        </button>
+      </div>
+
+      {tab === 'register' && (
+      <>
       <section className="panel">
         <h2>선출고 (발주 무관)</h2>
         <p className="hint">
@@ -894,7 +906,10 @@ export default function OutsourcingShipmentPage() {
           </div>
         )}
       </section>
+      </>
+      )}
 
+      {tab === 'list' && (
       <section className="panel">
         <div className="panel-header-row">
           <h2>외주출고 목록</h2>
@@ -996,6 +1011,7 @@ export default function OutsourcingShipmentPage() {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

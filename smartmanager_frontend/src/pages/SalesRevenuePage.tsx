@@ -83,6 +83,7 @@ export default function SalesRevenuePage() {
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [revenueError, setRevenueError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [tab, setTab] = useState<'register' | 'list'>('register');
 
   const revenueExportRows = useMemo(
     () =>
@@ -302,6 +303,16 @@ export default function SalesRevenuePage() {
       {message && <p className="success-banner">{message}</p>}
       {revenueError && <p className="error-banner">{revenueError}</p>}
 
+      <div className="tab-row">
+        <button type="button" className={tab === 'register' ? 'tab-active' : undefined} onClick={() => setTab('register')}>
+          매출 등록
+        </button>
+        <button type="button" className={tab === 'list' ? 'tab-active' : undefined} onClick={() => setTab('list')}>
+          매출 목록
+        </button>
+      </div>
+
+      {tab === 'register' && (
       <section className="panel">
         <h2>출고 매출 후보</h2>
         <div className="ui-filter-panel sales-revenue-filter-panel">
@@ -508,7 +519,9 @@ export default function SalesRevenuePage() {
           </>
         )}
       </section>
+      )}
 
+      {tab === 'list' && (
       <section className="panel">
         <div className="panel-header-row">
           <h2>매출 목록</h2>
@@ -669,6 +682,7 @@ export default function SalesRevenuePage() {
           </>
         )}
       </section>
+      )}
     </div>
   );
 }

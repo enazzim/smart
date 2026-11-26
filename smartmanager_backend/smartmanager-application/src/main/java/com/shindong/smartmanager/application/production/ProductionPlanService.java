@@ -41,10 +41,11 @@ public class ProductionPlanService {
         this.itemRepository = itemRepository;
     }
 
-    public List<SalesOrderLineListView> listCandidates() {
+    public List<SalesOrderLineListView> listCandidates(Long itemId, LocalDate orderDateFrom, LocalDate orderDateTo) {
         Set<Long> plannedLineIds = productionPlanRepository.findActiveSalesOrderLineIds();
         return salesOrderRepository.findLineList(emptyLineCriteria()).stream()
                 .filter(line -> isPlanCandidate(line, plannedLineIds))
+                .filter(line -> matchesCandidateSearch(line, itemId, orderDateFrom, orderDateTo))
                 .toList();
     }
 
@@ -205,6 +206,24 @@ public class ProductionPlanService {
             return false;
         }
         return !plannedLineIds.contains(line.lineId());
+    }
+
+    private boolean matchesCandidateSearch(
+            SalesOrderLineListView line,
+            Long itemId,
+            LocalDate orderDateFrom,
+            LocalDate orderDateTo
+    ) {
+        if (itemId != null && line.itemId() != itemId) {
+            return false;
+        }
+        if (orderDateFrom != null && (line.orderDate() == null || line.orderDate().isBefore(orderDateFrom))) {
+            return false;
+        }
+        if (orderDateTo != null && (line.orderDate() == null || line.orderDate().isAfter(orderDateTo))) {
+            return false;
+        }
+        return true;
     }
 
     private String nextPlanNo(LocalDate planDate) {

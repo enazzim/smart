@@ -69,8 +69,8 @@ public class WorkReportService {
         this.salesOrderFulfillmentSyncService = salesOrderFulfillmentSyncService;
     }
 
-    public List<WorkOrderView> listReportTargets() {
-        return workReportRepository.findReportTargets();
+    public List<WorkOrderView> listReportTargets(WorkTargetSearchCriteria criteria) {
+        return workReportRepository.findReportTargets(criteria);
     }
 
     public List<WorkReportView> list(WorkReportListCriteria criteria) {

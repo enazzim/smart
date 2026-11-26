@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import type { PropertyClassification } from '../api/item';
 import {
   cancelWorkPlanLine,
   cancelWorkPlansByProductionPlan,
@@ -7,25 +8,34 @@ import {
   fetchWorkPlans,
   type WorkPlan,
   type WorkPlanListParams,
+  type WorkPlanTargetParams,
 } from '../api/workPlan';
 import type { ProductionPlan } from '../api/productionPlan';
 import { formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 
+const TARGET_ITEM_CLASSES: PropertyClassification[] = ['제품', '공정품'];
+
 type PlanFilterDraft = Omit<WorkPlanListParams, 'itemNo' | 'itemName'>;
 
 export default function WorkPlanPage() {
   const confirm = useConfirm();
   const [targets, setTargets] = useState<ProductionPlan[]>([]);
+  const [targetsSearched, setTargetsSearched] = useState(false);
+  const [targetItem, setTargetItem] = useState<ItemSearchSelection | null>(null);
+  const [targetRegisteredFrom, setTargetRegisteredFrom] = useState('');
+  const [targetRegisteredTo, setTargetRegisteredTo] = useState('');
+  const [targetItemClearToken, setTargetItemClearToken] = useState(0);
   const [plans, setPlans] = useState<WorkPlan[]>([]);
+  const [plansSearched, setPlansSearched] = useState(false);
   const [selectedPlanIds, setSelectedPlanIds] = useState<Set<number>>(new Set());
   const [planFilters, setPlanFilters] = useState<PlanFilterDraft>({});
   const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
   const [itemClearToken, setItemClearToken] = useState(0);
   const appliedParamsRef = useRef<WorkPlanListParams>({});
-  const [loadingTargets, setLoadingTargets] = useState(true);
-  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [loadingTargets, setLoadingTargets] = useState(false);
+  const [loadingPlans, setLoadingPlans] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -33,15 +43,21 @@ export default function WorkPlanPage() {
 
   const allSelected = targets.length > 0 && targets.every((row) => selectedPlanIds.has(row.id));
 
-  const loadTargets = useCallback(async () => {
+  const loadTargets = useCallback(async (params: WorkPlanTargetParams = {}) => {
     setLoadingTargets(true);
     setError(null);
     try {
-      const data = await fetchWorkPlanTargets();
+      const data = await fetchWorkPlanTargets(params);
       setTargets(data);
-      setSelectedPlanIds(new Set());
+      setTargetsSearched(true);
+      setSelectedPlanIds((prev) => {
+        const visible = new Set(data.map((row) => row.id));
+        return new Set([...prev].filter((id) => visible.has(id)));
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : '수립 대상을 불러오지 못했습니다.');
+      setTargets([]);
+      setTargetsSearched(true);
     } finally {
       setLoadingTargets(false);
     }
@@ -58,23 +74,21 @@ export default function WorkPlanPage() {
     setError(null);
     try {
       setPlans(await fetchWorkPlans(params));
+      setPlansSearched(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업계획 목록을 불러오지 못했습니다.');
+      setPlans([]);
+      setPlansSearched(true);
     } finally {
       setLoadingPlans(false);
     }
   }, []);
 
-  useEffect(() => {
-    void loadTargets();
-  }, [loadTargets]);
-
-  // 탭 진입 시 마지막으로 적용된 조건으로 1회 조회 (필터 입력 변경과 무관)
-  useEffect(() => {
-    if (tab === 'plans') {
-      void loadPlans(appliedParamsRef.current);
-    }
-  }, [tab, loadPlans]);
+  const buildTargetParams = (): WorkPlanTargetParams => ({
+    itemId: targetItem?.id,
+    registeredFrom: targetRegisteredFrom || undefined,
+    registeredTo: targetRegisteredTo || undefined,
+  });
 
   const selectedCount = useMemo(() => selectedPlanIds.size, [selectedPlanIds]);
 
@@ -126,8 +140,9 @@ export default function WorkPlanPage() {
       const created = await createWorkPlans([...selectedPlanIds]);
       setMessage(`작업계획 ${created.length}건을 수립했습니다.`);
       setSelectedPlanIds(new Set());
-      await loadTargets();
-      setTab('plans');
+      if (targetsSearched) {
+        await loadTargets(buildTargetParams());
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업계획 수립에 실패했습니다.');
     } finally {
@@ -145,8 +160,12 @@ export default function WorkPlanPage() {
     try {
       await cancelWorkPlanLine(id);
       setMessage('작업계획 1건을 취소했습니다.');
-      await loadTargets();
-      await loadPlans(appliedParamsRef.current);
+      if (targetsSearched) {
+        await loadTargets(buildTargetParams());
+      }
+      if (plansSearched) {
+        await loadPlans(appliedParamsRef.current);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업계획 취소에 실패했습니다.');
     } finally {
@@ -164,8 +183,12 @@ export default function WorkPlanPage() {
     try {
       const result = await cancelWorkPlansByProductionPlan(productionPlanId);
       setMessage(`생산계획 ${result.planNo}의 작업계획 ${result.cancelledCount}건을 취소했습니다.`);
-      await loadTargets();
-      await loadPlans(appliedParamsRef.current);
+      if (targetsSearched) {
+        await loadTargets(buildTargetParams());
+      }
+      if (plansSearched) {
+        await loadPlans(appliedParamsRef.current);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업계획 취소에 실패했습니다.');
     } finally {
@@ -200,10 +223,50 @@ export default function WorkPlanPage() {
 
       {tab === 'targets' && (
         <>
+          <div className="production-plan-list-filters">
+            <ItemSearchField
+              label="생산계획 품목"
+              allowedClassifications={TARGET_ITEM_CLASSES}
+              selectedItem={targetItem}
+              onSelect={setTargetItem}
+              clearToken={targetItemClearToken}
+            />
+            <label>
+              생산계획등록일(부터)
+              <input
+                type="date"
+                value={targetRegisteredFrom}
+                onChange={(e) => setTargetRegisteredFrom(e.target.value)}
+              />
+            </label>
+            <label>
+              생산계획등록일(까지)
+              <input
+                type="date"
+                value={targetRegisteredTo}
+                onChange={(e) => setTargetRegisteredTo(e.target.value)}
+              />
+            </label>
+            <div className="production-plan-list-filter-actions">
+              <button type="button" onClick={() => void loadTargets(buildTargetParams())} disabled={loadingTargets}>
+                {loadingTargets ? '조회 중…' : '검색'}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={loadingTargets}
+                onClick={() => {
+                  setTargetItem(null);
+                  setTargetRegisteredFrom('');
+                  setTargetRegisteredTo('');
+                  setTargetItemClearToken((token) => token + 1);
+                }}
+              >
+                초기화
+              </button>
+            </div>
+          </div>
           <section className="action-bar">
-            <button type="button" className="secondary" onClick={() => void loadTargets()}>
-              새로고침
-            </button>
             <button type="button" disabled={submitting || selectedCount === 0} onClick={() => void onCreate()}>
               {submitting ? '수립 중…' : `작업계획 수립 (${selectedCount}건)`}
             </button>
@@ -211,6 +274,8 @@ export default function WorkPlanPage() {
 
           {loadingTargets ? (
             <p>불러오는 중…</p>
+          ) : !targetsSearched ? (
+            <p>검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요. 조건을 비우면 수립 대상 전체가 조회됩니다.</p>
           ) : (
             <div className="table-wrap">
               <table>
@@ -273,7 +338,7 @@ export default function WorkPlanPage() {
 
       {tab === 'plans' && (
         <>
-          <section className="filter-panel">
+          <section className="production-plan-list-filters">
             <ItemSearchField
               label="품목"
               selectedItem={selectedItem}
@@ -310,15 +375,14 @@ export default function WorkPlanPage() {
                 onChange={(e) => setPlanFilters((f) => ({ ...f, planStartDateTo: e.target.value }))}
               />
             </label>
-          </section>
-
-          <section className="action-bar">
-            <button type="button" className="secondary" onClick={resetPlanFilters}>
-              초기화
-            </button>
-            <button type="button" className="secondary" disabled={submitting} onClick={() => void loadPlans(buildPlanParams())}>
-              조회
-            </button>
+            <div className="production-plan-list-filter-actions">
+              <button type="button" disabled={submitting || loadingPlans} onClick={() => void loadPlans(buildPlanParams())}>
+                {loadingPlans ? '조회 중…' : '검색'}
+              </button>
+              <button type="button" className="secondary" disabled={submitting} onClick={resetPlanFilters}>
+                초기화
+              </button>
+            </div>
           </section>
 
           {cancellableProductionPlanIds.size > 0 && (
@@ -336,7 +400,7 @@ export default function WorkPlanPage() {
                     disabled={submitting}
                     onClick={() => void onCancelPlan(productionPlanId, sample.planNo)}
                   >
-                    {sample.planNo} 작업계획 전체 취소
+                    {`${sample.planNo} ${sample.itemNo} ${sample.itemName} 작업계획 전체 취소`}
                   </button>
                 );
               })}
@@ -345,6 +409,8 @@ export default function WorkPlanPage() {
 
           {loadingPlans ? (
             <p>불러오는 중…</p>
+          ) : !plansSearched ? (
+            <p>검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요. 조건을 비우면 작업계획 전체가 조회됩니다.</p>
           ) : (
             <div className="table-wrap">
               <table>

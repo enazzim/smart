@@ -8,7 +8,12 @@ import com.shindong.smartmanager.domain.inventory.LotOriginType;
 import com.shindong.smartmanager.domain.inventory.LotStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Lot 마스터 CRUD·채번·입고 시 생성. 재고 슬롯 갱신({@code LotInventoryService})은 V079/LOT-2+.
@@ -16,6 +21,7 @@ import java.util.List;
 public class LotService {
 
     public static final String SOURCE_DOC_WORK_REPORT = "work_report";
+    public static final int GENEALOGY_TREE_MAX_DEPTH = 20;
 
     private final LotRepository lotRepository;
     private final ItemRepository itemRepository;
@@ -203,6 +209,74 @@ public class LotService {
             throw new IllegalArgumentException("genealogy direction은 필수입니다 (UP|DOWN).");
         }
         return lotRepository.findGenealogy(lotId, direction);
+    }
+
+    public LotGenealogyTreeNode findGenealogyTree(long lotId, LotGenealogyDirection direction) {
+        if (direction == null) {
+            throw new IllegalArgumentException("genealogy direction은 필수입니다 (UP|DOWN).");
+        }
+        LotView root = requireLot(lotId);
+        return walkGenealogy(root, direction, 0, new HashSet<>(), null, null, null);
+    }
+
+    private LotGenealogyTreeNode walkGenealogy(
+            LotView lot,
+            LotGenealogyDirection direction,
+            int depth,
+            Set<Long> path,
+            BigDecimal qty,
+            String sourceDocType,
+            Long sourceDocId
+    ) {
+        path.add(lot.id());
+        List<LotGenealogyTreeNode> children = new ArrayList<>();
+        boolean truncated = false;
+        List<LotGenealogyLinkView> hops = collapseGenealogyHops(findGenealogy(lot.id(), direction));
+        if (depth >= GENEALOGY_TREE_MAX_DEPTH) {
+            truncated = !hops.isEmpty();
+        } else {
+            for (LotGenealogyLinkView hop : hops) {
+                long nextId = direction == LotGenealogyDirection.UP ? hop.parentLotId() : hop.childLotId();
+                if (path.contains(nextId)) {
+                    continue;
+                }
+                LotView next = lotRepository.findActiveById(nextId).orElse(null);
+                if (next == null) {
+                    continue;
+                }
+                children.add(walkGenealogy(next, direction, depth + 1, path, hop.qty(), hop.sourceDocType(), hop.sourceDocId()));
+            }
+        }
+        path.remove(lot.id());
+        return new LotGenealogyTreeNode(
+                depth,
+                lot.id(),
+                lot.lotNo(),
+                lot.itemId(),
+                lot.itemNo(),
+                lot.itemName(),
+                qty,
+                sourceDocType,
+                sourceDocId,
+                truncated,
+                List.copyOf(children)
+        );
+    }
+
+    /** 같은 부모·자식·원장의 소비/생산 링크는 한 줄로 묶는다. */
+    private static List<LotGenealogyLinkView> collapseGenealogyHops(List<LotGenealogyLinkView> links) {
+        Map<String, LotGenealogyLinkView> grouped = new LinkedHashMap<>();
+        for (LotGenealogyLinkView link : links) {
+            String key = link.parentLotId()
+                    + "|"
+                    + link.childLotId()
+                    + "|"
+                    + link.sourceDocType()
+                    + "|"
+                    + link.sourceDocId();
+            grouped.putIfAbsent(key, link);
+        }
+        return new ArrayList<>(grouped.values());
     }
 
     public List<StockMovementListItemView> findMovements(long lotId) {

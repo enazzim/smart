@@ -67,8 +67,27 @@ function buildQuery(params?: WorkPlanListParams): string {
   return query ? `?${query}` : '';
 }
 
-export async function fetchWorkPlanTargets(): Promise<ProductionPlan[]> {
-  return handleResponse(await apiFetch('/api/v1/production/work-plans/planning-targets'));
+export interface WorkPlanTargetParams {
+  itemId?: number;
+  registeredFrom?: string;
+  registeredTo?: string;
+}
+
+export async function fetchWorkPlanTargets(params: WorkPlanTargetParams = {}): Promise<ProductionPlan[]> {
+  const search = new URLSearchParams();
+  if (params.itemId != null) {
+    search.set('itemId', String(params.itemId));
+  }
+  if (params.registeredFrom) {
+    search.set('registeredFrom', params.registeredFrom);
+  }
+  if (params.registeredTo) {
+    search.set('registeredTo', params.registeredTo);
+  }
+  const query = search.toString();
+  return handleResponse(
+    await apiFetch(`/api/v1/production/work-plans/planning-targets${query ? `?${query}` : ''}`),
+  );
 }
 
 export async function fetchWorkPlans(params?: WorkPlanListParams): Promise<WorkPlan[]> {

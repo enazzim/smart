@@ -9,6 +9,7 @@ import {
   type WorkReport,
   type WorkReportConsumptionLine,
   type WorkReportListParams,
+  type WorkReportTargetSearchParams,
 } from '../api/workReport';
 import type { WorkOrder } from '../api/workOrder';
 import { fetchWorkStandards } from '../api/workStandard';
@@ -21,6 +22,13 @@ import { formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
 
 type ReportFilterDraft = Omit<WorkReportListParams, 'itemNo' | 'itemName'>;
+
+function formatSeoulDate(value?: string | null): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10);
+  return date.toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+}
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -88,8 +96,14 @@ export default function WorkReportPage() {
   const [reports, setReports] = useState<WorkReport[]>([]);
   const [filters, setFilters] = useState<ReportFilterDraft>({});
   const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
+  const [targetItem, setTargetItem] = useState<ItemSearchSelection | null>(null);
+  const [targetProcessName, setTargetProcessName] = useState('');
+  const [targetDateFrom, setTargetDateFrom] = useState('');
+  const [targetDateTo, setTargetDateTo] = useState('');
+  const [targetsSearched, setTargetsSearched] = useState(false);
   const appliedParamsRef = useRef<WorkReportListParams>({});
-  const [loadingTargets, setLoadingTargets] = useState(true);
+  const appliedTargetRef = useRef<WorkReportTargetSearchParams>({});
+  const [loadingTargets, setLoadingTargets] = useState(false);
   const [loadingReports, setLoadingReports] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -131,11 +145,13 @@ export default function WorkReportPage() {
 
   const effectiveMaterialIssueEnabled = consumptionMaterialIssueEnabled ?? materialIssueEnabled;
 
-  const loadTargets = useCallback(async () => {
+  const loadTargets = useCallback(async (params: WorkReportTargetSearchParams) => {
+    appliedTargetRef.current = params;
+    setTargetsSearched(true);
     setLoadingTargets(true);
     setError(null);
     try {
-      setTargets(await fetchWorkReportTargets());
+      setTargets(await fetchWorkReportTargets(params));
     } catch (e) {
       setError(e instanceof Error ? e.message : '등록 대상을 불러오지 못했습니다.');
     } finally {
@@ -161,9 +177,14 @@ export default function WorkReportPage() {
     }
   }, []);
 
-  useEffect(() => {
-    void loadTargets();
-  }, [loadTargets]);
+  const onSearchTargets = () => {
+    void loadTargets({
+      itemNo: targetItem?.itemNo,
+      processName: targetProcessName.trim() || undefined,
+      issuedFrom: targetDateFrom || undefined,
+      issuedTo: targetDateTo || undefined,
+    });
+  };
 
   // 탭 진입 시 마지막으로 적용된 조건으로 1회 조회 (필터 입력 변경과 무관)
   useEffect(() => {
@@ -469,7 +490,9 @@ export default function WorkReportPage() {
       });
       setMessage(`작업일보 ${report.reportNum}을(를) 등록했습니다. 재고가 즉시 반영됩니다.`);
       closeModal();
-      await loadTargets();
+      if (targetsSearched) {
+        await loadTargets(appliedTargetRef.current);
+      }
     } catch (e) {
       setModalError(e instanceof Error ? e.message : '작업일보 등록에 실패했습니다.');
     } finally {
@@ -485,7 +508,9 @@ export default function WorkReportPage() {
     try {
       await cancelWorkReport(id);
       setMessage(`작업일보 ${reportNum}을(를) 취소했습니다.`);
-      await loadTargets();
+      if (targetsSearched) {
+        await loadTargets(appliedTargetRef.current);
+      }
       await loadReports(appliedParamsRef.current);
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업일보 취소에 실패했습니다.');
@@ -520,13 +545,28 @@ export default function WorkReportPage() {
 
       {tab === 'targets' && (
         <>
-          <section className="action-bar">
-            <button type="button" className="secondary" onClick={() => void loadTargets()}>
-              새로고침
+          <section className="filter-panel">
+            <ItemSearchField label="품목" selectedItem={targetItem} onSelect={setTargetItem} />
+            <label>
+              공정
+              <input value={targetProcessName} onChange={(e) => setTargetProcessName(e.target.value)} />
+            </label>
+            <label>
+              지시일(부터)
+              <input type="date" value={targetDateFrom} onChange={(e) => setTargetDateFrom(e.target.value)} />
+            </label>
+            <label>
+              지시일(까지)
+              <input type="date" value={targetDateTo} onChange={(e) => setTargetDateTo(e.target.value)} />
+            </label>
+            <button type="button" onClick={onSearchTargets} disabled={loadingTargets}>
+              {loadingTargets ? '조회 중…' : '검색'}
             </button>
           </section>
           {loadingTargets ? (
             <p>불러오는 중…</p>
+          ) : !targetsSearched ? (
+            <p>검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요. 조건을 비우면 등록 대상 전체가 조회됩니다.</p>
           ) : (
             <div className="table-wrap">
               <table>
@@ -537,6 +577,7 @@ export default function WorkReportPage() {
                     <th>품목</th>
                     <th>공정</th>
                     <th>작업장</th>
+                    <th>지시일</th>
                     <th className="num">잔량</th>
                     <th />
                   </tr>
@@ -544,7 +585,7 @@ export default function WorkReportPage() {
                 <tbody>
                   {targets.length === 0 ? (
                     <tr>
-                      <td colSpan={7}>등록 대상이 없습니다.</td>
+                      <td colSpan={8}>등록 대상이 없습니다.</td>
                     </tr>
                   ) : (
                     targets.map((row) => (
@@ -556,6 +597,7 @@ export default function WorkReportPage() {
                         </td>
                         <td>{row.processName}</td>
                         <td>{row.workCenterName ?? '—'}</td>
+                        <td>{formatSeoulDate(row.createdAt)}</td>
                         <td className="num">{formatQty(row.remainingQty)}</td>
                         <td className="actions">
                           <button type="button" disabled={submitting} onClick={() => openRegister(row)}>

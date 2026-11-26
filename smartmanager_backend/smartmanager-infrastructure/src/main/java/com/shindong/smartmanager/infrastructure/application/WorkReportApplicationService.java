@@ -7,6 +7,7 @@ import com.shindong.smartmanager.application.production.WorkReportConsumptionSta
 import com.shindong.smartmanager.application.production.WorkReportListCriteria;
 import com.shindong.smartmanager.application.production.WorkReportService;
 import com.shindong.smartmanager.application.production.WorkReportView;
+import com.shindong.smartmanager.application.production.WorkTargetSearchCriteria;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -23,8 +24,8 @@ public class WorkReportApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<WorkOrderView> listReportTargets() {
-        return workReportService.listReportTargets();
+    public List<WorkOrderView> listReportTargets(WorkTargetSearchCriteria criteria) {
+        return workReportService.listReportTargets(criteria);
     }
 
     @Transactional(readOnly = true)

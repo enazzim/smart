@@ -54,6 +54,10 @@ export default function EtcPurchaseOrderPage() {
   const [listPartner, setListPartner] = useState<CompanySearchSelection | null>(null);
   const [listClearToken, setListClearToken] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState(emptyForm);
+  const [editPartner, setEditPartner] = useState<CompanySearchSelection | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [tab, setTab] = useState<'register' | 'list'>('register');
   const [loadingList, setLoadingList] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -111,6 +115,12 @@ export default function EtcPurchaseOrderPage() {
     return unitPrice * qty;
   }, [form.unitPrice, form.orderQty]);
 
+  const editTotalAmount = useMemo(() => {
+    const unitPrice = parseNumber(editForm.unitPrice) ?? 0;
+    const qty = parseNumber(editForm.orderQty) ?? 0;
+    return unitPrice * qty;
+  }, [editForm.unitPrice, editForm.orderQty]);
+
   const loadOrders = useCallback(async () => {
     setLoadingList(true);
     setListError(null);
@@ -132,7 +142,6 @@ export default function EtcPurchaseOrderPage() {
   const resetForm = () => {
     setForm({ ...emptyForm, requestedDeliveryDate: todayIso() });
     setPartner(null);
-    setEditingId(null);
   };
 
   const onListSearch = () => {
@@ -147,23 +156,31 @@ export default function EtcPurchaseOrderPage() {
     setAppliedListFilters(defaults);
   };
 
+  const closeEdit = () => {
+    setEditingId(null);
+    setEditPartner(null);
+    setEditForm({ ...emptyForm, requestedDeliveryDate: todayIso() });
+    setEditError(null);
+  };
+
   const startEdit = (row: EtcPurchaseOrder) => {
     if (!row.editable) {
       setFormError('대기 상태의 발주만 수정할 수 있습니다.');
       return;
     }
     setEditingId(row.id);
-    setForm({
+    setEditForm({
       itemName: row.itemName,
       unitPrice: String(row.unitPrice),
       orderQty: String(row.orderQty),
       requestedDeliveryDate: row.requestedDeliveryDate,
     });
-    setPartner({
+    setEditPartner({
       id: row.partnerId,
       companyName: row.partnerName,
       businessRegNo: row.partnerBusinessRegNo,
     });
+    setEditError(null);
     setFormError(null);
     setMessage(null);
   };
@@ -201,31 +218,69 @@ export default function EtcPurchaseOrderPage() {
         orderQty,
         requestedDeliveryDate: form.requestedDeliveryDate,
       };
-      if (editingId != null) {
-        await updateEtcPurchaseOrder(editingId, payload);
-        setMessage('기타구매발주를 수정했습니다.');
-        resetForm();
-        await loadOrders();
-      } else {
-        await createEtcPurchaseOrder({ ...payload, orderDate });
-        setMessage('기타구매발주를 등록했습니다.');
-        const nextListFilters: EtcPurchaseOrderListParams = {
-          ...appliedListFilters,
-          orderDateFrom:
-            appliedListFilters.orderDateFrom && appliedListFilters.orderDateFrom <= orderDate
-              ? appliedListFilters.orderDateFrom
-              : orderDate,
-          orderDateTo:
-            appliedListFilters.orderDateTo && appliedListFilters.orderDateTo >= orderDate
-              ? appliedListFilters.orderDateTo
-              : orderDate,
-        };
-        setListFilters(nextListFilters);
-        setAppliedListFilters(nextListFilters);
-        resetForm();
-      }
+      await createEtcPurchaseOrder({ ...payload, orderDate });
+      setMessage('기타구매발주를 등록했습니다.');
+      const nextListFilters: EtcPurchaseOrderListParams = {
+        ...appliedListFilters,
+        orderDateFrom:
+          appliedListFilters.orderDateFrom && appliedListFilters.orderDateFrom <= orderDate
+            ? appliedListFilters.orderDateFrom
+            : orderDate,
+        orderDateTo:
+          appliedListFilters.orderDateTo && appliedListFilters.orderDateTo >= orderDate
+            ? appliedListFilters.orderDateTo
+            : orderDate,
+      };
+      setListFilters(nextListFilters);
+      setAppliedListFilters(nextListFilters);
+      resetForm();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : editingId != null ? '수정 실패' : '등록 실패');
+      setFormError(err instanceof Error ? err.message : '등록 실패');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingId == null) {
+      return;
+    }
+    if (!editPartner) {
+      setEditError('구매거래처를 선택해 주세요.');
+      return;
+    }
+    const unitPrice = parseNumber(editForm.unitPrice);
+    const orderQty = parseNumber(editForm.orderQty);
+    if (!editForm.itemName.trim()) {
+      setEditError('품목명을 입력해 주세요.');
+      return;
+    }
+    if (unitPrice == null || unitPrice < 0) {
+      setEditError('개별 단가를 확인해 주세요.');
+      return;
+    }
+    if (orderQty == null || orderQty <= 0) {
+      setEditError('수량은 0보다 커야 합니다.');
+      return;
+    }
+
+    setSubmitting(true);
+    setEditError(null);
+    setMessage(null);
+    try {
+      await updateEtcPurchaseOrder(editingId, {
+        itemName: editForm.itemName.trim(),
+        partnerId: editPartner.id,
+        unitPrice,
+        orderQty,
+        requestedDeliveryDate: editForm.requestedDeliveryDate,
+      });
+      setMessage('기타구매발주를 수정했습니다.');
+      closeEdit();
+      await loadOrders();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : '수정 실패');
     } finally {
       setSubmitting(false);
     }
@@ -244,7 +299,7 @@ export default function EtcPurchaseOrderPage() {
     try {
       await deleteEtcPurchaseOrder(row.id);
       if (editingId === row.id) {
-        resetForm();
+        closeEdit();
       }
       setMessage('기타구매발주를 삭제했습니다.');
       await loadOrders();
@@ -260,11 +315,23 @@ export default function EtcPurchaseOrderPage() {
         <p>품목 마스터에 없는 품목을 구매거래처에 발주합니다. 입고 전(대기) 상태만 수정·삭제할 수 있습니다.</p>
       </header>
 
+      <div className="tab-row">
+        <button type="button" className={tab === 'register' ? 'tab-active' : undefined} onClick={() => setTab('register')}>
+          발주 등록
+        </button>
+        <button type="button" className={tab === 'list' ? 'tab-active' : undefined} onClick={() => setTab('list')}>
+          발주 목록
+        </button>
+      </div>
+
+      {message && <p className="success-banner">{message}</p>}
+      {formError && <div className="error">{formError}</div>}
+
+      {tab === 'register' && (
       <section className="panel">
         <div className="panel-header-row">
-          <h2>{editingId != null ? '발주 수정' : '발주 등록'}</h2>
+          <h2>발주 등록</h2>
         </div>
-        {formError && <div className="error">{formError}</div>}
         <form onSubmit={(e) => void onSubmit(e)}>
           <div
             className="form-grid-wide"
@@ -327,12 +394,14 @@ export default function EtcPurchaseOrderPage() {
               초기화
             </button>
             <button type="submit" disabled={submitting}>
-              {submitting ? '저장 중…' : editingId != null ? '수정' : '등록'}
+              {submitting ? '저장 중…' : '등록'}
             </button>
           </div>
         </form>
       </section>
+      )}
 
+      {tab === 'list' && (
       <section className="panel">
         <div className="panel-header-row">
           <h2>발주 목록</h2>
@@ -348,7 +417,6 @@ export default function EtcPurchaseOrderPage() {
             <GridExcelExportButton fileBaseName="기타구매발주목록" disabled={loadingList} rows={orderExportRows} />
           </div>
         </div>
-        {message && <p>{message}</p>}
         {listError && <div className="error">{listError}</div>}
         <div className="form-grid-wide">
           <label>
@@ -490,6 +558,87 @@ export default function EtcPurchaseOrderPage() {
           </div>
         )}
       </section>
+      )}
+
+      {editingId != null && (
+        <div className="modal-backdrop" role="presentation">
+          <div
+            className="modal-panel"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2>발주 수정</h2>
+            {editError && <div className="error">{editError}</div>}
+            <form onSubmit={(e) => void onEditSubmit(e)}>
+              <div
+                className="form-grid-wide"
+                style={{ gridTemplateColumns: 'minmax(12rem, 2fr) repeat(3, minmax(6rem, 1fr))' }}
+              >
+                <label>
+                  품목명
+                  <input
+                    value={editForm.itemName}
+                    onChange={(e) => setEditForm((f) => ({ ...f, itemName: e.target.value }))}
+                    placeholder="자유 입력"
+                  />
+                </label>
+                <label>
+                  개별 단가
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={editForm.unitPrice}
+                    onChange={(e) => setEditForm((f) => ({ ...f, unitPrice: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  수량
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={editForm.orderQty}
+                    onChange={(e) => setEditForm((f) => ({ ...f, orderQty: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  총금액
+                  <input type="text" className="readonly" readOnly value={formatAmount(editTotalAmount)} />
+                </label>
+              </div>
+              <div
+                className="form-grid-wide"
+                style={{ gridTemplateColumns: 'minmax(16rem, 2fr) minmax(10rem, 1fr)', marginTop: '0.85rem' }}
+              >
+                <CompanySearchField
+                  label="거래처"
+                  partnerType="PURCHASE"
+                  selectedCompany={editPartner}
+                  onSelect={setEditPartner}
+                />
+                <label>
+                  납기요구일
+                  <input
+                    type="date"
+                    value={editForm.requestedDeliveryDate}
+                    onChange={(e) => setEditForm((f) => ({ ...f, requestedDeliveryDate: e.target.value }))}
+                  />
+                </label>
+              </div>
+              <div className="form-actions">
+                <button type="button" className="secondary" onClick={closeEdit} disabled={submitting}>
+                  닫기
+                </button>
+                <button type="submit" disabled={submitting}>
+                  {submitting ? '저장 중…' : '수정'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -51,8 +51,22 @@ function toQuery(params: Record<string, string | number | undefined>): string {
   return qs ? `?${qs}` : '';
 }
 
-export async function fetchProductionPlanCandidates(): Promise<SalesOrderLineListRow[]> {
-  const res = await apiFetch('/api/v1/production/plan-candidates');
+export interface ProductionPlanCandidateParams {
+  itemId?: number;
+  orderDateFrom?: string;
+  orderDateTo?: string;
+}
+
+export async function fetchProductionPlanCandidates(
+  params: ProductionPlanCandidateParams = {},
+): Promise<SalesOrderLineListRow[]> {
+  const res = await apiFetch(
+    `/api/v1/production/plan-candidates${toQuery({
+      itemId: params.itemId,
+      orderDateFrom: params.orderDateFrom,
+      orderDateTo: params.orderDateTo,
+    })}`,
+  );
   return handleResponse(res);
 }
 

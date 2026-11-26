@@ -6,8 +6,8 @@ import com.shindong.smartmanager.application.production.MrpCancelPlanResult;
 import com.shindong.smartmanager.application.production.MrpRunView;
 import com.shindong.smartmanager.application.production.MrpService;
 import com.shindong.smartmanager.application.production.ProductionPlanView;
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,8 +21,12 @@ public class MrpApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProductionPlanView> listCalculationTargets() {
-        return mrpService.listCalculationTargets();
+    public List<ProductionPlanView> listCalculationTargets(
+            Long itemId,
+            LocalDate requestedDeliveryDateFrom,
+            LocalDate requestedDeliveryDateTo
+    ) {
+        return mrpService.listCalculationTargets(itemId, requestedDeliveryDateFrom, requestedDeliveryDateTo);
     }
 
     @Transactional(readOnly = true)
@@ -46,8 +50,20 @@ public class MrpApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public MaterialRequirementGroupedResult listGroupedLines(Optional<Long> mrpRunId) {
-        return mrpService.listGroupedLines(mrpRunId);
+    public MaterialRequirementGroupedResult listGroupedLines(
+            Long mrpRunId,
+            Long parentItemId,
+            Long componentItemId,
+            LocalDate requestedDeliveryDateFrom,
+            LocalDate requestedDeliveryDateTo
+    ) {
+        return mrpService.listGroupedLines(
+                mrpRunId,
+                parentItemId,
+                componentItemId,
+                requestedDeliveryDateFrom,
+                requestedDeliveryDateTo
+        );
     }
 
     @Transactional

@@ -124,10 +124,9 @@ public class StatsReportQueryService {
         if (criteria == null || criteria.locationCode() == null || criteria.locationCode().isBlank()) {
             throw new IllegalArgumentException("창고를 선택해 주세요.");
         }
-        YearMonth now = YearMonth.now();
         int year = criteria.fiscalYear() > 0 ? criteria.fiscalYear() : Year.now().getValue();
-        int month = criteria.fiscalMonth() > 0 ? criteria.fiscalMonth() : now.getMonthValue();
-        if (month < 1 || month > 12) {
+        Integer month = criteria.fiscalMonth();
+        if (month != null && (month < 1 || month > 12)) {
             throw new IllegalArgumentException("월은 1~12 범위여야 합니다.");
         }
         return statsReportRepository.findWarehouseMonthlyIo(new WarehouseMonthlyIoCriteria(

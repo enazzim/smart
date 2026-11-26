@@ -62,7 +62,7 @@ function lineAmount(qty: number, unitPrice: number): number {
   return Math.round(qty * unitPrice * 100) / 100;
 }
 
-type RegisterMode = 'single' | 'excel';
+type RegisterMode = 'single' | 'excel' | 'list';
 
 type LineForm = {
   itemId: number;
@@ -173,6 +173,7 @@ export default function SalesOrderPage() {
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [excelDragOver, setExcelDragOver] = useState(false);
   const excelInputRef = useRef<HTMLInputElement>(null);
+  const editPartnerKey = useRef<string | null>(null);
 
   const isEditing = editingId !== null;
 
@@ -274,6 +275,15 @@ export default function SalesOrderPage() {
   }, [orderDate, isEditing, orderNoManual, refreshNextOrderNo]);
 
   useEffect(() => {
+    const key = partner ? `${partner.id}|${orderDate}` : '';
+    if (isEditing) {
+      if (editPartnerKey.current === key) {
+        return;
+      }
+      editPartnerKey.current = key;
+    } else {
+      editPartnerKey.current = null;
+    }
     if (!partner) {
       setPartnerPriceItems([]);
       setLines([emptyLine()]);
@@ -281,9 +291,10 @@ export default function SalesOrderPage() {
     }
     void loadPartnerPriceItems(partner.id, orderDate);
     setLines([emptyLine()]);
-  }, [partner, orderDate, loadPartnerPriceItems]);
+  }, [partner, orderDate, loadPartnerPriceItems, isEditing]);
 
   const resetForm = () => {
+    editPartnerKey.current = null;
     setPartner(null);
     setPartnerPriceItems([]);
     setOrderNoManual(false);
@@ -305,18 +316,6 @@ export default function SalesOrderPage() {
         setError('생산계획 수립 또는 이행이 시작된 수주는 수정할 수 없습니다.');
         return;
       }
-      setRegisterMode('single');
-      setEditingId(order.id);
-      setOrderNo(order.orderNo);
-      setOrderNoManual(true);
-      setPartner({
-        id: order.partnerId,
-        companyName: order.partnerName,
-        businessRegNo: order.partnerBusinessRegNo,
-      });
-      setOrderDate(order.orderDate);
-      setRequestedDeliveryDate(order.requestedDeliveryDate ?? '');
-      setRemark(order.remark ?? '');
       const items = await loadPartnerPriceItems(order.partnerId, order.orderDate);
       const merged = [...items];
       for (const line of order.lines) {
@@ -329,6 +328,18 @@ export default function SalesOrderPage() {
           });
         }
       }
+      editPartnerKey.current = `${order.partnerId}|${order.orderDate}`;
+      setEditingId(order.id);
+      setOrderNo(order.orderNo);
+      setOrderNoManual(true);
+      setPartner({
+        id: order.partnerId,
+        companyName: order.partnerName,
+        businessRegNo: order.partnerBusinessRegNo,
+      });
+      setOrderDate(order.orderDate);
+      setRequestedDeliveryDate(order.requestedDeliveryDate ?? '');
+      setRemark(order.remark ?? '');
       setPartnerPriceItems(merged);
       setLines(
         order.lines.map((line) => ({
@@ -343,7 +354,6 @@ export default function SalesOrderPage() {
           },
         })),
       );
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setError(err instanceof Error ? err.message : '수주 조회 실패');
     }
@@ -378,7 +388,9 @@ export default function SalesOrderPage() {
         setMessage(`수주가 등록되었습니다. (수주번호: ${created.orderNo})`);
       }
       resetForm();
-      await load();
+      if (hasSearched) {
+        await load();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장 실패');
     } finally {
@@ -392,7 +404,9 @@ export default function SalesOrderPage() {
     try {
       await action();
       setMessage('상태가 변경되었습니다.');
-      await loadLineList();
+      if (hasSearched) {
+        await loadLineList();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '상태 변경 실패');
     } finally {
@@ -409,7 +423,9 @@ export default function SalesOrderPage() {
     try {
       await cancelSalesOrder(id);
       setMessage('수주가 취소되었습니다.');
-      await load();
+      if (hasSearched) {
+        await load();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '취소 실패');
     } finally {
@@ -527,7 +543,9 @@ export default function SalesOrderPage() {
       if (result.successCount > 0) {
         setExcelFile(null);
         setExcelPreview([]);
-        await load();
+        if (hasSearched) {
+          await load();
+        }
       }
     } catch (err) {
       setExcelErrors([
@@ -583,25 +601,44 @@ export default function SalesOrderPage() {
         </button>
       </header>
 
-      <section className="panel">
-        <div className="tab-row">
-          <button
-            type="button"
-            className={registerMode === 'single' ? 'tab-active' : ''}
-            onClick={() => setRegisterMode('single')}
-          >
-            건별 등록
-          </button>
-          <button
-            type="button"
-            className={registerMode === 'excel' ? 'tab-active' : ''}
-            onClick={() => setRegisterMode('excel')}
-          >
-            엑셀 일괄 등록
-          </button>
-        </div>
+      <div className="tab-row">
+        <button
+          type="button"
+          className={registerMode === 'single' ? 'tab-active' : ''}
+          onClick={() => setRegisterMode('single')}
+        >
+          건별 등록
+        </button>
+        <button
+          type="button"
+          className={registerMode === 'excel' ? 'tab-active' : ''}
+          onClick={() => setRegisterMode('excel')}
+        >
+          엑셀 일괄 등록
+        </button>
+        <button
+          type="button"
+          className={registerMode === 'list' ? 'tab-active' : ''}
+          onClick={() => setRegisterMode('list')}
+        >
+          수주 목록
+        </button>
+      </div>
 
-        {registerMode === 'single' ? (
+      {message && <p className="success-banner sales-order-feedback">{message}</p>}
+      {error && !isEditing && <div className="error sales-order-feedback">{error}</div>}
+
+      {(registerMode !== 'list' || isEditing) && (
+      <div className={isEditing ? 'modal-backdrop' : undefined} role={isEditing ? 'presentation' : undefined}>
+      <section
+        className={isEditing ? 'modal-panel' : 'panel'}
+        role={isEditing ? 'dialog' : undefined}
+        aria-modal={isEditing || undefined}
+        onClick={isEditing ? (e) => e.stopPropagation() : undefined}
+        style={isEditing ? { maxWidth: 'min(1100px, 96vw)' } : undefined}
+      >
+        {isEditing && error && <div className="error">{error}</div>}
+        {(registerMode === 'single' || isEditing) ? (
           <form className="sales-order-form" onSubmit={(e) => void onSubmit(e)}>
             <div className="ui-section">
               <h2>{isEditing ? '수주 수정' : '수주 등록'}</h2>
@@ -747,7 +784,7 @@ export default function SalesOrderPage() {
                   </button>
                   {isEditing && (
                     <button type="button" className="secondary" onClick={resetForm}>
-                      취소
+                      닫기
                     </button>
                   )}
                 </div>
@@ -902,10 +939,11 @@ export default function SalesOrderPage() {
           </div>
         )}
 
-        {message && <p className="success-banner sales-order-feedback">{message}</p>}
-        {error && <div className="error sales-order-feedback">{error}</div>}
       </section>
+      </div>
+      )}
 
+      {registerMode === 'list' && (
       <section className="panel">
         <div className="panel-header-row">
           <h2>수주 목록</h2>
@@ -1052,6 +1090,7 @@ export default function SalesOrderPage() {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

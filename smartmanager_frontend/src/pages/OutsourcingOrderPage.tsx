@@ -69,6 +69,7 @@ export default function OutsourcingOrderPage() {
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [tab, setTab] = useState<'register' | 'list'>('register');
 
   const loadCandidates = useCallback(async () => {
     setLoadingCandidates(true);
@@ -278,6 +279,16 @@ export default function OutsourcingOrderPage() {
       {message && <p className="success-banner">{message}</p>}
       {orderError && <p className="error-banner">{orderError}</p>}
 
+      <div className="tab-row">
+        <button type="button" className={tab === 'register' ? 'tab-active' : undefined} onClick={() => setTab('register')}>
+          외주발주 등록
+        </button>
+        <button type="button" className={tab === 'list' ? 'tab-active' : undefined} onClick={() => setTab('list')}>
+          외주발주 목록
+        </button>
+      </div>
+
+      {tab === 'register' && (
       <section className="panel">
         <h2>작업계획 발주 후보</h2>
         <div className="action-bar">
@@ -444,7 +455,9 @@ export default function OutsourcingOrderPage() {
           </div>
         )}
       </section>
+      )}
 
+      {tab === 'list' && (
       <section className="panel">
         <div className="panel-header-row">
           <h2>외주발주 목록</h2>
@@ -589,6 +602,7 @@ export default function OutsourcingOrderPage() {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

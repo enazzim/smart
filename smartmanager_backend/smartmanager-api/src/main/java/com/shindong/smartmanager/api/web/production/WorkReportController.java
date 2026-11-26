@@ -4,6 +4,7 @@ import com.shindong.smartmanager.api.security.SecurityUtils;
 import com.shindong.smartmanager.application.production.CreateWorkReportCommand;
 import com.shindong.smartmanager.application.production.WorkReportIssueLineCommand;
 import com.shindong.smartmanager.application.production.WorkReportListCriteria;
+import com.shindong.smartmanager.application.production.WorkTargetSearchCriteria;
 import com.shindong.smartmanager.infrastructure.application.WorkReportApplicationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -35,10 +36,15 @@ public class WorkReportController {
 
     @GetMapping("/report-targets")
     @PreAuthorize("hasAuthority('production:work-report:read')")
-    public List<WorkOrderResponse> listReportTargets() {
-        return workReportApplicationService.listReportTargets().stream()
-                .map(WorkOrderResponse::from)
-                .toList();
+    public List<WorkOrderResponse> listReportTargets(
+            @RequestParam(required = false) String itemNo,
+            @RequestParam(required = false) String processName,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate issuedFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate issuedTo
+    ) {
+        return workReportApplicationService.listReportTargets(new WorkTargetSearchCriteria(
+                itemNo, processName, issuedFrom, issuedTo
+        )).stream().map(WorkOrderResponse::from).toList();
     }
 
     @GetMapping

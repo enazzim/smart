@@ -6,7 +6,7 @@ import java.util.Optional;
 
 public interface WorkReportRepository {
 
-    List<WorkOrderView> findReportTargets();
+    List<WorkOrderView> findReportTargets(WorkTargetSearchCriteria criteria);
 
     WorkReportView save(WorkReportSaveCommand command, String actorUserId);
 

@@ -6,6 +6,7 @@ import com.shindong.smartmanager.application.production.ProductionPlanService;
 import com.shindong.smartmanager.application.production.ProductionPlanStandaloneCommand;
 import com.shindong.smartmanager.application.production.ProductionPlanView;
 import com.shindong.smartmanager.application.sales.SalesOrderLineListView;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,8 +21,8 @@ public class ProductionPlanApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SalesOrderLineListView> listCandidates() {
-        return productionPlanService.listCandidates();
+    public List<SalesOrderLineListView> listCandidates(Long itemId, LocalDate orderDateFrom, LocalDate orderDateTo) {
+        return productionPlanService.listCandidates(itemId, orderDateFrom, orderDateTo);
     }
 
     @Transactional(readOnly = true)

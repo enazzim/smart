@@ -33,8 +33,12 @@ public class ProductionPlanController {
 
     @GetMapping("/plan-candidates")
     @PreAuthorize("hasAuthority('production:plan:read')")
-    public List<SalesOrderLineListResponse> listCandidates() {
-        return productionPlanApplicationService.listCandidates().stream()
+    public List<SalesOrderLineListResponse> listCandidates(
+            @RequestParam(required = false) Long itemId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate orderDateTo
+    ) {
+        return productionPlanApplicationService.listCandidates(itemId, orderDateFrom, orderDateTo).stream()
                 .map(SalesOrderLineListResponse::from)
                 .toList();
     }

@@ -57,6 +57,9 @@ export default function EtcClaimPage() {
   const [form, setForm] = useState(emptyForm);
   const [partner, setPartner] = useState<CompanySearchSelection | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState(emptyForm);
+  const [editPartner, setEditPartner] = useState<CompanySearchSelection | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -75,8 +78,6 @@ export default function EtcClaimPage() {
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [statusClearToken, setStatusClearToken] = useState(0);
-
-  const isEditing = editingId != null;
 
   const todayExportRows = useMemo(
     () =>
@@ -151,8 +152,14 @@ export default function EtcClaimPage() {
   const resetForm = () => {
     setForm(emptyForm());
     setPartner(null);
-    setEditingId(null);
     setFormError(null);
+  };
+
+  const closeEdit = () => {
+    setEditingId(null);
+    setEditForm(emptyForm());
+    setEditPartner(null);
+    setEditError(null);
   };
 
   const startEdit = (row: EtcClaim) => {
@@ -161,20 +168,19 @@ export default function EtcClaimPage() {
       return;
     }
     setEditingId(row.id);
-    setPartner({
+    setEditPartner({
       id: row.partnerId,
       companyName: row.partnerName,
       businessRegNo: row.partnerBusinessRegNo,
     });
-    setForm({
+    setEditForm({
       receiptDate: row.receiptDate,
       reason: row.reason,
       amount: String(row.amount),
     });
+    setEditError(null);
     setFormError(null);
     setMessage(null);
-    setTab('register');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -203,18 +209,53 @@ export default function EtcClaimPage() {
         reason: form.reason.trim(),
         amount,
       };
-      if (editingId != null) {
-        await updateEtcClaim(editingId, payload);
-        setMessage('수정되었습니다.');
-      } else {
-        await createEtcClaim(payload);
-        setMessage('등록되었습니다.');
-      }
+      await createEtcClaim(payload);
+      setMessage('등록되었습니다.');
       resetForm();
       await loadTodayRows();
       await loadStatusRows();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : '저장 실패');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingId == null) {
+      return;
+    }
+    if (!editPartner) {
+      setEditError('거래처를 선택해 주세요.');
+      return;
+    }
+    const amount = Number(editForm.amount);
+    if (!editForm.reason.trim()) {
+      setEditError('공제사유를 입력해 주세요.');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setEditError('금액은 0보다 커야 합니다.');
+      return;
+    }
+
+    setSubmitting(true);
+    setEditError(null);
+    setMessage(null);
+    try {
+      await updateEtcClaim(editingId, {
+        partnerId: editPartner.id,
+        receiptDate: editForm.receiptDate,
+        reason: editForm.reason.trim(),
+        amount,
+      });
+      setMessage('수정되었습니다.');
+      closeEdit();
+      await loadTodayRows();
+      await loadStatusRows();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : '저장 실패');
     } finally {
       setSubmitting(false);
     }
@@ -236,7 +277,7 @@ export default function EtcClaimPage() {
     try {
       await deleteEtcClaim(id);
       if (editingId === id) {
-        resetForm();
+        closeEdit();
       }
       setMessage('삭제되었습니다.');
       await loadTodayRows();
@@ -337,16 +378,8 @@ export default function EtcClaimPage() {
                 <button type="button" className="secondary" onClick={resetForm}>
                   초기화
                 </button>
-                <button
-                  type="button"
-                  className="danger"
-                  disabled={!isEditing || submitting}
-                  onClick={() => (editingId != null ? void onDelete(editingId) : undefined)}
-                >
-                  삭제
-                </button>
-                <button type="submit" disabled={submitting || (isEditing && !editingId)}>
-                  {submitting ? '저장 중…' : isEditing ? '수정' : '등록'}
+                <button type="submit" disabled={submitting}>
+                  {submitting ? '저장 중…' : '등록'}
                 </button>
               </div>
             </form>
@@ -521,6 +554,62 @@ export default function EtcClaimPage() {
             </div>
           )}
         </section>
+      )}
+
+      {editingId != null && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal-panel" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <h2>기타공제 수정</h2>
+            {editError && <p className="error-banner">{editError}</p>}
+            <form onSubmit={(e) => void onEditSubmit(e)} className="form-grid">
+              <CompanySearchField
+                label="거래처명"
+                partnerTypes={PURCHASE_OUTSOURCE_PARTNER_ROLES}
+                selectedCompany={editPartner}
+                onSelect={setEditPartner}
+                placeholder="거래처명 또는 사업자번호"
+              />
+              <label>
+                접수일
+                <input
+                  type="date"
+                  required
+                  value={editForm.receiptDate}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, receiptDate: e.target.value }))}
+                />
+              </label>
+              <label className="full-width">
+                공제사유
+                <input
+                  type="text"
+                  required
+                  value={editForm.reason}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, reason: e.target.value }))}
+                  placeholder="공제사유를 입력하세요"
+                />
+              </label>
+              <label>
+                금액
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  step="0.01"
+                  value={editForm.amount}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, amount: e.target.value }))}
+                />
+              </label>
+              <div className="form-actions full-width">
+                <button type="button" className="secondary" onClick={closeEdit} disabled={submitting}>
+                  닫기
+                </button>
+                <button type="submit" disabled={submitting}>
+                  {submitting ? '저장 중…' : '수정'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

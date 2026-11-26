@@ -1,4 +1,5 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
+import type { PropertyClassification } from '../api/item';
 import type { ProductionPlan } from '../api/productionPlan';
 import {
   calculateMrp,
@@ -10,11 +11,19 @@ import {
   fetchMrpTargets,
   type MaterialRequirementGrouped,
   type MaterialRequirementLine,
+  type MrpLineSearchParams,
   type MrpRun,
+  type MrpTargetParams,
 } from '../api/mrp';
 import GridExcelExportButton from '../components/GridExcelExportButton';
+import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
 import { formatInteger, formatQty } from '../utils/numberFormat';
 import { useConfirm } from '../context/ConfirmContext';
+
+const PARENT_ITEM_CLASSES: PropertyClassification[] = ['제품', '공정품'];
+const COMPONENT_ITEM_CLASSES: PropertyClassification[] = ['원자재', '부자재', '상품', '공정품', '제품', '팬텀'];
+
+type MrpTab = 'targets' | 'lines';
 
 function formatDateTime(value: string): string {
   const date = new Date(value);
@@ -72,15 +81,28 @@ function renderLineRow(
 
 export default function MrpPage() {
   const confirm = useConfirm();
+  const [tab, setTab] = useState<MrpTab>('targets');
   const [targets, setTargets] = useState<ProductionPlan[]>([]);
-  const [runs, setRuns] = useState<MrpRun[]>([]);
+  const [targetsSearched, setTargetsSearched] = useState(false);
+  const [targetItem, setTargetItem] = useState<ItemSearchSelection | null>(null);
+  const [targetDeliveryFrom, setTargetDeliveryFrom] = useState('');
+  const [targetDeliveryTo, setTargetDeliveryTo] = useState('');
+  const [targetItemClearToken, setTargetItemClearToken] = useState(0);
+  const [sessionRun, setSessionRun] = useState<MrpRun | null>(null);
+  const [runCatalog, setRunCatalog] = useState<MrpRun[]>([]);
   const [grouped, setGrouped] = useState<MaterialRequirementGrouped | null>(null);
+  const [linesSearched, setLinesSearched] = useState(false);
+  const [pinnedRunId, setPinnedRunId] = useState<number | null>(null);
+  const [lineParentItem, setLineParentItem] = useState<ItemSearchSelection | null>(null);
+  const [lineComponentItem, setLineComponentItem] = useState<ItemSearchSelection | null>(null);
+  const [lineDeliveryFrom, setLineDeliveryFrom] = useState('');
+  const [lineDeliveryTo, setLineDeliveryTo] = useState('');
+  const [lineParentClearToken, setLineParentClearToken] = useState(0);
+  const [lineComponentClearToken, setLineComponentClearToken] = useState(0);
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<number>>(new Set());
   const [selectedPlanIds, setSelectedPlanIds] = useState<Set<number>>(new Set());
-  const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
-  const [loadingTargets, setLoadingTargets] = useState(true);
-  const [loadingRuns, setLoadingRuns] = useState(true);
-  const [loadingLines, setLoadingLines] = useState(true);
+  const [loadingTargets, setLoadingTargets] = useState(false);
+  const [loadingLines, setLoadingLines] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [targetError, setTargetError] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
@@ -105,57 +127,43 @@ export default function MrpPage() {
     [flatLines],
   );
 
-  const loadTargets = useCallback(async () => {
+  const loadTargets = useCallback(async (params: MrpTargetParams = {}) => {
     setLoadingTargets(true);
     setTargetError(null);
     try {
-      setTargets(await fetchMrpTargets());
+      const rows = await fetchMrpTargets(params);
+      setTargets(rows);
+      setTargetsSearched(true);
+      setSelectedPlanIds((prev) => {
+        const visible = new Set(rows.map((plan) => plan.id));
+        return new Set([...prev].filter((id) => visible.has(id)));
+      });
     } catch (e) {
       setTargetError(e instanceof Error ? e.message : '산출 대상 조회 실패');
       setTargets([]);
+      setTargetsSearched(true);
     } finally {
       setLoadingTargets(false);
     }
   }, []);
 
-  const loadRuns = useCallback(async () => {
-    setLoadingRuns(true);
-    setRunError(null);
-    try {
-      setRuns(await fetchMrpRuns());
-    } catch (e) {
-      setRunError(e instanceof Error ? e.message : '산출 이력 조회 실패');
-      setRuns([]);
-    } finally {
-      setLoadingRuns(false);
-    }
-  }, []);
-
-  const loadGroupedLines = useCallback(async (runId: number | null) => {
+  const loadGroupedLines = useCallback(async (params: MrpLineSearchParams = {}) => {
     setLoadingLines(true);
     setLineError(null);
     try {
-      setGrouped(await fetchGroupedMrpLines(runId));
+      const [groupedResult, runs] = await Promise.all([fetchGroupedMrpLines(params), fetchMrpRuns()]);
+      setGrouped(groupedResult);
+      setRunCatalog(runs);
+      setLinesSearched(true);
       setExpandedGroupIds(new Set());
     } catch (e) {
       setLineError(e instanceof Error ? e.message : '소요 자재 조회 실패');
       setGrouped(null);
+      setLinesSearched(true);
     } finally {
       setLoadingLines(false);
     }
   }, []);
-
-  const refreshAll = useCallback(async () => {
-    await loadTargets();
-    await loadRuns();
-    await loadGroupedLines(selectedRunId);
-  }, [loadGroupedLines, loadRuns, loadTargets, selectedRunId]);
-
-  useEffect(() => {
-    void loadTargets();
-    void loadRuns();
-    void loadGroupedLines(null);
-  }, [loadTargets, loadRuns, loadGroupedLines]);
 
   const togglePlan = (planId: number, checked: boolean) => {
     setSelectedPlanIds((prev) => {
@@ -189,6 +197,20 @@ export default function MrpPage() {
     });
   };
 
+  const buildTargetParams = (): MrpTargetParams => ({
+    itemId: targetItem?.id,
+    requestedDeliveryDateFrom: targetDeliveryFrom || undefined,
+    requestedDeliveryDateTo: targetDeliveryTo || undefined,
+  });
+
+  const buildLineParams = (): MrpLineSearchParams => ({
+    runId: pinnedRunId ?? undefined,
+    parentItemId: lineParentItem?.id,
+    componentItemId: lineComponentItem?.id,
+    requestedDeliveryDateFrom: lineDeliveryFrom || undefined,
+    requestedDeliveryDateTo: lineDeliveryTo || undefined,
+  });
+
   const onCalculate = async () => {
     const planIds = [...selectedPlanIds];
     if (planIds.length === 0) {
@@ -203,10 +225,10 @@ export default function MrpPage() {
       const run = await calculateMrp(planIds);
       setMessage(`자재소요 산출을 완료했습니다. (${run.runNo}, ${run.lineCount}건)`);
       setSelectedPlanIds(new Set());
-      setSelectedRunId(run.id);
-      await loadTargets();
-      await loadRuns();
-      await loadGroupedLines(run.id);
+      setSessionRun(run);
+      if (targetsSearched) {
+        await loadTargets(buildTargetParams());
+      }
     } catch (e) {
       setTargetError(e instanceof Error ? e.message : '자재소요 산출 실패');
     } finally {
@@ -214,9 +236,47 @@ export default function MrpPage() {
     }
   };
 
-  const onSelectRun = (runId: number | null) => {
-    setSelectedRunId(runId);
-    void loadGroupedLines(runId);
+  const handleSearchTargets = () => {
+    void loadTargets(buildTargetParams());
+  };
+
+  const handleResetTargets = () => {
+    setTargetItem(null);
+    setTargetDeliveryFrom('');
+    setTargetDeliveryTo('');
+    setTargetItemClearToken((token) => token + 1);
+  };
+
+  const handleSearchLines = () => {
+    setPinnedRunId(null);
+    void loadGroupedLines({
+      parentItemId: lineParentItem?.id,
+      componentItemId: lineComponentItem?.id,
+      requestedDeliveryDateFrom: lineDeliveryFrom || undefined,
+      requestedDeliveryDateTo: lineDeliveryTo || undefined,
+    });
+  };
+
+  const handleResetLines = () => {
+    setLineParentItem(null);
+    setLineComponentItem(null);
+    setLineDeliveryFrom('');
+    setLineDeliveryTo('');
+    setPinnedRunId(null);
+    setLineParentClearToken((token) => token + 1);
+    setLineComponentClearToken((token) => token + 1);
+  };
+
+  const openRunLines = (runId: number) => {
+    setLineParentItem(null);
+    setLineComponentItem(null);
+    setLineDeliveryFrom('');
+    setLineDeliveryTo('');
+    setLineParentClearToken((token) => token + 1);
+    setLineComponentClearToken((token) => token + 1);
+    setPinnedRunId(runId);
+    setTab('lines');
+    void loadGroupedLines({ runId });
   };
 
   const onCancelRun = async (runId: number, runNo: string) => {
@@ -229,10 +289,25 @@ export default function MrpPage() {
     try {
       await cancelMrpRun(runId);
       setMessage(`산출 이력 ${runNo}을(를) 취소했습니다.`);
-      if (selectedRunId === runId) {
-        setSelectedRunId(null);
+      if (sessionRun?.id === runId) {
+        setSessionRun(null);
       }
-      await refreshAll();
+      if (pinnedRunId === runId) {
+        setPinnedRunId(null);
+      }
+      if (targetsSearched) {
+        await loadTargets(buildTargetParams());
+      }
+      if (linesSearched) {
+        const nextRunId = pinnedRunId === runId ? undefined : pinnedRunId ?? undefined;
+        await loadGroupedLines({
+          runId: nextRunId,
+          parentItemId: lineParentItem?.id,
+          componentItemId: lineComponentItem?.id,
+          requestedDeliveryDateFrom: lineDeliveryFrom || undefined,
+          requestedDeliveryDateTo: lineDeliveryTo || undefined,
+        });
+      }
     } catch (e) {
       setRunError(e instanceof Error ? e.message : '산출 이력 취소 실패');
     } finally {
@@ -250,7 +325,12 @@ export default function MrpPage() {
     try {
       await cancelMrpPlan(productionPlanId);
       setMessage(`생산계획 ${planNo}의 자재소요를 취소했습니다.`);
-      await refreshAll();
+      if (targetsSearched) {
+        await loadTargets(buildTargetParams());
+      }
+      if (linesSearched) {
+        await loadGroupedLines(buildLineParams());
+      }
     } catch (e) {
       setLineError(e instanceof Error ? e.message : '계획 소요 취소 실패');
     } finally {
@@ -268,7 +348,12 @@ export default function MrpPage() {
     try {
       await cancelMrpLine(lineId);
       setMessage('자재 소요 1건을 취소했습니다.');
-      await refreshAll();
+      if (targetsSearched) {
+        await loadTargets(buildTargetParams());
+      }
+      if (linesSearched) {
+        await loadGroupedLines(buildLineParams());
+      }
     } catch (e) {
       setLineError(e instanceof Error ? e.message : '소요 라인 취소 실패');
     } finally {
@@ -298,6 +383,21 @@ export default function MrpPage() {
     grouped != null &&
     (grouped.groupingMode === 'BY_PLAN' ? grouped.lines.length > 0 : grouped.groups.length > 0);
 
+  const runsInResult = useMemo(() => {
+    const byId = new Map<number, { id: number; runNo: string; cancellable: boolean }>();
+    for (const line of flatLines) {
+      if (!byId.has(line.mrpRunId)) {
+        const catalog = runCatalog.find((run) => run.id === line.mrpRunId);
+        byId.set(line.mrpRunId, {
+          id: line.mrpRunId,
+          runNo: line.runNo,
+          cancellable: catalog?.cancellable ?? false,
+        });
+      }
+    }
+    return [...byId.values()];
+  }, [flatLines, runCatalog]);
+
   return (
     <div className="page">
       <header className="page-header">
@@ -307,12 +407,58 @@ export default function MrpPage() {
         </div>
       </header>
 
+      <div className="tab-row" aria-label="자재소요">
+        <button
+          type="button"
+          className={tab === 'targets' ? 'tab-active' : undefined}
+          onClick={() => setTab('targets')}
+        >
+          산출 대상
+        </button>
+        <button
+          type="button"
+          className={tab === 'lines' ? 'tab-active' : undefined}
+          onClick={() => setTab('lines')}
+        >
+          소요 자재
+        </button>
+      </div>
+      {message && <p>{message}</p>}
+      {runError && <div className="error">{runError}</div>}
+
+      {tab === 'targets' && (
+      <>
       <section className="panel">
         <h2>산출 대상</h2>
         <p className="hint-text">
           자재소요가 <strong>미산출</strong>인 생산계획을 선택하여 BOM 정전개 기준으로 소요량을 산출합니다.
           산출 후 생산계획의 자재소요 상태가 <strong>산출완료</strong>로 변경됩니다.
         </p>
+        <div className="production-plan-list-filters">
+          <ItemSearchField
+            label="생산 품목"
+            allowedClassifications={PARENT_ITEM_CLASSES}
+            selectedItem={targetItem}
+            onSelect={setTargetItem}
+            clearToken={targetItemClearToken}
+          />
+          <label>
+            납기요구일(부터)
+            <input type="date" value={targetDeliveryFrom} onChange={(e) => setTargetDeliveryFrom(e.target.value)} />
+          </label>
+          <label>
+            납기요구일(까지)
+            <input type="date" value={targetDeliveryTo} onChange={(e) => setTargetDeliveryTo(e.target.value)} />
+          </label>
+          <div className="production-plan-list-filter-actions">
+            <button type="button" onClick={handleSearchTargets} disabled={loadingTargets}>
+              {loadingTargets ? '조회 중…' : '검색'}
+            </button>
+            <button type="button" className="secondary" onClick={handleResetTargets} disabled={loadingTargets}>
+              초기화
+            </button>
+          </div>
+        </div>
         {targetError && <div className="error">{targetError}</div>}
         <div className="form-actions">
           <button
@@ -322,12 +468,11 @@ export default function MrpPage() {
           >
             {submitting ? '처리 중…' : `선택 산출 (${selectedPlanIds.size})`}
           </button>
-          <button type="button" className="secondary" onClick={() => void loadTargets()}>
-            새로고침
-          </button>
         </div>
         {loadingTargets ? (
           <p>불러오는 중…</p>
+        ) : !targetsSearched ? (
+          <p>검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요. 조건을 비우면 미산출 계획 전체가 조회됩니다.</p>
         ) : targets.length === 0 ? (
           <p>산출 대상 생산계획이 없습니다.</p>
         ) : (
@@ -378,21 +523,10 @@ export default function MrpPage() {
       </section>
 
       <section className="panel">
-        <h2>산출 이력</h2>
-        {message && <p>{message}</p>}
-        {runError && <div className="error">{runError}</div>}
-        <div className="form-actions">
-          <button type="button" className="secondary" onClick={() => onSelectRun(null)}>
-            전체 소요 보기
-          </button>
-          <button type="button" className="secondary" onClick={() => void loadRuns()}>
-            새로고침
-          </button>
-        </div>
-        {loadingRuns ? (
-          <p>불러오는 중…</p>
-        ) : runs.length === 0 ? (
-          <p>산출 이력이 없습니다.</p>
+        <h2>이번 산출</h2>
+        <p className="hint-text">이 화면에서 방금 산출한 건만 표시됩니다. 화면을 다시 열면 비고, 과거 산출은 소요 자재 탭에서 조회합니다.</p>
+        {sessionRun == null ? (
+          <p>이번 화면에서 산출한 이력이 없습니다.</p>
         ) : (
           <div className="table-wrap">
           <table>
@@ -407,39 +541,40 @@ export default function MrpPage() {
               </tr>
             </thead>
             <tbody>
-              {runs.map((run) => (
-                <tr key={run.id} className={selectedRunId === run.id ? 'row-selected' : undefined}>
-                  <td>{run.runNo}</td>
-                  <td className="num">{formatInteger(run.planCount)}</td>
-                  <td className="num">{formatInteger(run.lineCount)}</td>
-                  <td>{formatDateTime(run.createdAt)}</td>
-                  <td>{run.createdBy ?? '—'}</td>
-                  <td className="actions">
-                    <button type="button" className="btn-action" onClick={() => onSelectRun(run.id)}>
-                      소요 보기
+              <tr>
+                <td>{sessionRun.runNo}</td>
+                <td className="num">{formatInteger(sessionRun.planCount)}</td>
+                <td className="num">{formatInteger(sessionRun.lineCount)}</td>
+                <td>{formatDateTime(sessionRun.createdAt)}</td>
+                <td>{sessionRun.createdBy ?? '—'}</td>
+                <td className="actions">
+                  <button type="button" className="btn-action" onClick={() => openRunLines(sessionRun.id)}>
+                    소요 보기
+                  </button>
+                  {sessionRun.cancellable && (
+                    <button
+                      type="button"
+                      className="btn-action danger"
+                      disabled={submitting}
+                      onClick={() => void onCancelRun(sessionRun.id, sessionRun.runNo)}
+                    >
+                      취소
                     </button>
-                    {run.cancellable && (
-                      <button
-                        type="button"
-                        className="btn-action danger"
-                        disabled={submitting}
-                        onClick={() => void onCancelRun(run.id, run.runNo)}
-                      >
-                        취소
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                  )}
+                </td>
+              </tr>
             </tbody>
           </table>
           </div>
         )}
       </section>
+      </>
+      )}
 
+      {tab === 'lines' && (
       <section className="panel">
         <div className="panel-header-row">
-          <h2>소요 자재 목록{selectedRunId != null ? ` (산출 #${selectedRunId})` : ''}</h2>
+          <h2>소요 자재{pinnedRunId != null ? ' (선택한 산출)' : ''}</h2>
           <GridExcelExportButton fileBaseName="소요자재목록" disabled={loadingLines} rows={lineExportRows} />
         </div>
         <p className="hint-text">
@@ -447,7 +582,73 @@ export default function MrpPage() {
           변경). 라인 1건 취소 시 해당 생산계획에 잔여 소요가 있으면 <strong>산출완료</strong>를 유지합니다
           (정책 A).
         </p>
+        <div className="production-plan-list-filters">
+          <ItemSearchField
+            label="소요자재 품목"
+            allowedClassifications={COMPONENT_ITEM_CLASSES}
+            selectedItem={lineComponentItem}
+            onSelect={setLineComponentItem}
+            clearToken={lineComponentClearToken}
+          />
+          <ItemSearchField
+            label="생산계획 품목"
+            allowedClassifications={PARENT_ITEM_CLASSES}
+            selectedItem={lineParentItem}
+            onSelect={setLineParentItem}
+            clearToken={lineParentClearToken}
+          />
+          <label>
+            납기요구일(부터)
+            <input type="date" value={lineDeliveryFrom} onChange={(e) => setLineDeliveryFrom(e.target.value)} />
+          </label>
+          <label>
+            납기요구일(까지)
+            <input type="date" value={lineDeliveryTo} onChange={(e) => setLineDeliveryTo(e.target.value)} />
+          </label>
+          <div className="production-plan-list-filter-actions">
+            <button type="button" onClick={handleSearchLines} disabled={loadingLines}>
+              {loadingLines ? '조회 중…' : '검색'}
+            </button>
+            <button type="button" className="secondary" onClick={handleResetLines} disabled={loadingLines}>
+              초기화
+            </button>
+          </div>
+        </div>
+        {pinnedRunId != null && (
+          <p className="hint-text">산출 이력에서 연 산출번호만 보고 있습니다. 검색을 누르면 아래 조건으로 다시 조회합니다.</p>
+        )}
         {lineError && <div className="error">{lineError}</div>}
+        {runsInResult.length > 0 && (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>산출번호</th>
+                  <th>관리</th>
+                </tr>
+              </thead>
+              <tbody>
+                {runsInResult.map((run) => (
+                  <tr key={run.id}>
+                    <td>{run.runNo}</td>
+                    <td className="actions">
+                      {run.cancellable && (
+                        <button
+                          type="button"
+                          className="btn-action danger"
+                          disabled={submitting}
+                          onClick={() => void onCancelRun(run.id, run.runNo)}
+                        >
+                          산출 전체 취소
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         {cancellablePlanIds.size > 0 && (
           <div className="form-actions">
             {[...cancellablePlanIds].map((planId) => {
@@ -471,6 +672,8 @@ export default function MrpPage() {
         )}
         {loadingLines ? (
           <p>불러오는 중…</p>
+        ) : !linesSearched ? (
+          <p>검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요. 조건을 비우면 산출된 소요 전체가 조회됩니다.</p>
         ) : !hasLineData ? (
           <p>소요 자재가 없습니다.</p>
         ) : grouped?.groupingMode === 'BY_COMPONENT' ? (
@@ -568,6 +771,7 @@ export default function MrpPage() {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

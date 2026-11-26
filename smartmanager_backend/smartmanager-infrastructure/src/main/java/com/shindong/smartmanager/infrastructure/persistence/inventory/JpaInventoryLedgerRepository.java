@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class JpaInventoryLedgerRepository implements InventoryLedgerRepository {
 
     private static final int ACTIVE = 1;
+    private static final BigDecimal[] ZERO_PAIR = { BigDecimal.ZERO, BigDecimal.ZERO };
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -199,16 +200,67 @@ public class JpaInventoryLedgerRepository implements InventoryLedgerRepository {
         List<Object[]> rows = entityManager.createNativeQuery(sql)
                 .setParameter("balanceId", balanceId)
                 .getResultList();
+        Map<Integer, BigDecimal[]> voided = loadVoidedMonthlyQty(balanceId);
         List<InventoryBalanceMonthlyView> months = new ArrayList<>();
         for (Object[] row : rows) {
+            int monthNum = ((Number) row[0]).intValue();
+            BigDecimal[] excluded = voided.getOrDefault(monthNum, ZERO_PAIR);
             months.add(new InventoryBalanceMonthlyView(
-                    ((Number) row[0]).intValue(),
-                    toBigDecimal(row[1]),
-                    toBigDecimal(row[2]),
+                    monthNum,
+                    floorZero(toBigDecimal(row[1]).subtract(excluded[0])),
+                    floorZero(toBigDecimal(row[2]).subtract(excluded[1])),
                     toBigDecimal(row[3])
             ));
         }
         return months;
+    }
+
+    /**
+     * 취소된 원래 이동과 취소로 생긴 반대 이동. 재고 잔고의 월별 입고·출고에서만 뺀다.
+     * 월말 재고와 입출고 이력은 그대로 둔다.
+     */
+    private Map<Integer, BigDecimal[]> loadVoidedMonthlyQty(long balanceId) {
+        String sql = """
+                SELECT sm.fiscal_month,
+                       SUM(CASE
+                             WHEN sm.movement_type = 'IN' THEN sm.qty
+                             WHEN sm.movement_type = 'ADJUST' AND sm.qty > 0 THEN sm.qty
+                             ELSE 0 END),
+                       SUM(CASE
+                             WHEN sm.movement_type = 'OUT' THEN sm.qty
+                             WHEN sm.movement_type = 'ADJUST' AND sm.qty < 0 THEN ABS(sm.qty)
+                             ELSE 0 END)
+                FROM stock_movement sm
+                WHERE sm.inventory_balance_id = :balanceId
+                  AND sm.recording_state = 1
+                  AND (
+                    RIGHT(sm.reference_type, 7) = '_CANCEL'
+                    OR EXISTS (
+                      SELECT 1 FROM stock_movement c
+                      WHERE c.recording_state = 1
+                        AND c.inventory_balance_id = sm.inventory_balance_id
+                        AND c.reference_id = sm.reference_id
+                        AND c.reference_type = CONCAT(sm.reference_type, '_CANCEL')
+                    )
+                  )
+                GROUP BY sm.fiscal_month
+                """;
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = entityManager.createNativeQuery(sql)
+                .setParameter("balanceId", balanceId)
+                .getResultList();
+        Map<Integer, BigDecimal[]> byMonth = new HashMap<>();
+        for (Object[] row : rows) {
+            byMonth.put(
+                    ((Number) row[0]).intValue(),
+                    new BigDecimal[] { toBigDecimal(row[1]), toBigDecimal(row[2]) }
+            );
+        }
+        return byMonth;
+    }
+
+    private static BigDecimal floorZero(BigDecimal value) {
+        return value.signum() < 0 ? BigDecimal.ZERO : value;
     }
 
     private static Integer toInteger(Object value) {

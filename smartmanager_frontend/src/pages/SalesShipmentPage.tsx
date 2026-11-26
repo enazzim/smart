@@ -90,6 +90,7 @@ export default function SalesShipmentPage() {
   const [candidatesSearched, setCandidatesSearched] = useState(false);
   const [shipmentsSearched, setShipmentsSearched] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [tab, setTab] = useState<'register' | 'list'>('register');
 
   const shipmentExportRows = useMemo(
     () =>
@@ -268,8 +269,12 @@ export default function SalesShipmentPage() {
       );
       setSelectedLineIds(new Set());
       setLotIdByLineId({});
-      await loadCandidates();
-      await loadShipments();
+      if (candidatesSearched) {
+        await loadCandidates();
+      }
+      if (shipmentsSearched) {
+        await loadShipments();
+      }
     } catch (e) {
       setShipmentError(e instanceof Error ? e.message : '출고·납품 등록 실패');
     } finally {
@@ -284,8 +289,12 @@ export default function SalesShipmentPage() {
     try {
       await cancelSalesShipment(shipment.id);
       setMessage(`출고·납품 ${shipment.shipmentNo}을(를) 취소했습니다.`);
-      await loadCandidates();
-      await loadShipments();
+      if (candidatesSearched) {
+        await loadCandidates();
+      }
+      if (shipmentsSearched) {
+        await loadShipments();
+      }
     } catch (e) {
       setShipmentError(e instanceof Error ? e.message : '출고·납품 취소 실패');
     } finally {
@@ -321,6 +330,16 @@ export default function SalesShipmentPage() {
       {message && <p className="success-banner">{message}</p>}
       {shipmentError && <p className="error-banner">{shipmentError}</p>}
 
+      <div className="tab-row">
+        <button type="button" className={tab === 'register' ? 'tab-active' : undefined} onClick={() => setTab('register')}>
+          출고 등록
+        </button>
+        <button type="button" className={tab === 'list' ? 'tab-active' : undefined} onClick={() => setTab('list')}>
+          출고·납품 목록
+        </button>
+      </div>
+
+      {tab === 'register' && (
       <section className="panel">
         <h2>수주 출고 후보</h2>
         <div className="sales-shipment-filters">
@@ -552,7 +571,9 @@ export default function SalesShipmentPage() {
           </>
         )}
       </section>
+      )}
 
+      {tab === 'list' && (
       <section className="panel">
         <div className="panel-header-row">
           <h2>출고·납품 목록</h2>
@@ -698,6 +719,7 @@ export default function SalesShipmentPage() {
           </>
         )}
       </section>
+      )}
     </div>
   );
 }

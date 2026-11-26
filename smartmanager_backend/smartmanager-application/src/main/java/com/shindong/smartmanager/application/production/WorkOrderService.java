@@ -21,8 +21,8 @@ public class WorkOrderService {
         this.workPlanRepository = workPlanRepository;
     }
 
-    public List<WorkOrderView> listOrderTargets() {
-        return workOrderRepository.findOrderTargets();
+    public List<WorkOrderView> listOrderTargets(WorkTargetSearchCriteria criteria) {
+        return workOrderRepository.findOrderTargets(criteria);
     }
 
     public List<WorkOrderView> list(WorkOrderListCriteria criteria) {

@@ -141,6 +141,30 @@ export async function fetchLotGenealogy(
   );
 }
 
+export interface LotGenealogyTreeNode {
+  depth: number;
+  lotId: number;
+  lotNo: string;
+  itemId: number;
+  itemNo: string;
+  itemName: string;
+  qty: number | null;
+  sourceDocType?: string | null;
+  sourceDocId?: number | null;
+  truncated: boolean;
+  children: LotGenealogyTreeNode[];
+}
+
+export async function fetchLotGenealogyTree(
+  lotId: number,
+  direction: LotGenealogyDirection = 'UP',
+): Promise<LotGenealogyTreeNode> {
+  const search = new URLSearchParams({ direction });
+  return handleResponse(
+    await apiFetch(`/api/v1/inventory/lots/${lotId}/genealogy/tree?${search.toString()}`),
+  );
+}
+
 export async function fetchLotMovements(lotId: number): Promise<StockMovement[]> {
   return handleResponse(await apiFetch(`/api/v1/inventory/lots/${lotId}/movements`));
 }

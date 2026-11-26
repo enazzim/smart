@@ -6,6 +6,7 @@ import com.shindong.smartmanager.application.item.ItemRepository;
 import com.shindong.smartmanager.application.item.ItemView;
 import com.shindong.smartmanager.application.process.ProcessRepository;
 import com.shindong.smartmanager.application.process.ProcessView;
+import com.shindong.smartmanager.application.outsource.OutsourcingOrderRepository;
 import com.shindong.smartmanager.application.workstandard.WorkStandardRepository;
 import com.shindong.smartmanager.application.workstandard.WorkStandardView;
 import com.shindong.smartmanager.domain.item.PropertyClassification;
@@ -18,11 +19,15 @@ import com.shindong.smartmanager.domain.production.WorkPlanStatus;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class WorkPlanService {
 
@@ -32,6 +37,8 @@ public class WorkPlanService {
     private final WorkStandardRepository workStandardRepository;
     private final ItemCompositionService itemCompositionService;
     private final ItemRepository itemRepository;
+    private final WorkOrderRepository workOrderRepository;
+    private final OutsourcingOrderRepository outsourcingOrderRepository;
 
     public WorkPlanService(
             WorkPlanRepository workPlanRepository,
@@ -39,7 +46,9 @@ public class WorkPlanService {
             ProcessRepository processRepository,
             WorkStandardRepository workStandardRepository,
             ItemCompositionService itemCompositionService,
-            ItemRepository itemRepository
+            ItemRepository itemRepository,
+            WorkOrderRepository workOrderRepository,
+            OutsourcingOrderRepository outsourcingOrderRepository
     ) {
         this.workPlanRepository = workPlanRepository;
         this.productionPlanRepository = productionPlanRepository;
@@ -47,21 +56,49 @@ public class WorkPlanService {
         this.workStandardRepository = workStandardRepository;
         this.itemCompositionService = itemCompositionService;
         this.itemRepository = itemRepository;
+        this.workOrderRepository = workOrderRepository;
+        this.outsourcingOrderRepository = outsourcingOrderRepository;
     }
 
-    public List<ProductionPlanView> listPlanningTargets() {
+    public List<ProductionPlanView> listPlanningTargets(
+            Long itemId,
+            LocalDate registeredFrom,
+            LocalDate registeredTo
+    ) {
         return productionPlanRepository.findAllActive(
-                new ProductionPlanListCriteria(null, null, null, null, null, ProductionPlanMrpStatus.CALCULATED)
+                new ProductionPlanListCriteria(null, itemId, null, null, null, ProductionPlanMrpStatus.CALCULATED)
         ).stream()
                 .filter(plan -> plan.workPlanStatus() == ProductionPlanWorkPlanStatus.NOT_PLANNED)
                 .filter(plan -> plan.status() == ProductionPlanStatus.PLANNED
                         || plan.status() == ProductionPlanStatus.IN_PROGRESS)
+                .filter(plan -> matchesRegisteredDate(plan.planNo(), registeredFrom, registeredTo))
                 .toList();
     }
 
+    private static boolean matchesRegisteredDate(String planNo, LocalDate from, LocalDate to) {
+        if (from == null && to == null) {
+            return true;
+        }
+        if (planNo == null || !planNo.startsWith("PP-") || planNo.length() < 11) {
+            return false;
+        }
+        LocalDate registered;
+        try {
+            registered = LocalDate.parse(planNo.substring(3, 11), DateTimeFormatter.BASIC_ISO_DATE);
+        } catch (DateTimeParseException ex) {
+            return false;
+        }
+        if (from != null && registered.isBefore(from)) {
+            return false;
+        }
+        return to == null || !registered.isAfter(to);
+    }
+
     public List<WorkPlanView> list(WorkPlanListCriteria criteria) {
-        return workPlanRepository.findAllActive(criteria).stream()
-                .map(this::enrichCancellable)
+        List<WorkPlanView> lines = workPlanRepository.findAllActive(criteria);
+        CancelBlocks blocks = cancelBlocks(lines);
+        return lines.stream()
+                .map(line -> enrichCancellable(line, blocks))
                 .toList();
     }
 
@@ -94,7 +131,7 @@ public class WorkPlanService {
 
         workPlanRepository.cancelById(id, actorUserId);
         syncProductionPlanWorkPlanStatus(line.productionPlanId(), actorUserId);
-        return enrichCancellable(toCancelledView(line));
+        return toCancelledView(line);
     }
 
     private WorkPlanView toCancelledView(WorkPlanView line) {
@@ -133,18 +170,53 @@ public class WorkPlanService {
     }
 
     private void ensureCancellable(List<WorkPlanView> lines) {
+        CancelBlocks blocks = cancelBlocks(lines);
         for (WorkPlanView line : lines) {
-            if (!isCancellable(line)) {
-                throw new IllegalArgumentException("취소할 수 없는 작업계획이 포함되어 있습니다: " + line.planNo());
+            if (!isCancellable(line, blocks)) {
+                throw new IllegalArgumentException(cancelBlockedMessage(line, blocks));
             }
         }
     }
 
-    private boolean isCancellable(WorkPlanView line) {
-        return line.status() == WorkPlanStatus.PLANNED;
+    private CancelBlocks cancelBlocks(List<WorkPlanView> lines) {
+        List<Long> ids = lines.stream().map(WorkPlanView::id).toList();
+        if (ids.isEmpty()) {
+            return new CancelBlocks(Set.of(), Set.of());
+        }
+        Set<Long> ordered = new HashSet<>();
+        for (Map.Entry<Long, BigDecimal> entry : outsourcingOrderRepository.sumOrderedQtyByWorkPlanIds(ids).entrySet()) {
+            if (entry.getValue() != null && entry.getValue().compareTo(BigDecimal.ZERO) > 0) {
+                ordered.add(entry.getKey());
+            }
+        }
+        return new CancelBlocks(workOrderRepository.findActiveIssuedWorkPlanIds(ids), ordered);
     }
 
-    private WorkPlanView enrichCancellable(WorkPlanView line) {
+    private boolean isCancellable(WorkPlanView line, CancelBlocks blocks) {
+        if (line.status() != WorkPlanStatus.PLANNED) {
+            return false;
+        }
+        if (line.workDistinction() == WorkDistinction.INHOUSE) {
+            return !blocks.issuedWorkPlanIds().contains(line.id());
+        }
+        if (line.workDistinction() == WorkDistinction.OUTSOURCE) {
+            return !blocks.orderedWorkPlanIds().contains(line.id());
+        }
+        return true;
+    }
+
+    private String cancelBlockedMessage(WorkPlanView line, CancelBlocks blocks) {
+        String label = line.planNo() + " " + line.processSequenceNum() + ". " + line.processName();
+        if (line.workDistinction() == WorkDistinction.INHOUSE && blocks.issuedWorkPlanIds().contains(line.id())) {
+            return "작업지시가 있어 작업계획을 취소할 수 없습니다: " + label;
+        }
+        if (line.workDistinction() == WorkDistinction.OUTSOURCE && blocks.orderedWorkPlanIds().contains(line.id())) {
+            return "외주발주가 있어 작업계획을 취소할 수 없습니다: " + label;
+        }
+        return "취소할 수 없는 작업계획이 포함되어 있습니다: " + label;
+    }
+
+    private WorkPlanView enrichCancellable(WorkPlanView line, CancelBlocks blocks) {
         return new WorkPlanView(
                 line.id(),
                 line.productionPlanId(),
@@ -165,10 +237,13 @@ public class WorkPlanService {
                 line.setupTime(),
                 line.standardTime(),
                 line.status(),
-                isCancellable(line),
+                isCancellable(line, blocks),
                 line.createdAt(),
                 line.createdBy()
         );
+    }
+
+    private record CancelBlocks(Set<Long> issuedWorkPlanIds, Set<Long> orderedWorkPlanIds) {
     }
 
     public List<WorkPlanView> createPlans(List<Long> productionPlanIds, String actorUserId) {
@@ -247,7 +322,8 @@ public class WorkPlanService {
 
         List<WorkPlanView> result = workPlanRepository.saveAll(saves, actorUserId);
         productionPlanRepository.updateWorkPlanStatus(planId, ProductionPlanWorkPlanStatus.PLANNED, actorUserId);
-        return result.stream().map(this::enrichCancellable).toList();
+        CancelBlocks blocks = cancelBlocks(result);
+        return result.stream().map(line -> enrichCancellable(line, blocks)).toList();
     }
 
     private Map<Long, ManufacturingTarget> collectManufacturingTargets(ProductionPlanView plan) {

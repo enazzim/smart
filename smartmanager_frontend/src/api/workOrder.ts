@@ -38,6 +38,26 @@ export interface WorkOrderListParams {
   planStartDateTo?: string;
 }
 
+export interface WorkOrderTargetSearchParams {
+  itemNo?: string;
+  processName?: string;
+  registeredFrom?: string;
+  registeredTo?: string;
+}
+
+function buildTargetQuery(params?: WorkOrderTargetSearchParams): string {
+  if (!params) {
+    return '';
+  }
+  const search = new URLSearchParams();
+  if (params.itemNo?.trim()) search.set('itemNo', params.itemNo.trim());
+  if (params.processName?.trim()) search.set('processName', params.processName.trim());
+  if (params.registeredFrom) search.set('registeredFrom', params.registeredFrom);
+  if (params.registeredTo) search.set('registeredTo', params.registeredTo);
+  const query = search.toString();
+  return query ? `?${query}` : '';
+}
+
 function buildQuery(params?: WorkOrderListParams): string {
   if (!params) {
     return '';
@@ -54,8 +74,8 @@ function buildQuery(params?: WorkOrderListParams): string {
   return query ? `?${query}` : '';
 }
 
-export async function fetchWorkOrderTargets(): Promise<WorkOrder[]> {
-  return handleResponse(await apiFetch('/api/v1/production/work-orders/order-targets'));
+export async function fetchWorkOrderTargets(params?: WorkOrderTargetSearchParams): Promise<WorkOrder[]> {
+  return handleResponse(await apiFetch(`/api/v1/production/work-orders/order-targets${buildTargetQuery(params)}`));
 }
 
 export async function fetchWorkOrders(params?: WorkOrderListParams): Promise<WorkOrder[]> {

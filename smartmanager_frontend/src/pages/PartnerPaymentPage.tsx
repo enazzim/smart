@@ -147,6 +147,7 @@ export default function PartnerPaymentPage() {
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [tab, setTab] = useState<'register' | 'list'>('register');
   const [balancesOpen, setBalancesOpen] = useState(true);
 
   /** params 생략 시 마지막 적용 조건으로 조회한다. 필터 입력 변경만으로는 호출되지 않는다. */
@@ -586,6 +587,16 @@ export default function PartnerPaymentPage() {
       {message && <p className="success-banner" style={{ whiteSpace: 'pre-wrap' }}>{message}</p>}
       {paymentError && <p className="error-banner">{paymentError}</p>}
 
+      <div className="tab-row">
+        <button type="button" className={tab === 'register' ? 'tab-active' : undefined} onClick={() => setTab('register')}>
+          지급 등록
+        </button>
+        <button type="button" className={tab === 'list' ? 'tab-active' : undefined} onClick={() => setTab('list')}>
+          지급 목록
+        </button>
+      </div>
+
+      {tab === 'register' && (
       <section className="panel">
         <h2>등록</h2>
         <div className="filter-row">
@@ -980,7 +991,9 @@ export default function PartnerPaymentPage() {
           </>
         )}
       </section>
+      )}
 
+      {tab === 'list' && (
       <section className="panel">
         <h2>지급 목록</h2>
         <div className="filter-row">
@@ -1074,6 +1087,7 @@ export default function PartnerPaymentPage() {
           </div>
         )}
       </section>
+      )}
 
       {orderLinkLineKey && (
         <div className="modal-backdrop" role="presentation" onClick={() => setOrderLinkLineKey(null)}>

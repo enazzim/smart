@@ -6,6 +6,7 @@ import com.shindong.smartmanager.application.production.WorkOrderListCriteria;
 import com.shindong.smartmanager.application.production.WorkOrderRepository;
 import com.shindong.smartmanager.application.production.WorkOrderSaveCommand;
 import com.shindong.smartmanager.application.production.WorkOrderView;
+import com.shindong.smartmanager.application.production.WorkTargetSearchCriteria;
 import com.shindong.smartmanager.domain.process.WorkDistinction;
 import com.shindong.smartmanager.domain.production.WorkOrderStatus;
 import com.shindong.smartmanager.domain.production.WorkPlanStatus;
@@ -23,10 +24,13 @@ import jakarta.persistence.Query;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -69,10 +73,13 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<WorkOrderView> findOrderTargets() {
-        String sql = """
+    public List<WorkOrderView> findOrderTargets(WorkTargetSearchCriteria criteria) {
+        StringBuilder sql = new StringBuilder("""
                 SELECT wp.id
                 FROM work_plan wp
+                JOIN process_sequence ps ON ps.id = wp.process_sequence_id
+                JOIN item i ON i.id = ps.item_id
+                LEFT JOIN public_code pc ON pc.id = ps.public_code_id
                 WHERE wp.recording_state = 1
                   AND wp.status = 'PLANNED'
                   AND wp.work_distinction = 'INHOUSE'
@@ -82,10 +89,15 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
                       AND wo.recording_state = 1
                       AND wo.status = 'ISSUED'
                   )
-                ORDER BY wp.plan_start_date ASC, wp.id ASC
-                """;
+                """);
+        Map<String, Object> params = new HashMap<>();
+        appendTargetFilters(sql, params, criteria, "wp.created_at");
+        sql.append(" ORDER BY wp.created_at ASC, wp.id ASC");
+
+        Query query = entityManager.createNativeQuery(sql.toString());
+        params.forEach(query::setParameter);
         @SuppressWarnings("unchecked")
-        List<Number> rows = entityManager.createNativeQuery(sql).getResultList();
+        List<Number> rows = query.getResultList();
         List<WorkOrderView> result = new ArrayList<>();
         for (Number row : rows) {
             workPlanRepository.findById(row.longValue())
@@ -166,6 +178,18 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public Set<Long> findActiveIssuedWorkPlanIds(Collection<Long> workPlanIds) {
+        if (workPlanIds == null || workPlanIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(workOrderRepository.findWorkPlanIdsByRecordingStateAndStatus(
+                workPlanIds,
+                ACTIVE,
+                WorkOrderStatus.ISSUED
+        ));
+    }
+
+    @Override
     public BigDecimal sumActiveReportedQtyByWorkPlanId(long workPlanId) {
         BigDecimal sum = workOrderRepository.sumReportedQtyByWorkPlanId(workPlanId, ACTIVE);
         return sum != null ? sum : BigDecimal.ZERO;
@@ -336,6 +360,30 @@ public class JpaWorkOrderRepository implements WorkOrderRepository {
         if (criteria.planStartDateTo() != null) {
             sql.append(" AND wp.plan_start_date <= :planStartDateTo");
             params.put("planStartDateTo", criteria.planStartDateTo());
+        }
+    }
+
+    private void appendTargetFilters(
+            StringBuilder sql,
+            Map<String, Object> params,
+            WorkTargetSearchCriteria criteria,
+            String dateColumn
+    ) {
+        if (criteria.itemNo() != null && !criteria.itemNo().isBlank()) {
+            sql.append(" AND i.item_no LIKE :itemNo");
+            params.put("itemNo", "%" + criteria.itemNo().trim() + "%");
+        }
+        if (criteria.processName() != null && !criteria.processName().isBlank()) {
+            sql.append(" AND pc.small_name LIKE :processName");
+            params.put("processName", "%" + criteria.processName().trim() + "%");
+        }
+        if (criteria.dateFrom() != null) {
+            sql.append(" AND DATE(").append(dateColumn).append(") >= :dateFrom");
+            params.put("dateFrom", criteria.dateFrom());
+        }
+        if (criteria.dateTo() != null) {
+            sql.append(" AND DATE(").append(dateColumn).append(") <= :dateTo");
+            params.put("dateTo", criteria.dateTo());
         }
     }
 

@@ -59,8 +59,39 @@ export interface MrpCancelPlanResult {
   planNo: string;
 }
 
-export async function fetchMrpTargets(): Promise<ProductionPlan[]> {
-  const res = await apiFetch('/api/v1/production/mrp/targets');
+export interface MrpTargetParams {
+  itemId?: number;
+  requestedDeliveryDateFrom?: string;
+  requestedDeliveryDateTo?: string;
+}
+
+export interface MrpLineSearchParams {
+  runId?: number;
+  parentItemId?: number;
+  componentItemId?: number;
+  requestedDeliveryDateFrom?: string;
+  requestedDeliveryDateTo?: string;
+}
+
+function toQuery(params: Record<string, string | number | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') {
+      search.set(key, String(value));
+    }
+  }
+  const qs = search.toString();
+  return qs ? `?${qs}` : '';
+}
+
+export async function fetchMrpTargets(params: MrpTargetParams = {}): Promise<ProductionPlan[]> {
+  const res = await apiFetch(
+    `/api/v1/production/mrp/targets${toQuery({
+      itemId: params.itemId,
+      requestedDeliveryDateFrom: params.requestedDeliveryDateFrom,
+      requestedDeliveryDateTo: params.requestedDeliveryDateTo,
+    })}`,
+  );
   return handleResponse(res);
 }
 
@@ -79,9 +110,18 @@ export async function fetchAllMrpLines(): Promise<MaterialRequirementLine[]> {
   return handleResponse(res);
 }
 
-export async function fetchGroupedMrpLines(runId?: number | null): Promise<MaterialRequirementGrouped> {
-  const query = runId != null ? `?runId=${runId}` : '';
-  const res = await apiFetch(`/api/v1/production/mrp/lines/grouped${query}`);
+export async function fetchGroupedMrpLines(
+  params: MrpLineSearchParams = {},
+): Promise<MaterialRequirementGrouped> {
+  const res = await apiFetch(
+    `/api/v1/production/mrp/lines/grouped${toQuery({
+      runId: params.runId,
+      parentItemId: params.parentItemId,
+      componentItemId: params.componentItemId,
+      requestedDeliveryDateFrom: params.requestedDeliveryDateFrom,
+      requestedDeliveryDateTo: params.requestedDeliveryDateTo,
+    })}`,
+  );
   return handleResponse(res);
 }
 

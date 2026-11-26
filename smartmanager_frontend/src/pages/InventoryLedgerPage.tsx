@@ -8,11 +8,11 @@ import {
 } from '../api/inventoryLedger';
 import {
   fetchLot,
-  fetchLotGenealogy,
+  fetchLotGenealogyTree,
   fetchLotMovements,
   fetchLots,
   type LotGenealogyDirection,
-  type LotGenealogyLink,
+  type LotGenealogyTreeNode,
   type LotRow,
   type LotStatus,
 } from '../api/lot';
@@ -42,6 +42,10 @@ function movementTypeLabel(type: string) {
   }
 }
 
+function flattenGenealogy(node: LotGenealogyTreeNode): LotGenealogyTreeNode[] {
+  return [node, ...node.children.flatMap((child) => flattenGenealogy(child))];
+}
+
 function sumLotQty(lot: LotRow): number {
   return lot.balances.reduce((sum, row) => sum + Number(row.qtyOnHand ?? 0), 0);
 }
@@ -62,7 +66,7 @@ export default function InventoryLedgerPage() {
   const [lotDetailPane, setLotDetailPane] = useState<LotDetailPane>('balances');
   const [genealogyDirection, setGenealogyDirection] = useState<LotGenealogyDirection>('UP');
   const [lotMovements, setLotMovements] = useState<StockMovement[]>([]);
-  const [genealogyLinks, setGenealogyLinks] = useState<LotGenealogyLink[]>([]);
+  const [genealogyTree, setGenealogyTree] = useState<LotGenealogyTreeNode | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -156,12 +160,12 @@ export default function InventoryLedgerPage() {
       if (pane === 'movements') {
         setLotMovements(await fetchLotMovements(lotId));
       } else if (pane === 'genealogy') {
-        setGenealogyLinks(await fetchLotGenealogy(lotId, direction));
+        setGenealogyTree(await fetchLotGenealogyTree(lotId, direction));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lot 상세를 불러오지 못했습니다.');
       if (pane === 'movements') setLotMovements([]);
-      if (pane === 'genealogy') setGenealogyLinks([]);
+      if (pane === 'genealogy') setGenealogyTree(null);
     } finally {
       setDetailLoading(false);
     }
@@ -641,49 +645,47 @@ export default function InventoryLedgerPage() {
                   <table>
                     <thead>
                       <tr>
-                        <th>유형</th>
-                        <th>부모 Lot</th>
-                        <th>자식 Lot</th>
+                        <th>Lot</th>
+                        <th>품목</th>
                         <th className="num">수량</th>
                         <th>원장</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {genealogyLinks.length === 0 ? (
+                      {genealogyTree == null ? (
                         <tr>
-                          <td colSpan={5}>계보 링크가 없습니다.</td>
+                          <td colSpan={4}>계보를 불러오지 못했습니다.</td>
                         </tr>
                       ) : (
-                        genealogyLinks.map((link) => (
-                            <tr key={link.id}>
-                              <td>{link.linkTypeLabel}</td>
-                              <td>
-                                <button
-                                  type="button"
-                                  className="link-button"
-                                  onClick={() => void drillToLot(link.parentLotId)}
-                                  disabled={link.parentLotId === selectedLotId}
-                                >
-                                  {link.parentLotNo} ({link.parentItemNo})
-                                </button>
-                              </td>
-                              <td>
-                                <button
-                                  type="button"
-                                  className="link-button"
-                                  onClick={() => void drillToLot(link.childLotId)}
-                                  disabled={link.childLotId === selectedLotId}
-                                >
-                                  {link.childLotNo} ({link.childItemNo})
-                                </button>
-                              </td>
-                              <td className="num">{formatQty(link.qty)}</td>
-                              <td>
-                                {link.sourceDocType ?? '—'}
-                                {link.sourceDocId != null ? ` #${link.sourceDocId}` : ''}
-                              </td>
-                            </tr>
-                          ))
+                        flattenGenealogy(genealogyTree).map((node, index) => (
+                          <tr key={`${index}-${node.lotId}`}>
+                            <td style={{ paddingLeft: `${0.75 + node.depth * 1.25}rem` }}>
+                              {node.depth > 0 ? '└ ' : ''}
+                              <button
+                                type="button"
+                                className="link-button"
+                                onClick={() => void drillToLot(node.lotId)}
+                                disabled={node.lotId === selectedLotId}
+                              >
+                                {node.lotNo} ({node.itemNo})
+                              </button>
+                              {node.truncated ? ' 이하 생략' : ''}
+                            </td>
+                            <td>{node.itemName}</td>
+                            <td className="num">{node.qty == null ? '' : formatQty(node.qty)}</td>
+                            <td>
+                              {node.sourceDocType ?? '—'}
+                              {node.sourceDocId != null ? ` #${node.sourceDocId}` : ''}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                      {genealogyTree != null && genealogyTree.children.length === 0 && (
+                        <tr>
+                          <td colSpan={4}>
+                            {genealogyDirection === 'UP' ? '상위 계보가 없습니다.' : '하위 계보가 없습니다.'}
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </table>

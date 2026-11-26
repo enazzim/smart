@@ -6,6 +6,7 @@ import {
   fetchWorkOrders,
   type WorkOrder,
   type WorkOrderListParams,
+  type WorkOrderTargetSearchParams,
 } from '../api/workOrder';
 import GridExcelExportButton from '../components/GridExcelExportButton';
 import ItemSearchField, { type ItemSearchSelection } from '../components/ItemSearchField';
@@ -14,6 +15,13 @@ import { useConfirm } from '../context/ConfirmContext';
 
 type OrderFilterDraft = Omit<WorkOrderListParams, 'itemNo' | 'itemName'>;
 
+function formatSeoulDate(value?: string | null): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10);
+  return date.toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+}
+
 export default function WorkOrderPage() {
   const confirm = useConfirm();
   const [targets, setTargets] = useState<WorkOrder[]>([]);
@@ -21,8 +29,14 @@ export default function WorkOrderPage() {
   const [selectedPlanIds, setSelectedPlanIds] = useState<Set<number>>(new Set());
   const [filters, setFilters] = useState<OrderFilterDraft>({});
   const [selectedItem, setSelectedItem] = useState<ItemSearchSelection | null>(null);
+  const [targetItem, setTargetItem] = useState<ItemSearchSelection | null>(null);
+  const [targetProcessName, setTargetProcessName] = useState('');
+  const [targetDateFrom, setTargetDateFrom] = useState('');
+  const [targetDateTo, setTargetDateTo] = useState('');
+  const [targetsSearched, setTargetsSearched] = useState(false);
   const appliedParamsRef = useRef<WorkOrderListParams>({});
-  const [loadingTargets, setLoadingTargets] = useState(true);
+  const appliedTargetRef = useRef<WorkOrderTargetSearchParams>({});
+  const [loadingTargets, setLoadingTargets] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,11 +62,13 @@ export default function WorkOrderPage() {
     [orders],
   );
 
-  const loadTargets = useCallback(async () => {
+  const loadTargets = useCallback(async (params: WorkOrderTargetSearchParams) => {
+    appliedTargetRef.current = params;
+    setTargetsSearched(true);
     setLoadingTargets(true);
     setError(null);
     try {
-      const data = await fetchWorkOrderTargets();
+      const data = await fetchWorkOrderTargets(params);
       setTargets(data);
       setSelectedPlanIds(new Set());
     } catch (e) {
@@ -80,11 +96,15 @@ export default function WorkOrderPage() {
     }
   }, []);
 
-  useEffect(() => {
-    void loadTargets();
-  }, [loadTargets]);
+  const onSearchTargets = () => {
+    void loadTargets({
+      itemNo: targetItem?.itemNo,
+      processName: targetProcessName.trim() || undefined,
+      registeredFrom: targetDateFrom || undefined,
+      registeredTo: targetDateTo || undefined,
+    });
+  };
 
-  // 탭 진입 시 마지막으로 적용된 조건으로 1회 조회 (필터 입력 변경과 무관)
   useEffect(() => {
     if (tab === 'orders') {
       void loadOrders(appliedParamsRef.current);
@@ -112,7 +132,9 @@ export default function WorkOrderPage() {
     try {
       const created = await createWorkOrders([...selectedPlanIds]);
       setMessage(`작업지시 ${created.length}건을 발행했습니다.`);
-      await loadTargets();
+      if (targetsSearched) {
+        await loadTargets(appliedTargetRef.current);
+      }
       setTab('orders');
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업지시 발행에 실패했습니다.');
@@ -129,7 +151,9 @@ export default function WorkOrderPage() {
     try {
       await cancelWorkOrder(id);
       setMessage(`작업지시 ${orderNum}을(를) 취소했습니다.`);
-      await loadTargets();
+      if (targetsSearched) {
+        await loadTargets(appliedTargetRef.current);
+      }
       await loadOrders(appliedParamsRef.current);
     } catch (e) {
       setError(e instanceof Error ? e.message : '작업지시 취소에 실패했습니다.');
@@ -159,16 +183,33 @@ export default function WorkOrderPage() {
 
       {tab === 'targets' && (
         <>
-          <section className="action-bar">
-            <button type="button" className="secondary" onClick={() => void loadTargets()}>
-              새로고침
+          <section className="filter-panel">
+            <ItemSearchField label="품목" selectedItem={targetItem} onSelect={setTargetItem} />
+            <label>
+              공정
+              <input value={targetProcessName} onChange={(e) => setTargetProcessName(e.target.value)} />
+            </label>
+            <label>
+              작업계획 등록일(부터)
+              <input type="date" value={targetDateFrom} onChange={(e) => setTargetDateFrom(e.target.value)} />
+            </label>
+            <label>
+              작업계획 등록일(까지)
+              <input type="date" value={targetDateTo} onChange={(e) => setTargetDateTo(e.target.value)} />
+            </label>
+            <button type="button" onClick={onSearchTargets} disabled={loadingTargets}>
+              {loadingTargets ? '조회 중…' : '검색'}
             </button>
+          </section>
+          <section className="action-bar">
             <button type="button" disabled={submitting || selectedCount === 0} onClick={() => void onCreate()}>
               {submitting ? '발행 중…' : `작업지시 발행 (${selectedCount}건)`}
             </button>
           </section>
           {loadingTargets ? (
             <p>불러오는 중…</p>
+          ) : !targetsSearched ? (
+            <p>검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요. 조건을 비우면 발행 대상 전체가 조회됩니다.</p>
           ) : (
             <div className="table-wrap">
               <table>
@@ -189,12 +230,13 @@ export default function WorkOrderPage() {
                     <th>작업장</th>
                     <th className="num">지시수량</th>
                     <th>시작일</th>
+                    <th>등록일</th>
                   </tr>
                 </thead>
                 <tbody>
                   {targets.length === 0 ? (
                     <tr>
-                      <td colSpan={7}>발행 대상이 없습니다.</td>
+                      <td colSpan={8}>발행 대상이 없습니다.</td>
                     </tr>
                   ) : (
                     targets.map((row) => (
@@ -215,6 +257,7 @@ export default function WorkOrderPage() {
                         <td>{row.workCenterName ?? '—'}</td>
                         <td className="num">{formatQty(row.orderedQty)}</td>
                         <td>{row.planStartDate ?? '—'}</td>
+                        <td>{formatSeoulDate(row.createdAt)}</td>
                       </tr>
                     ))
                   )}

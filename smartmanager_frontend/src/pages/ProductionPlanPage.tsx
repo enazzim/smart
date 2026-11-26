@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { SalesOrderLineListRow } from '../api/salesOrder';
 import CompanySearchField, { type CompanySearchSelection } from '../components/CompanySearchField';
 import GridExcelExportButton from '../components/GridExcelExportButton';
@@ -11,6 +11,7 @@ import {
   fetchProductionPlanCandidates,
   fetchProductionPlans,
   type ProductionPlan,
+  type ProductionPlanCandidateParams,
   type ProductionPlanMrpStatus,
   type ProductionPlanSearchParams,
   type ProductionPlanWorkPlanStatus,
@@ -32,7 +33,24 @@ const PLAN_WORK_PLAN_STATUS_OPTIONS: { value: ProductionPlanWorkPlanStatus | '';
   { value: 'PLANNED', label: '수립' },
 ];
 
-type PlanRegisterMode = 'pending' | 'standalone';
+type PlanRegisterMode = 'pending' | 'standalone' | 'list';
+
+function localIsoDate(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function defaultPlanListDates(): { from: string; to: string } {
+  const today = new Date();
+  const lastDayOfPreviousMonth = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+  const from = new Date(
+    today.getFullYear(),
+    today.getMonth() - 1,
+    Math.min(today.getDate(), lastDayOfPreviousMonth),
+  );
+  return { from: localIsoDate(from), to: localIsoDate(today) };
+}
 
 export default function ProductionPlanPage() {
   const confirm = useConfirm();
@@ -41,7 +59,12 @@ export default function ProductionPlanPage() {
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
   const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(new Set());
   const [plannedQtyByLineId, setPlannedQtyByLineId] = useState<Record<number, number>>({});
-  const [loadingCandidates, setLoadingCandidates] = useState(true);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [candidatesSearched, setCandidatesSearched] = useState(false);
+  const [candidateItem, setCandidateItem] = useState<ItemSearchSelection | null>(null);
+  const [candidateOrderFrom, setCandidateOrderFrom] = useState('');
+  const [candidateOrderTo, setCandidateOrderTo] = useState('');
+  const [candidateItemClearToken, setCandidateItemClearToken] = useState(0);
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
@@ -55,19 +78,24 @@ export default function ProductionPlanPage() {
 
   const [searchPartner, setSearchPartner] = useState<CompanySearchSelection | null>(null);
   const [searchItem, setSearchItem] = useState<ItemSearchSelection | null>(null);
-  const [searchDeliveryFrom, setSearchDeliveryFrom] = useState('');
-  const [searchDeliveryTo, setSearchDeliveryTo] = useState('');
+  const [searchDeliveryFrom, setSearchDeliveryFrom] = useState(() => defaultPlanListDates().from);
+  const [searchDeliveryTo, setSearchDeliveryTo] = useState(() => defaultPlanListDates().to);
   const [searchMrpStatus, setSearchMrpStatus] = useState<ProductionPlanMrpStatus | ''>('');
   const [searchWorkPlanStatus, setSearchWorkPlanStatus] = useState<ProductionPlanWorkPlanStatus | ''>('');
   const [partnerClearToken, setPartnerClearToken] = useState(0);
   const [itemClearToken, setItemClearToken] = useState(0);
 
-  const loadCandidates = useCallback(async () => {
+  const loadCandidates = useCallback(async (params: ProductionPlanCandidateParams = {}) => {
     setLoadingCandidates(true);
     setCandidateError(null);
     try {
-      const rows = await fetchProductionPlanCandidates();
+      const rows = await fetchProductionPlanCandidates(params);
       setCandidates(rows);
+      setCandidatesSearched(true);
+      setSelectedLineIds((prev) => {
+        const visible = new Set(rows.map((row) => row.lineId));
+        return new Set([...prev].filter((lineId) => visible.has(lineId)));
+      });
       setPlannedQtyByLineId((prev) => {
         const next = { ...prev };
         for (const row of rows) {
@@ -80,6 +108,7 @@ export default function ProductionPlanPage() {
     } catch (e) {
       setCandidateError(e instanceof Error ? e.message : '수립 대기 목록 조회 실패');
       setCandidates([]);
+      setCandidatesSearched(true);
     } finally {
       setLoadingCandidates(false);
     }
@@ -100,9 +129,27 @@ export default function ProductionPlanPage() {
     }
   }, []);
 
-  useEffect(() => {
-    void loadCandidates();
-  }, [loadCandidates]);
+  const buildCandidateSearchParams = (): ProductionPlanCandidateParams => ({
+    itemId: candidateItem?.id,
+    orderDateFrom: candidateOrderFrom || undefined,
+    orderDateTo: candidateOrderTo || undefined,
+  });
+
+  const buildPlanSearchParams = (): ProductionPlanSearchParams => ({
+    partnerId: searchPartner?.id,
+    itemId: searchItem?.id,
+    requestedDeliveryDateFrom: searchDeliveryFrom || undefined,
+    requestedDeliveryDateTo: searchDeliveryTo || undefined,
+  });
+
+  const reloadSearchedLists = async () => {
+    if (candidatesSearched) {
+      await loadCandidates(buildCandidateSearchParams());
+    }
+    if (plansSearched) {
+      await loadPlans(buildPlanSearchParams());
+    }
+  };
 
   const toggleLine = (lineId: number, checked: boolean) => {
     setSelectedLineIds((prev) => {
@@ -163,8 +210,7 @@ export default function ProductionPlanPage() {
       const created = await createProductionPlans(createLines);
       setMessage(`${created.length}건의 생산계획을 수립했습니다.`);
       setSelectedLineIds(new Set());
-      await loadCandidates();
-      await loadPlans(buildPlanSearchParams());
+      await reloadSearchedLists();
     } catch (e) {
       setCandidateError(e instanceof Error ? e.message : '생산계획 수립 실패');
     } finally {
@@ -198,20 +244,15 @@ export default function ProductionPlanPage() {
       setStandaloneItem(null);
       setStandaloneQty('1');
       setStandaloneDeliveryDate('');
-      await loadPlans(buildPlanSearchParams());
+      if (plansSearched) {
+        await loadPlans(buildPlanSearchParams());
+      }
     } catch (e) {
       setStandaloneError(e instanceof Error ? e.message : '생산계획 직접 등록 실패');
     } finally {
       setSubmitting(false);
     }
   };
-
-  const buildPlanSearchParams = (): ProductionPlanSearchParams => ({
-    partnerId: searchPartner?.id,
-    itemId: searchItem?.id,
-    requestedDeliveryDateFrom: searchDeliveryFrom || undefined,
-    requestedDeliveryDateTo: searchDeliveryTo || undefined,
-  });
 
   const filteredPlans = plans.filter((plan) => {
     if (searchMrpStatus && plan.mrpStatus !== searchMrpStatus) {
@@ -241,6 +282,17 @@ export default function ProductionPlanPage() {
     [filteredPlans],
   );
 
+  const handleSearchCandidates = () => {
+    void loadCandidates(buildCandidateSearchParams());
+  };
+
+  const handleResetCandidateSearch = () => {
+    setCandidateItem(null);
+    setCandidateOrderFrom('');
+    setCandidateOrderTo('');
+    setCandidateItemClearToken((token) => token + 1);
+  };
+
   const handleSearchPlans = () => {
     void loadPlans(buildPlanSearchParams());
   };
@@ -248,8 +300,9 @@ export default function ProductionPlanPage() {
   const handleResetPlanSearch = () => {
     setSearchPartner(null);
     setSearchItem(null);
-    setSearchDeliveryFrom('');
-    setSearchDeliveryTo('');
+    const dates = defaultPlanListDates();
+    setSearchDeliveryFrom(dates.from);
+    setSearchDeliveryTo(dates.to);
     setSearchMrpStatus('');
     setSearchWorkPlanStatus('');
     setPartnerClearToken((token) => token + 1);
@@ -272,8 +325,7 @@ export default function ProductionPlanPage() {
     try {
       await cancelProductionPlan(plan.id);
       setMessage('생산계획을 취소했습니다.');
-      await loadCandidates();
-      await loadPlans(buildPlanSearchParams());
+      await reloadSearchedLists();
     } catch (e) {
       setPlanError(e instanceof Error ? e.message : '생산계획 취소 실패');
     } finally {
@@ -292,7 +344,7 @@ export default function ProductionPlanPage() {
         </div>
       </header>
 
-      <div className="tab-row" aria-label="생산계획 등록 방식">
+      <div className="tab-row" aria-label="생산계획">
         <button
           type="button"
           className={registerMode === 'pending' ? 'tab-active' : undefined}
@@ -313,7 +365,19 @@ export default function ProductionPlanPage() {
         >
           계획 직접 추가
         </button>
+        <button
+          type="button"
+          className={registerMode === 'list' ? 'tab-active' : undefined}
+          onClick={() => {
+            setRegisterMode('list');
+            setCandidateError(null);
+            setStandaloneError(null);
+          }}
+        >
+          생산계획 목록
+        </button>
       </div>
+      {message && <p>{message}</p>}
 
       {registerMode === 'standalone' && (
       <section className="panel">
@@ -364,6 +428,39 @@ export default function ProductionPlanPage() {
           생산계획 수립 시 해당 수주는 자동으로 <strong>확정</strong>되며, 라인 이행상태는 <strong>진행</strong>으로 바뀝니다.
           계획수량은 수주수량과 다르게 지정할 수 있으며, 수주 원장의 수주수량은 변경되지 않습니다.
         </p>
+        <div className="production-plan-list-filters">
+          <ItemSearchField
+            label="품목"
+            allowedClassifications={PLAN_ITEM_CLASSES}
+            selectedItem={candidateItem}
+            onSelect={setCandidateItem}
+            clearToken={candidateItemClearToken}
+          />
+          <label>
+            수주일(부터)
+            <input
+              type="date"
+              value={candidateOrderFrom}
+              onChange={(e) => setCandidateOrderFrom(e.target.value)}
+            />
+          </label>
+          <label>
+            수주일(까지)
+            <input
+              type="date"
+              value={candidateOrderTo}
+              onChange={(e) => setCandidateOrderTo(e.target.value)}
+            />
+          </label>
+          <div className="production-plan-list-filter-actions">
+            <button type="button" onClick={handleSearchCandidates} disabled={loadingCandidates}>
+              {loadingCandidates ? '조회 중…' : '검색'}
+            </button>
+            <button type="button" className="secondary" onClick={handleResetCandidateSearch} disabled={loadingCandidates}>
+              초기화
+            </button>
+          </div>
+        </div>
         {candidateError && <div className="error">{candidateError}</div>}
         <div className="form-actions">
           <button
@@ -373,12 +470,11 @@ export default function ProductionPlanPage() {
           >
             {submitting ? '수립 중…' : `선택 수립 (${selectedLineIds.size})`}
           </button>
-          <button type="button" className="secondary" onClick={() => void loadCandidates()}>
-            새로고침
-          </button>
         </div>
         {loadingCandidates ? (
           <p>불러오는 중…</p>
+        ) : !candidatesSearched ? (
+          <p>검색 조건을 입력한 뒤 검색 버튼을 눌러 주세요. 조건을 비우면 수립 대상 전체가 조회됩니다.</p>
         ) : candidates.length === 0 ? (
           <p>수립 대기 중인 수주 라인이 없습니다.</p>
         ) : (
@@ -453,6 +549,7 @@ export default function ProductionPlanPage() {
       </section>
       )}
 
+      {registerMode === 'list' && (
       <section className="panel">
         <div className="panel-header-row">
           <h2>생산계획 목록</h2>
@@ -527,7 +624,6 @@ export default function ProductionPlanPage() {
             </button>
           </div>
         </div>
-        {message && <p>{message}</p>}
         {planError && <div className="error">{planError}</div>}
         {loadingPlans ? (
           <p>불러오는 중…</p>
@@ -591,6 +687,7 @@ export default function ProductionPlanPage() {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

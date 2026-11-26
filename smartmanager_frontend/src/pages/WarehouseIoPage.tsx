@@ -17,6 +17,7 @@ export default function WarehouseIoPage() {
   const [fiscalYear, setFiscalYear] = useState(String(new Date().getFullYear()));
   const [fiscalMonth, setFiscalMonth] = useState(String(new Date().getMonth() + 1));
   const [rows, setRows] = useState<WarehouseMonthlyIo[]>([]);
+  const [allMonths, setAllMonths] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
@@ -37,12 +38,13 @@ export default function WarehouseIoPage() {
           outputProcessName: row.outputProcessName,
         }),
         공정: row.outputProcessName ?? '',
+        ...(allMonths ? { 월: row.fiscalMonth } : {}),
         전월재고: Number(row.carryInQty),
         입고: Number(row.inQty),
         출고: Number(row.outQty),
         월말재고: Number(row.endingQty),
       })),
-    [rows],
+    [rows, allMonths],
   );
 
   const load = useCallback(async () => {
@@ -56,14 +58,16 @@ export default function WarehouseIoPage() {
       const year = Number(fiscalYear);
       const month = Number(fiscalMonth);
       const now = new Date();
+      const yearAll = fiscalMonth === '';
       setRows(
         await fetchWarehouseMonthlyIo({
           locationCode,
           ...itemSearchParams,
           fiscalYear: Number.isFinite(year) ? year : now.getFullYear(),
-          fiscalMonth: Number.isFinite(month) && month > 0 ? month : now.getMonth() + 1,
+          fiscalMonth: yearAll ? undefined : month,
         }),
       );
+      setAllMonths(yearAll);
       setSearched(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : '창고별 수불현황을 불러오지 못했습니다.');
@@ -83,6 +87,7 @@ export default function WarehouseIoPage() {
     setFiscalYear(String(d.getFullYear()));
     setFiscalMonth(String(d.getMonth() + 1));
     setRows([]);
+    setAllMonths(false);
     setError(null);
     setSearched(false);
   };
@@ -92,7 +97,7 @@ export default function WarehouseIoPage() {
       <header className="page-header">
         <div>
           <h1>창고별 수불현황</h1>
-          <p>선택한 창고·회계월의 전월이월·입고·출고·월말재고를 품목 단위로 조회합니다.</p>
+          <p>선택한 창고의 전월재고·입고·출고·월말재고를 품목 단위로 조회합니다. 월을 전체로 두면 그 해의 각 달이 행으로 나옵니다.</p>
         </div>
       </header>
 
@@ -121,6 +126,7 @@ export default function WarehouseIoPage() {
         <label>
           월
           <select value={fiscalMonth} onChange={(e) => setFiscalMonth(e.target.value)}>
+            <option value="">전체</option>
             {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
               <option key={m} value={m}>
                 {m}
@@ -150,6 +156,7 @@ export default function WarehouseIoPage() {
                 <th>품명</th>
                 <th>창고</th>
                 <th>공정</th>
+                {allMonths && <th className="num">월</th>}
                 <th className="num">전월재고</th>
                 <th className="num">입고</th>
                 <th className="num">출고</th>
@@ -174,6 +181,7 @@ export default function WarehouseIoPage() {
                       ? `${row.outputProcessSequence != null ? `${row.outputProcessSequence}. ` : ''}${row.outputProcessName}`
                       : '-'}
                   </td>
+                  {allMonths && <td className="num">{row.fiscalMonth}</td>}
                   <td className="num">{formatQty(row.carryInQty)}</td>
                   <td className="num">{formatQty(row.inQty)}</td>
                   <td className="num">{formatQty(row.outQty)}</td>

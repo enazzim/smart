@@ -5,6 +5,7 @@ import com.shindong.smartmanager.application.production.WorkPlanCancelPlanResult
 import com.shindong.smartmanager.application.production.WorkPlanListCriteria;
 import com.shindong.smartmanager.application.production.WorkPlanService;
 import com.shindong.smartmanager.application.production.WorkPlanView;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,8 +20,12 @@ public class WorkPlanApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProductionPlanView> listPlanningTargets() {
-        return workPlanService.listPlanningTargets();
+    public List<ProductionPlanView> listPlanningTargets(
+            Long itemId,
+            LocalDate registeredFrom,
+            LocalDate registeredTo
+    ) {
+        return workPlanService.listPlanningTargets(itemId, registeredFrom, registeredTo);
     }
 
     @Transactional(readOnly = true)
